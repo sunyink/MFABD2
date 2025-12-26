@@ -36,9 +36,11 @@
       84
     ],
     "template": [
+      "MissionsGE.png",
       "ActiveGe.png"
     ],
     "green_mask": true,
+    "threshold": 0.6,
     "target_offset": [
       -5,
       5,
