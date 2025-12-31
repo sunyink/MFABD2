@@ -311,6 +311,7 @@
     "recognition": "TemplateMatch",
     "action": "Click",
     "next": [
+      "[Anchor]Setup_EquipUp",
       "Equip_EquipUpSelectN",
       "Equip_EquipUp"
     ],
@@ -461,6 +462,7 @@
     "recognition": "TemplateMatch",
     "action": "Click",
     "next": [
+      "[Anchor]Setup_EquipDec",
       "Equip_EquipDecSelectN",
       "Equip_EquipDec2"
     ],

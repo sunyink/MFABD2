@@ -617,7 +617,8 @@
     "action": "Click",
     "next": [
       "RewardsORG_Busin_BackHomePage2",
-      "RewardsORG_Busin_BackPVEPage"
+      "RewardsORG_Busin_BackPVEPage",
+      "[JumpBack]Global_BackPageHub_Once"
     ],
     "post_delay": 2000,
     "focus": "PM.开始离开RewardsORG卡带-传统",
@@ -723,7 +724,7 @@
     "recognition": "OCR",
     "action": "Click",
     "next": [
-      "RewardsORG_Busin_PVEBookSwipe",
+      "RewardsORG_Busin_PVEBook_Menu",
       "RewardsORG_Busin_BackHomePage2"
     ],
     "roi": [
@@ -743,13 +744,26 @@
     ],
     "doc": "识别左下抽抽乐-主页-点击选择章节"
   },
+  "RewardsORG_Busin_PVEBook_Menu": {
+    "recognition": "OCR",
+    "expected": [
+      "游戏卡珍藏集"
+    ],
+    "roi": [
+      175,
+      8,
+      176,
+      62
+    ],
+    "next": [
+      "RewardsORG_Busin_TouchPVEBook",
+      "[JumpBack]RewardsORG_Busin_PVEBookSwipe_Lift",
+      "[JumpBack]RewardsORG_Busin_PVEBookSwipe"
+    ]
+  },
   "RewardsORG_Busin_PVEBookSwipe": {
     "recognition": "OCR",
     "action": "Swipe",
-    "next": [
-      "RewardsORG_Busin_TouchPVEBook",
-      "RewardsORG_Busin_PVEBookSwipe"
-    ],
     "roi": [
       118,
       505,
@@ -773,6 +787,35 @@
     ],
     "doc": "识别活动游戏卡-上划"
   },
+  "RewardsORG_Busin_PVEBookSwipe_Lift": {
+    "recognition": "OCR",
+    "action": "Swipe",
+    "duration": 500,
+    "end_hold": 800,
+    "post_delay": 1500,
+    "roi": [
+      111,
+      95,
+      105,
+      37
+    ],
+    "expected": [
+      "剧情游戏卡"
+    ],
+    "begin": [
+      150,
+      215,
+      0,
+      0
+    ],
+    "end": [
+      1264,
+      215,
+      0,
+      0
+    ],
+    "doc": "识别活动游戏卡-上划"
+  },
   "RewardsORG_Busin_TouchPVEBook": {
     "recognition": "TemplateMatch",
     "action": "Click",
@@ -789,10 +832,10 @@
     "post_delay": 5000,
     "focus": "PM.复位用卡带已找到",
     "roi": [
-      405,
-      157,
-      78,
-      38
+      385,
+      143,
+      117,
+      69
     ],
     "template": [
       "pve2.png"

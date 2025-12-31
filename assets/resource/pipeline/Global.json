@@ -234,5 +234,149 @@
         ],
         "green_mask": true,
         "doc": "找到run-点击返回主页"
+    },
+    "Global_BackToPve2#": {
+        "next": [
+            "Global_BackToPve2#_ToCardMenu",
+            "[JumpBack]Global_OnceHomeButton",
+            "[JumpBack]Global_ToHomePage"
+        ],
+        "focus": "G.复位卡带开始"
+    },
+    "Global_BackToPve2#_ToCardMenu": {
+        "recognition": "OCR",
+        "action": "Click",
+        "next": [
+            "Global_BackToPve2#_CardMenu",
+            "Global_BackToPve2#_ToCardMenu"
+        ],
+        "roi": [
+            89,
+            655,
+            77,
+            37
+        ],
+        "expected": [
+            "抽抽乐"
+        ],
+        "target": [
+            1111,
+            650,
+            0,
+            0
+        ],
+        "doc": "识别左下抽抽乐-主页-点击选择章节"
+    },
+    "Global_BackToPve2#_CardMenu": {
+        "recognition": "OCR",
+        "expected": [
+            "游戏卡珍藏集"
+        ],
+        "roi": [
+            175,
+            8,
+            176,
+            62
+        ],
+        "next": [
+            "Global_BackToPve2#_TouchPVEBook",
+            "[JumpBack]Global_BackToPve2#_PVEBookSwipe_Lift",
+            "[JumpBack]Global_BackToPve2#_PVEBookSwipe"
+        ]
+    },
+    "Global_BackToPve2#_PVEBookSwipe": {
+        "recognition": "OCR",
+        "action": "Swipe",
+        "roi": [
+            118,
+            505,
+            95,
+            42
+        ],
+        "expected": [
+            "活动游戏卡"
+        ],
+        "begin": [
+            30,
+            300,
+            0,
+            0
+        ],
+        "end": [
+            30,
+            700,
+            0,
+            0
+        ],
+        "doc": "识别活动游戏卡-上划"
+    },
+    "Global_BackToPve2#_PVEBookSwipe_Lift": {
+        "recognition": "OCR",
+        "action": "Swipe",
+        "duration": 500,
+        "end_hold": 800,
+        "post_delay": 1500,
+        "roi": [
+            111,
+            95,
+            105,
+            37
+        ],
+        "expected": [
+            "剧情游戏卡"
+        ],
+        "begin": [
+            150,
+            215,
+            0,
+            0
+        ],
+        "end": [
+            1264,
+            215,
+            0,
+            0
+        ],
+        "doc": "识别活动游戏卡-上划"
+    },
+    "Global_BackToPve2#_TouchPVEBook": {
+        "recognition": "TemplateMatch",
+        "action": "Click",
+        "target_offset": [
+            -20,
+            25,
+            0,
+            0
+        ],
+        "next": [
+            "Global_BackToPve2#_FinBackMapPage",
+            "Global_BackToPve2#_TouchPVEBook"
+        ],
+        "post_delay": 5000,
+        "focus": "G.复位用卡带已找到",
+        "roi": [
+            385,
+            143,
+            117,
+            69
+        ],
+        "template": [
+            "pve2.png"
+        ],
+        "doc": "点击PVE本子2"
+    },
+    "Global_BackToPve2#_FinBackMapPage": {
+        "recognition": "TemplateMatch",
+        "focus": "G.Global复位完成，结束~",
+        "roi": [
+            1122,
+            646,
+            40,
+            38
+        ],
+        "template": [
+            "pin.png"
+        ],
+        "doc": "识别右下图钉-章节主页"
     }
 }

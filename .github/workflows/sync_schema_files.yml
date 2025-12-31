@@ -46,6 +46,7 @@ jobs:
           
           # 下载文件
           curl -s -o deps/tools/interface.schema.json https://raw.githubusercontent.com/MaaXYZ/MaaFramework/main/tools/interface.schema.json
+          curl -s -o deps/tools/interface_v2.schema.json https://raw.githubusercontent.com/MaaXYZ/MaaFramework/main/tools/interface_v2.schema.json
           curl -s -o deps/tools/interface_config.schema.json https://raw.githubusercontent.com/MaaXYZ/MaaFramework/main/tools/interface_config.schema.json
           curl -s -o deps/tools/pipeline.schema.json https://raw.githubusercontent.com/MaaXYZ/MaaFramework/main/tools/pipeline.schema.json
           

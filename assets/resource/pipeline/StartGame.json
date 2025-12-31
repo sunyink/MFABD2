@@ -2,8 +2,8 @@
   "StartGame_Start": {
     "action": "StartApp",
     "next": [
-      "StartGame_LinkError",
-      "StartGame_Error_API",
+      "[JumpBack]StartGame_LinkError",
+      "[JumpBack]StartGame_Error_API",
       "StartGame_Error_AM",
       "StartGame_Logo",
       "StartGame_LoadingPage"
@@ -16,12 +16,12 @@
   "StartGame_Logo": {
     "recognition": "OCR",
     "next": [
-      "StartGame_PayFaild",
+      "[JumpBack]StartGame_PayFailed",
       "StartGame_LoadingPage",
       "StartGame_TouchStart",
       "StartGame_Logo"
     ],
-    "post_delay": 10000,
+    "post_delay": 8000,
     "focus": "NEO",
     "roi": [
       530,
@@ -31,21 +31,22 @@
     ],
     "expected": [
       "NEO"
-    ]
+    ],
+    "timeout": 60000
   },
   "StartGame_LoadingPage": {
     "recognition": "OCR",
     "next": [
       "StartGame_Update",
-      "StartGame_UpdateDate",
-      "StartGame_PayFaild",
+      "StartGame_UpdateData",
+      "[JumpBack]StartGame_PayFailed",
       "StartGame_Error_API",
       "StartGame_Error_AM",
       "StartGame_TouchStart",
       "StartGame_Loading",
       "StartGame_LoadingPage"
     ],
-    "post_delay": 10000,
+    "post_delay": 5000,
     "pre_wait_freezes": 3000,
     "focus": "SM.main",
     "roi": [
@@ -59,7 +60,8 @@
       "BROWN",
       "無職生",
       "異世界"
-    ]
+    ],
+    "timeout": 120000
   },
   "StartGame_Update": {
     "recognition": "OCR",
@@ -84,7 +86,7 @@
     "recognition": "OCR",
     "action": "Click",
     "next": [
-      "StartGame_UpdateDateing"
+      "StartGame_UpdateDataing"
     ],
     "on_error": [
       "StartGame_UpdateCloseGame"
@@ -171,12 +173,12 @@
     ],
     "package": "com.android.vending"
   },
-  "StartGame_UpdateDate": {
+  "StartGame_UpdateData": {
     "recognition": "OCR",
     "action": "Click",
     "next": [
-      "StartGame_UpdateDate2",
-      "StartGame_UpdateDate"
+      "StartGame_UpdateData2",
+      "StartGame_UpdateData"
     ],
     "post_delay": 20000,
     "focus": "SM.数据下载",
@@ -191,11 +193,11 @@
     ],
     "doc": "下载数据"
   },
-  "StartGame_UpdateDate2": {
+  "StartGame_UpdateData2": {
     "recognition": "OCR",
     "action": "Click",
     "next": [
-      "StartGame_UpdateDateing",
+      "StartGame_UpdateDataing",
       "StartGame_TouchStart"
     ],
     "on_error": [
@@ -214,11 +216,11 @@
     ],
     "doc": "下载数据"
   },
-  "StartGame_UpdateDateing": {
+  "StartGame_UpdateDataing": {
     "recognition": "OCR",
     "next": [
-      "StartGame_UpdateDateing",
-      "StartGame_PayFaild",
+      "[JumpBack]StartGame_UpdateDataing",
+      "[JumpBack]StartGame_PayFailed",
       "StartGame_TouchStart"
     ],
     "on_error": [
@@ -242,14 +244,14 @@
     "recognition": "OCR",
     "next": [
       "StartGame_Update",
-      "StartGame_UpdateDate",
-      "StartGame_PayFaild",
-      "StartGame_Linkdwon",
+      "StartGame_UpdateData",
+      "[JumpBack]StartGame_PayFailed",
+      "StartGame_LinkDown",
       "StartGame_TouchStart",
       "StartGame_LoadingPage",
       "StartGame_Loading"
     ],
-    "post_delay": 8000,
+    "post_delay": 5000,
     "focus": "SM.ORC游戏启动中",
     "roi": [
       820,
@@ -260,12 +262,13 @@
     "expected": [
       "游戏启动中"
     ],
-    "doc": "游戏启动中"
+    "doc": "游戏启动中",
+    "timeout": 120000
   },
-  "StartGame_PayFaild": {
+  "StartGame_PayFailed": {
     "recognition": "OCR",
     "next": [
-      "StartGame_PayFaildToChick"
+      "StartGame_PayFailedToChick"
     ],
     "post_delay": 3000,
     "focus": "SM.支付失败弹窗",
@@ -280,15 +283,9 @@
     ],
     "doc": "支付方式失败点击确认"
   },
-  "StartGame_PayFaildToChick": {
+  "StartGame_PayFailedToChick": {
     "recognition": "OCR",
     "action": "Click",
-    "next": [
-      "StartGame_TouchStart"
-    ],
-    "on_error": [
-      "StartGame_LoadingPage"
-    ],
     "post_delay": 3000,
     "roi": [
       573,
@@ -304,18 +301,19 @@
     "recognition": "OCR",
     "action": "Click",
     "next": [
-      "StartGame_PayFaild",
+      "[JumpBack]StartGame_PayFailed",
       "StartGame_TouchStart",
-      "StartGame_PVPSet",
-      "StartGame_Special",
-      "StartGame_NewChar",
-      "StartGame_DaliyBanner",
-      "StartGame_MapPage",
-      "StartGame_BackMapPage",
-      "[JumpBack]PVP_PerOperationsMain_Error"
+      "StartGame_MainMsgBox_Remove",
+      "[JumpBack]StartGame_PVPSet",
+      "[JumpBack]StartGame_Special",
+      "[JumpBack]StartGame_NewChar",
+      "[JumpBack]StartGame_SeasonSet",
+      "StartGame_SandPlayPage",
+      "[JumpBack]PVP_PerOperationsMain_Error",
+      "[JumpBack]StartGame_BackMapPage"
     ],
     "pre_delay": 5000,
-    "post_delay": 20000,
+    "post_delay": 10000,
     "post_wait_freezes": 2000,
     "focus": "SM.TO Touch",
     "roi": [
@@ -333,15 +331,15 @@
       100,
       100
     ],
-    "doc": "点击进入"
+    "doc": "点击进入",
+    "timeout": 120000
   },
   "StartGame_NewChar": {
     "recognition": "OCR",
     "action": "Click",
     "next": [
       "StartGame_NewChar",
-      "StartGame_SeasonSet",
-      "StartGame_MapPage"
+      "StartGame_SeasonSet"
     ],
     "post_delay": 2000,
     "roi": [
@@ -358,9 +356,6 @@
   "StartGame_SeasonSet": {
     "recognition": "OCR",
     "action": "Click",
-    "next": [
-      "StartGame_MapPage"
-    ],
     "post_delay": 2000,
     "roi": [
       813,
@@ -376,9 +371,6 @@
   "StartGame_PVPSet": {
     "recognition": "OCR",
     "action": "Click",
-    "next": [
-      "StartGame_MapPage"
-    ],
     "post_delay": 2000,
     "focus": "SM.进入游戏-PVP结算",
     "roi": [
@@ -392,10 +384,19 @@
     ],
     "doc": "段位结算，点击确认"
   },
-  "StartGame_MapPage": {
+  "StartGame_SandPlayPage": {
     "recognition": "TemplateMatch",
+    "anchor": "StartGame_Setup_Change",
     "next": [
-      "StartGame_BackHomePage"
+      "[JumpBack]StartGame_PVPSet",
+      "[JumpBack]StartGame_Special",
+      "[JumpBack]StartGame_NewChar",
+      "[JumpBack]StartGame_SeasonSet",
+      "Setup_Entry4",
+      "Setup_Entry2",
+      "StartGame_MainMsgBox_Remove",
+      "[JumpBack]Global_OnceHomeButton",
+      "[JumpBack]StartGame_BackMapPage"
     ],
     "post_delay": 2000,
     "focus": "SM.进入游戏-箱庭",
@@ -411,154 +412,8 @@
     "green_mask": true,
     "doc": "识别右下奔跑图标-章节主页"
   },
-  "StartGame_BackHomePage": {
-    "recognition": "TemplateMatch",
-    "action": "Click",
-    "next": [
-      "StartGame_BackMapPage"
-    ],
-    "pre_delay": 2000,
-    "post_delay": 2000,
-    "roi": [
-      1047,
-      516,
-      107,
-      110
-    ],
-    "template": [
-      "Run.png"
-    ],
-    "green_mask": true,
-    "target": [
-      1186,
-      46,
-      0,
-      0
-    ],
-    "doc": "找到奔跑-点击返回主页"
-  },
-  "StartGame_DaliyBanner": {
-    "recognition": "OCR",
-    "action": "Click",
-    "next": [
-      "StartGame_DaliyBanner2",
-      "StartGame_DaliyBanner",
-      "StartGame_Banner",
-      "StartGame_Banner2"
-    ],
-    "on_error": [
-      "StartGame_BackMapPage"
-    ],
-    "pre_delay": 2000,
-    "post_delay": 2000,
-    "roi": [
-      538,
-      167,
-      92,
-      48
-    ],
-    "expected": [
-      "签到成功"
-    ],
-    "target": [
-      10,
-      10,
-      0,
-      0
-    ],
-    "doc": "月签到第一日签到识别"
-  },
-  "StartGame_DaliyBanner2": {
-    "recognition": "OCR",
-    "action": "Click",
-    "next": [
-      "StartGame_DaliyBanner",
-      "StartGame_Banner",
-      "StartGame_Banner2"
-    ],
-    "on_error": [
-      "StartGame_BackMapPage"
-    ],
-    "pre_delay": 2000,
-    "post_delay": 2000,
-    "roi": [
-      571,
-      209,
-      84,
-      30
-    ],
-    "expected": [
-      "签到成功"
-    ],
-    "target": [
-      1035,
-      175,
-      0,
-      0
-    ],
-    "doc": "每日签到第一日签到识别"
-  },
-  "StartGame_Banner": {
-    "recognition": "OCR",
-    "action": "Click",
-    "next": [
-      "StartGame_Banner",
-      "StartGame_Banner2"
-    ],
-    "on_error": [
-      "StartGame_BackMapPage"
-    ],
-    "pre_delay": 2000,
-    "post_delay": 2000,
-    "roi": [
-      916,
-      102,
-      143,
-      38
-    ],
-    "expected": [
-      "不再"
-    ],
-    "target": [
-      1130,
-      500,
-      0,
-      0
-    ],
-    "doc": "商城推广礼包，点击关闭"
-  },
-  "StartGame_Banner2": {
-    "recognition": "TemplateMatch",
-    "action": "Click",
-    "next": [
-      "StartGame_BackMapPage"
-    ],
-    "pre_delay": 2000,
-    "post_delay": 2000,
-    "roi": [
-      625,
-      107,
-      28,
-      34
-    ],
-    "template": [
-      "banner2.png"
-    ],
-    "target": [
-      1130,
-      500,
-      0,
-      0
-    ],
-    "doc": "公告弹窗"
-  },
   "StartGame_BackMapPage": {
     "action": "Click",
-    "next": [
-      "StartGame_MapPage",
-      "StartGame_BackMapPage1",
-      "StartGame_BackMapPage"
-    ],
     "post_delay": 5000,
     "focus": "SM.弹窗消除-无对象",
     "target": [
@@ -567,16 +422,20 @@
       0,
       0
     ],
-    "doc": "包里解决启动弹窗。注意新魔兽，新卡池、正常"
+    "doc": "包里解决启动弹窗。注意新魔兽，新卡池、正常",
+    "max_hit": 10
   },
-  "StartGame_BackMapPage1": {
+  "StartGame_MainMsgBox_Remove": {
     "recognition": "OCR",
     "action": "Click",
+    "anchor": "StartGame_Setup_Change",
     "next": [
-      "StartGame_BackMapPage2"
+      "[JumpBack]StartGame_BackMapPage2",
+      "Setup_Entry2",
+      "StartGame_BackMapPageOG"
     ],
     "post_delay": 1000,
-    "focus": "SM.弹窗连续消除-主页面ck",
+    "focus": "SM.主页面ck-弹窗消消乐~",
     "roi": [
       98,
       656,
@@ -596,9 +455,6 @@
   },
   "StartGame_BackMapPage2": {
     "action": "Click",
-    "next": [
-      "StartGame_BackMapPage3"
-    ],
     "post_delay": 1000,
     "target": [
       60,
@@ -606,112 +462,22 @@
       0,
       0
     ],
-    "doc": "开始暴力解决广告，左侧点击10次"
-  },
-  "StartGame_BackMapPage3": {
-    "action": "Click",
-    "next": [
-      "StartGame_BackMapPage4"
-    ],
-    "post_delay": 1000,
-    "target": [
-      60,
-      460,
-      0,
-      0
-    ],
-    "doc": "开始暴力解决广告，左侧点击10次"
-  },
-  "StartGame_BackMapPage4": {
-    "action": "Click",
-    "next": [
-      "StartGame_BackMapPage5"
-    ],
-    "post_delay": 1000,
-    "target": [
-      60,
-      460,
-      0,
-      0
-    ],
-    "doc": "开始暴力解决广告，左侧点击10次"
-  },
-  "StartGame_BackMapPage5": {
-    "action": "Click",
-    "next": [
-      "StartGame_BackMapPage6"
-    ],
-    "post_delay": 1000,
-    "target": [
-      60,
-      460,
-      0,
-      0
-    ],
-    "doc": "开始暴力解决广告，左侧点击10次"
-  },
-  "StartGame_BackMapPage6": {
-    "action": "Click",
-    "next": [
-      "StartGame_BackMapPage7"
-    ],
-    "post_delay": 1000,
-    "target": [
-      60,
-      460,
-      0,
-      0
-    ],
-    "doc": "开始暴力解决广告，左侧点击10次"
-  },
-  "StartGame_BackMapPage7": {
-    "action": "Click",
-    "next": [
-      "StartGame_BackMapPage8"
-    ],
-    "post_delay": 1000,
-    "target": [
-      60,
-      460,
-      0,
-      0
-    ],
-    "doc": "开始暴力解决广告，左侧点击10次"
-  },
-  "StartGame_BackMapPage8": {
-    "action": "Click",
-    "next": [
-      "StartGame_BackMapPage9"
-    ],
-    "post_delay": 1000,
-    "target": [
-      60,
-      460,
-      0,
-      0
-    ],
-    "doc": "开始暴力解决广告，左侧点击10次"
-  },
-  "StartGame_BackMapPage9": {
-    "action": "Click",
-    "next": [
-      "StartGame_BackMapPageOG"
-    ],
-    "post_delay": 1000,
-    "target": [
-      60,
-      460,
-      0,
-      0
-    ],
-    "doc": "开始暴力解决广告，左侧点击10次"
+    "doc": "开始暴力解决广告，左侧点击10次",
+    "max_hit": 10
   },
   "StartGame_BackMapPageOG": {
     "recognition": "OCR",
     "action": "Click",
     "next": [
+      "[JumpBack]StartGame_PVPSet",
+      "[JumpBack]StartGame_Special",
+      "[JumpBack]StartGame_NewChar",
+      "[JumpBack]StartGame_SeasonSet",
+      "[JumpBack]StartGame_GoldenColosseum",
+      "[JumpBack]StartGame_GlupyDiner",
+      "[JumpBack]StartGame_FantasiaSouare",
       "StartGame_FinBackMapPage",
-      "StartGame_BackMapPage"
+      "[JumpBack]StartGame_BackMapPage"
     ],
     "post_delay": 2000,
     "focus": "SM.返回箱庭",
@@ -735,8 +501,10 @@
   "StartGame_FinBackMapPage": {
     "recognition": "TemplateMatch",
     "next": [
+      "Setup_Entry1",
       "StartGame_PerPetTask"
     ],
+    "anchor": "StartGame_Setup_Change",
     "focus": "SM.返回箱庭成功",
     "roi": [
       1047,
@@ -790,9 +558,6 @@
   "StartGame_LinkError2": {
     "recognition": "OCR",
     "action": "Click",
-    "next": [
-      "StartGame_LoadingPage"
-    ],
     "post_delay": 8000,
     "roi": [
       585,
@@ -807,9 +572,6 @@
   "StartGame_Error_API": {
     "recognition": "OCR",
     "action": "Click",
-    "next": [
-      "StartGame_LoadingPage"
-    ],
     "focus": "ERROR：API。特殊错误，请检查。",
     "roi": [
       452,
@@ -840,27 +602,29 @@
   "StartGame_Special": {
     "recognition": "OCR",
     "action": "Click",
-    "next": [
-      "StartGame_MapPage",
-      "StartGame_Special"
-    ],
     "focus": "特殊页面，尝试消除。",
     "expected": [
       "赛季奖励",
       "奖励已发放至"
     ],
     "target": [
-      790,
-      618,
-      0,
-      0
+      39,
+      444,
+      30,
+      21
+    ],
+    "roi": [
+      304,
+      164,
+      948,
+      542
     ]
   },
-  "StartGame_Linkdwon": {
+  "StartGame_LinkDown": {
     "recognition": "OCR",
     "action": "Click",
     "next": [
-      "StartGame_Linkdwon_TouchCk",
+      "StartGame_LinkDown_TouchCk",
       "StartGame_Logo"
     ],
     "roi": [
@@ -880,7 +644,7 @@
       0
     ]
   },
-  "StartGame_Linkdwon_TouchCk": {
+  "StartGame_LinkDown_TouchCk": {
     "recognition": "OCR",
     "next": [
       "StartGame_Logo"
@@ -894,6 +658,55 @@
     ],
     "expected": [
       "确认"
+    ]
+  },
+  "StartGame_GoldenColosseum": {
+    "recognition": "OCR",
+    "roi": [
+      99,
+      613,
+      90,
+      36
+    ],
+    "expected": [
+      "阵形设置"
+    ],
+    "focus": "[WRN]SM.意料外卡带-黄金竞技场",
+    "next": [
+      "Global_BackToPve2#"
+    ]
+  },
+  "StartGame_GlupyDiner": {
+    "recognition": "OCR",
+    "roi": [
+      91,
+      25,
+      144,
+      66
+    ],
+    "expected": [
+      "格鲁菲餐厅"
+    ],
+    "focus": "[WRN]SM.意料外卡带-格鲁菲餐厅",
+    "next": [
+      "Global_BackToPve2#"
+    ]
+  },
+  "StartGame_FantasiaSouare": {
+    "recognition": "OCR",
+    "roi": [
+      122,
+      643,
+      206,
+      43
+    ],
+    "expected": [
+      "聊天内容"
+    ],
+    "focus": "[WRN]SM.意料外卡带-梦幻广场",
+    "doc": "输入聊天内容（最多50字）",
+    "next": [
+      "Global_BackToPve2#"
     ]
   }
 }

@@ -7,6 +7,7 @@ import subprocess
 import re
 from typing import List, Dict, Optional
 from version_rules import filter_valid_versions, sort_versions
+import time
 
 def get_all_tags() -> list:
     """获取所有Git标签"""
@@ -240,15 +241,22 @@ def test_safe_operations():
     print(f"安全操作提交数量: {len(commits)}")
 
 
+def get_commit_timestamp(ref: str) -> int:
+    """获取提交的Committer Unix时间戳"""
+    ts = run_git_command(["log", "-1", "--format=%ct", ref])
+    return int(ts) if ts and ts.strip().isdigit() else 0
+
+# 【修改函数】获取合并提交列表 (增加时间戳返回)
 def get_merge_commits(from_ref: str, to_ref: str) -> List[Dict]:
     """
-    【新增】专门获取合并提交列表，用于生成 Beta 功能预览
+    获取合并提交列表，包含时间戳
     """
-    # 使用 --merges 只看合并，--topo-order 保证父子顺序
+    # 使用自定义格式输出: hash | timestamp | subject
+    # %ct 是提交人的Unix时间戳
     log_output = run_git_command([
         "log", 
         f"{from_ref}..{to_ref}",
-        "--oneline",
+        "--format=%h|%ct|%s",
         "--merges",
         "--topo-order"
     ])
@@ -256,24 +264,23 @@ def get_merge_commits(from_ref: str, to_ref: str) -> List[Dict]:
     commits = []
     for line in log_output.split('\n'):
         if line.strip():
-            # 解析: "hash 提交信息"
-            parts = line.split(' ', 1)
-            if len(parts) == 2:
+            parts = line.split('|', 2)
+            if len(parts) == 3:
                 commits.append({
                     'hash': parts[0],
-                    'subject': parts[1]
+                    'timestamp': int(parts[1]),
+                    'subject': parts[2]
                 })
     return commits
 
+# 【修改函数】包含之前的正则终极修复
 def get_released_branches_from_main(ref: str = "main", limit: int = 2000) -> set:
     """
-    【修改】扫描指定引用(ref)的合并记录，提取已发布的分支名
-    修改点: 
-    1. 使用 resolve_branch_reference 自动处理 CI 环境分支名
-    2. limit 默认值改为 2000，防止漏掉久远的合并
+    扫描指定引用(ref)的合并记录，提取已发布的分支名
+    修复：全面覆盖 GitHub PR、同仓库合并、中文客户端及自定义格式
     """
-    # 智能解析引用 (main -> origin/main)
     target_ref = resolve_branch_reference(ref)
+    print(f"正在扫描 {target_ref} 的已发布分支...")
     
     log_output = run_git_command([
         "log",
@@ -284,20 +291,45 @@ def get_released_branches_from_main(ref: str = "main", limit: int = 2000) -> set
     ])
     
     released = set()
-    pattern_new = r"Merge:'([^']+)'\|"
-    pattern_old = r"Merge branch '([^']+)'"
     
+    # 1. 自定义格式 (Merge:'xxx')
+    pattern_custom = r"Merge:'([^']+)'"
+    # 2. 标准/中文 Git 格式 (带引号)
+    pattern_git_quoted = r"(?:Merge branch|合并分支)\s*'([^']+)'"
+    # 3. GitHub PR 格式 (提取 from 后面部分)
+    pattern_pr = r"Merge pull request #[0-9]+ from (\S+)"
+    # 4. 无引号格式 (兜底)
+    pattern_git_plain = r"(?:Merge branch|合并分支)\s+(\S+)"
+
     for line in log_output.split('\n'):
-        match = re.search(pattern_new, line)
+        # 依次尝试匹配
+        match = re.search(pattern_custom, line)
         if match:
             released.add(match.group(1))
             continue
-        match = re.search(pattern_old, line)
+            
+        match = re.search(pattern_git_quoted, line)
         if match:
             released.add(match.group(1))
+            continue
             
-    return released
+        match = re.search(pattern_pr, line)
+        if match:
+            full_ref = match.group(1)
+            released.add(full_ref)
+            if '/' in full_ref: # 尝试剥离用户名 fix/branch
+                parts = full_ref.split('/', 1)
+                if len(parts) > 1: released.add(parts[1])
+            continue
 
+        match = re.search(pattern_git_plain, line)
+        if match:
+            candidate = match.group(1)
+            if candidate.lower() not in ['into', 'from']:
+                released.add(candidate)
+            
+    print(f"共发现 {len(released)} 个已发布分支")
+    return released
 
 if __name__ == "__main__":
     # print("=== Git操作模块测试 ===") # 保持原样

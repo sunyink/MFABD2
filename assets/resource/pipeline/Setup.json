@@ -1,0 +1,2231 @@
+{
+    "Setup_Str": {
+        "next": [
+            "[JumpBack]Setup_ToPve2#_Switch",
+            "[JumpBack]Setup_Main_Switch",
+            "[JumpBack]Setup_Equip_Switch",
+            "[JumpBack]Setup_SetSkill_Switch"
+        ],
+        "doc": "流程开发说明：_Str为总触发器=强制运行所有。| _Entry为选择性入口=按需 | 节点_Switch为开关，运行一次后续操作 | 可根据入口选择需要的操作开关~"
+    },
+    "Setup_Entry1": {
+        "recognition": "TemplateMatch",
+        "roi": [
+            134,
+            465,
+            202,
+            188
+        ],
+        "template": [
+            "UI_Arrowkeys.png"
+        ],
+        "green_mask": true,
+        "threshold": 0.6,
+        "next": [
+            "[JumpBack]Setup_ToPve2#_Switch",
+            "[JumpBack]Setup_Main_Switch",
+            "[JumpBack]Setup_Equip_Switch",
+            "[JumpBack]Setup_SetSkill_Switch"
+        ],
+        "focus": "SMSP.触发设置按需调整,原因:移动方式不应为方向键"
+    },
+    "Setup_Entry2": {
+        "recognition": "ColorMatch",
+        "roi": [
+            1106,
+            31,
+            7,
+            7
+        ],
+        "method": 4,
+        "lower": [
+            198,
+            145,
+            22
+        ],
+        "upper": [
+            229,
+            181,
+            77
+        ],
+        "count": 10,
+        "next": [
+            "[JumpBack]Setup_ToPve2#_Switch",
+            "[JumpBack]Setup_Main_Switch"
+        ],
+        "focus": "SMSP.触发设置按需调整,原因:菜单黄点未禁用",
+        "doc": "背包或房子黄点"
+    },
+    "Setup_Entry3": {
+        "recognition": "ColorMatch",
+        "roi": [
+            975,
+            22,
+            13,
+            14
+        ],
+        "method": 4,
+        "lower": [
+            198,
+            145,
+            22
+        ],
+        "upper": [
+            229,
+            181,
+            77
+        ],
+        "count": 10,
+        "next": [
+            "[JumpBack]Setup_ToPve2#_Switch",
+            "[JumpBack]Setup_Main_Switch"
+        ],
+        "focus": "SMSP.触发设置按需调整,原因:菜单黄点未禁用",
+        "doc": "主页消息通知黄点"
+    },
+    "Setup_Entry4": {
+        "recognition": "TemplateMatch",
+        "roi": [
+            1047,
+            516,
+            107,
+            110
+        ],
+        "template": [
+            "Run.png"
+        ],
+        "green_mask": true,
+        "next": [
+            "[JumpBack]Setup_ToPve2#_Switch",
+            "[JumpBack]Setup_Main_Switch"
+        ],
+        "doc": "进入页面为箱庭",
+        "focus": "SMSP.触发设置按需调整,原因:启动不应默认在箱庭",
+        "max_hit": 1
+    },
+    "Setup_ToPve2#_Switch": {
+        "next": [
+            "Global_BackToPve2#"
+        ],
+        "max_hit": 1
+    },
+    "Setup_Main_Switch": {
+        "recognition": "TemplateMatch",
+        "roi": [
+            1108,
+            637,
+            65,
+            57
+        ],
+        "template": [
+            "pin.png"
+        ],
+        "next": [
+            "Setup_Main_Into_Pre"
+        ],
+        "max_hit": 1
+    },
+    "Setup_Main_Into_Pre": {
+        "recognition": "TemplateMatch",
+        "action": "Click",
+        "next": [
+            "Setup_Main_Into",
+            "Setup_Main_Into_Pre"
+        ],
+        "post_delay": 3000,
+        "focus": "Setup.主设置修改开始",
+        "roi": [
+            1108,
+            637,
+            65,
+            57
+        ],
+        "template": [
+            "pin.png"
+        ],
+        "target": [
+            1186,
+            46,
+            0,
+            0
+        ]
+    },
+    "Setup_Main_Into": {
+        "recognition": "OCR",
+        "roi": [
+            98,
+            656,
+            66,
+            32
+        ],
+        "expected": [
+            "抽抽乐"
+        ],
+        "action": "Click",
+        "target": [
+            1153,
+            39,
+            15,
+            14
+        ],
+        "post_delay": 2000,
+        "next": [
+            "Setup_Main",
+            "Setup_Main_Into"
+        ]
+    },
+    "Setup_Main": {
+        "recognition": "OCR",
+        "expected": [
+            "其他"
+        ],
+        "roi": [
+            217,
+            21,
+            73,
+            38
+        ],
+        "focus": "主设置菜单",
+        "next": [
+            "Setup_MainSetup_Into"
+        ]
+    },
+    "Setup_MainSetup_Into": {
+        "recognition": "OCR",
+        "roi": [
+            646,
+            73,
+            188,
+            609
+        ],
+        "expected": [
+            "设置"
+        ],
+        "action": "Click",
+        "post_wait_freezes": 500,
+        "next": [
+            "Setup_Main_Move",
+            "Setup_MainSetup_Into"
+        ]
+    },
+    "Setup_Main_Move": {
+        "recognition": "OCR",
+        "roi": [
+            815,
+            57,
+            375,
+            397
+        ],
+        "expected": [
+            "点击地面"
+        ],
+        "next": [
+            "Setup_Main_Move_Ck",
+            "[JumpBack]Setup_Main_Move_Chg"
+        ]
+    },
+    "Setup_Main_Move_Ck": {
+        "recognition": "ColorMatch",
+        "roi": "Setup_Main_Move",
+        "lower": [
+            53,
+            64,
+            83
+        ],
+        "upper": [
+            53,
+            64,
+            83
+        ],
+        "count": 10,
+        "next": [
+            "Setup_Main_Tab_2"
+        ]
+    },
+    "Setup_Main_Move_Chg": {
+        "action": "Click",
+        "target": "Setup_Main_Move",
+        "post_delay": 3000
+    },
+    "Setup_Main_Tab_2": {
+        "recognition": "OCR",
+        "roi": [
+            172,
+            94,
+            94,
+            363
+        ],
+        "expected": [
+            "图像"
+        ],
+        "action": "Click",
+        "post_wait_freezes": 800,
+        "next": [
+            "Setup_Main_Tab_2_CK",
+            "Setup_Main_Tab_2"
+        ]
+    },
+    "Setup_Main_Tab_2_CK": {
+        "recognition": "ColorMatch",
+        "roi": "Setup_Main_Tab_2",
+        "lower": [
+            218,
+            218,
+            218
+        ],
+        "upper": [
+            255,
+            255,
+            255
+        ],
+        "count": 80,
+        "next": [
+            "Setup_Main_Blurry"
+        ]
+    },
+    "Setup_Main_Blurry": {
+        "recognition": "OCR",
+        "roi": [
+            805,
+            97,
+            370,
+            91
+        ],
+        "expected": [
+            "不使用"
+        ],
+        "doc": "小区域,更新位置需要跟进",
+        "next": [
+            "Setup_Main_Blurry_Ck",
+            "[JumpBack]Setup_Main_Blurry_Chg"
+        ]
+    },
+    "Setup_Main_Blurry_Ck": {
+        "recognition": "ColorMatch",
+        "roi": "Setup_Main_Blurry",
+        "lower": [
+            53,
+            64,
+            83
+        ],
+        "upper": [
+            53,
+            64,
+            83
+        ],
+        "count": 10,
+        "next": [
+            "Setup_Main_Resolution"
+        ]
+    },
+    "Setup_Main_Blurry_Chg": {
+        "action": "Click",
+        "target": "Setup_Main_Blurry",
+        "post_delay": 3000
+    },
+    "Setup_Main_Resolution": {
+        "recognition": "OCR",
+        "roi": [
+            448,
+            286,
+            229,
+            39
+        ],
+        "expected": [
+            "FHD"
+        ],
+        "doc": "小区域,更新位置需要跟进",
+        "next": [
+            "Setup_Main_Resolution_Ck",
+            "[JumpBack]Setup_Main_Resolution_Chg"
+        ]
+    },
+    "Setup_Main_Resolution_Ck": {
+        "recognition": "ColorMatch",
+        "roi": "Setup_Main_Resolution",
+        "lower": [
+            53,
+            64,
+            83
+        ],
+        "upper": [
+            53,
+            64,
+            83
+        ],
+        "count": 10,
+        "next": [
+            "Setup_Main_StartUI"
+        ]
+    },
+    "Setup_Main_Resolution_Chg": {
+        "action": "Click",
+        "target": "Setup_Main_Resolution",
+        "post_delay": 3000
+    },
+    "Setup_Main_StartUI": {
+        "recognition": "OCR",
+        "roi": [
+            454,
+            414,
+            349,
+            40
+        ],
+        "expected": [
+            "主界面"
+        ],
+        "doc": "小区域,更新位置需要跟进",
+        "next": [
+            "Setup_Main_StartUI_Ck",
+            "[JumpBack]Setup_Main_StartUI_Chg"
+        ]
+    },
+    "Setup_Main_StartUI_Ck": {
+        "recognition": "ColorMatch",
+        "roi": "Setup_Main_StartUI",
+        "lower": [
+            53,
+            64,
+            83
+        ],
+        "upper": [
+            53,
+            64,
+            83
+        ],
+        "count": 10,
+        "next": [
+            "Setup_Main_freshRate"
+        ]
+    },
+    "Setup_Main_StartUI_Chg": {
+        "action": "Click",
+        "target": "Setup_Main_StartUI",
+        "post_delay": 3000
+    },
+    "Setup_Main_freshRate": {
+        "recognition": "OCR",
+        "roi": [
+            823,
+            567,
+            345,
+            43
+        ],
+        "expected": [
+            "30"
+        ],
+        "doc": "小区域,更新位置需要跟进",
+        "next": [
+            "Setup_Main_freshRate_Ck",
+            "[JumpBack]Setup_Main_freshRate_Chg"
+        ]
+    },
+    "Setup_Main_freshRate_Ck": {
+        "recognition": "ColorMatch",
+        "roi": "Setup_Main_freshRate",
+        "lower": [
+            53,
+            64,
+            83
+        ],
+        "upper": [
+            53,
+            64,
+            83
+        ],
+        "count": 10,
+        "next": [
+            "Setup_Main_SkipAv",
+            "[JumpBack]Setup_Main_Swip"
+        ]
+    },
+    "Setup_Main_freshRate_Chg": {
+        "action": "Click",
+        "target": "Setup_Main_freshRate",
+        "post_delay": 3000
+    },
+    "Setup_Main_Swip": {
+        "action": "Swipe",
+        "begin": [
+            810,
+            620,
+            1,
+            1
+        ],
+        "end": [
+            810,
+            25,
+            1,
+            1
+        ],
+        "duration": 800,
+        "end_hold": 1000
+    },
+    "Setup_Main_SkipAv": {
+        "recognition": "OCR",
+        "roi": [
+            822,
+            232,
+            346,
+            40
+        ],
+        "expected": [
+            "关闭"
+        ],
+        "doc": "小区域,更新位置需要跟进",
+        "next": [
+            "Setup_Main_SkipAv_Ck",
+            "[JumpBack]Setup_Main_SkipAv_Chg"
+        ]
+    },
+    "Setup_Main_SkipAv_Ck": {
+        "recognition": "ColorMatch",
+        "roi": "Setup_Main_SkipAv",
+        "lower": [
+            53,
+            64,
+            83
+        ],
+        "upper": [
+            53,
+            64,
+            83
+        ],
+        "count": 10,
+        "next": [
+            "Setup_Main_Silhouette"
+        ]
+    },
+    "Setup_Main_SkipAv_Chg": {
+        "action": "Click",
+        "target": "Setup_Main_SkipAv",
+        "post_delay": 3000
+    },
+    "Setup_Main_Silhouette": {
+        "recognition": "OCR",
+        "roi": [
+            454,
+            404,
+            344,
+            43
+        ],
+        "expected": [
+            "使用"
+        ],
+        "doc": "小区域,更新位置需要跟进",
+        "next": [
+            "Setup_Main_Silhouette_Ck",
+            "[JumpBack]Setup_Main_Silhouette_Chg"
+        ]
+    },
+    "Setup_Main_Silhouette_Ck": {
+        "recognition": "ColorMatch",
+        "roi": "Setup_Main_Silhouette",
+        "lower": [
+            53,
+            64,
+            83
+        ],
+        "upper": [
+            53,
+            64,
+            83
+        ],
+        "count": 10,
+        "next": [
+            "Setup_Main_Tab_3"
+        ]
+    },
+    "Setup_Main_Silhouette_Chg": {
+        "action": "Click",
+        "target": "Setup_Main_Silhouette",
+        "post_delay": 3000
+    },
+    "Setup_Main_Tab_3": {
+        "recognition": "OCR",
+        "roi": [
+            172,
+            94,
+            94,
+            363
+        ],
+        "expected": [
+            "通知"
+        ],
+        "action": "Click",
+        "post_wait_freezes": 800,
+        "next": [
+            "Setup_Main_Tab_3_CK",
+            "Setup_Main_Tab_3"
+        ]
+    },
+    "Setup_Main_Tab_3_CK": {
+        "recognition": "ColorMatch",
+        "roi": "Setup_Main_Tab_3",
+        "lower": [
+            218,
+            218,
+            218
+        ],
+        "upper": [
+            255,
+            255,
+            255
+        ],
+        "count": 80,
+        "next": [
+            "Setup_Main_YellowPin"
+        ]
+    },
+    "Setup_Main_YellowPin": {
+        "recognition": "OCR",
+        "roi": [
+            823,
+            132,
+            344,
+            38
+        ],
+        "expected": [
+            "不使用"
+        ],
+        "doc": "小区域,更新位置需要跟进",
+        "next": [
+            "Setup_Main_YellowPin_Ck",
+            "[JumpBack]Setup_Main_YellowPin_Chg"
+        ]
+    },
+    "Setup_Main_YellowPin_Ck": {
+        "recognition": "ColorMatch",
+        "roi": "Setup_Main_YellowPin",
+        "lower": [
+            53,
+            64,
+            83
+        ],
+        "upper": [
+            53,
+            64,
+            83
+        ],
+        "count": 10,
+        "next": [
+            "Setup_Main_ClothingChange"
+        ]
+    },
+    "Setup_Main_YellowPin_Chg": {
+        "action": "Click",
+        "target": "Setup_Main_YellowPin",
+        "post_delay": 3000
+    },
+    "Setup_Main_ClothingChange": {
+        "recognition": "OCR",
+        "roi": [
+            826,
+            287,
+            343,
+            40
+        ],
+        "expected": [
+            "不使用"
+        ],
+        "doc": "小区域,更新位置需要跟进",
+        "next": [
+            "Setup_Main_ClothingChange_Ck",
+            "[JumpBack]Setup_Main_ClothingChange_Chg"
+        ]
+    },
+    "Setup_Main_ClothingChange_Ck": {
+        "recognition": "ColorMatch",
+        "roi": "Setup_Main_ClothingChange",
+        "lower": [
+            53,
+            64,
+            83
+        ],
+        "upper": [
+            53,
+            64,
+            83
+        ],
+        "count": 10,
+        "next": [
+            "[Anchor]StartGame_Setup_Change",
+            "Global_ToSandBox"
+        ]
+    },
+    "Setup_Main_ClothingChange_Chg": {
+        "action": "Click",
+        "target": "Setup_Main_ClothingChange",
+        "post_delay": 3000
+    },
+    "Setup_Equip_Switch": {
+        "recognition": "TemplateMatch",
+        "roi": [
+            1108,
+            637,
+            65,
+            57
+        ],
+        "template": [
+            "pin.png"
+        ],
+        "next": [
+            "Setup_Equip_Into_Pre"
+        ],
+        "max_hit": 1
+    },
+    "Setup_Equip_Into_Pre": {
+        "recognition": "TemplateMatch",
+        "action": "Click",
+        "next": [
+            "Setup_Equip_Into",
+            "Setup_Equip_Into_Pre"
+        ],
+        "post_delay": 3000,
+        "focus": "Setup.装备强化选项修改开始",
+        "roi": [
+            1108,
+            637,
+            65,
+            57
+        ],
+        "template": [
+            "pin.png"
+        ],
+        "target": [
+            1186,
+            46,
+            0,
+            0
+        ]
+    },
+    "Setup_Equip_Into": {
+        "recognition": "OCR",
+        "roi": [
+            98,
+            656,
+            66,
+            32
+        ],
+        "expected": [
+            "抽抽乐"
+        ],
+        "action": "Click",
+        "target": [
+            295,
+            642,
+            0,
+            0
+        ],
+        "post_delay": 2000,
+        "next": [
+            "Setup_Equip_Per",
+            "Setup_Equip_Into"
+        ]
+    },
+    "Setup_Equip_Per": {
+        "recognition": "OCR",
+        "expected": [
+            "消耗品"
+        ],
+        "roi": [
+            217,
+            21,
+            73,
+            38
+        ],
+        "focus": "背包",
+        "action": "Click",
+        "post_delay": 2000,
+        "target": [
+            140,
+            199,
+            0,
+            0
+        ],
+        "next": [
+            "Setup_Equip",
+            "Setup_Equip_Per"
+        ]
+    },
+    "Setup_Equip": {
+        "recognition": "OCR",
+        "expected": [
+            "装备"
+        ],
+        "roi": [
+            217,
+            21,
+            73,
+            38
+        ],
+        "focus": "背包-装备",
+        "anchor": "Setup_EquipUp",
+        "next": [
+            "Setup_EquipUp",
+            "Equip_EquipGui"
+        ]
+    },
+    "Setup_EquipUp": {
+        "recognition": "OCR",
+        "expected": [
+            "级别"
+        ],
+        "roi": [
+            640,
+            288,
+            56,
+            69
+        ],
+        "next": [
+            "[JumpBack]Setup_EquipUp_MJ",
+            "[JumpBack]Setup_EquipUp_CheckBox_L1",
+            "[JumpBack]Setup_EquipUp_CheckBox_L2",
+            "[JumpBack]Setup_EquipUp_CheckBox_L3",
+            "[JumpBack]Setup_EquipUp_CheckBox_L4",
+            "Setup_EquipUp_MenuQuit"
+        ]
+    },
+    "Setup_EquipUp_MJ": {
+        "recognition": "ColorMatch",
+        "roi": [
+            1145,
+            378,
+            10,
+            17
+        ],
+        "upper": [
+            182,
+            142,
+            51
+        ],
+        "lower": [
+            162,
+            122,
+            31
+        ],
+        "action": "Click",
+        "post_delay": 1500
+    },
+    "Setup_EquipUp_CheckBox_L1": {
+        "recognition": "ColorMatch",
+        "roi": [
+            784,
+            441,
+            16,
+            13
+        ],
+        "lower": [
+            31,
+            34,
+            40
+        ],
+        "upper": [
+            35,
+            37,
+            42
+        ],
+        "action": "Click",
+        "post_delay": 1500,
+        "focus": "[Set.N1]"
+    },
+    "Setup_EquipUp_CheckBox_L2": {
+        "recognition": "ColorMatch",
+        "roi": [
+            990,
+            440,
+            17,
+            16
+        ],
+        "lower": [
+            31,
+            34,
+            40
+        ],
+        "upper": [
+            35,
+            37,
+            42
+        ],
+        "action": "Click",
+        "post_delay": 1500,
+        "focus": "[Set.N2]"
+    },
+    "Setup_EquipUp_CheckBox_L3": {
+        "recognition": "ColorMatch",
+        "roi": [
+            784,
+            481,
+            17,
+            16
+        ],
+        "lower": [
+            31,
+            34,
+            40
+        ],
+        "upper": [
+            35,
+            37,
+            42
+        ],
+        "action": "Click",
+        "post_delay": 1500,
+        "focus": "[Set.N3]"
+    },
+    "Setup_EquipUp_CheckBox_L4": {
+        "recognition": "ColorMatch",
+        "roi": [
+            1006,
+            482,
+            17,
+            16
+        ],
+        "lower": [
+            31,
+            34,
+            40
+        ],
+        "upper": [
+            35,
+            37,
+            42
+        ],
+        "action": "Click",
+        "post_delay": 1500,
+        "focus": "[Set.N4]"
+    },
+    "Setup_EquipUp_MenuQuit": {
+        "recognition": "TemplateMatch",
+        "template": "EquipMenuQuit.png",
+        "roi": [
+            1081,
+            638,
+            44,
+            42
+        ],
+        "action": "Click",
+        "post_delay": 1000,
+        "next": [
+            "Setup_Equip_Menu_DecButt",
+            "Setup_EquipUp_MenuQuit"
+        ]
+    },
+    "Setup_Equip_Menu_DecButt": {
+        "recognition": "OCR",
+        "roi": [
+            1059,
+            644,
+            96,
+            34
+        ],
+        "expected": [
+            "键分解"
+        ],
+        "next": [
+            "Setup_EquipDec_Hub"
+        ]
+    },
+    "Setup_EquipDec_Hub": {
+        "anchor": "Setup_EquipDec",
+        "next": [
+            "Setup_EquipDec",
+            "Equip_EquipDec"
+        ]
+    },
+    "Setup_EquipDec": {
+        "recognition": "OCR",
+        "expected": [
+            "级别"
+        ],
+        "roi": [
+            632,
+            219,
+            74,
+            56
+        ],
+        "next": [
+            "[JumpBack]Setup_EquipDec_UP",
+            "[JumpBack]Setup_EquipDec_MJ",
+            "[JumpBack]Setup_EquipDec_CheckBox_L1",
+            "[JumpBack]Setup_EquipDec_CheckBox_L2",
+            "[JumpBack]Setup_EquipDec_CheckBox_L3",
+            "[JumpBack]Setup_EquipDec_CheckBox_L4",
+            "Setup_EquipDec_MenuQuit"
+        ]
+    },
+    "Setup_EquipDec_UP": {
+        "recognition": "ColorMatch",
+        "roi": [
+            1144,
+            314,
+            27,
+            16
+        ],
+        "upper": [
+            41,
+            45,
+            50
+        ],
+        "lower": [
+            21,
+            25,
+            30
+        ],
+        "action": "Click",
+        "post_delay": 1500
+    },
+    "Setup_EquipDec_MJ": {
+        "recognition": "ColorMatch",
+        "roi": [
+            1142,
+            380,
+            20,
+            13
+        ],
+        "upper": [
+            182,
+            142,
+            51
+        ],
+        "lower": [
+            162,
+            122,
+            31
+        ],
+        "action": "Click",
+        "post_delay": 1500
+    },
+    "Setup_EquipDec_CheckBox_L1": {
+        "recognition": "ColorMatch",
+        "roi": [
+            784,
+            440,
+            17,
+            16
+        ],
+        "lower": [
+            31,
+            34,
+            40
+        ],
+        "upper": [
+            35,
+            37,
+            42
+        ],
+        "action": "Click",
+        "post_delay": 1500,
+        "focus": "[Set.N1]"
+    },
+    "Setup_EquipDec_CheckBox_L2": {
+        "recognition": "ColorMatch",
+        "roi": [
+            990,
+            440,
+            18,
+            15
+        ],
+        "lower": [
+            31,
+            34,
+            40
+        ],
+        "upper": [
+            35,
+            37,
+            42
+        ],
+        "action": "Click",
+        "post_delay": 1500,
+        "focus": "[Set.N2]"
+    },
+    "Setup_EquipDec_CheckBox_L3": {
+        "recognition": "ColorMatch",
+        "roi": [
+            784,
+            481,
+            17,
+            17
+        ],
+        "lower": [
+            31,
+            34,
+            40
+        ],
+        "upper": [
+            35,
+            37,
+            42
+        ],
+        "action": "Click",
+        "post_delay": 1500,
+        "focus": "[Set.N3]"
+    },
+    "Setup_EquipDec_CheckBox_L4": {
+        "recognition": "ColorMatch",
+        "roi": [
+            1007,
+            482,
+            16,
+            16
+        ],
+        "lower": [
+            31,
+            34,
+            40
+        ],
+        "upper": [
+            35,
+            37,
+            42
+        ],
+        "action": "Click",
+        "post_delay": 1500,
+        "focus": "[Set.N4]"
+    },
+    "Setup_EquipDec_MenuQuit": {
+        "recognition": "TemplateMatch",
+        "template": "EquipMenuQuit.png",
+        "roi": [
+            1081,
+            638,
+            44,
+            42
+        ],
+        "action": "Click",
+        "post_delay": 1000,
+        "next": [
+            "Global_ToSandBox"
+        ]
+    },
+    "Setup_SetSkill_Switch": {
+        "recognition": "TemplateMatch",
+        "roi": [
+            1108,
+            637,
+            65,
+            57
+        ],
+        "template": [
+            "pin.png"
+        ],
+        "next": [
+            "Setup_SetSkill_Per"
+        ],
+        "max_hit": 1
+    },
+    "Setup_SetSkill_Per": {
+        "recognition": "TemplateMatch",
+        "roi": [
+            1108,
+            637,
+            65,
+            57
+        ],
+        "template": [
+            "pin.png"
+        ],
+        "doc": "准备安放技能",
+        "focus": "Setup.技能位置修改开始",
+        "next": [
+            "Setup_SetSkill_OpenSklMenu"
+        ]
+    },
+    "Setup_SetSkill_OpenSklMenu": {
+        "recognition": "TemplateMatch",
+        "roi": [
+            699,
+            628,
+            83,
+            52
+        ],
+        "template": [
+            "UI_SetSkill.png"
+        ],
+        "green_mask": true,
+        "action": "Click",
+        "post_delay": 1000,
+        "next": [
+            "Setup_SetSkill_Tab1"
+        ]
+    },
+    "Setup_SetSkill_Tab1": {
+        "recognition": "OCR",
+        "expected": [
+            "天赋技能"
+        ],
+        "roi": [
+            87,
+            423,
+            97,
+            47
+        ],
+        "action": "Click",
+        "target": [
+            234,
+            443,
+            9,
+            6
+        ],
+        "post_delay": 1500,
+        "next": [
+            "Setup_SetSkill_Tab1_Ck",
+            "Setup_SetSkill_Tab1"
+        ]
+    },
+    "Setup_SetSkill_Tab1_Ck": {
+        "recognition": "ColorMatch",
+        "upper": [
+            217,
+            177,
+            55
+        ],
+        "lower": [
+            197,
+            157,
+            35
+        ],
+        "roi": [
+            224,
+            434,
+            33,
+            25
+        ],
+        "next": [
+            "Setup_SetSkill_Tab1_Reset5"
+        ]
+    },
+    "Setup_SetSkill_Tab1_Reset5": {
+        "action": "Click",
+        "target": [
+            1135,
+            440,
+            12,
+            11
+        ],
+        "post_delay": 500,
+        "next": [
+            "Setup_SetSkill_Tab1_Reset4"
+        ]
+    },
+    "Setup_SetSkill_Tab1_Reset4": {
+        "action": "Click",
+        "target": [
+            1048,
+            443,
+            9,
+            7
+        ],
+        "post_delay": 500,
+        "next": [
+            "Setup_SetSkill_Tab1_Reset3"
+        ]
+    },
+    "Setup_SetSkill_Tab1_Reset3": {
+        "action": "Click",
+        "target": [
+            968,
+            441,
+            8,
+            4
+        ],
+        "post_delay": 500,
+        "next": [
+            "Setup_SetSkill_Tab1_Reset2"
+        ]
+    },
+    "Setup_SetSkill_Tab1_Reset2": {
+        "action": "Click",
+        "target": [
+            884,
+            442,
+            10,
+            5
+        ],
+        "post_delay": 500,
+        "next": [
+            "Setup_SetSkill_Tab1_Reset1"
+        ]
+    },
+    "Setup_SetSkill_Tab1_Reset1": {
+        "action": "Click",
+        "target": [
+            799,
+            444,
+            10,
+            5
+        ],
+        "post_delay": 500,
+        "next": [
+            "Setup_SetSkill_1-1",
+            "[JumpBack]Setup_SetSkill_1-1_Swip"
+        ]
+    },
+    "Setup_SetSkill_1-1": {
+        "recognition": "OCR",
+        "expected": [
+            "探查"
+        ],
+        "roi": [
+            110,
+            580,
+            1053,
+            33
+        ],
+        "action": "Click",
+        "target_offset": [
+            0,
+            -80,
+            0,
+            0
+        ],
+        "next": [
+            "Setup_SetSkill_1-1_Shake1"
+        ]
+    },
+    "Setup_SetSkill_1-1_Swip": {
+        "recognition": "OCR",
+        "expected": [
+            "天赋技能"
+        ],
+        "roi": [
+            87,
+            423,
+            97,
+            47
+        ],
+        "action": "Swipe",
+        "begin": [
+            1134,
+            592,
+            1,
+            1
+        ],
+        "end": [
+            103,
+            590,
+            1,
+            1
+        ],
+        "duration": 500,
+        "end_hold": 800,
+        "max_hit": 2
+    },
+    "Setup_SetSkill_1-1_Shake1": {
+        "action": "Click",
+        "target": [
+            309,
+            443,
+            7,
+            7
+        ],
+        "post_delay": 500,
+        "next": [
+            "Setup_SetSkill_1-1_Shake2"
+        ]
+    },
+    "Setup_SetSkill_1-1_Shake2": {
+        "action": "Click",
+        "target": [
+            234,
+            443,
+            9,
+            6
+        ],
+        "post_delay": 500,
+        "next": [
+            "[JumpBack]Setup_SetSkill_SwipMini",
+            "Setup_SetSkill_1-2",
+            "[JumpBack]Setup_SetSkill_1-2_Swip"
+        ]
+    },
+    "Setup_SetSkill_SwipMini": {
+        "recognition": "ColorMatch",
+        "roi": [
+            110,
+            503,
+            23,
+            9
+        ],
+        "upper": [
+            226,
+            196,
+            130
+        ],
+        "lower": [
+            201,
+            155,
+            80
+        ],
+        "count": 50,
+        "action": "Swipe",
+        "begin": [
+            220,
+            505,
+            1,
+            1
+        ],
+        "end": [
+            118,
+            510,
+            1,
+            1
+        ],
+        "duration": 500,
+        "end_hold": 800,
+        "doc": "小幅度滑动,使黄色消失"
+    },
+    "Setup_SetSkill_1-2": {
+        "recognition": "OCR",
+        "expected": [
+            "召集"
+        ],
+        "roi": [
+            110,
+            580,
+            1053,
+            33
+        ],
+        "action": "Click",
+        "target_offset": [
+            0,
+            -80,
+            0,
+            0
+        ],
+        "next": [
+            "Setup_SetSkill_1-2_Shake1"
+        ]
+    },
+    "Setup_SetSkill_1-2_Swip": {
+        "recognition": "OCR",
+        "expected": [
+            "天赋技能"
+        ],
+        "roi": [
+            87,
+            423,
+            97,
+            47
+        ],
+        "action": "Swipe",
+        "begin": [
+            1134,
+            592,
+            1,
+            1
+        ],
+        "end": [
+            103,
+            590,
+            1,
+            1
+        ],
+        "duration": 500,
+        "end_hold": 800,
+        "max_hit": 2
+    },
+    "Setup_SetSkill_1-2_Shake1": {
+        "action": "Click",
+        "target": [
+            309,
+            443,
+            7,
+            7
+        ],
+        "post_delay": 500,
+        "next": [
+            "Setup_SetSkill_1-2_Shake2"
+        ]
+    },
+    "Setup_SetSkill_1-2_Shake2": {
+        "action": "Click",
+        "target": [
+            234,
+            443,
+            9,
+            6
+        ],
+        "post_delay": 500,
+        "next": [
+            "[JumpBack]Setup_SetSkill_SwipMini",
+            "Setup_SetSkill_1-3",
+            "[JumpBack]Setup_SetSkill_1-3_Swip"
+        ],
+        "timeout": 5000,
+        "on_error": [
+            "Setup_SetSkill_Tab2"
+        ]
+    },
+    "Setup_SetSkill_1-3": {
+        "recognition": "OCR",
+        "expected": [
+            "召集"
+        ],
+        "roi": [
+            302,
+            580,
+            861,
+            33
+        ],
+        "action": "Click",
+        "target_offset": [
+            0,
+            -80,
+            0,
+            0
+        ],
+        "next": [
+            "Setup_SetSkill_1-3_Shake1"
+        ]
+    },
+    "Setup_SetSkill_1-3_Swip": {
+        "recognition": "OCR",
+        "expected": [
+            "天赋技能"
+        ],
+        "roi": [
+            87,
+            423,
+            97,
+            47
+        ],
+        "action": "Swipe",
+        "begin": [
+            1134,
+            592,
+            1,
+            1
+        ],
+        "end": [
+            103,
+            590,
+            1,
+            1
+        ],
+        "duration": 500,
+        "end_hold": 800,
+        "max_hit": 2
+    },
+    "Setup_SetSkill_1-3_Shake1": {
+        "action": "Click",
+        "target": [
+            309,
+            443,
+            7,
+            7
+        ],
+        "post_delay": 500,
+        "next": [
+            "Setup_SetSkill_1-3_Shake2"
+        ]
+    },
+    "Setup_SetSkill_1-3_Shake2": {
+        "action": "Click",
+        "target": [
+            234,
+            443,
+            9,
+            6
+        ],
+        "post_delay": 500,
+        "next": [
+            "[JumpBack]Setup_SetSkill_SwipMini",
+            "Setup_SetSkill_1-4",
+            "[JumpBack]Setup_SetSkill_1-4_Swip"
+        ],
+        "timeout": 5000,
+        "on_error": [
+            "Setup_SetSkill_Tab2"
+        ]
+    },
+    "Setup_SetSkill_1-4": {
+        "recognition": "OCR",
+        "expected": [
+            "召集"
+        ],
+        "roi": [
+            110,
+            580,
+            1053,
+            33
+        ],
+        "action": "Click",
+        "target_offset": [
+            0,
+            -80,
+            0,
+            0
+        ],
+        "next": [
+            "Setup_SetSkill_1-4_Shake1"
+        ]
+    },
+    "Setup_SetSkill_1-4_Swip": {
+        "recognition": "OCR",
+        "expected": [
+            "天赋技能"
+        ],
+        "roi": [
+            87,
+            423,
+            97,
+            47
+        ],
+        "action": "Swipe",
+        "begin": [
+            1134,
+            592,
+            1,
+            1
+        ],
+        "end": [
+            103,
+            590,
+            1,
+            1
+        ],
+        "duration": 500,
+        "end_hold": 800,
+        "max_hit": 2
+    },
+    "Setup_SetSkill_1-4_Shake1": {
+        "action": "Click",
+        "target": [
+            309,
+            443,
+            7,
+            7
+        ],
+        "post_delay": 500,
+        "next": [
+            "Setup_SetSkill_1-4_Shake2"
+        ]
+    },
+    "Setup_SetSkill_1-4_Shake2": {
+        "action": "Click",
+        "target": [
+            234,
+            443,
+            9,
+            6
+        ],
+        "post_delay": 500,
+        "next": [
+            "[JumpBack]Setup_SetSkill_SwipMini",
+            "Setup_SetSkill_1-5",
+            "[JumpBack]Setup_SetSkill_1-5_Swip"
+        ],
+        "timeout": 5000,
+        "on_error": [
+            "Setup_SetSkill_Tab2"
+        ]
+    },
+    "Setup_SetSkill_1-5": {
+        "recognition": "OCR",
+        "expected": [
+            "召集"
+        ],
+        "roi": [
+            110,
+            580,
+            1053,
+            33
+        ],
+        "action": "Click",
+        "target_offset": [
+            0,
+            -80,
+            0,
+            0
+        ],
+        "next": [
+            "Setup_SetSkill_Tab2"
+        ],
+        "timeout": 5000,
+        "on_error": [
+            "Setup_SetSkill_Tab2_Hub"
+        ]
+    },
+    "Setup_SetSkill_1-5_Swip": {
+        "recognition": "OCR",
+        "expected": [
+            "天赋技能"
+        ],
+        "roi": [
+            87,
+            423,
+            97,
+            47
+        ],
+        "action": "Swipe",
+        "begin": [
+            1134,
+            592,
+            1,
+            1
+        ],
+        "end": [
+            103,
+            590,
+            1,
+            1
+        ],
+        "duration": 500,
+        "end_hold": 800,
+        "max_hit": 2
+    },
+    "Setup_SetSkill_Tab2_Hub": {
+        "next": [
+            "Setup_SetSkill_Tab2"
+        ]
+    },
+    "Setup_SetSkill_Tab2": {
+        "recognition": "OCR",
+        "expected": [
+            "天赋技能"
+        ],
+        "roi": [
+            87,
+            423,
+            97,
+            47
+        ],
+        "action": "Click",
+        "target": [
+            309,
+            443,
+            8,
+            8
+        ],
+        "post_delay": 1500,
+        "next": [
+            "Setup_SetSkill_Tab2_Ck",
+            "Setup_SetSkill_Tab2"
+        ]
+    },
+    "Setup_SetSkill_Tab2_Ck": {
+        "recognition": "ColorMatch",
+        "upper": [
+            217,
+            177,
+            55
+        ],
+        "lower": [
+            197,
+            157,
+            35
+        ],
+        "roi": [
+            297,
+            435,
+            30,
+            24
+        ],
+        "next": [
+            "[JumpBack]Setup_SetSkill_tab2_ReLift",
+            "Setup_SetSkill_Tab2_Reset5"
+        ]
+    },
+    "Setup_SetSkill_tab2_ReLift": {
+        "recognition": "OCR",
+        "expected": [
+            "天赋技能"
+        ],
+        "roi": [
+            87,
+            423,
+            97,
+            47
+        ],
+        "action": "Swipe",
+        "end": [
+            1134,
+            592,
+            1,
+            1
+        ],
+        "begin": [
+            115,
+            590,
+            1,
+            1
+        ],
+        "duration": 500,
+        "end_hold": 800,
+        "max_hit": 3
+    },
+    "Setup_SetSkill_Tab2_Reset5": {
+        "action": "Click",
+        "target": [
+            1135,
+            440,
+            12,
+            11
+        ],
+        "post_delay": 500,
+        "next": [
+            "Setup_SetSkill_Tab2_Reset4"
+        ]
+    },
+    "Setup_SetSkill_Tab2_Reset4": {
+        "action": "Click",
+        "target": [
+            1048,
+            443,
+            9,
+            7
+        ],
+        "post_delay": 500,
+        "next": [
+            "Setup_SetSkill_Tab2_Reset3"
+        ]
+    },
+    "Setup_SetSkill_Tab2_Reset3": {
+        "action": "Click",
+        "target": [
+            968,
+            441,
+            8,
+            4
+        ],
+        "post_delay": 500,
+        "next": [
+            "Setup_SetSkill_Tab2_Reset2"
+        ]
+    },
+    "Setup_SetSkill_Tab2_Reset2": {
+        "action": "Click",
+        "target": [
+            884,
+            442,
+            10,
+            5
+        ],
+        "post_delay": 500,
+        "next": [
+            "Setup_SetSkill_Tab2_Reset1"
+        ]
+    },
+    "Setup_SetSkill_Tab2_Reset1": {
+        "action": "Click",
+        "target": [
+            799,
+            444,
+            10,
+            5
+        ],
+        "post_delay": 500,
+        "next": [
+            "Setup_SetSkill_2_Hub"
+        ]
+    },
+    "Setup_SetSkill_2_Hub": {
+        "next": [
+            "[JumpBack]Setup_SetSkill_SwipMini",
+            "[JumpBack]Setup_SetSkill_2-1",
+            "[JumpBack]Setup_SetSkill_2-1_Swip"
+        ],
+        "timeout": 5000,
+        "on_error": [
+            "Setup_SetSkill_tab3"
+        ]
+    },
+    "Setup_SetSkill_2-1": {
+        "recognition": "OCR",
+        "expected": [
+            "吸收"
+        ],
+        "roi": [
+            110,
+            580,
+            1053,
+            33
+        ],
+        "action": "Click",
+        "target_offset": [
+            0,
+            -80,
+            0,
+            0
+        ],
+        "post_delay": 500,
+        "next": [
+            "Setup_SetSkill_2-1_Shake1"
+        ]
+    },
+    "Setup_SetSkill_2-1_Swip": {
+        "recognition": "OCR",
+        "expected": [
+            "天赋技能"
+        ],
+        "roi": [
+            87,
+            423,
+            97,
+            47
+        ],
+        "action": "Swipe",
+        "begin": [
+            1134,
+            592,
+            1,
+            1
+        ],
+        "end": [
+            103,
+            590,
+            1,
+            1
+        ],
+        "duration": 500,
+        "end_hold": 800,
+        "max_hit": 2
+    },
+    "Setup_SetSkill_2-1_Shake1": {
+        "action": "Click",
+        "target": [
+            379,
+            442,
+            11,
+            9
+        ],
+        "post_delay": 500,
+        "next": [
+            "Setup_SetSkill_2-1_Shake2"
+        ]
+    },
+    "Setup_SetSkill_2-1_Shake2": {
+        "action": "Click",
+        "target": [
+            309,
+            443,
+            7,
+            7
+        ],
+        "post_delay": 500
+    },
+    "Setup_SetSkill_tab3": {
+        "recognition": "OCR",
+        "expected": [
+            "天赋技能"
+        ],
+        "roi": [
+            87,
+            423,
+            97,
+            47
+        ],
+        "action": "Click",
+        "target": [
+            382,
+            443,
+            9,
+            7
+        ],
+        "post_delay": 1500,
+        "next": [
+            "Setup_SetSkill_tab3_Ck",
+            "Setup_SetSkill_tab3"
+        ]
+    },
+    "Setup_SetSkill_tab3_Ck": {
+        "recognition": "ColorMatch",
+        "upper": [
+            217,
+            177,
+            55
+        ],
+        "lower": [
+            197,
+            157,
+            35
+        ],
+        "roi": [
+            368,
+            436,
+            35,
+            21
+        ],
+        "next": [
+            "[JumpBack]Setup_SetSkill_tab3_ReLift",
+            "Setup_SetSkill_tab3_Reset5"
+        ]
+    },
+    "Setup_SetSkill_tab3_ReLift": {
+        "recognition": "OCR",
+        "expected": [
+            "天赋技能"
+        ],
+        "roi": [
+            87,
+            423,
+            97,
+            47
+        ],
+        "action": "Swipe",
+        "end": [
+            1134,
+            592,
+            1,
+            1
+        ],
+        "begin": [
+            115,
+            590,
+            1,
+            1
+        ],
+        "duration": 500,
+        "end_hold": 800,
+        "max_hit": 3
+    },
+    "Setup_SetSkill_tab3_Reset5": {
+        "action": "Click",
+        "target": [
+            1135,
+            440,
+            12,
+            11
+        ],
+        "post_delay": 500,
+        "next": [
+            "Setup_SetSkill_tab3_Reset4"
+        ]
+    },
+    "Setup_SetSkill_tab3_Reset4": {
+        "action": "Click",
+        "target": [
+            1048,
+            443,
+            9,
+            7
+        ],
+        "post_delay": 500,
+        "next": [
+            "Setup_SetSkill_tab3_Reset3"
+        ]
+    },
+    "Setup_SetSkill_tab3_Reset3": {
+        "action": "Click",
+        "target": [
+            968,
+            441,
+            8,
+            4
+        ],
+        "post_delay": 500,
+        "next": [
+            "Setup_SetSkill_tab3_Reset2"
+        ]
+    },
+    "Setup_SetSkill_tab3_Reset2": {
+        "action": "Click",
+        "target": [
+            884,
+            442,
+            10,
+            5
+        ],
+        "post_delay": 500,
+        "next": [
+            "Setup_SetSkill_tab3_Reset1"
+        ]
+    },
+    "Setup_SetSkill_tab3_Reset1": {
+        "action": "Click",
+        "target": [
+            799,
+            444,
+            10,
+            5
+        ],
+        "post_delay": 500,
+        "next": [
+            "Setup_SetSkill_3-1",
+            "[JumpBack]Setup_SetSkill_3-1_Swip"
+        ]
+    },
+    "Setup_SetSkill_3-1": {
+        "recognition": "OCR",
+        "expected": [
+            "生成魔法阵"
+        ],
+        "roi": [
+            110,
+            580,
+            1053,
+            33
+        ],
+        "action": "Click",
+        "target_offset": [
+            0,
+            -80,
+            0,
+            0
+        ],
+        "next": [
+            "Setup_SetSkill_3-1_Shake1"
+        ]
+    },
+    "Setup_SetSkill_3-1_Swip": {
+        "recognition": "OCR",
+        "expected": [
+            "天赋技能"
+        ],
+        "roi": [
+            87,
+            423,
+            97,
+            47
+        ],
+        "action": "Swipe",
+        "begin": [
+            1134,
+            592,
+            1,
+            1
+        ],
+        "end": [
+            103,
+            590,
+            1,
+            1
+        ],
+        "duration": 500,
+        "end_hold": 800,
+        "max_hit": 2
+    },
+    "Setup_SetSkill_3-1_Shake1": {
+        "action": "Click",
+        "target": [
+            309,
+            443,
+            7,
+            7
+        ],
+        "post_delay": 500,
+        "next": [
+            "Setup_SetSkill_3-1_Shake2"
+        ]
+    },
+    "Setup_SetSkill_3-1_Shake2": {
+        "action": "Click",
+        "target": [
+            379,
+            442,
+            11,
+            9
+        ],
+        "post_delay": 500,
+        "next": [
+            "Setup_SetSkill_Select3-5"
+        ]
+    },
+    "Setup_SetSkill_Select3-5": {
+        "action": "Click",
+        "target": [
+            1135,
+            440,
+            12,
+            11
+        ],
+        "post_delay": 500,
+        "next": [
+            "Setup_SetSkill_3-5",
+            "[JumpBack]Setup_SetSkill_3-5_Swip"
+        ]
+    },
+    "Setup_SetSkill_3-5": {
+        "recognition": "OCR",
+        "expected": [
+            "装备制作"
+        ],
+        "roi": [
+            110,
+            580,
+            1053,
+            33
+        ],
+        "action": "Click",
+        "target_offset": [
+            0,
+            -80,
+            0,
+            0
+        ],
+        "next": [
+            "Setup_SetSkill_3-5_Shake1"
+        ]
+    },
+    "Setup_SetSkill_3-5_Swip": {
+        "recognition": "OCR",
+        "expected": [
+            "天赋技能"
+        ],
+        "roi": [
+            87,
+            423,
+            97,
+            47
+        ],
+        "action": "Swipe",
+        "begin": [
+            1134,
+            592,
+            1,
+            1
+        ],
+        "end": [
+            103,
+            590,
+            1,
+            1
+        ],
+        "duration": 500,
+        "end_hold": 800,
+        "max_hit": 2
+    },
+    "Setup_SetSkill_3-5_Shake1": {
+        "action": "Click",
+        "target": [
+            379,
+            442,
+            11,
+            9
+        ],
+        "post_delay": 500,
+        "next": [
+            "Setup_SetSkill_3-5_Shake2"
+        ]
+    },
+    "Setup_SetSkill_3-5_Shake2": {
+        "action": "Click",
+        "target": [
+            309,
+            443,
+            7,
+            7
+        ],
+        "post_delay": 500,
+        "next": [
+            "Setup_End",
+            "[JumpBack]Global_ToSandBox"
+        ]
+    },
+    "Setup_End": {
+        "recognition": "TemplateMatch",
+        "action": "Click",
+        "focus": "Set.结束",
+        "roi": [
+            1108,
+            637,
+            65,
+            57
+        ],
+        "template": [
+            "pin.png"
+        ]
+    }
+}
