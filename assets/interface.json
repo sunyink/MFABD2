@@ -1,1458 +1,1458 @@
 {
-	"controller": [
-		{
-			"name": "安卓端",
-			"type": "Adb"
-		}
-	],
-	"resource": [
-		{
-			"name": "官服",
-			"path": [
-				"{PROJECT_DIR}/resource"
-			]
-		}
-	],
-	"task": [
-		{
-			"name": "[全局]启动游戏",
-			"entry": "StartGame_Start",
-			"check": true,
-			"doc": "**启动游戏**：\n\n自动启动游戏，包含更新、支付失败等一些异常框点击，领取`主界面`奖励、`宠物派遣`。\n\n**注意：网络环境需提前解决。**\n\n【**首次运行前，务必至少查看**`使用帮助`**卡片！**】\n\n**前置助手:**自动设定一次本工具所需的前置设置，包括主设置、装备管理选项、快捷技能三个部分。建议初次接触本工具、游戏清数据重下，运行一次‘强制’，后切为‘按需’。",
-			"option": [
-				"前置助手"
-			]
-		},
-		{
-			"name": "[执行]快速狩猎扫荡",
-			"entry": "Battle_StartGame_HomePage",
-			"check": true,
-			"option": [
-				"冒险航线-双倍策略",
-				"冒险航线-资源策略",
-				"狩猎场-章节图策略",
-				"战斗次数分配",
-				"冒险航线-圣石洞穴属性"
-			],
-			"doc": "**快速狩猎扫荡**：旧称`地图扫荡`。消耗每日免费的米饭、火把刷取资源。  \n\n**注意：这里每一个选项都是重要的必选项。请在狩猎场`1.野猪洞穴`已打完的基础上，确保目标狩猎场已通关**\n\n**选项讲解：**\n\n前4项米饭相关，依次为\n\n①主线狩猎场选择——目前支持`主线9`、`主线7`、`主线2`\n\n②冒险航线双倍图策略：(详见选项说明)\n\n③冒险航线资源策略：资源倾向(详见选项说明)\n\n④狩猎场与冒险航线之间次数分配——一定打完免费米饭。\n\n\n\n第5项为圣石洞穴策略：全打某属性or均匀属性每种打2次，一定用完免费火把。"
-		},
-		{
-			"name": "[执行]地图采集",
-			"entry": "Collect_StartGame_HomePage",
-			"check": true,
-			"doc": "**地图采集**：进入卡带，对有传送阵地图进行`探查`、`吸取`、`召集`。请根据技能数量与等级合理决定每日吸取卡带数量。\n\n**采集方案:**\n\n**快速(快速卡带列表)：**从箱庭点击卡带图标后从左选取x张卡带采集（通过卡带右上图钉实现自定义排序，进而自定义选刷）,剧情游戏卡和角色游戏卡分开选择（二者可改变先后顺序）,合计不宜大于每日技能吸取数量。\n\n**固定：**旧逻辑，不能自定义卡带，作为备案保留。\n\n**举例：**目标先刷主线7+8+9+13，再刷火片。设置为，剧情卡带只标记这4张图给置顶，只标记角色卡的火片给置顶；采集方案=快速：1#剧情卡→2#角色卡；剧情卡带-刷取张数=4、角色卡带-刷取张数=1。看不全下拉菜单可选项上悬停1秒或调大MFA窗口。\n\n**注意:**应当先将传送阵激活，并探明周围箱庭迷雾，使得区域地图上能完整显示明亮的传送阵图标。",
-			"option": [
-				"采集方案",
-				"快速卡带-剧情卡带-刷取张数",
-				"快速卡带-角色卡带-刷取张数"
-			],
-			"advanced": [
-				"第三图采集额外等待"
-			]
-		},
-		{
-			"name": "[执行]装备制作&炼制日常",
-			"entry": "Equip_HomePage",
-			"check": true,
-			"doc": "**装备制作：**依次进行 `N稀有短剑打造`、将其`强化`、将其`分解`、`精炼`。\n\n 如果有相关装备非正常锁定，可能会失败。 **尤其初次运行**流程运行无需事先锁定装备。\n\n `精炼`只会以SR or UR 稀有度装备为对象进行\n\n若将`仅精炼...`和`自定义标志排序`同时配置，能“合成”出——低精炼等级强化队列：排列优先装备1号超出`仅精炼`条件会被筛选掉、下一次开始精炼优先装备2号。**自定义标志规则参见子项说明**。 ",
-			"option": [
-				"精炼装备阶级",
-				"仅精炼<17 or <10",
-				"精炼按自定义标志排序",
-				"精炼类别倾向-专武|制作",
-				"精炼类别倾向应用-按需|强制"
-			]
-		},
-		{
-			"name": "[执行]白嫖抽卡",
-			"entry": "Gacha_HomePage",
-			"check": true,
-			"option": [
-				"付费钻-总开关",
-				"抽卡v2版开关-按需|强制"
-			],
-			"advanced": [
-				"90付费抽目标卡池"
-			],
-			"doc": "**白嫖抽卡：**每日免费一次的`角色`、`专属装备`抽取。\n\n当抽取免费抽时，可顺便**用90付费钻，对指定卡池每日优惠一抽：**启用方法如下，注意选项卡在右上，\n\n①基本页，打开`总开关`,\n\n②高级页，修改填入抽卡页面人工读到的目标卡池名称，一行一个，最多追踪4个卡池**（完事后及时清除）**。类似默认值的内容就不会被`OCR`识别通过。\n\n**同时**完成以上2个设置才会有效。虽限定卡池名降低了风险，但这仍然是**危险功能！！** \n\n **务必仔细确认，平时常闭。脚本协议不承担其使用责任！** \n\n **打开此**`总开关`**，则是你知晓并自行承担相关风险的意思表示！** \n\n ![](https://pic1.imgdb.cn/item/68e26db5c5157e1a8858fbf4.png =150x) "
-		},
-		{
-			"name": "[执行]竞技场",
-			"entry": "PVP_TaskStart",
-			"check": true,
-			"option": [
-				"竞技场战斗倍数"
-			],
-			"doc": "**竞技场：**进入竞技场卡带，打完每日免费鸡尾酒。\n\n**战斗倍数：**Max 或 Min \n\n关于计分：排位分按每一场胜负计算无关倍率、奖牌则会x倍率。\n\n如：Max为10倍，每天打4场x10倍鸡尾酒，计4场排位分，4x10倍奖牌。"
-		},
-		{
-			"name": "[执行]赛季活动快速战斗",
-			"entry": "Event_HomePage",
-			"option": [
-				"活动图快速战斗难度",
-				"魔兽补刀",
-				"活动图小游戏扫荡"
-			],
-			"doc": "**活动图扫荡：**主页面的右侧的版本活动。\n\n**快速战斗难度：**版本活动通过第15关后，解锁此等级快速战斗。用每日免费AP打Max。\n\n若未打完所选难度15关，不会报错停止，但没有效果。\n\n支持选择难度。\n\n**魔兽补刀:**在打过魔兽后每日快速战斗一次,拿取参与奖。\n\n小游戏扫荡：长期未复刻，保持关闭即可。"
-		},
-		{
-			"name": "[执行]肉鸽塔每日快速战斗",
-			"entry": "Redemption_HomePage",
-			"option": [
-				"肉鸽塔快速战斗"
-			],
-			"doc": "**肉鸽塔快速战斗：**肉鸽塔每期强化代币(黑晶石)刷取，方便点亮修改器打高难。会尽可能选取最高难度快速战斗，打完每日3次免费AP。\n\n**每期需要先手动打一次解锁快速战斗**，量力而行~\n\n肉鸽塔代币、强化效果每期累计，跨期不继承。"
-		},
-		{
-			"name": "[执行]周常任务",
-			"entry": "Weekly_HomePage",
-			"option": [
-				"末日之书"
-			],
-			"doc": "**每周独立周常：**每周奖励3项：依次打1轮`末日之书`、`我的小屋`随机点赞4次、访问`街机页面`。\n\n正常运作可以拿完全部`每周任务`奖励。\n\n周触发器开发烂尾中...欢迎协助←(･ω･)ﾉ。 "
-		},
-		{
-			"name": "[领取]公会签到/餐馆",
-			"check": true,
-			"entry": "RewardsORG_HomePage",
-			"option": [
-				"公会奖励"
-			],
-			"doc": "**日常奖励：**依次领取`公会每日签到`、`餐馆-格鲁费之星`，进入`餐馆`领取每日`常客圣石`，切出卡带到`主线2`。\n\n**无公会请关闭公会奖励开关。**"
-		},
-		{
-			"name": "[领取]任务页(每日/每周)",
-			"check": true,
-			"entry": "RewardsDaily_Start",
-			"doc": "**日常奖励：**专指`主界面`下，`任务`按钮内的奖励。。"
-		},
-		{
-			"name": "[领取]活动页奖励",
-			"check": true,
-			"entry": "Activities_Start",
-			"option": [
-				"进入前先领取邮件"
-			],
-			"doc": "**常规活动奖励：**专指`主界面`下，`活动`按钮内的奖励。\n\n该奖励存在轮换，需要持续跟进更新。\n\n**进入前先领取邮件：**（详见选项说明）遇到活动需要的代币被发放在邮件里的情况。eg.登录送代币到邮件，活动用代币抽奖。如果非必要开启，可能无端会延长一点总运行时长。"
-		},
-		{
-			"name": "[领取]通行证奖励",
-			"check": true,
-			"entry": "Pass_HomePage",
-			"doc": "**通行证奖励：**`主界面`下，`通行证`按钮内的奖励。"
-		},
-		{
-			"name": "[领取]领取邮件",
-			"check": true,
-			"entry": "Mail_HomePage",
-			"doc": "**领取邮件：**`主界面`下，`邮件`图标内的奖励。包括一般、商品。\n\n没有新邮件红点是不会进入邮件页面的。"
-		},
-		{
-			"name": "[开发中]商店套利",
-			"entry": "Arbitrage_Start",
-			"doc": "**商店套利：**流传‘跑商’中的‘商’，我定义为商店套利。\n\n未来完整流程包括：购买高利润料理食材、购买高利润其他食材、料理制作、料理择价出售、高利润材料择价出售"
-		},
-		{
-			"name": "[全局]结束游戏",
-			"entry": "Close_HomePage"
-		},
-		{
-			"name": "[手动]生活技能刷级",
-			"entry": "Practise_Start",
-			"option": [
-				"选择要刷取的技能"
-			]
-		},
-		{
-			"name": "[特殊]半自动操作（常闭！单开！）",
-			"entry": "SemiAuto_HomePage",
-			"option": [
-				"半自动爬塔(从选层数界面开始)",
-				"半自动末日之书(从‘去战斗’页面开始)"
-			],
-			"doc": "**半自动操作：日常关闭。**使用时注意启动页面。\n\n（未来计划...）作为小工具在其他页面打开，∞拖延。 "
-		}
-	],
-	"option": {
-		"采集方案": {
-			"doc": "决定2件事:\n\n1、切卡入口是箱庭快速卡带按钮，还是主页面卡带老菜单。\n\n2、快速卡带的类型顺序 or 固定卡带的刷取内容",
-			"cases": [
-				{
-					"name": "快速：1#剧情卡→2#角色卡",
-					"pipeline_override": {}
-				},
-				{
-					"name": "快速：1#角色卡→2#剧情卡",
-					"pipeline_override": {
-						"Collect_QuickCart_Menu_Ocr": {
-							"next": [
-								"Collect_QuickCart_QR_Sort"
-							]
-						},
-						"Collect_QuickCart_QR_Fin": {
-							"next": "Collect_QuickCart_Switch"
-						},
-						"Collect_QuickCart_Switch": {
-							"next": [
-								"Collect_QuickCart_QC_Sort",
-								"[JumpBack]Global_QuickCart_MenuReset",
-								"[JumpBack]Global_BackPageHub_Once"
-							]
-						},
-						"Collect_QuickCart_QC_Fin": {
-							"next": "Collect_QuickCart_Fin"
-						},
-						"Collect_QuickCart_QC_Out": {
-							"next": [
-								"Collect_ChapterSelectionError"
-							]
-						},
-						"Collect_QuickCart_QR_Out": {
-							"next": [
-								"Collect_QuickCart_Switch"
-							]
-						}
-					}
-				},
-				{
-					"name": "固定：木&金-章节9+7+8",
-					"pipeline_override": {
-						"Collect_HomePageHub": {
-							"next": [
-								"Collect_PerPetTask",
-								"Collect_PVEChapterIden2#",
-								"[JumpBack]Collect_HomePageSwipeInitialize_BackHomePage"
-							]
-						},
-						"Collect_HomePageHub1": {
-							"next": [
-								"Collect_PerPetTask",
-								"Collect_PVEChapterIden2#",
-								"[JumpBack]Collect_HomePageSwipeInitialize_BackHomePage"
-							]
-						},
-						"Collect_StartGameType2": {
-							"next": [
-								"Collect_PVEChapterIden2#",
-								"[JumpBack]Collect_HomePageSwipeInitialize_BackHomePage"
-							]
-						},
-						"Collect_TargetMap3": {
-							"next": [
-								"Collect_TargetMapEnd",
-								"[JumpBack]Collect_ClickTeleporCircleIco",
-								"[JumpBack]Collect_Protection_ReturnToAreaMap",
-								"[JumpBack]Collect_TeleporNotFind"
-							]
-						},
-						"Collect_TeleporNotFind": {
-							"next": [
-								"Collect_TargetMapEnd_End",
-								"Collect_ClickTeleporCircleIco",
-								"Collect_TeleporNotFind"
-							]
-						}
-					}
-				},
-				{
-					"name": "固定：低练度-章节2",
-					"pipeline_override": {
-						"Collect_HomePageHub": {
-							"next": [
-								"Collect_PerPetTask",
-								"Collect_PVEChapterIden2#",
-								"[JumpBack]Collect_HomePageSwipeInitialize_BackHomePage"
-							]
-						},
-						"Collect_HomePageHub1": {
-							"next": [
-								"Collect_PerPetTask",
-								"Collect_PVEChapterIden2#",
-								"[JumpBack]Collect_HomePageSwipeInitialize_BackHomePage"
-							]
-						},
-						"Collect_StartGameType2": {
-							"next": [
-								"Collect_PVEChapterIden2#",
-								"[JumpBack]Collect_HomePageSwipeInitialize_BackHomePage"
-							]
-						},
-						"Collect_TargetMap3": {
-							"next": [
-								"Collect_TargetMapEnd",
-								"[JumpBack]Collect_ClickTeleporCircleIco",
-								"[JumpBack]Collect_Protection_ReturnToAreaMap",
-								"[JumpBack]Collect_TeleporNotFind"
-							]
-						},
-						"Collect_TeleporNotFind": {
-							"next": [
-								"Collect_TargetMapEnd_End",
-								"Collect_ClickTeleporCircleIco",
-								"Collect_TeleporNotFind"
-							]
-						},
-						"Collect_ChapterSelection1": {
-							"next": [
-								"Collect_ChapterSelectionEnd",
-								"[JumpBack]Collect_PetTask",
-								"[JumpBack]Collect_OperationsMain_Sandplay"
-							],
-							"template": [
-								"pve2b.png"
-							]
-						}
-					}
-				}
-			]
-		},
-		"快速卡带-剧情卡带-刷取张数": {
-			"doc": "【仅适用于‘快速’方案】左起第1张开始，刷几个剧情游戏卡带？\n\n最大值 = $‘吸取’技能总次数 ÷3 - $角色卡带计划刷取张数 。超选都是浪费时间！",
-			"cases": [
-				{
-					"name": "3",
-					"pipeline_override": {
-						"Collect_QuickCart_QC3_Post": {
-							"next": [
-								"Collect_QuickCart_QC_Fin",
-								"[JumpBack]Collect_OperationsMain_Sandplay"
-							]
-						}
-					}
-				},
-				{
-					"name": "0",
-					"pipeline_override": {
-						"Collect_QuickCart_QC_Sort": {
-							"next": [
-								"Collect_QuickCart_Switch"
-							]
-						}
-					}
-				},
-				{
-					"name": "1",
-					"pipeline_override": {
-						"Collect_QuickCart_QC1_Post": {
-							"next": [
-								"Collect_QuickCart_QC_Fin",
-								"[JumpBack]Collect_OperationsMain_Sandplay"
-							]
-						}
-					}
-				},
-				{
-					"name": "2",
-					"pipeline_override": {
-						"Collect_QuickCart_QC2_Post": {
-							"next": [
-								"Collect_QuickCart_QC_Fin",
-								"[JumpBack]Collect_OperationsMain_Sandplay"
-							]
-						}
-					}
-				},
-				{
-					"name": "4",
-					"pipeline_override": {
-						"Collect_QuickCart_QC4_Post": {
-							"next": [
-								"Collect_QuickCart_QC_Fin",
-								"[JumpBack]Collect_OperationsMain_Sandplay"
-							]
-						}
-					}
-				},
-				{
-					"name": "5",
-					"pipeline_override": {
-						"Collect_QuickCart_QC5_Post": {
-							"next": [
-								"Collect_QuickCart_QC_Fin",
-								"[JumpBack]Collect_OperationsMain_Sandplay"
-							]
-						}
-					}
-				},
-				{
-					"name": "6",
-					"pipeline_override": {
-						"Collect_QuickCart_QC6_Post": {
-							"next": [
-								"Collect_QuickCart_QC_Fin",
-								"[JumpBack]Collect_OperationsMain_Sandplay"
-							]
-						}
-					}
-				},
-				{
-					"name": "7",
-					"pipeline_override": {
-						"Collect_QuickCart_QC7_Post": {
-							"next": [
-								"Collect_QuickCart_QC_Fin",
-								"[JumpBack]Collect_OperationsMain_Sandplay"
-							]
-						}
-					}
-				},
-				{
-					"name": "8",
-					"pipeline_override": {
-						"Collect_QuickCart_QC8_Post": {
-							"next": [
-								"Collect_QuickCart_QC_Fin",
-								"[JumpBack]Collect_OperationsMain_Sandplay"
-							]
-						}
-					}
-				},
-				{
-					"name": "9",
-					"pipeline_override": {
-						"Collect_QuickCart_QC9_Post": {
-							"next": [
-								"Collect_QuickCart_QC_Fin",
-								"[JumpBack]Collect_OperationsMain_Sandplay"
-							]
-						}
-					}
-				},
-				{
-					"name": "10",
-					"pipeline_override": {
-						"Collect_QuickCart_QC10_Post": {
-							"next": [
-								"Collect_QuickCart_QC_Fin",
-								"[JumpBack]Collect_OperationsMain_Sandplay"
-							]
-						}
-					}
-				},
-				{
-					"name": "11",
-					"pipeline_override": {
-						"Collect_QuickCart_QC11_Post": {
-							"next": [
-								"Collect_QuickCart_QC_Fin",
-								"[JumpBack]Collect_OperationsMain_Sandplay"
-							]
-						}
-					}
-				},
-				{
-					"name": "12",
-					"pipeline_override": {}
-				}
-			]
-		},
-		"快速卡带-角色卡带-刷取张数": {
-			"doc": "【仅适用于‘快速’方案】左起第1张开始，刷几个角色游戏卡带？\n\n最大值 = $‘吸取’技能总次数 ÷3 - $剧情卡带计划刷取张数 【且不能超过当前版本最大角色卡带数！】。超选都是浪费时间！",
-			"cases": [
-				{
-					"name": "0",
-					"pipeline_override": {
-						"Collect_QuickCart_QR_Sort": {
-							"next": [
-								"Collect_QuickCart_QR_Fin"
-							]
-						}
-					}
-				},
-				{
-					"name": "1",
-					"pipeline_override": {
-						"Collect_QuickCart_QR1_Post": {
-							"next": [
-								"Collect_QuickCart_QR_Fin",
-								"[JumpBack]Collect_OperationsMain_Sandplay"
-							]
-						}
-					}
-				},
-				{
-					"name": "2",
-					"pipeline_override": {
-						"Collect_QuickCart_QR2_Post": {
-							"next": [
-								"Collect_QuickCart_QR_Fin",
-								"[JumpBack]Collect_OperationsMain_Sandplay"
-							]
-						}
-					}
-				},
-				{
-					"name": "3",
-					"pipeline_override": {
-						"Collect_QuickCart_QR3_Post": {
-							"next": [
-								"Collect_QuickCart_QR_Fin",
-								"[JumpBack]Collect_OperationsMain_Sandplay"
-							]
-						}
-					}
-				},
-				{
-					"name": "4",
-					"pipeline_override": {
-						"Collect_QuickCart_QR4_Post": {
-							"next": [
-								"Collect_QuickCart_QR_Fin",
-								"[JumpBack]Collect_OperationsMain_Sandplay"
-							]
-						}
-					}
-				},
-				{
-					"name": "5",
-					"pipeline_override": {
-						"Collect_QuickCart_QR5_Post": {
-							"next": [
-								"Collect_QuickCart_QR_Fin",
-								"[JumpBack]Collect_OperationsMain_Sandplay"
-							]
-						}
-					}
-				},
-				{
-					"name": "6",
-					"pipeline_override": {
-						"Collect_QuickCart_QR6_Post": {
-							"next": [
-								"Collect_QuickCart_QR_Fin",
-								"[JumpBack]Collect_OperationsMain_Sandplay"
-							]
-						}
-					}
-				},
-				{
-					"name": "7（截止合约之战共7张）",
-					"pipeline_override": {
-						"Collect_QuickCart_QR7_Post": {
-							"next": [
-								"Collect_QuickCart_QR_Fin",
-								"[JumpBack]Collect_OperationsMain_Sandplay"
-							]
-						}
-					}
-				},
-				{
-					"name": "8",
-					"pipeline_override": {
-						"Collect_QuickCart_QR8_Post": {
-							"next": [
-								"Collect_QuickCart_QR_Fin",
-								"[JumpBack]Collect_OperationsMain_Sandplay"
-							]
-						}
-					}
-				},
-				{
-					"name": "9",
-					"pipeline_override": {
-						"Collect_QuickCart_QR9_Post": {
-							"next": [
-								"Collect_QuickCart_QR_Fin",
-								"[JumpBack]Collect_OperationsMain_Sandplay"
-							]
-						}
-					}
-				},
-				{
-					"name": "10",
-					"pipeline_override": {
-						"Collect_QuickCart_QR10_Post": {
-							"next": [
-								"Collect_QuickCart_QR_Fin",
-								"[JumpBack]Collect_OperationsMain_Sandplay"
-							]
-						}
-					}
-				},
-				{
-					"name": "11",
-					"pipeline_override": {
-						"Collect_QuickCart_QR11_Post": {
-							"next": [
-								"Collect_QuickCart_QR_Fin",
-								"[JumpBack]Collect_OperationsMain_Sandplay"
-							]
-						}
-					}
-				},
-				{
-					"name": "12",
-					"pipeline_override": {}
-				}
-			]
-		},
-		"狩猎场-章节图策略": {
-			"doc": "选“不打”会,会使得启用“优先双倍”被“强制双倍”替代,这是为了避免bug",
-			"cases": [
-				{
-					"name": "低练度-章节2",
-					"pipeline_override": {}
-				},
-				{
-					"name": "木材-章节9",
-					"pipeline_override": {
-						"Battle_CollectMapShouLie": {
-							"expected": [
-								"守山人休息处"
-							],
-							"roi": [
-								998,
-								76,
-								165,
-								95
-							]
-						},
-						"Battle_CollectMapShouLieR2": {
-							"expected": [
-								"守山人休息处"
-							],
-							"roi": [
-								998,
-								76,
-								165,
-								95
-							]
-						}
-					}
-				},
-				{
-					"name": "矿石-章节7",
-					"pipeline_override": {
-						"Battle_CollectMap": {
-							"next": [
-								"Battle_CollectMapShouLie",
-								"[JumpBack]Battle_CollectMap_SwipLeft"
-							]
-						},
-						"Battle_CollectMapHangXianDoubleCk2No_ToCentral_CK": {
-							"next": [
-								"Battle_NoAP_Rice",
-								"Battle_CollectMapShouLieR2",
-								"[JumpBack]Battle_CollectMap_SwipLeft"
-							]
-						},
-						"Battle_CollectMapShouLie": {
-							"expected": [
-								"蜥蜴人祭坛"
-							],
-							"roi": [
-								305,
-								367,
-								121,
-								59
-							],
-							"target_offset": [
-								5,
-								-3,
-								0,
-								0
-							]
-						},
-						"Battle_CollectMapShouLieR2": {
-							"expected": [
-								"蜥蜴人祭坛"
-							],
-							"roi": [
-								305,
-								367,
-								121,
-								59
-							],
-							"target_offset": [
-								5,
-								-3,
-								0,
-								0
-							]
-						}
-					}
-				},
-				{
-					"name": "不打",
-					"pipeline_override": {
-						"Battle_CollectMap": {
-							"next": [
-								"Battle_CollectMapHangXian1",
-								"Battle_CollectMap"
-							]
-						},
-						"Battle_CollectMapHangXianDoubleCk1No": {}
-					}
-				}
-			]
-		},
-		"冒险航线-双倍策略": {
-			"doc": "强制:先满足打双倍，尝试满足资源倾向，满足不了会打另一种资源。\n\n优先:先考虑资源倾向，再考虑双倍则打航线，否则全打狩猎场。\n\n忽视:不检查是否双倍，直接按照资源倾向打。\n\n不打:不打航线图，全刷狩猎场。（此时资源策略无效）",
-			"cases": [
-				{
-					"name": "强制双倍",
-					"pipeline_override": {}
-				},
-				{
-					"name": "优先双倍",
-					"pipeline_override": {
-						"Battle_CollectMapHangXianDoubleCk1No": {
-							"next": [
-								"Battle_CollectMapHangXianDoubleCk2No_ToCentral",
-								"[JumpBack]Battle_CollectMapInitialize"
-							]
-						}
-					}
-				},
-				{
-					"name": "忽视双倍",
-					"pipeline_override": {
-						"Battle_CollectMapHangXian1": {
-							"next": [
-								"Battle_CollectMapHangXianDoubleCk1"
-							]
-						},
-						"Battle_CollectMapHangXianDoubleCk1": {
-							"template": [
-								"Exp.png",
-								"Gold.png"
-							]
-						}
-					}
-				},
-				{
-					"name": "不打",
-					"pipeline_override": {
-						"Battle_FastBattleMAXTouchShouLie": {
-							"next": [
-								"Battle_CollectMapDongXue",
-								"[JumpBack]Battle_FastBattleStart"
-							],
-							"target": [
-								800,
-								390,
-								0,
-								0
-							]
-						}
-					}
-				}
-			]
-		},
-		"冒险航线-资源策略": {
-			"doc": "资源倾向。选法：更缺什么？同等条件下想先刷什么？",
-			"cases": [
-				{
-					"name": "优先金币",
-					"pipeline_override": {
-						"Battle_CollectMapHangXian1": {
-							"target": [
-								341,
-								558,
-								0,
-								0
-							],
-							"focus": "BM.航线-首选-金币"
-						}
-					}
-				},
-				{
-					"name": "优先经验",
-					"pipeline_override": {
-						"Battle_CollectMapHangXian1": {
-							"target": [
-								510,
-								531,
-								0,
-								0
-							],
-							"focus": "BM.航线-首选-经验"
-						}
-					}
-				}
-			]
-		},
-		"战斗次数分配": {
-			"doc": "指米饭的分配",
-			"cases": [
-				{
-					"name": "狩猎场x1 / 双倍图MAX",
-					"pipeline_override": {
-						"Battle_FastBattleMAXTouchHangxian": {
-							"target": [
-								800,
-								390,
-								0,
-								0
-							]
-						}
-					}
-				},
-				{
-					"name": "狩猎场MAX / 双倍图最多x1",
-					"pipeline_override": {
-						"Battle_FastBattleMAXTouchShouLie": {
-							"target": [
-								800,
-								390,
-								0,
-								0
-							]
-						},
-						"Battle_CollectMap": {
-							"next": [
-								"Battle_CollectMapHangXian1",
-								"Battle_CollectMap"
-							]
-						},
-						"Battle_FastBattleMAXTouchHangxian": {
-							"next": [
-								"Battle_CollectMapHangXianDoubleCk2No_ToCentral_CK",
-								"[JumpBack]Battle_FastBattleStart"
-							]
-						}
-					}
-				}
-			]
-		},
-		"冒险航线-圣石洞穴属性": {
-			"cases": [
-				{
-					"name": "火",
-					"pipeline_override": {
-						"Battle_FastBattleTouch_StoneSelect": {
-							"target": [
-								230,
-								120,
-								0,
-								0
-							]
-						}
-					}
-				},
-				{
-					"name": "水",
-					"pipeline_override": {
-						"Battle_FastBattleTouch_StoneSelect": {
-							"target": [
-								230,
-								175,
-								0,
-								0
-							]
-						}
-					}
-				},
-				{
-					"name": "风",
-					"pipeline_override": {
-						"Battle_FastBattleTouch_StoneSelect": {
-							"target": [
-								230,
-								230,
-								0,
-								0
-							]
-						}
-					}
-				},
-				{
-					"name": "光",
-					"pipeline_override": {
-						"Battle_FastBattleTouch_StoneSelect": {
-							"target": [
-								230,
-								290,
-								0,
-								0
-							]
-						}
-					}
-				},
-				{
-					"name": "暗",
-					"pipeline_override": {
-						"Battle_FastBattleTouch_StoneSelect": {
-							"target": [
-								230,
-								350,
-								0,
-								0
-							]
-						}
-					}
-				},
-				{
-					"name": "均衡",
-					"pipeline_override": {
-						"Battle_FastBattleTouch_StoneSelect": {
-							"next": [
-								"Battle_TurnCharact_Start",
-								"[JumpBack]Battle_QuickBattleButton"
-							]
-						}
-					}
-				}
-			]
-		},
-		"精炼装备阶级": {
-			"cases": [
-				{
-					"name": "UR",
-					"pipeline_override": {
-						"Equip_filterSR": {
-							"template": [
-								"filterUR.png"
-							],
-							"roi": [
-								548,
-								399,
-								55,
-								34
-							]
-						}
-					}
-				},
-				{
-					"name": "SR",
-					"pipeline_override": {}
-				}
-			]
-		},
-		"精炼类别倾向-专武|制作": {
-			"doc": "开关球位置表示状态。左(专武)、右(制作)。\n\n潜在期望，如果要选择装备分类，你期望强化哪种？",
-			"cases": [
-				{
-					"name": "No",
-					"pipeline_override": {
-						"Equip_Exclude24MJEqu_OCR": {
-							"expected": [
-								"专\\S*",
-								"\\S*用"
-							]
-						}
-					}
-				},
-				{
-					"name": "Yes",
-					"pipeline_override": {
-						"Equip_Exclude24MJEqu_OCR": {
-							"expected": [
-								"制作"
-							]
-						}
-					}
-				}
-			]
-		},
-		"精炼类别倾向应用-按需|强制": {
-			"doc": "开关球位置表示状态。左(按需)、右(强制)。\n\n按需:仅当发现精炼装备为魔兽装备时应用\n\n强制:正常装备精炼筛选时直接应用",
-			"cases": [
-				{
-					"name": "No",
-					"pipeline_override": {}
-				},
-				{
-					"name": "Yes",
-					"pipeline_override": {
-						"Equip_filter<C17Ck": {
-							"next": [
-								"Equip_Exclude24MJEqu_OCR"
-							]
-						}
-					}
-				}
-			]
-		},
-		"仅精炼<17 or <10": {
-			"cases": [
-				{
-					"name": "关闭",
-					"pipeline_override": {
-						"Equip_filter<C17": {
-							"recognition": "DirectHit",
-							"action": "DoNothing",
-							"focus": null
-						},
-						"Equip_filter<C17Ck": {
-							"recognition": "DirectHit",
-							"action": "DoNothing",
-							"focus": null
-						}
-					}
-				},
-				{
-					"name": "CLv. < 17",
-					"pipeline_override": {}
-				},
-				{
-					"name": "CLv. < 10",
-					"pipeline_override": {
-						"Equip_filter<C17": {
-							"focus": "EM.装备精炼.<C10",
-							"target": [
-								720,
-								320,
-								0,
-								0
-							],
-							"recognition": "DirectHit"
-						},
-						"Equip_filter<C17Ck": {
-							"focus": "EM.色核通过.<C10",
-							"roi": [
-								683,
-								304,
-								74,
-								33
-							]
-						}
-					}
-				}
-			]
-		},
-		"精炼按自定义标志排序": {
-			"doc": "点击装备左上(加锁下方)可以加`自定义标志`：\n\n有数字标志`0~99`，按照越小值、越靠前排列；\n\n另有颜色图形标志，排列规则待查。",
-			"cases": [
-				{
-					"name": "No",
-					"pipeline_override": {}
-				},
-				{
-					"name": "Yes",
-					"pipeline_override": {
-						"Equip_filterON": {
-							"next": [
-								"Equip_Sequen_Menu",
-								"Equip_filterON"
-							]
-						}
-					}
-				}
-			]
-		},
-		"竞技场战斗倍数": {
-			"cases": [
-				{
-					"name": "Max",
-					"pipeline_override": {
-						"PVP_Multiplier_Adjust_Set": {}
-					}
-				},
-				{
-					"name": "Min",
-					"pipeline_override": {
-						"PVP_Multiplier_Verify": {
-							"expected": [
-								"^1$"
-							]
-						},
-						"PVP_Multiplier_Adjust_Set": {
-							"target": [
-								458,
-								355,
-								20,
-								18
-							]
-						}
-					}
-				}
-			]
-		},
-		"活动图小游戏扫荡": {
-			"doc": "旧版本活动卡带相关，日常关闭！",
-			"cases": [
-				{
-					"name": "No",
-					"pipeline_override": {}
-				},
-				{
-					"name": "Yes",
-					"pipeline_override": {
-						"Event_MiniGame_Start": {
-							"next": [
-								"Event_Explore"
-							]
-						}
-					}
-				}
-			]
-		},
-		"活动图快速战斗难度": {
-			"doc": "先手动通过最后一关（第15关），解锁快速战斗；\n\n选择相应难度选项，可实现快速战斗打完免费AP。\n\n误选会没有效果，浪费时间。\n\nTip:一共两个难度，分别有首通奖励~",
-			"cases": [
-				{
-					"name": "普通",
-					"pipeline_override": {
-						"Event_EnterNormalBattle": {
-							"expected": [
-								"普通"
-							]
-						}
-					}
-				},
-				{
-					"name": "挑战",
-					"pipeline_override": {
-						"Event_EnterNormalBattle": {
-							"expected": [
-								"挑战"
-							]
-						}
-					}
-				}
-			]
-		},
-		"魔兽补刀": {
-			"doc": "1.‘补刀’：如果某级魔兽讨伐失利，次日可继承残血再快速战斗一次。\n\n2.补刀失败只拿参与奖，不影响讨伐进度；次日循环拿奖励。\n\n3.补刀成功，则需要手动打一次下一级魔兽，失利了再来补刀。",
-			"cases": [
-				{
-					"name": "No",
-					"pipeline_override": {}
-				},
-				{
-					"name": "Yes",
-					"pipeline_override": {
-						"Even_MamonoFollowUp_Start": {
-							"next": [
-								"Even_MamonoFollowUp_InMamono"
-							]
-						}
-					}
-				}
-			]
-		},
-		"肉鸽塔快速战斗": {
-			"cases": [
-				{
-					"name": "No",
-					"pipeline_override": {
-						"Redemption_HomePage": {
-							"next": [
-								"Redemption_Evil_Redemption_End"
-							]
-						}
-					}
-				},
-				{
-					"name": "Yes",
-					"pipeline_override": {}
-				}
-			]
-		},
-		"末日之书": {
-			"cases": [
-				{
-					"name": "No",
-					"pipeline_override": {
-						"Weekly_LastNight_Start": {
-							"next": [
-								"Weekly_LastNight_End",
-								"[JumpBack]Weekly_HomePageHub",
-								"[JumpBack]Weekly_HomePageHub2",
-								"[JumpBack]Weekly_HomePageHub1"
-							]
-						}
-					}
-				},
-				{
-					"name": "Yes",
-					"pipeline_override": {}
-				}
-			]
-		},
-		"半自动爬塔(从选层数界面开始)": {
-			"cases": [
-				{
-					"name": "No",
-					"pipeline_override": {
-						"SemiAuto_Evil_SemiautoTower_Start": {
-							"next": [
-								"SemiAuto_Evil_SemiautoTower_End"
-							]
-						}
-					}
-				},
-				{
-					"name": "Yes",
-					"pipeline_override": {}
-				}
-			]
-		},
-		"半自动末日之书(从‘去战斗’页面开始)": {
-			"cases": [
-				{
-					"name": "Yes",
-					"pipeline_override": {}
-				},
-				{
-					"name": "No",
-					"pipeline_override": {
-						"SemiAuto_LastNight_Start": {
-							"next": [
-								"SemiAuto_LastNight_End"
-							]
-						}
-					}
-				}
-			]
-		},
-		"公会奖励": {
-			"cases": [
-				{
-					"name": "Yes",
-					"pipeline_override": {}
-				},
-				{
-					"name": "No",
-					"pipeline_override": {
-						"RewardsORG_EnterUnion": {
-							"next": [
-								"RewardsORG_BusinReward"
-							],
-							"roi": [
-								98,
-								656,
-								66,
-								32
-							],
-							"expected": [
-								"抽抽乐"
-							]
-						}
-					}
-				}
-			]
-		},
-		"付费钻-总开关": {
-			"doc": "【危险功能】\n\n基本页：每日90钻1抽总闸。\n\n必须配合后高级页，指定卡池名才会实际抽取。\n\n检查：无念想时不应意外打开。",
-			"cases": [
-				{
-					"name": "No",
-					"pipeline_override": {}
-				},
-				{
-					"name": "Yes",
-					"pipeline_override": {
-						"Gacha_PvAnimeIsOver": {
-							"next": [
-								"Gacha_PaidDiamond_CustomField",
-								"Gacha_TouchFreeGacha"
-							]
-						}
-					}
-				}
-			]
-		},
-		"抽卡v2版开关-按需|强制": {
-			"doc": "一套更严谨的抽卡流程。\n\n可应对抽抽乐点数达到200，但想保留机会不立即兑换的情况。\n\n按需：默认流程检测到问题，则启用v2版抽卡\n\n强制：从一开始就调用V2版抽卡。",
-			"cases": [
-				{
-					"name": "No",
-					"pipeline_override": {}
-				},
-				{
-					"name": "Yes",
-					"pipeline_override": {
-						"Gacha_HomePage": {
-							"next": [
-								"GachaADV_Start"
-							]
-						}
-					}
-				}
-			]
-		},
-		"进入前先领取邮件": {
-			"doc": "常闭。\n\n开启：按版本需要，版本活动抽奖需要代币、代币预先被发放到邮件内时。",
-			"cases": [
-				{
-					"name": "No",
-					"pipeline_override": {}
-				},
-				{
-					"name": "Yes",
-					"pipeline_override": {
-						"Activities_HomePageHub": {
-							"next": [
-								"Activities_Call_Mail_Start",
-								"Activities_InIndex",
-								"Global_ToSandBox"
-							]
-						}
-					}
-				}
-			]
-		},
-		"选择要刷取的技能": {
-			"cases": [
-				{
-					"name": "不刷",
-					"pipeline_override": {}
-				},
-				{
-					"name": "砍价",
-					"pipeline_override": {
-						"Practise_Start": {
-							"next": [
-								"Practise_Skill_Bargaining"
-							]
-						}
-					}
-				}
-			]
-		},
-		"前置助手": {
-			"doc": "自动设好本工具所需的前置设置。",
-			"cases": [
-				{
-					"name": "按需",
-					"pipeline_override": {}
-				},
-				{
-					"name": "不要，别动！",
-					"pipeline_override": {
-						"Setup_Entry1": {
-							"enabled": false
-						},
-						"Setup_Entry2": {
-							"enabled": false
-						},
-						"Setup_Entry3": {
-							"enabled": false
-						},
-						"Setup_Entry4": {
-							"enabled": false
-						}
-					}
-				},
-				{
-					"name": "强制启用",
-					"pipeline_override": {
-						"StartGame_FinBackMapPage": {
-							"next": [
-								"[JumpBack]Setup_Str",
-								"StartGame_PerPetTask"
-							]
-						},
-						"Setup_Entry1": {
-							"enabled": false
-						},
-						"Setup_Entry2": {
-							"enabled": false
-						},
-						"Setup_Entry3": {
-							"enabled": false
-						},
-						"Setup_Entry4": {
-							"enabled": false
-						}
-					}
-				}
-			]
-		}
-	},
-	"advanced": {
-		"90付费抽目标卡池": {
-			"doc": [
-				"【危险功能】若无特别执念，保留默认即可。\n\n一框只填写一个卡池名。\n\n留意错字，少字可通配，但或发生意外情况",
-				"(O_o)?? ↓↓",
-				"Σ(⊙▽⊙)a ↓",
-				"小技巧：写‘提尔服装pickup’or‘达丽安专用装备’应该也是可以的，识别范围是整张卡池卡片，可自行举一反三测试。\n\n识别错了后果最多不花钻~"
-			],
-			"field": [
-				"目标池1",
-				"目标池2",
-				"目标池3",
-				"目标池4"
-			],
-			"type": [
-				"string",
-				"string",
-				"string",
-				"string"
-			],
-			"default": [
-				"xxx1",
-				"xxx2",
-				"xxx3",
-				"xxx4"
-			],
-			"pipeline_override": {
-				"Gacha_PaidDiamond_CustomField": {
-					"expected": [
-						"{目标池1}",
-						"{目标池2}",
-						"{目标池3}",
-						"{目标池4}"
-					]
-				},
-				"GachaADV_Location1_90LotPost": {
-					"expected": [
-						"{目标池1}",
-						"{目标池2}",
-						"{目标池3}",
-						"{目标池4}"
-					]
-				},
-				"GachaADV_Location2_90LotPost": {
-					"expected": [
-						"{目标池1}",
-						"{目标池2}",
-						"{目标池3}",
-						"{目标池4}"
-					]
-				},
-				"GachaADV_Location3_90LotPost": {
-					"expected": [
-						"{目标池1}",
-						"{目标池2}",
-						"{目标池3}",
-						"{目标池4}"
-					]
-				},
-				"GachaADV_Location4_90LotPost": {
-					"expected": [
-						"{目标池1}",
-						"{目标池2}",
-						"{目标池3}",
-						"{目标池4}"
-					]
-				},
-				"GachaADV_Location5_90LotPost": {
-					"expected": [
-						"{目标池1}",
-						"{目标池2}",
-						"{目标池3}",
-						"{目标池4}"
-					]
-				}
-			}
-		},
-		"第三图采集额外等待": {
-			"doc": [
-				"如果探查技能非180s的传说级，可能第三次采集刚好超过技能时间。\n\n故可以在此设定一个强制等待时间，以便脚本识别后重新施放。\n\n单位ms，1000ms=1s。"
-			],
-			"field": [
-				"第三次采集额外等待时间(ms)"
-			],
-			"type": [
-				"int"
-			],
-			"default": [
-				"200"
-			],
-			"pipeline_override": {
-				"Collect_TargetMap3": {
-					"post_delay": "{第三次采集额外等待时间(ms)}"
-				}
-			}
-		}
-	},
-	"name": "MFABD2",
-	"custom_title": "MFABD2 | 棕色尘埃2自动化助手(sunyink/MFABD2)v0.0.12 | 游戏版本：20251216 (Meltdown Bunnies)",
-	"url": "https://github.com/sunyink/MFABD2",
-	"mirrorchyan_rid": "MFABD2",
-	"mirrorchyan_multiplatform": false,
-	"version": "v0.0.12"
+    "controller": [
+        {
+            "name": "安卓端",
+            "type": "Adb"
+        }
+    ],
+    "resource": [
+        {
+            "name": "官服",
+            "path": [
+                "{PROJECT_DIR}/resource"
+            ]
+        }
+    ],
+    "task": [
+        {
+            "name": "[全局]启动游戏",
+            "entry": "StartGame_Start",
+            "check": true,
+            "doc": "**启动游戏**：\n\n自动启动游戏，包含更新、支付失败等一些异常框点击，领取`主界面`奖励、`宠物派遣`。\n\n**注意：网络环境需提前解决。**\n\n【**首次运行前，务必至少查看**`使用帮助`**卡片！**】\n\n**前置助手:**自动设定一次本工具所需的前置设置，包括主设置、装备管理选项、快捷技能三个部分。建议初次接触本工具、游戏清数据重下，运行一次‘强制’，后切为‘按需’。",
+            "option": [
+                "前置助手"
+            ]
+        },
+        {
+            "name": "[执行]快速狩猎扫荡",
+            "entry": "Battle_StartGame_HomePage",
+            "check": true,
+            "option": [
+                "冒险航线-双倍策略",
+                "冒险航线-资源策略",
+                "狩猎场-章节图策略",
+                "战斗次数分配",
+                "冒险航线-圣石洞穴属性"
+            ],
+            "doc": "**快速狩猎扫荡**：旧称`地图扫荡`。消耗每日免费的米饭、火把刷取资源。  \n\n**注意：这里每一个选项都是重要的必选项。请在狩猎场`1.野猪洞穴`已打完的基础上，确保目标狩猎场已通关**\n\n**选项讲解：**\n\n前4项米饭相关，依次为\n\n①主线狩猎场选择——目前支持`主线9`、`主线7`、`主线2`\n\n②冒险航线双倍图策略：(详见选项说明)\n\n③冒险航线资源策略：资源倾向(详见选项说明)\n\n④狩猎场与冒险航线之间次数分配——一定打完免费米饭。\n\n\n\n第5项为圣石洞穴策略：全打某属性or均匀属性每种打2次，一定用完免费火把。"
+        },
+        {
+            "name": "[执行]地图采集",
+            "entry": "Collect_StartGame_HomePage",
+            "check": true,
+            "doc": "**地图采集**：进入卡带，对有传送阵地图进行`探查`、`吸取`、`召集`。请根据技能数量与等级合理决定每日吸取卡带数量。\n\n**采集方案:**\n\n**快速(快速卡带列表)：**从箱庭点击卡带图标后从左选取x张卡带采集（通过卡带右上图钉实现自定义排序，进而自定义选刷）,剧情游戏卡和角色游戏卡分开选择（二者可改变先后顺序）,合计不宜大于每日技能吸取数量。\n\n**固定：**旧逻辑，不能自定义卡带，作为备案保留。\n\n**举例：**目标先刷主线7+8+9+13，再刷火片。设置为，剧情卡带只标记这4张图给置顶，只标记角色卡的火片给置顶；采集方案=快速：1#剧情卡→2#角色卡；剧情卡带-刷取张数=4、角色卡带-刷取张数=1。看不全下拉菜单可选项上悬停1秒或调大MFA窗口。\n\n**注意:**应当先将传送阵激活，并探明周围箱庭迷雾，使得区域地图上能完整显示明亮的传送阵图标。",
+            "option": [
+                "采集方案",
+                "快速卡带-剧情卡带-刷取张数",
+                "快速卡带-角色卡带-刷取张数"
+            ],
+            "advanced": [
+                "第三图采集额外等待"
+            ]
+        },
+        {
+            "name": "[执行]装备制作&炼制日常",
+            "entry": "Equip_HomePage",
+            "check": true,
+            "doc": "**装备制作：**依次进行 `N稀有短剑打造`、将其`强化`、将其`分解`、`精炼`。\n\n 如果有相关装备非正常锁定，可能会失败。 **尤其初次运行**流程运行无需事先锁定装备。\n\n `精炼`只会以SR or UR 稀有度装备为对象进行\n\n若将`仅精炼...`和`自定义标志排序`同时配置，能“合成”出——低精炼等级强化队列：排列优先装备1号超出`仅精炼`条件会被筛选掉、下一次开始精炼优先装备2号。**自定义标志规则参见子项说明**。 ",
+            "option": [
+                "精炼装备阶级",
+                "仅精炼<17 or <10",
+                "精炼按自定义标志排序",
+                "精炼类别倾向-专武|制作",
+                "精炼类别倾向应用-按需|强制"
+            ]
+        },
+        {
+            "name": "[执行]白嫖抽卡",
+            "entry": "Gacha_HomePage",
+            "check": true,
+            "option": [
+                "付费钻-总开关",
+                "抽卡v2版开关-按需|强制"
+            ],
+            "advanced": [
+                "90付费抽目标卡池"
+            ],
+            "doc": "**白嫖抽卡：**每日免费一次的`角色`、`专属装备`抽取。\n\n当抽取免费抽时，可顺便**用90付费钻，对指定卡池每日优惠一抽：**启用方法如下，注意选项卡在右上，\n\n①基本页，打开`总开关`,\n\n②高级页，修改填入抽卡页面人工读到的目标卡池名称，一行一个，最多追踪4个卡池**（完事后及时清除）**。类似默认值的内容就不会被`OCR`识别通过。\n\n**同时**完成以上2个设置才会有效。虽限定卡池名降低了风险，但这仍然是**危险功能！！** \n\n **务必仔细确认，平时常闭。脚本协议不承担其使用责任！** \n\n **打开此**`总开关`**，则是你知晓并自行承担相关风险的意思表示！** \n\n ![](https://pic1.imgdb.cn/item/68e26db5c5157e1a8858fbf4.png =150x) "
+        },
+        {
+            "name": "[执行]竞技场",
+            "entry": "PVP_TaskStart",
+            "check": true,
+            "option": [
+                "竞技场战斗倍数"
+            ],
+            "doc": "**竞技场：**进入竞技场卡带，打完每日免费鸡尾酒。\n\n**战斗倍数：**Max 或 Min \n\n关于计分：排位分按每一场胜负计算无关倍率、奖牌则会x倍率。\n\n如：Max为10倍，每天打4场x10倍鸡尾酒，计4场排位分，4x10倍奖牌。"
+        },
+        {
+            "name": "[执行]赛季活动快速战斗",
+            "entry": "Event_HomePage",
+            "option": [
+                "活动图快速战斗难度",
+                "魔兽补刀",
+                "活动图小游戏扫荡"
+            ],
+            "doc": "**活动图扫荡：**主页面的右侧的版本活动。\n\n**快速战斗难度：**版本活动通过第15关后，解锁此等级快速战斗。用每日免费AP打Max。\n\n若未打完所选难度15关，不会报错停止，但没有效果。\n\n支持选择难度。\n\n**魔兽补刀:**在打过魔兽后每日快速战斗一次,拿取参与奖。\n\n小游戏扫荡：长期未复刻，保持关闭即可。"
+        },
+        {
+            "name": "[执行]肉鸽塔每日快速战斗",
+            "entry": "Redemption_HomePage",
+            "option": [
+                "肉鸽塔快速战斗"
+            ],
+            "doc": "**肉鸽塔快速战斗：**肉鸽塔每期强化代币(黑晶石)刷取，方便点亮修改器打高难。会尽可能选取最高难度快速战斗，打完每日3次免费AP。\n\n**每期需要先手动打一次解锁快速战斗**，量力而行~\n\n肉鸽塔代币、强化效果每期累计，跨期不继承。"
+        },
+        {
+            "name": "[执行]周常任务",
+            "entry": "Weekly_HomePage",
+            "option": [
+                "末日之书"
+            ],
+            "doc": "**每周独立周常：**每周奖励3项：依次打1轮`末日之书`、`我的小屋`随机点赞4次、访问`街机页面`。\n\n正常运作可以拿完全部`每周任务`奖励。\n\n周触发器开发烂尾中...欢迎协助←(･ω･)ﾉ。 "
+        },
+        {
+            "name": "[领取]公会签到/餐馆",
+            "check": true,
+            "entry": "RewardsORG_HomePage",
+            "option": [
+                "公会奖励"
+            ],
+            "doc": "**日常奖励：**依次领取`公会每日签到`、`餐馆-格鲁费之星`，进入`餐馆`领取每日`常客圣石`，切出卡带到`主线2`。\n\n**无公会请关闭公会奖励开关。**"
+        },
+        {
+            "name": "[领取]任务页(每日/每周)",
+            "check": true,
+            "entry": "RewardsDaily_Start",
+            "doc": "**日常奖励：**专指`主界面`下，`任务`按钮内的奖励。。"
+        },
+        {
+            "name": "[领取]活动页奖励",
+            "check": true,
+            "entry": "Activities_Start",
+            "option": [
+                "进入前先领取邮件"
+            ],
+            "doc": "**常规活动奖励：**专指`主界面`下，`活动`按钮内的奖励。\n\n该奖励存在轮换，需要持续跟进更新。\n\n**进入前先领取邮件：**（详见选项说明）遇到活动需要的代币被发放在邮件里的情况。eg.登录送代币到邮件，活动用代币抽奖。如果非必要开启，可能无端会延长一点总运行时长。"
+        },
+        {
+            "name": "[领取]通行证奖励",
+            "check": true,
+            "entry": "Pass_HomePage",
+            "doc": "**通行证奖励：**`主界面`下，`通行证`按钮内的奖励。"
+        },
+        {
+            "name": "[领取]领取邮件",
+            "check": true,
+            "entry": "Mail_HomePage",
+            "doc": "**领取邮件：**`主界面`下，`邮件`图标内的奖励。包括一般、商品。\n\n没有新邮件红点是不会进入邮件页面的。"
+        },
+        {
+            "name": "[开发中]商店套利",
+            "entry": "Arbitrage_Start",
+            "doc": "**商店套利：**流传‘跑商’中的‘商’，我定义为商店套利。\n\n未来完整流程包括：购买高利润料理食材、购买高利润其他食材、料理制作、料理择价出售、高利润材料择价出售"
+        },
+        {
+            "name": "[全局]结束游戏",
+            "entry": "Close_HomePage"
+        },
+        {
+            "name": "[手动]生活技能刷级",
+            "entry": "Practise_Start",
+            "option": [
+                "选择要刷取的技能"
+            ]
+        },
+        {
+            "name": "[特殊]半自动操作（常闭！单开！）",
+            "entry": "SemiAuto_HomePage",
+            "option": [
+                "半自动爬塔(从选层数界面开始)",
+                "半自动末日之书(从‘去战斗’页面开始)"
+            ],
+            "doc": "**半自动操作：日常关闭。**使用时注意启动页面。\n\n（未来计划...）作为小工具在其他页面打开，∞拖延。 "
+        }
+    ],
+    "option": {
+        "采集方案": {
+            "doc": "决定2件事:\n\n1、切卡入口是箱庭快速卡带按钮，还是主页面卡带老菜单。\n\n2、快速卡带的类型顺序 or 固定卡带的刷取内容",
+            "cases": [
+                {
+                    "name": "快速：1#剧情卡→2#角色卡",
+                    "pipeline_override": {}
+                },
+                {
+                    "name": "快速：1#角色卡→2#剧情卡",
+                    "pipeline_override": {
+                        "Collect_QuickCart_Menu_Ocr": {
+                            "next": [
+                                "Collect_QuickCart_QR_Sort"
+                            ]
+                        },
+                        "Collect_QuickCart_QR_Fin": {
+                            "next": "Collect_QuickCart_Switch"
+                        },
+                        "Collect_QuickCart_Switch": {
+                            "next": [
+                                "Collect_QuickCart_QC_Sort",
+                                "[JumpBack]Global_QuickCart_MenuReset",
+                                "[JumpBack]Global_BackPageHub_Once"
+                            ]
+                        },
+                        "Collect_QuickCart_QC_Fin": {
+                            "next": "Collect_QuickCart_Fin"
+                        },
+                        "Collect_QuickCart_QC_Out": {
+                            "next": [
+                                "Collect_ChapterSelectionError"
+                            ]
+                        },
+                        "Collect_QuickCart_QR_Out": {
+                            "next": [
+                                "Collect_QuickCart_Switch"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "固定：木&金-章节9+7+8",
+                    "pipeline_override": {
+                        "Collect_HomePageHub": {
+                            "next": [
+                                "Collect_PerPetTask",
+                                "Collect_PVEChapterIden2#",
+                                "[JumpBack]Collect_HomePageSwipeInitialize_BackHomePage"
+                            ]
+                        },
+                        "Collect_HomePageHub1": {
+                            "next": [
+                                "Collect_PerPetTask",
+                                "Collect_PVEChapterIden2#",
+                                "[JumpBack]Collect_HomePageSwipeInitialize_BackHomePage"
+                            ]
+                        },
+                        "Collect_StartGameType2": {
+                            "next": [
+                                "Collect_PVEChapterIden2#",
+                                "[JumpBack]Collect_HomePageSwipeInitialize_BackHomePage"
+                            ]
+                        },
+                        "Collect_TargetMap3": {
+                            "next": [
+                                "Collect_TargetMapEnd",
+                                "[JumpBack]Collect_ClickTeleporCircleIco",
+                                "[JumpBack]Collect_Protection_ReturnToAreaMap",
+                                "[JumpBack]Collect_TeleporNotFind"
+                            ]
+                        },
+                        "Collect_TeleporNotFind": {
+                            "next": [
+                                "Collect_TargetMapEnd_End",
+                                "Collect_ClickTeleporCircleIco",
+                                "Collect_TeleporNotFind"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "固定：低练度-章节2",
+                    "pipeline_override": {
+                        "Collect_HomePageHub": {
+                            "next": [
+                                "Collect_PerPetTask",
+                                "Collect_PVEChapterIden2#",
+                                "[JumpBack]Collect_HomePageSwipeInitialize_BackHomePage"
+                            ]
+                        },
+                        "Collect_HomePageHub1": {
+                            "next": [
+                                "Collect_PerPetTask",
+                                "Collect_PVEChapterIden2#",
+                                "[JumpBack]Collect_HomePageSwipeInitialize_BackHomePage"
+                            ]
+                        },
+                        "Collect_StartGameType2": {
+                            "next": [
+                                "Collect_PVEChapterIden2#",
+                                "[JumpBack]Collect_HomePageSwipeInitialize_BackHomePage"
+                            ]
+                        },
+                        "Collect_TargetMap3": {
+                            "next": [
+                                "Collect_TargetMapEnd",
+                                "[JumpBack]Collect_ClickTeleporCircleIco",
+                                "[JumpBack]Collect_Protection_ReturnToAreaMap",
+                                "[JumpBack]Collect_TeleporNotFind"
+                            ]
+                        },
+                        "Collect_TeleporNotFind": {
+                            "next": [
+                                "Collect_TargetMapEnd_End",
+                                "Collect_ClickTeleporCircleIco",
+                                "Collect_TeleporNotFind"
+                            ]
+                        },
+                        "Collect_ChapterSelection1": {
+                            "next": [
+                                "Collect_ChapterSelectionEnd",
+                                "[JumpBack]Collect_PetTask",
+                                "[JumpBack]Collect_OperationsMain_Sandplay"
+                            ],
+                            "template": [
+                                "pve2b.png"
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        "快速卡带-剧情卡带-刷取张数": {
+            "doc": "【仅适用于‘快速’方案】左起第1张开始，刷几个剧情游戏卡带？\n\n最大值 = $‘吸取’技能总次数 ÷3 - $角色卡带计划刷取张数 。超选都是浪费时间！",
+            "cases": [
+                {
+                    "name": "3",
+                    "pipeline_override": {
+                        "Collect_QuickCart_QC3_Post": {
+                            "next": [
+                                "Collect_QuickCart_QC_Fin",
+                                "[JumpBack]Collect_OperationsMain_Sandplay"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "0",
+                    "pipeline_override": {
+                        "Collect_QuickCart_QC_Sort": {
+                            "next": [
+                                "Collect_QuickCart_Switch"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "1",
+                    "pipeline_override": {
+                        "Collect_QuickCart_QC1_Post": {
+                            "next": [
+                                "Collect_QuickCart_QC_Fin",
+                                "[JumpBack]Collect_OperationsMain_Sandplay"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "2",
+                    "pipeline_override": {
+                        "Collect_QuickCart_QC2_Post": {
+                            "next": [
+                                "Collect_QuickCart_QC_Fin",
+                                "[JumpBack]Collect_OperationsMain_Sandplay"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "4",
+                    "pipeline_override": {
+                        "Collect_QuickCart_QC4_Post": {
+                            "next": [
+                                "Collect_QuickCart_QC_Fin",
+                                "[JumpBack]Collect_OperationsMain_Sandplay"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "5",
+                    "pipeline_override": {
+                        "Collect_QuickCart_QC5_Post": {
+                            "next": [
+                                "Collect_QuickCart_QC_Fin",
+                                "[JumpBack]Collect_OperationsMain_Sandplay"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "6",
+                    "pipeline_override": {
+                        "Collect_QuickCart_QC6_Post": {
+                            "next": [
+                                "Collect_QuickCart_QC_Fin",
+                                "[JumpBack]Collect_OperationsMain_Sandplay"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "7",
+                    "pipeline_override": {
+                        "Collect_QuickCart_QC7_Post": {
+                            "next": [
+                                "Collect_QuickCart_QC_Fin",
+                                "[JumpBack]Collect_OperationsMain_Sandplay"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "8",
+                    "pipeline_override": {
+                        "Collect_QuickCart_QC8_Post": {
+                            "next": [
+                                "Collect_QuickCart_QC_Fin",
+                                "[JumpBack]Collect_OperationsMain_Sandplay"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "9",
+                    "pipeline_override": {
+                        "Collect_QuickCart_QC9_Post": {
+                            "next": [
+                                "Collect_QuickCart_QC_Fin",
+                                "[JumpBack]Collect_OperationsMain_Sandplay"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "10",
+                    "pipeline_override": {
+                        "Collect_QuickCart_QC10_Post": {
+                            "next": [
+                                "Collect_QuickCart_QC_Fin",
+                                "[JumpBack]Collect_OperationsMain_Sandplay"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "11",
+                    "pipeline_override": {
+                        "Collect_QuickCart_QC11_Post": {
+                            "next": [
+                                "Collect_QuickCart_QC_Fin",
+                                "[JumpBack]Collect_OperationsMain_Sandplay"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "12",
+                    "pipeline_override": {}
+                }
+            ]
+        },
+        "快速卡带-角色卡带-刷取张数": {
+            "doc": "【仅适用于‘快速’方案】左起第1张开始，刷几个角色游戏卡带？\n\n最大值 = $‘吸取’技能总次数 ÷3 - $剧情卡带计划刷取张数 【且不能超过当前版本最大角色卡带数！】。超选都是浪费时间！",
+            "cases": [
+                {
+                    "name": "0",
+                    "pipeline_override": {
+                        "Collect_QuickCart_QR_Sort": {
+                            "next": [
+                                "Collect_QuickCart_QR_Fin"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "1",
+                    "pipeline_override": {
+                        "Collect_QuickCart_QR1_Post": {
+                            "next": [
+                                "Collect_QuickCart_QR_Fin",
+                                "[JumpBack]Collect_OperationsMain_Sandplay"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "2",
+                    "pipeline_override": {
+                        "Collect_QuickCart_QR2_Post": {
+                            "next": [
+                                "Collect_QuickCart_QR_Fin",
+                                "[JumpBack]Collect_OperationsMain_Sandplay"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "3",
+                    "pipeline_override": {
+                        "Collect_QuickCart_QR3_Post": {
+                            "next": [
+                                "Collect_QuickCart_QR_Fin",
+                                "[JumpBack]Collect_OperationsMain_Sandplay"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "4",
+                    "pipeline_override": {
+                        "Collect_QuickCart_QR4_Post": {
+                            "next": [
+                                "Collect_QuickCart_QR_Fin",
+                                "[JumpBack]Collect_OperationsMain_Sandplay"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "5",
+                    "pipeline_override": {
+                        "Collect_QuickCart_QR5_Post": {
+                            "next": [
+                                "Collect_QuickCart_QR_Fin",
+                                "[JumpBack]Collect_OperationsMain_Sandplay"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "6",
+                    "pipeline_override": {
+                        "Collect_QuickCart_QR6_Post": {
+                            "next": [
+                                "Collect_QuickCart_QR_Fin",
+                                "[JumpBack]Collect_OperationsMain_Sandplay"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "7（截止合约之战共7张）",
+                    "pipeline_override": {
+                        "Collect_QuickCart_QR7_Post": {
+                            "next": [
+                                "Collect_QuickCart_QR_Fin",
+                                "[JumpBack]Collect_OperationsMain_Sandplay"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "8",
+                    "pipeline_override": {
+                        "Collect_QuickCart_QR8_Post": {
+                            "next": [
+                                "Collect_QuickCart_QR_Fin",
+                                "[JumpBack]Collect_OperationsMain_Sandplay"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "9",
+                    "pipeline_override": {
+                        "Collect_QuickCart_QR9_Post": {
+                            "next": [
+                                "Collect_QuickCart_QR_Fin",
+                                "[JumpBack]Collect_OperationsMain_Sandplay"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "10",
+                    "pipeline_override": {
+                        "Collect_QuickCart_QR10_Post": {
+                            "next": [
+                                "Collect_QuickCart_QR_Fin",
+                                "[JumpBack]Collect_OperationsMain_Sandplay"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "11",
+                    "pipeline_override": {
+                        "Collect_QuickCart_QR11_Post": {
+                            "next": [
+                                "Collect_QuickCart_QR_Fin",
+                                "[JumpBack]Collect_OperationsMain_Sandplay"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "12",
+                    "pipeline_override": {}
+                }
+            ]
+        },
+        "狩猎场-章节图策略": {
+            "doc": "选“不打”会,会使得启用“优先双倍”被“强制双倍”替代,这是为了避免bug",
+            "cases": [
+                {
+                    "name": "低练度-章节2",
+                    "pipeline_override": {}
+                },
+                {
+                    "name": "木材-章节9",
+                    "pipeline_override": {
+                        "Battle_CollectMapShouLie": {
+                            "expected": [
+                                "守山人休息处"
+                            ],
+                            "roi": [
+                                998,
+                                76,
+                                165,
+                                95
+                            ]
+                        },
+                        "Battle_CollectMapShouLieR2": {
+                            "expected": [
+                                "守山人休息处"
+                            ],
+                            "roi": [
+                                998,
+                                76,
+                                165,
+                                95
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "矿石-章节7",
+                    "pipeline_override": {
+                        "Battle_CollectMap": {
+                            "next": [
+                                "Battle_CollectMapShouLie",
+                                "[JumpBack]Battle_CollectMap_SwipLeft"
+                            ]
+                        },
+                        "Battle_CollectMapHangXianDoubleCk2No_ToCentral_CK": {
+                            "next": [
+                                "Battle_NoAP_Rice",
+                                "Battle_CollectMapShouLieR2",
+                                "[JumpBack]Battle_CollectMap_SwipLeft"
+                            ]
+                        },
+                        "Battle_CollectMapShouLie": {
+                            "expected": [
+                                "蜥蜴人祭坛"
+                            ],
+                            "roi": [
+                                305,
+                                367,
+                                121,
+                                59
+                            ],
+                            "target_offset": [
+                                5,
+                                -3,
+                                0,
+                                0
+                            ]
+                        },
+                        "Battle_CollectMapShouLieR2": {
+                            "expected": [
+                                "蜥蜴人祭坛"
+                            ],
+                            "roi": [
+                                305,
+                                367,
+                                121,
+                                59
+                            ],
+                            "target_offset": [
+                                5,
+                                -3,
+                                0,
+                                0
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "不打",
+                    "pipeline_override": {
+                        "Battle_CollectMap": {
+                            "next": [
+                                "Battle_CollectMapHangXian1",
+                                "Battle_CollectMap"
+                            ]
+                        },
+                        "Battle_CollectMapHangXianDoubleCk1No": {}
+                    }
+                }
+            ]
+        },
+        "冒险航线-双倍策略": {
+            "doc": "强制:先满足打双倍，尝试满足资源倾向，满足不了会打另一种资源。\n\n优先:先考虑资源倾向，再考虑双倍则打航线，否则全打狩猎场。\n\n忽视:不检查是否双倍，直接按照资源倾向打。\n\n不打:不打航线图，全刷狩猎场。（此时资源策略无效）",
+            "cases": [
+                {
+                    "name": "强制双倍",
+                    "pipeline_override": {}
+                },
+                {
+                    "name": "优先双倍",
+                    "pipeline_override": {
+                        "Battle_CollectMapHangXianDoubleCk1No": {
+                            "next": [
+                                "Battle_CollectMapHangXianDoubleCk2No_ToCentral",
+                                "[JumpBack]Battle_CollectMapInitialize"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "忽视双倍",
+                    "pipeline_override": {
+                        "Battle_CollectMapHangXian1": {
+                            "next": [
+                                "Battle_CollectMapHangXianDoubleCk1"
+                            ]
+                        },
+                        "Battle_CollectMapHangXianDoubleCk1": {
+                            "template": [
+                                "Exp.png",
+                                "Gold.png"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "不打",
+                    "pipeline_override": {
+                        "Battle_FastBattleMAXTouchShouLie": {
+                            "next": [
+                                "Battle_CollectMapDongXue",
+                                "[JumpBack]Battle_FastBattleStart"
+                            ],
+                            "target": [
+                                800,
+                                390,
+                                0,
+                                0
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        "冒险航线-资源策略": {
+            "doc": "资源倾向。选法：更缺什么？同等条件下想先刷什么？",
+            "cases": [
+                {
+                    "name": "优先金币",
+                    "pipeline_override": {
+                        "Battle_CollectMapHangXian1": {
+                            "target": [
+                                341,
+                                558,
+                                0,
+                                0
+                            ],
+                            "focus": "BM.航线-首选-金币"
+                        }
+                    }
+                },
+                {
+                    "name": "优先经验",
+                    "pipeline_override": {
+                        "Battle_CollectMapHangXian1": {
+                            "target": [
+                                510,
+                                531,
+                                0,
+                                0
+                            ],
+                            "focus": "BM.航线-首选-经验"
+                        }
+                    }
+                }
+            ]
+        },
+        "战斗次数分配": {
+            "doc": "指米饭的分配",
+            "cases": [
+                {
+                    "name": "狩猎场x1 / 双倍图MAX",
+                    "pipeline_override": {
+                        "Battle_FastBattleMAXTouchHangxian": {
+                            "target": [
+                                800,
+                                390,
+                                0,
+                                0
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "狩猎场MAX / 双倍图最多x1",
+                    "pipeline_override": {
+                        "Battle_FastBattleMAXTouchShouLie": {
+                            "target": [
+                                800,
+                                390,
+                                0,
+                                0
+                            ]
+                        },
+                        "Battle_CollectMap": {
+                            "next": [
+                                "Battle_CollectMapHangXian1",
+                                "Battle_CollectMap"
+                            ]
+                        },
+                        "Battle_FastBattleMAXTouchHangxian": {
+                            "next": [
+                                "Battle_CollectMapHangXianDoubleCk2No_ToCentral_CK",
+                                "[JumpBack]Battle_FastBattleStart"
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        "冒险航线-圣石洞穴属性": {
+            "cases": [
+                {
+                    "name": "火",
+                    "pipeline_override": {
+                        "Battle_FastBattleTouch_StoneSelect": {
+                            "target": [
+                                230,
+                                120,
+                                0,
+                                0
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "水",
+                    "pipeline_override": {
+                        "Battle_FastBattleTouch_StoneSelect": {
+                            "target": [
+                                230,
+                                175,
+                                0,
+                                0
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "风",
+                    "pipeline_override": {
+                        "Battle_FastBattleTouch_StoneSelect": {
+                            "target": [
+                                230,
+                                230,
+                                0,
+                                0
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "光",
+                    "pipeline_override": {
+                        "Battle_FastBattleTouch_StoneSelect": {
+                            "target": [
+                                230,
+                                290,
+                                0,
+                                0
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "暗",
+                    "pipeline_override": {
+                        "Battle_FastBattleTouch_StoneSelect": {
+                            "target": [
+                                230,
+                                350,
+                                0,
+                                0
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "均衡",
+                    "pipeline_override": {
+                        "Battle_FastBattleTouch_StoneSelect": {
+                            "next": [
+                                "Battle_TurnCharact_Start",
+                                "[JumpBack]Battle_QuickBattleButton"
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        "精炼装备阶级": {
+            "cases": [
+                {
+                    "name": "UR",
+                    "pipeline_override": {
+                        "Equip_filterSR": {
+                            "template": [
+                                "filterUR.png"
+                            ],
+                            "roi": [
+                                548,
+                                399,
+                                55,
+                                34
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "SR",
+                    "pipeline_override": {}
+                }
+            ]
+        },
+        "精炼类别倾向-专武|制作": {
+            "doc": "开关球位置表示状态。左(专武)、右(制作)。\n\n潜在期望，如果要选择装备分类，你期望强化哪种？",
+            "cases": [
+                {
+                    "name": "No",
+                    "pipeline_override": {
+                        "Equip_Exclude24MJEqu_OCR": {
+                            "expected": [
+                                "专\\S*",
+                                "\\S*用"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "Equip_Exclude24MJEqu_OCR": {
+                            "expected": [
+                                "制作"
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        "精炼类别倾向应用-按需|强制": {
+            "doc": "开关球位置表示状态。左(按需)、右(强制)。\n\n按需:仅当发现精炼装备为魔兽装备时应用\n\n强制:正常装备精炼筛选时直接应用",
+            "cases": [
+                {
+                    "name": "No",
+                    "pipeline_override": {}
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "Equip_filter<C17Ck": {
+                            "next": [
+                                "Equip_Exclude24MJEqu_OCR"
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        "仅精炼<17 or <10": {
+            "cases": [
+                {
+                    "name": "关闭",
+                    "pipeline_override": {
+                        "Equip_filter<C17": {
+                            "recognition": "DirectHit",
+                            "action": "DoNothing",
+                            "focus": null
+                        },
+                        "Equip_filter<C17Ck": {
+                            "recognition": "DirectHit",
+                            "action": "DoNothing",
+                            "focus": null
+                        }
+                    }
+                },
+                {
+                    "name": "CLv. < 17",
+                    "pipeline_override": {}
+                },
+                {
+                    "name": "CLv. < 10",
+                    "pipeline_override": {
+                        "Equip_filter<C17": {
+                            "focus": "EM.装备精炼.<C10",
+                            "target": [
+                                720,
+                                320,
+                                0,
+                                0
+                            ],
+                            "recognition": "DirectHit"
+                        },
+                        "Equip_filter<C17Ck": {
+                            "focus": "EM.色核通过.<C10",
+                            "roi": [
+                                683,
+                                304,
+                                74,
+                                33
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        "精炼按自定义标志排序": {
+            "doc": "点击装备左上(加锁下方)可以加`自定义标志`：\n\n有数字标志`0~99`，按照越小值、越靠前排列；\n\n另有颜色图形标志，排列规则待查。",
+            "cases": [
+                {
+                    "name": "No",
+                    "pipeline_override": {}
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "Equip_filterON": {
+                            "next": [
+                                "Equip_Sequen_Menu",
+                                "Equip_filterON"
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        "竞技场战斗倍数": {
+            "cases": [
+                {
+                    "name": "Max",
+                    "pipeline_override": {
+                        "PVP_Multiplier_Adjust_Set": {}
+                    }
+                },
+                {
+                    "name": "Min",
+                    "pipeline_override": {
+                        "PVP_Multiplier_Verify": {
+                            "expected": [
+                                "^1$"
+                            ]
+                        },
+                        "PVP_Multiplier_Adjust_Set": {
+                            "target": [
+                                458,
+                                355,
+                                20,
+                                18
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        "活动图小游戏扫荡": {
+            "doc": "旧版本活动卡带相关，日常关闭！",
+            "cases": [
+                {
+                    "name": "No",
+                    "pipeline_override": {}
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "Event_MiniGame_Start": {
+                            "next": [
+                                "Event_Explore"
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        "活动图快速战斗难度": {
+            "doc": "先手动通过最后一关（第15关），解锁快速战斗；\n\n选择相应难度选项，可实现快速战斗打完免费AP。\n\n误选会没有效果，浪费时间。\n\nTip:一共两个难度，分别有首通奖励~",
+            "cases": [
+                {
+                    "name": "普通",
+                    "pipeline_override": {
+                        "Event_EnterNormalBattle": {
+                            "expected": [
+                                "普通"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "挑战",
+                    "pipeline_override": {
+                        "Event_EnterNormalBattle": {
+                            "expected": [
+                                "挑战"
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        "魔兽补刀": {
+            "doc": "1.‘补刀’：如果某级魔兽讨伐失利，次日可继承残血再快速战斗一次。\n\n2.补刀失败只拿参与奖，不影响讨伐进度；次日循环拿奖励。\n\n3.补刀成功，则需要手动打一次下一级魔兽，失利了再来补刀。",
+            "cases": [
+                {
+                    "name": "No",
+                    "pipeline_override": {}
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "Even_MamonoFollowUp_Start": {
+                            "next": [
+                                "Even_MamonoFollowUp_InMamono"
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        "肉鸽塔快速战斗": {
+            "cases": [
+                {
+                    "name": "No",
+                    "pipeline_override": {
+                        "Redemption_HomePage": {
+                            "next": [
+                                "Redemption_Evil_Redemption_End"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {}
+                }
+            ]
+        },
+        "末日之书": {
+            "cases": [
+                {
+                    "name": "No",
+                    "pipeline_override": {
+                        "Weekly_LastNight_Start": {
+                            "next": [
+                                "Weekly_LastNight_End",
+                                "[JumpBack]Weekly_HomePageHub",
+                                "[JumpBack]Weekly_HomePageHub2",
+                                "[JumpBack]Weekly_HomePageHub1"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {}
+                }
+            ]
+        },
+        "半自动爬塔(从选层数界面开始)": {
+            "cases": [
+                {
+                    "name": "No",
+                    "pipeline_override": {
+                        "SemiAuto_Evil_SemiautoTower_Start": {
+                            "next": [
+                                "SemiAuto_Evil_SemiautoTower_End"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {}
+                }
+            ]
+        },
+        "半自动末日之书(从‘去战斗’页面开始)": {
+            "cases": [
+                {
+                    "name": "Yes",
+                    "pipeline_override": {}
+                },
+                {
+                    "name": "No",
+                    "pipeline_override": {
+                        "SemiAuto_LastNight_Start": {
+                            "next": [
+                                "SemiAuto_LastNight_End"
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        "公会奖励": {
+            "cases": [
+                {
+                    "name": "Yes",
+                    "pipeline_override": {}
+                },
+                {
+                    "name": "No",
+                    "pipeline_override": {
+                        "RewardsORG_EnterUnion": {
+                            "next": [
+                                "RewardsORG_BusinReward"
+                            ],
+                            "roi": [
+                                98,
+                                656,
+                                66,
+                                32
+                            ],
+                            "expected": [
+                                "抽抽乐"
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        "付费钻-总开关": {
+            "doc": "【危险功能】\n\n基本页：每日90钻1抽总闸。\n\n必须配合后高级页，指定卡池名才会实际抽取。\n\n检查：无念想时不应意外打开。",
+            "cases": [
+                {
+                    "name": "No",
+                    "pipeline_override": {}
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "Gacha_PvAnimeIsOver": {
+                            "next": [
+                                "Gacha_PaidDiamond_CustomField",
+                                "Gacha_TouchFreeGacha"
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        "抽卡v2版开关-按需|强制": {
+            "doc": "一套更严谨的抽卡流程。\n\n可应对抽抽乐点数达到200，但想保留机会不立即兑换的情况。\n\n按需：默认流程检测到问题，则启用v2版抽卡\n\n强制：从一开始就调用V2版抽卡。",
+            "cases": [
+                {
+                    "name": "No",
+                    "pipeline_override": {}
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "Gacha_HomePage": {
+                            "next": [
+                                "GachaADV_Start"
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        "进入前先领取邮件": {
+            "doc": "常闭。\n\n开启：按版本需要，版本活动抽奖需要代币、代币预先被发放到邮件内时。",
+            "cases": [
+                {
+                    "name": "No",
+                    "pipeline_override": {}
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "Activities_HomePageHub": {
+                            "next": [
+                                "Activities_Call_Mail_Start",
+                                "Activities_InIndex",
+                                "Global_ToSandBox"
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        "选择要刷取的技能": {
+            "cases": [
+                {
+                    "name": "不刷",
+                    "pipeline_override": {}
+                },
+                {
+                    "name": "砍价",
+                    "pipeline_override": {
+                        "Practise_Start": {
+                            "next": [
+                                "Practise_Skill_Bargaining"
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        "前置助手": {
+            "doc": "自动设好本工具所需的前置设置。",
+            "cases": [
+                {
+                    "name": "按需",
+                    "pipeline_override": {}
+                },
+                {
+                    "name": "不要，别动！",
+                    "pipeline_override": {
+                        "Setup_Entry1": {
+                            "enabled": false
+                        },
+                        "Setup_Entry2": {
+                            "enabled": false
+                        },
+                        "Setup_Entry3": {
+                            "enabled": false
+                        },
+                        "Setup_Entry4": {
+                            "enabled": false
+                        }
+                    }
+                },
+                {
+                    "name": "强制启用",
+                    "pipeline_override": {
+                        "StartGame_FinBackMapPage": {
+                            "next": [
+                                "[JumpBack]Setup_Str",
+                                "StartGame_PerPetTask"
+                            ]
+                        },
+                        "Setup_Entry1": {
+                            "enabled": false
+                        },
+                        "Setup_Entry2": {
+                            "enabled": false
+                        },
+                        "Setup_Entry3": {
+                            "enabled": false
+                        },
+                        "Setup_Entry4": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        }
+    },
+    "advanced": {
+        "90付费抽目标卡池": {
+            "doc": [
+                "【危险功能】若无特别执念，保留默认即可。\n\n一框只填写一个卡池名。\n\n留意错字，少字可通配，但或发生意外情况",
+                "(O_o)?? ↓↓",
+                "Σ(⊙▽⊙)a ↓",
+                "小技巧：写‘提尔服装pickup’or‘达丽安专用装备’应该也是可以的，识别范围是整张卡池卡片，可自行举一反三测试。\n\n识别错了后果最多不花钻~"
+            ],
+            "field": [
+                "目标池1",
+                "目标池2",
+                "目标池3",
+                "目标池4"
+            ],
+            "type": [
+                "string",
+                "string",
+                "string",
+                "string"
+            ],
+            "default": [
+                "xxx1",
+                "xxx2",
+                "xxx3",
+                "xxx4"
+            ],
+            "pipeline_override": {
+                "Gacha_PaidDiamond_CustomField": {
+                    "expected": [
+                        "{目标池1}",
+                        "{目标池2}",
+                        "{目标池3}",
+                        "{目标池4}"
+                    ]
+                },
+                "GachaADV_Location1_90LotPost": {
+                    "expected": [
+                        "{目标池1}",
+                        "{目标池2}",
+                        "{目标池3}",
+                        "{目标池4}"
+                    ]
+                },
+                "GachaADV_Location2_90LotPost": {
+                    "expected": [
+                        "{目标池1}",
+                        "{目标池2}",
+                        "{目标池3}",
+                        "{目标池4}"
+                    ]
+                },
+                "GachaADV_Location3_90LotPost": {
+                    "expected": [
+                        "{目标池1}",
+                        "{目标池2}",
+                        "{目标池3}",
+                        "{目标池4}"
+                    ]
+                },
+                "GachaADV_Location4_90LotPost": {
+                    "expected": [
+                        "{目标池1}",
+                        "{目标池2}",
+                        "{目标池3}",
+                        "{目标池4}"
+                    ]
+                },
+                "GachaADV_Location5_90LotPost": {
+                    "expected": [
+                        "{目标池1}",
+                        "{目标池2}",
+                        "{目标池3}",
+                        "{目标池4}"
+                    ]
+                }
+            }
+        },
+        "第三图采集额外等待": {
+            "doc": [
+                "如果探查技能非180s的传说级，可能第三次采集刚好超过技能时间。\n\n故可以在此设定一个强制等待时间，以便脚本识别后重新施放。\n\n单位ms，1000ms=1s。"
+            ],
+            "field": [
+                "第三次采集额外等待时间(ms)"
+            ],
+            "type": [
+                "int"
+            ],
+            "default": [
+                "200"
+            ],
+            "pipeline_override": {
+                "Collect_TargetMap3": {
+                    "post_delay": "{第三次采集额外等待时间(ms)}"
+                }
+            }
+        }
+    },
+    "name": "MFABD2",
+    "custom_title": "MFABD2 | 棕色尘埃2自动化助手(sunyink/MFABD2)v0.0.20 | 游戏版本：20260111 | 159 Moons of Grace , And miles to go with you",
+    "url": "https://github.com/sunyink/MFABD2",
+    "mirrorchyan_rid": "MFABD2",
+    "mirrorchyan_multiplatform": true,
+    "version": "v0.0.20"
 }

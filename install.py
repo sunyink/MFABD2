@@ -52,7 +52,6 @@ def convert_line_endings(file_path):
         
         # 统一转换为 CRLF
         content = content.replace('\r\n', '\n')  # 先标准化为 LF
-        content = content.replace('\n', '\r\n')  # 再转换为 CRLF
         
         # 写回文件
         with open(file_path, 'w', encoding='utf-8', newline='\r\n') as f:

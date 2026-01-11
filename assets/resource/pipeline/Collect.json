@@ -1386,8 +1386,8 @@
     "recognition": "OCR",
     "action": "Click",
     "next": [
-      "Collect_ClickBackOnSecureMap",
-      "Collect_Skill_Start"
+      "Collect_Skill_Start",
+      "Collect_ClickBackOnSecureMap"
     ],
     "focus": "CB.区域地图.tp1.已正确",
     "roi": [
@@ -1404,6 +1404,7 @@
       "安全"
     ],
     "post_delay": 800,
+    "post_wait_freezes": 200,
     "target": [
       120,
       35,
