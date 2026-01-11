@@ -1,0 +1,24 @@
+#!/bin/bash
+
+COMMIT_MSG_FILE=$1
+MSG_CONTENT=$(cat "$COMMIT_MSG_FILE")
+
+# 🚨 检查是否包含模版默认文字
+# 检测你的 prepare-commit-msg 中定义的特定关键字 
+if echo "$MSG_CONTENT" | grep -q "请在此输入功能描述(必填)"; then
+    echo "❌ 提交失败！"
+    echo "原因是：检测到未修改的合并提交模版。"
+    echo "请修改提交信息中 '|' 后的描述内容，不要使用默认文案。"
+    exit 1
+fi
+
+# 检查是否保留了顶部的提示符但没写内容
+# 对应你的模版格式: Merge:'分支名'| 
+if echo "$MSG_CONTENT" | grep -q "Merge:'.*'|$"; then
+    echo "❌ 提交失败！"
+    echo "原因是：合并描述为空。"
+    echo "请在 'Merge:...' 后面填写具体的功能描述。"
+    exit 1
+fi
+
+exit 0
