@@ -90,7 +90,7 @@ cat > "$COMMIT_MSG_FILE" << 'EOF'
 
 # 【🏗️发版控制】如果要发布公测版\内测版，请删除下面一行开头的#号
 #[deploy-beta]
-#[deploy-alpha]
+#[deploy-alpha]#
 # 注意：请确保这是最后一行，且前后不要有空行
 
 
