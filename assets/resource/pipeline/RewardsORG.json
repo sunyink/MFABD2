@@ -536,15 +536,15 @@
     ]
   },
   "RewardsORG_FantasiaSquare": {
-    "recognition": "TemplateMatch",
+    "recognition": "OCR",
     "roi": [
-      656,
-      622,
-      77,
-      66
+      122,
+      643,
+      206,
+      43
     ],
-    "template": [
-      "Mirror_FantasiaSquare_Ico.png"
+    "expected": [
+      "聊天内容"
     ],
     "focus": "ROM.梦幻广场",
     "doc": "输入聊天内容（最多50字）",
@@ -558,30 +558,15 @@
     ]
   },
   "RewardsORG_DailyIco": {
-    "recognition": "Or",
-    "any_of": [
-      {
-        "recognition": "TemplateMatch",
-        "roi": [
-          968,
-          76,
-          56,
-          256
-        ],
-        "template": [
-          "Square_DailyIco.png"
-        ]
-      },
-      {
-        "recognition": "OCR",
-        "expected": "^(?=.*[移动至])(?=.*[艾力克史])(?=.*[温女]).{5,12}$",
-        "roi": [
-          968,
-          76,
-          203,
-          256
-        ]
-      }
+    "recognition": "TemplateMatch",
+    "roi": [
+      968,
+      76,
+      56,
+      256
+    ],
+    "template": [
+      "Square_DailyIco.png"
     ],
     "action": "Click",
     "target_offset": [
@@ -590,7 +575,6 @@
       0,
       0
     ],
-    "post_delay": 2000,
     "next": [
       "RewardsORG_Pray",
       "[JumpBack]RewardsORG_OnFoot_LoopFoot",
