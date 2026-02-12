@@ -359,8 +359,13 @@ def _ensure_cache_loaded(force_refresh=False):
 
 def _process_reset_tags(params: dict):
     """
-    [新增] 通用旁作用：处理标签重置
-    在任何 Action 里调用这个函数，就能顺手把计数器清了
+    Reset specified counters in the global TAG_STORE to zero.
+    
+    Parameters:
+        params (dict): Action parameters; may include the key `"reset_tags"` whose value is either a string tag or a list of string tags. If `"reset_tags"` is absent or empty, the function does nothing.
+    
+    Behavior:
+        For each tag provided, ensure TAG_STORE[tag] exists and is set to 0. Tags that were nonzero before the call are logged as having been reset.
     """
     global TAG_STORE
     raw_tags = params.get("reset_tags") # 统一参数名: reset_tags
@@ -604,6 +609,23 @@ class PatchBatch(CustomAction):
     }
     """
     def run(self, context: Context, argv: CustomAction.RunArg) -> bool:
+        """
+        Apply a batch of pipeline patches and record original node data into the global shadow ledger when provided.
+        
+        Parameters:
+            context (Context): Runtime context used to apply pipeline overrides via context.override_pipeline.
+            argv (CustomAction.RunArg): Run argument containing JSON or a dict with:
+                - "patches" (dict): required mapping of node names to patch data to apply.
+                - "origins" (dict, optional): mapping of node names to original data to store in NODE_BACKUPS if not already present.
+        
+        Behavior:
+            - Resets any requested tags via _process_reset_tags(params).
+            - For each entry in "origins", if the node is not already present in the global NODE_BACKUPS, stores the provided origin data.
+            - Calls context.override_pipeline with the "patches" dictionary to apply all modifications.
+        
+        Returns:
+            bool: `True` if the patches were applied successfully, `False` if "patches" is missing or an error occurred while applying them.
+        """
         global NODE_BACKUPS
         params = parse_json_arg(argv)
         
@@ -640,6 +662,23 @@ class PatchBatch(CustomAction):
 @AgentServer.custom_action("PatchByRegex")
 class PatchByRegex(CustomAction):
     def run(self, context: Context, argv: CustomAction.RunArg) -> bool:
+        """
+        Apply regex-driven patches to cached node configurations and inject the resulting overrides into the pipeline.
+        
+        Processes rules (or a single rule) from the action parameters to match node names by regular expression and either set a deep value at `target_path` or apply a shallow `patch`. When a rule provides `origin`, that data is copied into the global shadow ledger `NODE_BACKUPS` for each matched node before modification. The special value `"$box"` is resolved to the current ROI derived from `argv.box`, and the placeholder `"$self"` inside values or patches is replaced with the matched node's name. If any overrides are produced, they are applied via `context.override_pipeline`. Also triggers tag resets via _process_reset_tags and ensures the node cache is loaded before matching.
+        
+        Parameters:
+            context (Context): Execution context used to apply pipeline overrides.
+            argv (CustomAction.RunArg): Action run argument; its `box` field (if provided) defines the current ROI, and its parsed JSON payload supplies either `rules` (list) or a single rule with keys:
+                - `pattern` (str|list): regex or list of regexes to match node names.
+                - `target_path` (list, optional): path (list of keys) for deep assignment; used with `value`.
+                - `value` (any, optional): value to assign at `target_path`; `"$box"` resolves to the ROI.
+                - `patch` (dict, optional): shallow patch object to apply; patch fields may contain `"$box"` or `"$self"`.
+                - `origin` (any, optional): original node data to register in `NODE_BACKUPS` for matched nodes.
+        
+        Returns:
+            bool: `True` if processing completed (and any produced overrides were applied), `False` on error or if the node cache is empty.
+        """
         global NODE_BACKUPS 
         
         params = parse_json_arg(argv)
@@ -665,6 +704,16 @@ class PatchByRegex(CustomAction):
         # 它可以钻进字典或数组的最深处，把 "$self" 换成节点真名
         # ==========================================
         def replace_self(data, current_node_name):
+            """
+            Recursively replaces all occurrences of the substring "$self" with the provided node name in strings found within nested structures.
+            
+            Parameters:
+            	data: A value that may be a string, list, dict, or any nested combination thereof; strings inside this structure will have "$self" substituted.
+            	current_node_name (str): The node name to substitute for each "$self" occurrence.
+            
+            Returns:
+            	The input value with every string occurrence of "$self" replaced by `current_node_name`, preserving the original nested structure and non-string values unchanged.
+            """
             if isinstance(data, str):
                 return data.replace("$self", current_node_name)
             elif isinstance(data, list):
