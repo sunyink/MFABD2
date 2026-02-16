@@ -134,6 +134,7 @@
     "focus": "PM.PVP箱庭确认,(1/2)",
     "post_delay": 5000,
     "next": [
+      "[JumpBack]Setup_Entry1",
       "PVP_Sandplay_Again",
       "[JumpBack]PVP_PerPetTask",
       "[JumpBack]PVP_PVPMes",
@@ -252,7 +253,6 @@
     "recognition": "OCR",
     "action": "Click",
     "next": [
-      "[Anchor]Setup_ToPvP",
       "PVP_AutoBattle_SucCK",
       "PVP_AutoBattle"
     ],

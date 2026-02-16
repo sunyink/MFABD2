@@ -105,7 +105,8 @@
             "entry": "Event_HomePage",
             "option": [
                 "活动图快速战斗难度",
-                "魔兽补刀"
+                "魔兽补刀",
+                "活动图小游戏扫荡"
             ],
             "description": "**赛季活动：**主页面的右侧的版本剧情活动。<br>**快速战斗：**版本活动通过第15关后，解锁此等级快速战斗。用每日免费AP打Max。<br>若未打完所选难度15关，不会报错停止，但没有效果。<br>支持选择难度。<br>**魔兽补刀:**在打过魔兽后每日快速战斗一次,拿取参与奖。"
         },
@@ -764,17 +765,33 @@
             "cases": [
                 {
                     "name": "No",
-                    "pipeline_override": {}
+                    "pipeline_override": {
+                        "Event_Mamono_Hub": {
+                            "max_hit": 0
+                        }
+                    }
                 },
                 {
                     "name": "Yes",
+                    "pipeline_override": {}
+                }
+            ]
+        },
+        "活动图小游戏扫荡": {
+            "description": "小活动相关，日常关闭！",
+            "type": "switch",
+            "cases": [
+                {
+                    "name": "No",
                     "pipeline_override": {
-                        "Even_MamonoFollowUp_Start": {
-                            "next": [
-                                "Even_MamonoFollowUp_InMamono"
-                            ]
+                        "Event_MiniGame_Hub": {
+                            "max_hit": 0
                         }
                     }
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {}
                 }
             ]
         },

@@ -171,7 +171,8 @@
         "next": [
             "Global_ToHomePage_Enter",
             "Global_ToHomePage_HomeButton",
-            "Global_ToHomePage_Reset"
+            "Global_ToHomePage_Reset",
+            "[JumpBack]Global_WaitingForLoading"
         ],
         "post_delay": 3000,
         "focus": "G=1.页面非预期，点击返回按钮",

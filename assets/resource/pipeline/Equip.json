@@ -313,8 +313,7 @@
     "recognition": "TemplateMatch",
     "action": "Click",
     "next": [
-      "[Anchor]Setup_EquipUp",
-      "Equip_EquipUpSelectN",
+      "Equip_EquipUp_CK",
       "Equip_EquipUp"
     ],
     "post_delay": 2000,
@@ -328,6 +327,24 @@
       "more.png"
     ],
     "doc": "寻找一键强化..."
+  },
+  "Equip_EquipUp_CK": {
+    "recognition": "OCR",
+    "expected": [
+      "级别"
+    ],
+    "roi": [
+      640,
+      288,
+      56,
+      69
+    ],
+    "next": [
+      "[Anchor]Setup_EquipUp",
+      "[JumpBack]Setup_Entry6",
+      "Equip_EquipUpSelectN"
+    ],
+    "focus": "EM.装备强化子菜单"
   },
   "Equip_EquipUpSelectN": {
     "recognition": "TemplateMatch",
@@ -464,8 +481,7 @@
     "recognition": "TemplateMatch",
     "action": "Click",
     "next": [
-      "[Anchor]Setup_EquipDec",
-      "Equip_EquipDecSelectN",
+      "Equip_EquipDec_MenuCK",
       "Equip_EquipDec2"
     ],
     "post_delay": 1000,
@@ -479,6 +495,24 @@
       "more.png"
     ],
     "doc": "寻找一键分解..."
+  },
+  "Equip_EquipDec_MenuCK": {
+    "recognition": "OCR",
+    "expected": [
+      "级别"
+    ],
+    "roi": [
+      632,
+      219,
+      74,
+      56
+    ],
+    "next": [
+      "[Anchor]Setup_EquipDec",
+      "[JumpBack]Setup_Entry7",
+      "Equip_EquipDecSelectN"
+    ],
+    "focus": "EM.装备分解子菜单"
   },
   "Equip_EquipDecSelectN": {
     "recognition": "TemplateMatch",

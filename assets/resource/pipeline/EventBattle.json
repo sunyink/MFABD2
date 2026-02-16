@@ -9,11 +9,11 @@
     "recognition": "OCR",
     "action": "Click",
     "next": [
+      "Event_Event_Main",
       "[JumpBack]Global_WaitingForLoading",
-      "Event_NormalBattle_Start",
       "Event_GoinEvent"
     ],
-    "post_delay": 8000,
+    "post_delay": 2000,
     "focus": "EM.从主页面进入活动",
     "roi": [
       98,
@@ -31,6 +31,95 @@
       0
     ],
     "doc": "识别左下抽抽乐-点击活动"
+  },
+  "Event_Event_Main": {
+    "recognition": "Or",
+    "any_of": [
+      {
+        "recognition": "OCR",
+        "roi": [
+          802,
+          16,
+          109,
+          47
+        ],
+        "expected": [
+          "活动服装"
+        ]
+      },
+      {
+        "recognition": "OCR",
+        "roi": [
+          175,
+          574,
+          729,
+          134
+        ],
+        "expected": [
+          "普通战斗",
+          "魔兽追踪者"
+        ]
+      }
+    ],
+    "focus": "EM.赛季活动进入确认.",
+    "next": [
+      "[JumpBack]Event_Battle_Hub",
+      "[JumpBack]Event_Mamono_Hub",
+      "[JumpBack]Event_MiniGame_Hub",
+      "Global_ToHomePage"
+    ],
+    "doc": "在赛季活动页面.兼做任务选择器"
+  },
+  "Event_Battle_Hub": {
+    "next": [
+      "Event_NormalBattle_Start"
+    ],
+    "max_hit": 1
+  },
+  "Event_Mamono_Hub": {
+    "next": [
+      "Even_MamonoFollowUp_InMamono"
+    ],
+    "max_hit": 1
+  },
+  "Event_MiniGame_Hub": {
+    "next": [
+      "[JumpBack]Event_MiniGame_JumpBackTOHome",
+      "Event_Goin_MiniGame"
+    ],
+    "max_hit": 1
+  },
+  "Event_Event_Main_Return": {
+    "recognition": "Or",
+    "any_of": [
+      {
+        "recognition": "OCR",
+        "roi": [
+          802,
+          16,
+          109,
+          47
+        ],
+        "expected": [
+          "活动服装"
+        ]
+      },
+      {
+        "recognition": "OCR",
+        "roi": [
+          175,
+          574,
+          729,
+          134
+        ],
+        "expected": [
+          "普通战斗",
+          "魔兽追踪者"
+        ]
+      }
+    ],
+    "focus": "EM.赛季活动进入确认.",
+    "doc": "确认回到赛季卡带页面"
   },
   "Event_NormalBattle_Start": {
     "recognition": "OCR",
@@ -53,12 +142,13 @@
     "recognition": "OCR",
     "action": "Click",
     "next": [
-      "Event_FastNormalBattle",
-      "Event_EnterNormalBattle"
+      "Event_Battle_IsMenu",
+      "Event_EnterNormalBattle",
+      "[JumpBack]Global_WaitingForLoading"
     ],
     "on_error": [
-      "Event_LeaveEvent2",
-      "Even_BackMapPage"
+      "Event_Event_Main_Return",
+      "[JumpBack]Global_BackPageHub_Once"
     ],
     "post_delay": 3000,
     "focus": "EM.活动.选难度",
@@ -78,6 +168,29 @@
       0
     ],
     "doc": "点击普通战斗"
+  },
+  "Event_Battle_IsMenu": {
+    "recognition": "OCR",
+    "post_delay": 1000,
+    "focus": "EM.活动.战斗关卡页面",
+    "roi": [
+      626,
+      235,
+      189,
+      54
+    ],
+    "expected": [
+      "在战斗中获胜"
+    ],
+    "next": [
+      "Event_FastNormalBattle"
+    ],
+    "timeout": 4000,
+    "on_error": [
+      "Event_Event_Main_Return",
+      "[JumpBack]Global_BackPageHub_Once"
+    ],
+    "doc": "判定，处于一般/挑战 战斗页面"
   },
   "Event_FastNormalBattle": {
     "recognition": "OCR",
@@ -104,8 +217,8 @@
     "action": "Click",
     "next": [
       "Event_NormalBattleIsOver",
-      "Event_NormalBattle_End",
-      "[JumpBack]Event_LeaveInterrupt"
+      "Event_Event_Main_Return",
+      "[JumpBack]Global_BackPageHub_Once"
     ],
     "pre_delay": 500,
     "focus": "EM.活动.AP不足",
@@ -194,7 +307,7 @@
       "Event_NormalBattleIsOver",
       "Event_NormalBattleBack",
       "Event_TouchNormalBattle",
-      "[JumpBack]Event_LeaveInterrupt"
+      "[JumpBack]Global_BackPageHub_Once"
     ],
     "post_delay": 8000,
     "roi": [
@@ -238,11 +351,8 @@
     "recognition": "OCR",
     "action": "Click",
     "next": [
-      "Event_NormalBattle_End",
-      "[JumpBack]Event_LeaveInterrupt"
-    ],
-    "on_error": [
-      "Event_LeaveEvent"
+      "Event_Event_Main_Return",
+      "[JumpBack]Global_BackPageHub_Once"
     ],
     "post_delay": 1000,
     "focus": "EM.活动.战斗结算(无对象)",
@@ -263,161 +373,12 @@
     ],
     "doc": "判定，处于一般/挑战 战斗页面，用于流程结束位置判定。动作，空白处点击"
   },
-  "Event_NormalBattle_End": {
-    "recognition": "OCR",
-    "next": [
-      "Event_MiniGame_Start"
-    ],
-    "roi": [
-      69,
-      365,
-      1179,
-      324
-    ],
-    "expected": [
-      "普通战斗"
-    ],
-    "doc": "判定在开始界面"
-  },
-  "Event_MiniGame_Start": {
-    "recognition": "OCR",
-    "next": [
-      "Event_MiniGame_End"
-    ],
-    "roi": [
-      69,
-      365,
-      1179,
-      324
-    ],
-    "expected": [
-      "普通战斗"
-    ],
-    "doc": "判定在开始界面.连接Event_Explore"
-  },
-  "Event_Explore": {
-    "recognition": "OCR",
-    "action": "Click",
-    "next": [
-      "Event_FastExplore"
-    ],
-    "post_delay": 1000,
-    "focus": "EM.活动.小游戏模块启动",
-    "roi": [
-      598,
-      617,
-      90,
-      60
-    ],
-    "expected": [
-      "战场探索"
-    ],
-    "doc": "战场探索"
-  },
-  "Event_FastExplore": {
-    "recognition": "OCR",
-    "action": "Click",
-    "next": [
-      "Event_FastExplore2"
-    ],
-    "post_delay": 1000,
-    "roi": [
-      722,
-      557,
-      89,
-      36
-    ],
-    "expected": [
-      "快速完成"
-    ],
-    "doc": "快速完成"
-  },
-  "Event_FastExplore2": {
-    "recognition": "OCR",
-    "action": "Click",
-    "next": [
-      "Event_FastExploreRewardBack"
-    ],
-    "post_delay": 5000,
-    "roi": [
-      697,
-      516,
-      58,
-      32
-    ],
-    "expected": [
-      "确认"
-    ],
-    "doc": "快速战斗-确认"
-  },
-  "Event_FastExploreRewardBack": {
-    "action": "Click",
-    "next": [
-      "Event_FastExploreBack"
-    ],
-    "post_delay": 2000,
-    "roi": [
-      451,
-      572,
-      347,
-      135
-    ],
-    "target": [
-      135,
-      20,
-      0,
-      0
-    ],
-    "doc": "奖励返回"
-  },
-  "Event_FastExploreBack": {
-    "recognition": "OCR",
-    "action": "Click",
-    "next": [
-      "Event_MiniGame_End",
-      "[JumpBack]Event_LeaveInterrupt"
-    ],
-    "post_delay": 8000,
-    "focus": "EM.活动.小游戏模块结束",
-    "roi": [
-      215,
-      16,
-      124,
-      50
-    ],
-    "expected": [
-      "战场探索"
-    ],
-    "target": [
-      130,
-      46,
-      0,
-      0
-    ],
-    "doc": "战场探索-返回"
-  },
-  "Event_MiniGame_End": {
-    "recognition": "OCR",
-    "next": [
-      "Even_MamonoFollowUp_Start"
-    ],
-    "roi": [
-      69,
-      365,
-      1179,
-      324
-    ],
-    "expected": [
-      "普通战斗"
-    ],
-    "doc": "判定在开始界面.连接Event_Explore"
-  },
   "Event_LeaveEventDub": {
     "recognition": "OCR",
     "action": "Click",
     "next": [
-      "Even_BackMapPage",
-      "[JumpBack]Event_LeaveInterrupt"
+      "Event_Event_Main_Return",
+      "[JumpBack]Global_BackPageHub_Once"
     ],
     "post_delay": 8000,
     "focus": "EM.活动.打完活动关卡页面位置Dubck",
@@ -442,8 +403,8 @@
     "recognition": "OCR",
     "action": "Click",
     "next": [
-      "Even_BackMapPage",
-      "[JumpBack]Event_LeaveInterrupt"
+      "Event_Event_Main_Return",
+      "[JumpBack]Global_BackPageHub_Once"
     ],
     "post_delay": 8000,
     "focus": "EM.活动.打完活动关卡页面位置ck",
@@ -462,7 +423,7 @@
       0,
       0
     ],
-    "doc": "普通战斗-离开活动页"
+    "doc": "判断在挑战or普通战斗关卡选择页面"
   },
   "Event_LeaveInterrupt": {
     "recognition": "TemplateMatch",
@@ -481,89 +442,6 @@
     ],
     "green_mask": true,
     "doc": "其他页面，返回按钮"
-  },
-  "Event_LeaveEvent2": {
-    "recognition": "OCR",
-    "action": "Click",
-    "next": [
-      "Even_BackMapPage",
-      "Event_LeaveEvent2"
-    ],
-    "post_delay": 8000,
-    "focus": "EM.活动.回到活动主页面",
-    "roi": [
-      359,
-      619,
-      127,
-      63
-    ],
-    "expected": [
-      "普通"
-    ],
-    "target": [
-      135,
-      40,
-      0,
-      0
-    ],
-    "doc": "普通战斗-离开活动页"
-  },
-  "Even_BackMapPage": {
-    "recognition": "OCR",
-    "action": "Click",
-    "next": [
-      "Event_AtMainPage_AllEnd",
-      "Even_BackMapPage"
-    ],
-    "focus": "EM.活动.回到主页面",
-    "roi": [
-      98,
-      656,
-      66,
-      32
-    ],
-    "expected": [
-      "抽抽乐"
-    ],
-    "target": [
-      120,
-      35,
-      0,
-      0
-    ],
-    "doc": "识别左下抽抽乐-返回地图页"
-  },
-  "Even_MamonoFollowUp_Start": {
-    "recognition": "OCR",
-    "next": [
-      "Even_MamonoFollowUp_End"
-    ],
-    "roi": [
-      69,
-      365,
-      1179,
-      324
-    ],
-    "expected": [
-      "普通"
-    ]
-  },
-  "Even_MamonoFollowUp_GotoEvMenu": {
-    "recognition": "OCR",
-    "next": [
-      "Even_MamonoFollowUp_InMamono",
-      "[JumpBack]Event_LeaveInterrupt"
-    ],
-    "roi": [
-      69,
-      365,
-      1179,
-      324
-    ],
-    "expected": [
-      "普通战斗"
-    ],
-    "doc": "废弃"
   },
   "Even_MamonoFollowUp_InMamono": {
     "recognition": "OCR",
@@ -818,8 +696,8 @@
   "Even_MamonoFollowUp_onSubMain": {
     "recognition": "OCR",
     "next": [
-      "Even_MamonoFollowUp_End",
-      "[JumpBack]Event_LeaveInterrupt"
+      "Event_Event_Main_Return",
+      "[JumpBack]Global_BackPageHub_Once"
     ],
     "roi": [
       702,
@@ -832,35 +710,138 @@
     ],
     "doc": "结束，判定处于子菜单"
   },
-  "Even_MamonoFollowUp_End": {
-    "recognition": "OCR",
+  "Event_MiniGame_JumpBackTOHome": {
     "next": [
-      "Event_LeaveEvent2"
+      "Global_ToHomePage"
     ],
+    "max_hit": 1,
+    "doc": "单次Call,回到主页面"
+  },
+  "Event_Goin_MiniGame": {
+    "recognition": "OCR",
     "roi": [
-      69,
-      365,
-      1179,
-      324
+      932,
+      407,
+      61,
+      32
     ],
     "expected": [
-      "普通"
+      "小活动"
     ],
-    "doc": "0"
-  },
-  "Event_AtMainPage_AllEnd": {
-    "recognition": "TemplateMatch",
     "action": "Click",
-    "focus": "返回主页，项目流程可以结束",
+    "target_offset": [
+      0,
+      -15,
+      0,
+      0
+    ],
+    "post_delay": 2000,
+    "next": [
+      "Event_MiniGame"
+    ]
+  },
+  "Event_MiniGame": {
+    "recognition": "OCR",
+    "action": "Click",
+    "next": [
+      "Event_MiniGame_OCR",
+      "[JumpBack]Global_WaitingForLoading"
+    ],
+    "post_delay": 1000,
+    "focus": "EM.活动.小游戏模块启动",
     "roi": [
-      1122,
-      646,
-      40,
-      38
+      222,
+      75,
+      877,
+      643
     ],
-    "template": [
-      "pin.png"
+    "expected": [
+      "战场探索"
     ],
-    "doc": "找到图钉-判别主页"
+    "doc": "战场探索"
+  },
+  "Event_MiniGame_OCR": {
+    "recognition": "OCR",
+    "roi": [
+      667,
+      513,
+      182,
+      77
+    ],
+    "expected": [
+      "快速完成"
+    ],
+    "next": [
+      "Event_MiniGame_CLR"
+    ],
+    "timeout": 5000,
+    "on_error": [
+      "Global_ToHomePage"
+    ],
+    "focus": "快速完成OCR"
+  },
+  "Event_MiniGame_CLR": {
+    "recognition": "ColorMatch",
+    "roi": "Event_MiniGame_OCR",
+    "upper": [
+      255,
+      255,
+      255
+    ],
+    "lower": [
+      245,
+      245,
+      245
+    ],
+    "action": "Click",
+    "post_delay": 2000,
+    "next": [
+      "Event_MiniGame_Confirm",
+      "Event_MiniGame_CLR"
+    ],
+    "focus": "快速完成-CLR亮色可点击"
+  },
+  "Event_MiniGame_Confirm": {
+    "recognition": "OCR",
+    "action": "Click",
+    "next": [
+      "Event_MiniGameRewardBack"
+    ],
+    "post_delay": 5000,
+    "roi": [
+      697,
+      516,
+      58,
+      32
+    ],
+    "expected": [
+      "确认"
+    ],
+    "doc": "快速战斗-确认"
+  },
+  "Event_MiniGameRewardBack": {
+    "recognition": "OCR",
+    "roi": [
+      457,
+      607,
+      413,
+      97
+    ],
+    "expected": [
+      "^(?=.*[点击画面])(?=.*[即可])(?=.*[返回]).{4,12}$"
+    ],
+    "action": "Click",
+    "next": [
+      "Event_MiniGameBack"
+    ],
+    "post_delay": 2000,
+    "doc": "奖励返回"
+  },
+  "Event_MiniGameBack": {
+    "next": [
+      "Global_ToHomePage"
+    ],
+    "focus": "EM.活动.小游戏模块结束",
+    "doc": "战场探索-返回"
   }
 }

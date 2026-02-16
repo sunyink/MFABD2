@@ -21,21 +21,21 @@ on:
     inputs:
       deploy_beta:
         type: boolean
-        description: '发布公测版'
-        default: false  # 默认不勾选，避免误触
+        description: "发布公测版"
+        default: false # 默认不勾选，避免误触
       deploy_alpha:
         type: boolean
-        description: '发布内测版'
+        description: "发布内测版"
         default: false
       ci_as_stable:
         type: boolean
-        description: 'CI版本作为正式发布（非预发布）'
+        description: "CI版本作为正式发布（非预发布）"
         default: false
       notice_text:
         type: string
-        description: '⚠️ 说明 / Note'
+        description: "⚠️ 说明 / Note"
         required: false
-        default: '不勾选任何选项，手动触发即为CI发版'
+        default: "不勾选任何选项，手动触发即为CI发版"
 
 jobs:
   meta:
@@ -46,16 +46,19 @@ jobs:
         with:
           fetch-depth: 0
       - id: set_tag
+        # 通过环境变量传递 Commit Message，防止反引号注入攻击
+        env:
+          HEAD_COMMIT_MSG: ${{ github.event.head_commit.message }}
         run: |
           # 使用环境变量获取引用信息
           is_tag_push=false
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             is_tag_push=true
           fi
-          
+
           # 获取提交信息（用于检测 [deploy-beta]）
-          commit_message="${{ github.event.head_commit.message }}"
-          
+          commit_message="$HEAD_COMMIT_MSG"
+
           if [ "$is_tag_push" = true ]; then
             # 正式标签：直接使用标签名
             tag="${GITHUB_REF#refs/tags/}"
@@ -94,14 +97,14 @@ jobs:
               version_type="ci"
             fi
           fi
-          
+
           # 添加调试信息
           echo "Base tag: $base_tag"
           echo "Generated tag: $tag"
           echo "Commit short: $commit_short"
           echo "Date suffix: $date_suffix"
           echo "Version type: $version_type"
-          
+
           echo "tag=$tag" | tee -a $GITHUB_OUTPUT
           echo "is_tag_push=$is_tag_push" | tee -a $GITHUB_OUTPUT
           echo "is_dev_version=$([ "$version_type" = "ci" ] && echo "true" || echo "false")" | tee -a $GITHUB_OUTPUT
@@ -146,34 +149,34 @@ jobs:
         run: |
           # 1. 使用 find 查找文件的【绝对路径】(加上 $(pwd))
           SO_FILE=$(find "$(pwd)/temp_detect" -name "libMaaFramework.so" | head -n 1)
-          
+
           if [ -z "$SO_FILE" ]; then
             echo "::error::根本找不到 libMaaFramework.so 文件！"
             exit 1
           fi
-          
+
           SO_DIR=$(dirname "$SO_FILE")
           echo "📍 定位到库文件: $SO_FILE"
           echo "🔧 库目录: $SO_DIR"
-          
+
           # 2. 【关键】设置 LD_LIBRARY_PATH 为绝对路径
           # 这告诉 Linux："加载库的时候，去这个目录里找依赖！"
           export LD_LIBRARY_PATH="$SO_DIR:$LD_LIBRARY_PATH"
-          
+
           # 3. 【调试神器】运行 ldd
           # 如果后面 Python 报错，看这部分日志就知道缺哪个库了
           echo "=== 🕵️‍♂️ 依赖检查 (ldd) ==="
           ldd "$SO_FILE" || true
           echo "========================="
-          
+
           # 4. 生成探测脚本
           cat << 'EOF' > detect.py
           import sys, ctypes, os
-          
+
           # 从环境变量获取刚才找到的绝对路径
           so_path = os.environ.get("TARGET_SO_PATH")
           print(f"🐍 Python loading: {so_path}")
-          
+
           try:
               # mode=ctypes.RTLD_GLOBAL 有时能解决跨库符号依赖问题
               lib = ctypes.CDLL(so_path, mode=ctypes.RTLD_GLOBAL)
@@ -190,7 +193,7 @@ jobs:
               print(f"::error::加载失败: {e}")
               sys.exit(1)
           EOF
-          
+
           # 5. 运行脚本 (传入路径变量)
           export TARGET_SO_PATH="$SO_FILE"
           python3 detect.py
@@ -205,7 +208,7 @@ jobs:
   install:
     needs: meta
     runs-on: macos-latest
-    
+
     env:
       MAA_VERSION: ${{ needs.meta.outputs.maa_version }}
       MFAA_TAG: ${{ needs.meta.outputs.mfaa_tag }}
@@ -224,11 +227,10 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.x'
+          python-version: "3.x"
 
-      
       # 使用 meta 探测到的版本号安装 MaaFramework Python 绑定
-      - name: Install Requirements 
+      - name: Install Requirements
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
@@ -268,25 +270,24 @@ jobs:
           ref: master
           path: temp_assets
           fetch-depth: 1
-      
+
       - name: Merge Assets
         shell: bash
         run: |
           # 创建目标目录结构（如果不存在）
           mkdir -p assets/MaaCommonAssets
-          
+
           # 将临时目录里的 MaaCommonAssets 里的内容，移动到主仓库的 assets/MaaCommonAssets 下
           # 这样就解开了 "MaaCommonAssets/MaaCommonAssets" 的套娃
           cp -r temp_assets/MaaCommonAssets/* assets/MaaCommonAssets/
-          
+
           # 清理临时目录
           rm -rf temp_assets
-          
+
           # 验证
           echo "✅ 资源合并完成，当前 assets 目录结构："
           ls -R assets/
 
-          
       - name: Clean up MFAAvalonia archive
         if: matrix.os != 'android'
         shell: bash
@@ -369,7 +370,7 @@ jobs:
               # 使用 rsync 覆盖，确保 UI 和 Core 都在正确位置
               rsync -av MFA/ install/
             fi
-          
+
           # 3. [新增][安卓逻辑] 合并 MaaFramework Core 到 install 目录
           else
             echo "🤖 处理 Android 内核合并..."
@@ -397,7 +398,7 @@ jobs:
           rm -f install/*.zip install/*.tar.gz
           # 4.删安卓构建包
           rm -rf AndroidCore
-          
+
           echo "✅ Cleanup done."
 
       # [核心修复 2] 还原原版逻辑：利用矩阵 (Matrix) 清理 runtimes
@@ -418,15 +419,15 @@ jobs:
           matrix_arch = '${{ matrix.arch }}'
 
           print(f'🎯 Target: {matrix_os}-{matrix_arch}')
-          
+
           # 定义需要保留的关键词
           # 例如: 如果是 win-x86_64，我们保留 'win' 和 'x64'/'amd64'
           keep_keywords = []
-          
+
           if matrix_os == 'win': keep_keywords.append('win')
           elif matrix_os == 'macos': keep_keywords.append('osx') # runtimes里通常叫osx
           elif matrix_os == 'linux': keep_keywords.append('linux')
-          
+
           if matrix_arch == 'x86_64': 
               keep_keywords.extend(['x64', 'amd64'])
           elif matrix_arch == 'aarch64': 
@@ -463,17 +464,17 @@ jobs:
         shell: bash
         run: |
           echo "::group::🚀 开始注入公告"
-          
+
           # 1. 运行 Python 脚本
           python scripts/inject_announcement.py "${{ needs.meta.outputs.tag }}"
-          
+
           echo "::endgroup::"
-          
+
           echo "::group::👀 验证注入结果"
-          
+
           # 2. [修正] 路径改为 install/resource/Announcement/1.公告.md
           TARGET="install/resource/Announcement/1.公告.md"
-          
+
           if [ -f "$TARGET" ]; then
             echo "✅ 成功定位文件: $TARGET"
             echo "----------------------------------------"
@@ -486,14 +487,14 @@ jobs:
             ls -R install/
             exit 1
           fi
-          
+
           echo "::endgroup::"
 
       # 删除 Python 包内的冗余 bin 目录
       # 针对 MFABD2 的目录结构 (install/python/Lib/site-packages/maa/bin)
       # 这一步会扫描 install 目录下所有的 maa/bin 并删除
       # =======================================================
- 
+
       - name: Remove redundant MAA binaries (Deduplication)
         if: matrix.os != 'android'
         run: |
@@ -502,14 +503,14 @@ jobs:
           from pathlib import Path
 
           root = Path('install')
-          
+
           # 1. 寻找源 plugins 目录 (在 python 包里)
           src_plugins = next(root.rglob('**/site-packages/maa/bin/plugins'), None)
-          
+
           # 2. 寻找目标 native 目录 (在 runtimes 里)
           # 假设 install/runtimes 下只有一个平台文件夹，或者我们只关心 native 层级
           target_native = next(root.rglob('runtimes/*/native'), None)
-          
+
           # 3. 如果两者都存在，执行移动
           if src_plugins and target_native and src_plugins.exists():
               dest_plugins = target_native / 'plugins'
@@ -525,7 +526,7 @@ jobs:
                   print(f'Removing redundant bin: {p}')
                   shutil.rmtree(p)
           "
-          
+
       - uses: actions/upload-artifact@v4
         with:
           name: MFABD2-${{ needs.meta.outputs.tag }}-${{ matrix.os }}-${{ matrix.arch }}
@@ -546,7 +547,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.x'
+          python-version: "3.x"
 
       - name: Install Python dependencies
         run: |
@@ -565,9 +566,6 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
           GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
 
-
-
-
       # 上传 CHANGES.md 到构建物
       # =======================================================
       - name: Upload Changelog Artifact
@@ -579,10 +577,11 @@ jobs:
       - name: Set release body
         id: set_release_body
         run: |
-          content=$(cat CHANGES.md)
-          echo "content<<EOF" >> $GITHUB_OUTPUT
-          echo "$content" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          # 使用随机定界符防止内容包含 EOF 导致截断
+          EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
+          echo "content<<$EOF" >> $GITHUB_OUTPUT
+          cat CHANGES.md >> $GITHUB_OUTPUT
+          echo "$EOF" >> $GITHUB_OUTPUT
 
   release:
     if: (needs.meta.outputs.is_tag_push == 'true') || contains(needs.meta.outputs.tag, '-beta') || contains(needs.meta.outputs.tag, '-alpha') || (github.event_name == 'workflow_dispatch' && contains(needs.meta.outputs.tag, '-ci'))
@@ -592,11 +591,11 @@ jobs:
       - name: Get current timestamp
         id: get_time
         run: echo "time=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_OUTPUT
-      
+
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
-          
+
       - name: Package release assets
         run: |
           cd artifacts
@@ -608,7 +607,7 @@ jobs:
             # 创建压缩包
             (cd "$dir" && zip -r "../release_assets/$zip_name" .)
           done
-          
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -618,32 +617,35 @@ jobs:
           target_commitish: ${{ github.sha }}
           body: |
             ${{ contains(needs.changelog.outputs.release_body, '## ') && needs.changelog.outputs.release_body || '### 无显著变更' }}
-            
+
           draft: false
           prerelease: ${{ contains(needs.meta.outputs.tag, '-beta') || contains(needs.meta.outputs.tag, '-alpha') || (contains(needs.meta.outputs.tag, '-ci') && !(github.event_name == 'workflow_dispatch' && github.event.inputs.ci_as_stable == 'true')) }}
-        env:  # 添加环境变量以支持高限额API调用
+        env: # 添加环境变量以支持高限额API调用
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          
+
       - name: Trigger MirrorChyanUploading
         if: github.repository_owner == 'sunyink' && ((needs.meta.outputs.is_tag_push == 'true') || contains(needs.meta.outputs.tag, '-beta') || contains(needs.meta.outputs.tag, '-alpha'))
         shell: bash
         env:
-            tag: ${{ needs.meta.outputs.tag }}
-            body: ${{ needs.changelog.outputs.release_body }}
-            GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          tag: ${{ needs.meta.outputs.tag }}
+          CHANGELOG_BODY: ${{ needs.changelog.outputs.release_body }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "安全触发镜像服务: 版本=$tag"
+          # 将 " 替换为 \"
+          ESCAPED_BODY="${CHANGELOG_BODY//\"/\\\"}"
           # 触发包发布流程
           gh workflow run --repo $GITHUB_REPOSITORY --ref ${{ github.ref }} mirrorchyan.yml -f tag=$tag
-          # 触发更新信息推送流程
-          gh workflow run --repo $GITHUB_REPOSITORY --ref ${{ github.ref }} mirrorchyan_release_note.yml -f tag=$tag -f body="$body"
+
+          # 触发更新信息推送流程 (现在可以安全处理带引号的日志了)
+          gh workflow run --repo $GITHUB_REPOSITORY --ref ${{ github.ref }} mirrorchyan_release_note.yml -f tag=$tag -f body="$ESCAPED_BODY"
 
   notify:
     needs: [meta, install]
     if: always() && needs.install.result == 'success' && github.event_name != 'pull_request' && !(github.ref_name == 'main' && needs.meta.outputs.version_type == 'ci')
     runs-on: ubuntu-latest
     steps:
-      - name: Extract commit info 
+      - name: Extract commit info
         id: commit-info
         run: |
           # 调试：显示所有可用参数
@@ -652,26 +654,26 @@ jobs:
           echo "HEAD_COMMIT_MESSAGE: ${{ github.event.head_commit.message }}"
           echo "HEAD_COMMIT_TIMESTAMP: ${{ github.event.head_commit.timestamp }}"
           echo "GITHUB_SHA: $GITHUB_SHA"
-          
+
           # 设置默认值
           COMMIT_MSG="${{ github.event.head_commit.message }}"
           if [ -z "$COMMIT_MSG" ]; then
             COMMIT_MSG="手动触发工作流"
           fi
-          
+
           COMMIT_TIMESTAMP="${{ github.event.head_commit.timestamp }}"
           if [ -z "$COMMIT_TIMESTAMP" ]; then
             COMMIT_TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
           fi
-          
+
           COMMIT_SHA="${{ github.sha }}"
           if [ -z "$COMMIT_SHA" ]; then
             COMMIT_SHA="unknown"
           fi
-          
+
           # 提取第一行作为摘要
           SUBJECT=$(echo "$COMMIT_MSG" | head -n 1)
-          
+
           # 简化描述处理
           if [ $(echo "$COMMIT_MSG" | wc -l) -gt 1 ]; then
             BODY=$(echo "$COMMIT_MSG" | tail -n +2 | head -c 100 | tr -d '\n')
@@ -681,10 +683,10 @@ jobs:
           else
             BODY=""
           fi
-          
+
           # 格式化时间戳为东八区时间
           TIME=$(TZ='Asia/Shanghai' date -d "$COMMIT_TIMESTAMP" +"%Y-%m-%d %H:%M:%S")
-          
+
           SHORT_SHA=$(echo "$COMMIT_SHA" | cut -c1-7)
 
           # 输出变量
@@ -692,13 +694,13 @@ jobs:
           echo "body=$BODY" >> $GITHUB_OUTPUT
           echo "time=$TIME" >> $GITHUB_OUTPUT
           echo "short_sha=$SHORT_SHA" >> $GITHUB_OUTPUT
-          
+
           echo "=== 处理结果 ==="
           echo "Subject: $SUBJECT"
           echo "Body: $BODY" 
           echo "Time: $TIME"
           echo "Short SHA: $SHORT_SHA"
-      
+
       - name: Send Notification
         uses: Y2Nk4/qmsg-action@master
         with:

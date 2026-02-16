@@ -3,6 +3,7 @@ requests>=2.25.0
 pytz
 loguru
 numpy<2
+opencv-python-headless
 
 # -------------------------------------------------------
 # [核心版本配置]

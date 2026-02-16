@@ -2,33 +2,88 @@
     "Setup_Str": {
         "next": [
             "[JumpBack]Setup_Main_Switch",
-            "[JumpBack]Setup_ToPvP_Switch",
             "[JumpBack]Setup_Equip_Switch",
             "[JumpBack]Setup_SetSkill_Switch"
         ],
         "doc": "流程开发说明：_Str为总触发器=强制运行所有。| _Entry为选择性入口=按需 | 节点_Switch为开关，运行一次后续操作 | 可根据入口选择需要的操作开关~"
     },
     "Setup_Entry1": {
-        "recognition": "TemplateMatch",
-        "roi": [
-            134,
-            465,
-            202,
-            188
-        ],
-        "template": [
-            "UI_Arrowkeys.png"
-        ],
-        "green_mask": true,
-        "threshold": 0.6,
         "next": [
-            "[JumpBack]Setup_ToPvP_Switch",
-            "[JumpBack]Setup_Main_Switch",
-            "[JumpBack]Setup_Equip_Switch",
-            "[JumpBack]Setup_SetSkill_Switch"
+            "Setup_Entry1_Swich"
+        ],
+        "timeout": 2000,
+        "max_hit": 1
+    },
+    "Setup_Entry1_Swich": {
+        "recognition": "Or",
+        "any_of": [
+            {
+                "recognition": "Custom",
+                "custom_recognition": "HSVShapeMatching",
+                "custom_recognition_param": {
+                    "target_node": "Setup_SkillScan_wasd_Bin",
+                    "lower_hsv": [
+                        0,
+                        0,
+                        66
+                    ],
+                    "upper_hsv": [
+                        180,
+                        28,
+                        255
+                    ]
+                }
+            },
+            {
+                "recognition": "Custom",
+                "custom_recognition": "HSVShapeMatching",
+                "custom_recognition_param": {
+                    "target_node": "Setup_SkillScan_wasd_Bin",
+                    "lower_hsv": [
+                        0,
+                        0,
+                        66
+                    ],
+                    "upper_hsv": [
+                        180,
+                        17,
+                        255
+                    ]
+                }
+            },
+            {
+                "recognition": "TemplateMatch",
+                "roi": [
+                    134,
+                    465,
+                    202,
+                    188
+                ],
+                "template": [
+                    "UI_Arrowkeys.png"
+                ],
+                "green_mask": true,
+                "threshold": 0.6
+            }
+        ],
+        "next": [
+            "Setup_Main_Switch"
         ],
         "timeout": 3000,
         "focus": "SMSP.触发设置按需调整,原因:移动方式不应为方向键"
+    },
+    "Setup_SkillScan_wasd_Bin": {
+        "recognition": "TemplateMatch",
+        "template": [
+            "Binary/Binary_wasd_Nol.png"
+        ],
+        "roi": [
+            136,
+            475,
+            194,
+            169
+        ],
+        "doc": "【不要删不要改后挪用】custom需要调用此节点的识别"
     },
     "Setup_Entry2": {
         "recognition": "ColorMatch",
@@ -51,7 +106,6 @@
         ],
         "count": 10,
         "next": [
-            "[JumpBack]Setup_ToPvP_Switch",
             "[JumpBack]Setup_Main_Switch"
         ],
         "focus": "SMSP.触发设置按需调整,原因:菜单黄点未禁用",
@@ -79,7 +133,6 @@
         ],
         "count": 10,
         "next": [
-            "[JumpBack]Setup_ToPvP_Switch",
             "[JumpBack]Setup_Main_Switch"
         ],
         "focus": "SMSP.触发设置按需调整,原因:菜单黄点未禁用",
@@ -99,7 +152,6 @@
         ],
         "green_mask": true,
         "next": [
-            "[JumpBack]Setup_ToPvP_Switch",
             "[JumpBack]Setup_Main_Switch"
         ],
         "doc": "进入页面为箱庭",
@@ -108,11 +160,179 @@
         "max_hit": 1
     },
     "Setup_Entry5": {
-        "enabled": false
+        "enabled": true,
+        "max_hit": 1,
+        "next": [
+            "Setup_Skill_Swich"
+        ],
+        "timeout": 1
     },
-    "Setup_Entry5——disable": {
+    "Setup_Skill_Swich": {
+        "max_hit": 1,
+        "recognition": "Custom",
+        "custom_recognition": "CheckCoolDown",
+        "custom_recognition_param": {
+            "card_name": "SetSkill",
+            "cycle_type": "g_daily"
+        },
+        "action": "Custom",
+        "custom_action": "MarkComplete",
+        "custom_action_param": {
+            "card_name": "SetSkill",
+            "cycle_type": "g_daily"
+        },
+        "focus": "SMSP.检测技能是否正确摆放",
+        "next": [
+            "Setup_SkillScan_Now"
+        ],
+        "doc": "【注意引用位置，应在有pin图标的正常地图 | 需要用JumpBack调用】该节点为开关作用.设计为每日最多运行一次."
+    },
+    "Setup_Entry6": {
+        "enabled": true,
+        "max_hit": 1,
+        "next": [
+            "Setup_EquipUp_Swich"
+        ],
+        "timeout": 1
+    },
+    "Setup_EquipUp_Swich": {
+        "recognition": "Custom",
+        "custom_recognition": "CheckCoolDown",
+        "custom_recognition_param": {
+            "card_name": "EquipUp",
+            "cycle_type": "g_daily"
+        },
+        "action": "Custom",
+        "custom_action": "MarkComplete",
+        "custom_action_param": {
+            "card_name": "EquipUp",
+            "cycle_type": "g_daily"
+        },
+        "focus": "SMSP.检测装备强化选项",
+        "next": [
+            "[JumpBack]Setup_EquipUp_MJ",
+            "[JumpBack]Setup_EquipUp_CheckBox_L1",
+            "[JumpBack]Setup_EquipUp_CheckBox_L2",
+            "[JumpBack]Setup_EquipUp_CheckBox_L3",
+            "[JumpBack]Setup_EquipUp_CheckBox_L4"
+        ]
+    },
+    "Setup_Entry7": {
+        "enabled": true,
+        "max_hit": 1,
+        "next": [
+            "Setup_EquipDec_Swich"
+        ],
+        "timeout": 1
+    },
+    "Setup_EquipDec_Swich": {
+        "recognition": "Custom",
+        "custom_recognition": "CheckCoolDown",
+        "custom_recognition_param": {
+            "card_name": "EquipDec",
+            "cycle_type": "g_daily"
+        },
+        "action": "Custom",
+        "custom_action": "MarkComplete",
+        "custom_action_param": {
+            "card_name": "EquipDec",
+            "cycle_type": "g_daily"
+        },
+        "focus": "SMSP.检测装备分解选项",
+        "next": [
+            "[JumpBack]Setup_EquipDec_UP",
+            "[JumpBack]Setup_EquipDec_MJ",
+            "[JumpBack]Setup_EquipDec_CheckBox_L1",
+            "[JumpBack]Setup_EquipDec_CheckBox_L2",
+            "[JumpBack]Setup_EquipDec_CheckBox_L3",
+            "[JumpBack]Setup_EquipDec_CheckBox_L4"
+        ]
+    },
+    "Setup_SkillScan_Now": {
+        "focus": "Set.技能放置检查开始",
+        "next": [
+            "Setup_SkillScan_Check",
+            "[JumpBack]Collect_Skill_Tap3"
+        ]
+    },
+    "Setup_SkillScan_Check": {
         "recognition": "And",
         "all_of": [
+            {
+                "recognition": "TemplateMatch",
+                "roi": [
+                    1174,
+                    633,
+                    58,
+                    59
+                ],
+                "template": [
+                    "pin.png"
+                ]
+            },
+            {
+                "recognition": "ColorMatch",
+                "roi": [
+                    1187,
+                    651,
+                    32,
+                    29
+                ],
+                "count": 200,
+                "lower": [
+                    192,
+                    141,
+                    23
+                ],
+                "upper": [
+                    223,
+                    194,
+                    129
+                ]
+            }
+        ],
+        "focus": "Set.技能页3-正确",
+        "next": [
+            "Setup_SkillScan_Skill1"
+        ]
+    },
+    "Setup_SkillScan_Skill1": {
+        "recognition": "Or",
+        "any_of": [
+            {
+                "recognition": "Custom",
+                "custom_recognition": "HSVShapeMatching",
+                "custom_recognition_param": {
+                    "target_node": "Setup_SkillScan_Skill1_Bin",
+                    "lower_hsv": [
+                        0,
+                        0,
+                        66
+                    ],
+                    "upper_hsv": [
+                        180,
+                        28,
+                        255
+                    ]
+                }
+            },
+            {
+                "recognition": "Custom",
+                "custom_recognition": "HSVShapeMatching",
+                "custom_recognition_param": {
+                    "target_node": "Setup_SkillScan_Skill1_Bin",
+                    "lower_hsv": [
+                        0,
+                        0,
+                        66
+                    ],
+                    "upper_hsv": [
+                        180,
+                        17,
+                        255
+                    ]
+                }
+            },
             {
                 "recognition": "TemplateMatch",
                 "roi": [
@@ -126,147 +346,71 @@
                 ],
                 "green_mask": true,
                 "threshold": 0.6
-            },
-            {
-                "recognition": "TemplateMatch",
-                "roi": [
-                    933,
-                    526,
-                    75,
-                    73
-                ],
-                "template": [
-                    "Skill3-2GE.png"
-                ],
-                "green_mask": true,
-                "threshold": 0.6
-            },
-            {
-                "recognition": "TemplateMatch",
-                "roi": [
-                    966,
-                    437,
-                    80,
-                    86
-                ],
-                "template": [
-                    "Skill3-3GE.png"
-                ],
-                "green_mask": true,
-                "threshold": 0.6
-            },
-            {
-                "recognition": "TemplateMatch",
-                "roi": [
-                    1140,
-                    447,
-                    83,
-                    83
-                ],
-                "template": [
-                    "Skill3-5 GE.png"
-                ],
-                "green_mask": true,
-                "threshold": 0.6
-            },
-            {
-                "recognition": "TemplateMatch",
-                "roi": [
-                    1051,
-                    400,
-                    81,
-                    86
-                ],
-                "template": [
-                    "Skill3-4GE.png"
-                ],
-                "green_mask": true,
-                "threshold": 0.6
             }
         ],
-        "inverse": true,
-        "focus": "SMSP.技能页3有未放置好的技能",
+        "focus": "Set.检测技能1,通过",
         "next": [
-            "[JumpBack]Setup_ToPvP_Switch",
-            "[JumpBack]Setup_SetSkill_Switch"
+            "Setup_SkillScan_Skill2"
         ],
-        "timeout": 3000,
-        "max_hit": 1
-    },
-    "Setup_ToPvP_Switch": {
-        "next": [
-            "Setup_ToPvP_Hub"
-        ],
-        "max_hit": 1,
-        "doc": "调用PVP的进入流程，然后走到边缘，使技能页背景为全黑"
-    },
-    "Setup_ToPvP_Hub": {
-        "anchor": "Setup_ToPvP",
-        "next": [
-            "Setup_ToPvP_Hub_Pipeline",
-            "Setup_ToPvP_MoveToEdge_SandBoxCK",
-            "[JumpBack]Global_ToSandBox"
+        "timeout": 8000,
+        "rate_limit": 2000,
+        "on_error": [
+            "Setup_Scan_Error_PreVerdict",
+            "Setup_Scan_Error_FinVerdict"
         ]
     },
-    "Setup_ToPvP_Hub_Pipeline": {
-        "max_hit": 1,
-        "next": [
-            "PVP_TaskStart"
-        ],
-        "focus": "Set.调用PVP进入流程"
-    },
-    "Setup_ToPvP_MoveToEdge_SandBoxCK": {
+    "Setup_SkillScan_Skill1_Bin": {
         "recognition": "TemplateMatch",
         "template": [
-            "pvp_Medals.png"
+            "Binary/Binary_skill1_Nol.png",
+            "Binary/Binary_skill1_Lgt.png"
         ],
+        "threshold": 0.6,
         "roi": [
-            612,
-            29,
-            173,
-            32
+            970,
+            620,
+            66,
+            67
         ],
-        "threshold": 0.8,
-        "focus": "Set.调用PVP进入流程-完毕",
-        "next": [
-            "Setup_ToPvP_MoveToEdge"
-        ]
+        "green_mask": true,
+        "doc": "【不要删不要改后挪用】custom需要调用此节点的识别"
     },
-    "Setup_ToPvP_MoveToEdge": {
-        "pre_delay": 1000,
-        "action": "Click",
-        "target": [
-            1270,
-            344,
-            9,
-            13
-        ],
-        "post_delay": 5000,
-        "focus": "Set.移动到边缘",
-        "next": [
-            "Setup_Entry5_Ck_Again"
-        ],
-        "timeout": 3000,
-        "on_error": [
-            "Setup_SetSkill_Disable"
-        ]
-    },
-    "Setup_Entry5_Ck_Again": {
-        "recognition": "And",
-        "all_of": [
+    "Setup_SkillScan_Skill2": {
+        "recognition": "Or",
+        "any_of": [
             {
-                "recognition": "TemplateMatch",
-                "roi": [
-                    970,
-                    620,
-                    66,
-                    67
-                ],
-                "template": [
-                    "Skill3-1GE.png"
-                ],
-                "green_mask": true,
-                "threshold": 0.6
+                "recognition": "Custom",
+                "custom_recognition": "HSVShapeMatching",
+                "custom_recognition_param": {
+                    "target_node": "Setup_SkillScan_Skill2_Bin",
+                    "lower_hsv": [
+                        0,
+                        0,
+                        66
+                    ],
+                    "upper_hsv": [
+                        180,
+                        28,
+                        255
+                    ]
+                }
+            },
+            {
+                "recognition": "Custom",
+                "custom_recognition": "HSVShapeMatching",
+                "custom_recognition_param": {
+                    "target_node": "Setup_SkillScan_Skill2_Bin",
+                    "lower_hsv": [
+                        0,
+                        0,
+                        66
+                    ],
+                    "upper_hsv": [
+                        180,
+                        17,
+                        255
+                    ]
+                }
             },
             {
                 "recognition": "TemplateMatch",
@@ -281,6 +425,71 @@
                 ],
                 "green_mask": true,
                 "threshold": 0.6
+            }
+        ],
+        "focus": "Set.检测技能2,通过",
+        "next": [
+            "Setup_SkillScan_Skill3"
+        ],
+        "timeout": 8000,
+        "rate_limit": 2000,
+        "on_error": [
+            "Setup_Scan_Error_PreVerdict",
+            "Setup_Scan_Error_FinVerdict"
+        ]
+    },
+    "Setup_SkillScan_Skill2_Bin": {
+        "recognition": "TemplateMatch",
+        "template": [
+            "Binary/Binary_skill2_Nol.png",
+            "Binary/Binary_skill2_Lgt.png"
+        ],
+        "threshold": 0.6,
+        "roi": [
+            933,
+            526,
+            75,
+            73
+        ],
+        "green_mask": true,
+        "doc": "【不要删不要改后挪用】custom需要调用此节点的识别"
+    },
+    "Setup_SkillScan_Skill3": {
+        "recognition": "Or",
+        "any_of": [
+            {
+                "recognition": "Custom",
+                "custom_recognition": "HSVShapeMatching",
+                "custom_recognition_param": {
+                    "target_node": "Setup_SkillScan_Skill3_Bin",
+                    "lower_hsv": [
+                        0,
+                        0,
+                        66
+                    ],
+                    "upper_hsv": [
+                        180,
+                        28,
+                        255
+                    ]
+                }
+            },
+            {
+                "recognition": "Custom",
+                "custom_recognition": "HSVShapeMatching",
+                "custom_recognition_param": {
+                    "target_node": "Setup_SkillScan_Skill3_Bin",
+                    "lower_hsv": [
+                        0,
+                        0,
+                        66
+                    ],
+                    "upper_hsv": [
+                        180,
+                        17,
+                        255
+                    ]
+                }
             },
             {
                 "recognition": "TemplateMatch",
@@ -295,6 +504,71 @@
                 ],
                 "green_mask": true,
                 "threshold": 0.6
+            }
+        ],
+        "focus": "Set.检测技能3,通过",
+        "next": [
+            "Setup_SkillScan_Skill5"
+        ],
+        "timeout": 8000,
+        "rate_limit": 2000,
+        "on_error": [
+            "Setup_Scan_Error_PreVerdict",
+            "Setup_Scan_Error_FinVerdict"
+        ]
+    },
+    "Setup_SkillScan_Skill3_Bin": {
+        "recognition": "TemplateMatch",
+        "template": [
+            "Binary/Binary_skill3_Nol.png",
+            "Binary/Binary_skill3_Lgt.png"
+        ],
+        "threshold": 0.6,
+        "roi": [
+            966,
+            436,
+            81,
+            80
+        ],
+        "green_mask": true,
+        "doc": "【不要删不要改后挪用】custom需要调用此节点的识别"
+    },
+    "Setup_SkillScan_Skill5": {
+        "recognition": "Or",
+        "any_of": [
+            {
+                "recognition": "Custom",
+                "custom_recognition": "HSVShapeMatching",
+                "custom_recognition_param": {
+                    "target_node": "Setup_SkillScan_Skill5_Bin",
+                    "lower_hsv": [
+                        0,
+                        0,
+                        66
+                    ],
+                    "upper_hsv": [
+                        180,
+                        28,
+                        255
+                    ]
+                }
+            },
+            {
+                "recognition": "Custom",
+                "custom_recognition": "HSVShapeMatching",
+                "custom_recognition_param": {
+                    "target_node": "Setup_SkillScan_Skill5_Bin",
+                    "lower_hsv": [
+                        0,
+                        0,
+                        66
+                    ],
+                    "upper_hsv": [
+                        180,
+                        17,
+                        255
+                    ]
+                }
             },
             {
                 "recognition": "TemplateMatch",
@@ -309,6 +583,71 @@
                 ],
                 "green_mask": true,
                 "threshold": 0.6
+            }
+        ],
+        "focus": "Set.检测技能5,通过",
+        "next": [
+            "Setup_SkillScan_Skill4"
+        ],
+        "timeout": 8000,
+        "rate_limit": 2000,
+        "on_error": [
+            "Setup_Scan_Error_PreVerdict",
+            "Setup_Scan_Error_FinVerdict"
+        ]
+    },
+    "Setup_SkillScan_Skill5_Bin": {
+        "recognition": "TemplateMatch",
+        "template": [
+            "Binary/Binary_skill5_Nol.png",
+            "Binary/Binary_skill5_Lgt.png"
+        ],
+        "threshold": 0.6,
+        "roi": [
+            1140,
+            447,
+            83,
+            83
+        ],
+        "green_mask": true,
+        "doc": "【不要删不要改后挪用】custom需要调用此节点的识别"
+    },
+    "Setup_SkillScan_Skill4": {
+        "recognition": "Or",
+        "any_of": [
+            {
+                "recognition": "Custom",
+                "custom_recognition": "HSVShapeMatching",
+                "custom_recognition_param": {
+                    "target_node": "Setup_SkillScan_Skill4_Bin",
+                    "lower_hsv": [
+                        0,
+                        0,
+                        66
+                    ],
+                    "upper_hsv": [
+                        180,
+                        28,
+                        255
+                    ]
+                }
+            },
+            {
+                "recognition": "Custom",
+                "custom_recognition": "HSVShapeMatching",
+                "custom_recognition_param": {
+                    "target_node": "Setup_SkillScan_Skill4_Bin",
+                    "lower_hsv": [
+                        0,
+                        0,
+                        66
+                    ],
+                    "upper_hsv": [
+                        180,
+                        17,
+                        255
+                    ]
+                }
             },
             {
                 "recognition": "TemplateMatch",
@@ -325,22 +664,242 @@
                 "threshold": 0.6
             }
         ],
-        "inverse": true,
-        "focus": "SMSP.技能页3复查-技能放置非预期"
+        "focus": "Set.检测技能4,通过",
+        "next": [
+            "Setup_SkillScan_Success"
+        ],
+        "timeout": 8000,
+        "rate_limit": 2000,
+        "on_error": [
+            "Setup_Scan_Error_PreVerdict",
+            "Setup_Scan_Error_FinVerdict"
+        ]
     },
-    "Setup_SetSkill_Disable": {
-        "doc": "使用工件禁用'Setup_SetSkill_Switch'",
+    "Setup_SkillScan_Skill4_Bin": {
+        "recognition": "TemplateMatch",
+        "template": [
+            "Binary/Binary_skill4_Nol.png",
+            "Binary/Binary_skill4_Lgt.png"
+        ],
+        "threshold": 0.6,
+        "roi": [
+            1051,
+            400,
+            81,
+            86
+        ],
+        "green_mask": true,
+        "doc": "【不要删不要改后挪用】custom需要调用此节点的识别"
+    },
+    "Setup_SkillScan_Success": {
+        "focus": "Set.全技能检查通过~"
+    },
+    "Setup_Scan_Error_PreVerdict": {
+        "next": [
+            "Setup_ResetLoc_Str"
+        ],
+        "focus": "Set.技能摆放-初审校验不通过",
+        "max_hit": 1
+    },
+    "Setup_ResetLoc_Str": {
+        "next": [
+            "[JumpBack]Setup_ResetPack_JumpBackUse",
+            "[JumpBack]Setup_ResetLoc_JumpBackUse",
+            "[JumpBack]Setup_Patch_Reset",
+            "Setup_SkillScan_Check"
+        ],
+        "doc": "模块目的,复位到主线1的森林中.使用固定的背景,再复核识别一次."
+    },
+    "Setup_ResetPack_JumpBackUse": {
         "action": "Custom",
         "custom_action": "PatchNode",
         "custom_action_param": {
-            "node": "Setup_SetSkill_Switch",
+            "node": "Global_BackToPve2#_TouchPVEBook",
             "patch": {
-                "enabled": false
+                "roi": [
+                    109,
+                    140,
+                    191,
+                    151
+                ],
+                "template": [
+                    "pve1.png"
+                ]
             },
             "origin": {
-                "enabled": true
+                "roi": [
+                    385,
+                    143,
+                    117,
+                    69
+                ],
+                "template": [
+                    "pve2.png"
+                ]
             }
-        }
+        },
+        "next": [
+            "Global_BackToPve2#"
+        ],
+        "focus": "Set.py.卡带复位-主线1",
+        "max_hit": 1,
+        "doc": "类Anchor实现,偷取公共复位节点,注入修改路进,注意复位"
+    },
+    "Setup_ResetLoc_JumpBackUse": {
+        "action": "Custom",
+        "custom_action": "PatchBatch",
+        "custom_action_param": {
+            "patches": {
+                "Collect_OperationsMain_ToAreaMap": {
+                    "next": [
+                        "Collect_TargetMap1-2",
+                        "[JumpBack]Setup_ResetLoc_JumpBackUse_Mod",
+                        "[JumpBack]Collect_MapLift"
+                    ]
+                },
+                "Collect_TargetMap1-2": {
+                    "expected": [
+                        "卢戈森林"
+                    ],
+                    "next": [
+                        "Collect_ClickTeleporCircleIco",
+                        "Collect_ClickBackOnSecureMap"
+                    ]
+                },
+                "Collect_ClickBackOnSecureMap": {
+                    "next": [],
+                    "expected": [
+                        "卢戈森林"
+                    ]
+                },
+                "Collect_ClickTelepor_TargetClass_PurpleProcess": {
+                    "next": [
+                        "Collect_ClickTelepor_TargetClass_PurpleProcess"
+                    ],
+                    "timeout": 5000,
+                    "max_hit": 5
+                },
+                "Collect_ClickTelepor_TargetClass_White": {
+                    "next": [
+                        "Collect_ClickTelepor_TargetClass_White"
+                    ],
+                    "timeout": 5000,
+                    "max_hit": 5
+                }
+            },
+            "origins": {
+                "Collect_OperationsMain_ToAreaMap": {
+                    "next": [
+                        "Collect_TargetMap1-1",
+                        "[JumpBack]Collect_MapLift"
+                    ]
+                },
+                "Collect_TargetMap1-2": {
+                    "expected": [
+                        "达普雷镇",
+                        "雷瓦汀基地",
+                        "拉勒凯镇",
+                        "罗戴夫镇",
+                        "科库托斯圣域",
+                        "学校1楼",
+                        "安全"
+                    ],
+                    "next": [
+                        "Collect_TargetMap1_Special_Right",
+                        "Collect_TargetMap2",
+                        "Collect_TargetMap3",
+                        "Collect_TargetMap4",
+                        "[JumpBack]Collect_ClickTelepor_ButNotActive",
+                        "[JumpBack]Collect_TargetMap_Special_ClickTpCircleIco",
+                        "[JumpBack]Collect_ClickTeleporCircleIco",
+                        "[JumpBack]Collect_ClickBackOnSecureMap",
+                        "[JumpBack]Collect_ClickTelepor_Abnormal_Overlap",
+                        "Collect_QuickCart_FastUI",
+                        "[JumpBack]Collect_TeleporNotFind"
+                    ]
+                },
+                "Collect_ClickBackOnSecureMap": {
+                    "next": [
+                        "Collect_Skill_Start",
+                        "Collect_ClickBackOnSecureMap"
+                    ],
+                    "expected": [
+                        "达普雷镇",
+                        "雷瓦汀基地",
+                        "拉勒凯镇",
+                        "罗戴夫镇",
+                        "安全"
+                    ]
+                },
+                "Collect_ClickTelepor_TargetClass_PurpleProcess": {
+                    "next": [
+                        "[Anchor]Arbitrage5",
+                        "Collect_Skill_Start",
+                        "Collect_ClickTelepor_TargetClass_PurpleProcess"
+                    ],
+                    "timeout": 20000,
+                    "max_hit": -1
+                },
+                "Collect_ClickTelepor_TargetClass_White": {
+                    "next": [
+                        "[Anchor]Arbitrage5",
+                        "Collect_Skill_Start",
+                        "Collect_ClickTelepor_TargetClass_White"
+                    ],
+                    "timeout": 20000,
+                    "max_hit": -1
+                }
+            }
+        },
+        "next": [
+            "Collect_OperationsMain_Sandplay"
+        ],
+        "focus": "Set.py.位置复位-卢戈森林",
+        "max_hit": 1,
+        "doc": "类Anchor实现,偷取吸取导航节点链,注入修改路进较多,注意复位"
+    },
+    "Setup_ResetLoc_JumpBackUse_Mod": {
+        "recognition": "OCR",
+        "action": "Click",
+        "focus": "Set.当前在卢戈村,Mod处理",
+        "roi": [
+            408,
+            622,
+            466,
+            47
+        ],
+        "expected": [
+            "卢戈镇"
+        ],
+        "post_wait_freezes": 1500,
+        "target": [
+            973,
+            339,
+            8,
+            12
+        ],
+        "max_hit": 2,
+        "doc": "【假孤立节点，不要删除】会patch到coll导航内，处理本就在主城情况。"
+    },
+    "Setup_Patch_Reset": {
+        "action": "Custom",
+        "custom_action": "RestoreBatch",
+        "custom_action_param": {
+            "nodes": [
+                "Global_BackToPve2#_TouchPVEBook",
+                "Collect_OperationsMain_ToAreaMap",
+                "Collect_TargetMap1-2",
+                "Collect_ClickBackOnSecureMap"
+            ]
+        },
+        "focus": "Set.复位类Anchor调用的节点",
+        "max_hit": 1
+    },
+    "Setup_Scan_Error_FinVerdict": {
+        "next": [
+            "Setup_SetSkill_Switch"
+        ],
+        "focus": "Set.技能摆放-复审校验不通过\n\n开始技能复位"
     },
     "Setup_Main_Switch": {
         "recognition": "TemplateMatch",

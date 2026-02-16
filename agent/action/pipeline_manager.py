@@ -168,6 +168,19 @@ from recognition.counter import TAG_STORE
 # }
 #
 # ------------------------------------------------------------------------------
+# 4-2. RestoreBatch (复数还原)
+# ------------------------------------------------------------------------------
+# "action": {
+#     "type": "Custom",
+#     "param": {
+#         "custom_action": "RestoreBatch",
+        # "custom_action_param": {
+        #     "nodes": ["Node_A", "Node_B", "Node_C"],  <-- 只要名字，系统去账本里找原版数据
+        #     "reset_tags": ["Tag_To_Reset"] // [可选] 顺手重置计数器
+        # }
+#     }
+# }
+# ------------------------------------------------------------------------------
 # 5. ResetAll (一键重置/批量还原)
 # ------------------------------------------------------------------------------
 # "action": {
@@ -420,6 +433,13 @@ class PatchNode(CustomAction):
 @AgentServer.custom_action("RestoreNode")
 class RestoreNode(CustomAction):
     def run(self, context: Context, argv: CustomAction.RunArg) -> bool:
+        """
+        将指定节点的配置还原为先前保存的备份或调用时提供的备份数据。
+        
+        尝试按优先级从内部备份账本中读取目标节点的备份；如果不存在，则使用参数中 `backup` 字段（兼容旧写法）。如果既没有备份也未提供 `backup`，记录警告并作为无操作返回成功状态；如果恢复过程中发生异常则返回失败。
+        Returns:
+            True 如果成功应用恢复或在无备份时作为无操作完成，False 如果缺少必需的 `node` 参数或恢复过程中发生错误。
+        """
         global NODE_BACKUPS
         params = parse_json_arg(argv)
         target_node = params.get("node")
@@ -448,9 +468,74 @@ class RestoreNode(CustomAction):
             utils.mfaalog.error(f"[Py] RestoreNode 失败: {e}")
             return False
 
+@AgentServer.custom_action("RestoreBatch")
+class RestoreBatch(CustomAction):
+    def run(self, context: Context, argv: CustomAction.RunArg) -> bool:
+        """
+        根据备份账本（NODE_BACKUPS）将参数中指定的节点批量还原到管线上下文。
+        
+        函数会处理 params 中的重置标签（reset_tags）作为一项副作用。params 需包含 "nodes" 字段且为节点名列表；函数将从全局备份中挑选存在的节点并通过 context.override_pipeline 应用还原。若列表中有未找到的备份会记录警告并忽略之；当没有有效还原项时视为无操作并返回成功。
+        
+        Parameters:
+            argv (CustomAction.RunArg): 运行时参数，解析后应包含 "nodes" 键，对应要还原的节点名列表。
+        
+        Returns:
+            bool: `True` 如果还原已完成或没有需要还原的节点（包括内部异常被抑制的情况），`False` 如果输入参数无效（例如 "nodes" 缺失或不是列表）。
+        """
+        global NODE_BACKUPS
+        params = parse_json_arg(argv)
+        
+        # 1. [旁作用] 处理计数器重置
+        _process_reset_tags(params)
+
+        # 2. 获取目标节点列表
+        target_nodes = params.get("nodes")
+        
+        if not target_nodes or not isinstance(target_nodes, list):
+            utils.mfaalog.warning("[Py] RestoreBatch 参数错误: 'nodes' 必须是列表")
+            return False
+
+        # 3. 构建还原字典
+        restore_dict = {}
+        missing_nodes = []
+
+        for node in target_nodes:
+            if node in NODE_BACKUPS:
+                restore_dict[node] = NODE_BACKUPS[node]
+            else:
+                missing_nodes.append(node)
+
+        # 记录一下没找到的（可能是还没被Patch过，或者拼写错误）
+        if missing_nodes:
+            utils.mfaalog.warning(f"[Py] ⚠️ RestoreBatch: 账本中未找到以下节点的备份 (忽略): {missing_nodes}")
+
+        if not restore_dict:
+            utils.mfaalog.warning("[Py] ⚠️ RestoreBatch: 没有可还原的有效节点")
+            return True
+
+        try:
+            # 4. 执行批量还原
+            context.override_pipeline(restore_dict)
+            utils.mfaalog.info(f"[Py] 🔙 批量还原成功: {list(restore_dict.keys())}")
+            return True
+        except Exception as e:
+            # 发生未知代码异常？打印堆栈，然后返回 ....# 有待讨论，如果复位失败可能意外中断整个节点链
+            utils.mfaalog.error(f"[Py] 💥 RestoreBatch 发生严重异常 (已抑制): {e}")
+            import traceback
+            utils.mfaalog.error(traceback.format_exc())
+            return False
+
 @AgentServer.custom_action("ResetAll")
 class ResetAll(CustomAction):
     def run(self, context: Context, argv: CustomAction.RunArg) -> bool:
+        """
+        将所有已保存的节点备份批量还原到管线并清空备份账本。
+        
+        在有备份时调用管线的 override_pipeline 来恢复所有节点配置，随后清空 NODE_BACKUPS 以移除已应用的备份记录；如果没有备份则立即返回成功。
+        
+        Returns:
+            True 如果所有备份已成功还原或没有需要重置的节点，False 如果在还原过程中发生错误。
+        """
         global NODE_BACKUPS
         
         if not NODE_BACKUPS:

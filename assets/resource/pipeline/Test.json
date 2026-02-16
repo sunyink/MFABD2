@@ -506,5 +506,61 @@
         "timeout": 5000
       }
     }
+  },
+  "FindBunny_Translucent": {
+    "recognition": {
+      "type": "Custom",
+      "param": {
+        "custom_recognition": "HSVShapeMatching",
+        "custom_recognition_param": {
+          "target_node": "FindBunny_Translucent_Core",
+          "lower_hsv": [
+            0,
+            0,
+            66
+          ],
+          "upper_hsv": [
+            180,
+            28,
+            255
+          ],
+          "debug": true
+        }
+      }
+    }
+  },
+  "FindBunny_Translucent_Core": {
+    "recognition": "TemplateMatch",
+    "template": "Binary/Binary_skill3_Nol.png",
+    "threshold": 0.6,
+    "roi": [
+      966,
+      436,
+      81,
+      80
+    ],
+    "green_mask": true
+  },
+  "FindBunny_Translucent-light": {
+    "recognition": {
+      "type": "Custom",
+      "param": {
+        "custom_recognition": "HSVShapeMatching",
+        "custom_recognition_param": {
+          "target_node": "FindBunny_Translucent_Core",
+          "lower_hsv": [
+            0,
+            0,
+            66
+          ],
+          "upper_hsv": [
+            180,
+            17,
+            255
+          ],
+          "debug": true
+        }
+      }
+    }
   }
 }
