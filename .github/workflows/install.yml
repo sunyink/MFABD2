@@ -329,15 +329,32 @@ jobs:
           7z x python_embed.zip -oinstall/python
           
           # 开启 site 支持
-          python3 -c "import pathlib; p = next(pathlib.Path('install/python').glob('*._pth')); p.write_text(p.read_text().replace('#import site', 'import site'))"
+          python3 -c "
+          import pathlib, sys
+          p_list = list(pathlib.Path('install/python').glob('*._pth'))
+          if p_list:
+              p = p_list[0]
+              p.write_text(p.read_text().replace('#import site', 'import site'))
+              print(f'✅ 已启用 site-packages: {p.name}')
+          else:
+              print('::warning::未找到 ._pth 文件，可能导致 pip 无法运行')
+          "
 
           # === 3. [关键修复] 处理 requirements.txt 冲突 ===
           # 如果是 ARM64，必须删掉 requirements.txt 里 'numpy<2' 这一行，
           # 否则 pip 会报错说：你命令里要安装 2.3，但文件里限制 <2，互相矛盾。
+          # 仅当是 ARM64 时，安全移除 requirements.txt 中以 'numpy' 开头的行
           if [[ "${{ matrix.arch }}" == "aarch64" ]]; then
              echo "✂️ [Win-ARM64] 正在移除 requirements.txt 中的 numpy<2 限制..."
-             # 使用 python 处理，避免 sed 在 mac/linux 上的语法差异
-             python3 -c "import sys; lines = [l for l in open('requirements.txt') if 'numpy' not in l]; open('requirements.txt', 'w').write(''.join(lines))"
+             python3 -c "
+          import sys
+          with open('requirements.txt', 'r') as f:
+              lines = f.readlines()
+          # 只删除以 'numpy' 开头 (忽略空格) 的行，避免误删注释或其他包
+          new_lines = [l for l in lines if not l.strip().startswith('numpy')]
+          with open('requirements.txt', 'w') as f:
+              f.writelines(new_lines)
+          "
              echo "=== 修改后的 requirements.txt ==="
              cat requirements.txt
           fi
@@ -348,8 +365,8 @@ jobs:
           # 注意：这里我们把 $NUMPY_REQ 放在 requirements.txt 之前
           # 并且加上了 requirements.txt (已经去除了冲突项)
           python3 -m pip install \
-            --platform $PIP_PLATFORM \
-            --python-version $PYTHON_VER \
+            --platform "$PIP_PLATFORM" \
+            --python-version "$PYTHON_VER" \
             --only-binary=:all: \
             --no-cache-dir \
             "$NUMPY_REQ" \
