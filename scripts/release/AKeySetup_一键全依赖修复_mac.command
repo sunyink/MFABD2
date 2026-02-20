@@ -5,6 +5,11 @@ cd "$(dirname "$0")"
 # 🔴 CI 构建时会自动替换这个占位符，不要手动修改
 TARGET_MAA_VERSION="{{MAA_VERSION}}"
 
+# 使用终端直接运行时, 给出版本号避免报错
+if echo "$TARGET_MAA_VERSION" | grep -q '{{.*}}'; then
+    TARGET_MAA_VERSION="5.7.0"
+fi
+
 # 上游 .NET 安装脚本的文件名
 DOTNET_SCRIPT="DependencySetup_依赖库安装_mac.sh"
 
@@ -51,6 +56,31 @@ if ! command -v python3 &> /dev/null; then
     echo -e "👉 您也可以手动去 python.org 下载安装。"
     read -n 1 -s -r -p "按任意键退出..."
     exit 1
+else
+    # 检查 Python3
+    CURRENT_PYTHON_PATH=$(command -v python3)
+    echo -e "检测到 Python 路径: $CURRENT_PYTHON_PATH"
+fi
+
+# 解决 版本问题和homebrew虚拟环境创建
+if ! python3 -c "import sys; exit(0 if sys.version_info > (3,9) else 1)"; then
+    echo "Python < 3.9"
+    echo -e "\n❌ 错误: 检测到 python3版本过低，建议更新到python3.9以上。"
+    echo -e "👉可以使用命令:"
+    echo -e "homebrew install python3.10"
+    echo -e "👉 您也可以手动去 python.org 下载安装。"
+    read -n 1 -s -r -p "按任意键退出..."
+    exit 1
+elif [[ "$CURRENT_PYTHON_PATH" == /opt/homebrew/* ]] || [[ "$CURRENT_PYTHON_PATH" == /usr/local/* ]]; then
+    echo -e "Python from Homebrew"
+    echo -e "创建虚拟环境中..."
+    python3 -m venv ./.venv
+    source ./.venv/bin/activate
+    echo -e 虚拟环境已激活
+    CURRENT_PYTHON_PATH=$(command -v python3)
+    echo -e "Python 路径已经更新为: $CURRENT_PYTHON_PATH"
+else
+    echo -e "Python 不是 Homebrew 版本"
 fi
 
 echo "✅ 检测到 Python3，准备安装 MAA 依赖..."
@@ -72,7 +102,7 @@ for source_entry in "${SOURCES[@]}"; do
     
     echo -e "\n🌐 正在尝试源: $name ..."
     # -U 代表 upgrade，确保版本对齐
-    python3 -m pip install -U $PACKAGES -i "$url"
+    $CURRENT_PYTHON_PATH -m pip install -U $PACKAGES -i "$url"
     
     if [ $? -eq 0 ]; then
         echo -e "\n✅ 依赖安装成功！"
@@ -91,13 +121,14 @@ if [ "$INSTALL_SUCCESS" = true ]; then
     # 🟢 Step 3 - 自动将 Python 绝对路径写入配置文件
     echo -e "\n${GREEN}>>> [3/3] 正在配置启动路径...${NC}"
     
+    # 已转移到前置检测
     # 1. 获取当前 python3 的绝对路径
-    CURRENT_PYTHON_PATH=$(command -v python3)
-    echo "检测到 Python 路径: $CURRENT_PYTHON_PATH"
+    # CURRENT_PYTHON_PATH=$(command -v python3)
+    # echo "检测到 Python 路径: $CURRENT_PYTHON_PATH"
     
     # 2. 使用 Python 自身来修改 interface.json
     # 注意：这里的 $CURRENT_PYTHON_PATH 会被 bash 替换后再传给 python
-    python3 -c "
+    $CURRENT_PYTHON_PATH -c "
 import json
 import os
 
@@ -124,6 +155,15 @@ except Exception as e:
     print(f'❌ 配置文件修改失败: {e}')
 "
 fi
+
+# 解除隔离属性
+CURRENT_DIR=$(pwd)
+echo "当前工作目录：$CURRENT_DIR"
+echo -e "${YELLOW} 正在解除隔离属性, 需要用户输入密码"
+sudo xattr -dr com.apple.quarantine "${CURRENT_DIR}"/*
+
+# 获取执行权限
+sudo chmod +x "$CURRENT_DIR/MFAAvalonia"
 
 # =======================================================
 # 结束总结
