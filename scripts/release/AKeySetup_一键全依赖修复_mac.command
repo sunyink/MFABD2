@@ -156,15 +156,6 @@ except Exception as e:
 "
 fi
 
-# 解除隔离属性
-CURRENT_DIR=$(pwd)
-echo "当前工作目录：$CURRENT_DIR"
-echo -e "${YELLOW} 正在解除隔离属性, 需要用户输入密码"
-sudo xattr -dr com.apple.quarantine "${CURRENT_DIR}"/*
-
-# 获取执行权限
-sudo chmod +x "$CURRENT_DIR/MFAAvalonia"
-
 # =======================================================
 # 结束总结
 # =======================================================
