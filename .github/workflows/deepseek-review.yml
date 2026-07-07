@@ -60,7 +60,7 @@ jobs:
         run: pip install --quiet "openai>=1.40" "requests>=2.31"
 
       - name: 缓存官方文档（24h 复用）
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           key: maafw-docs-v2
           path: .deepseek_docs_cache
