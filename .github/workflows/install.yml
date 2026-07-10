@@ -979,12 +979,71 @@ jobs:
             🔗 查看提交: https://github.com/${{ github.repository }}/commit/${{ github.sha }}
             🔨 构建下载: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          # 直发 Qmsg 群消息：POST /group/<KEY>
-          RESP=$(curl -sS --max-time 60 -X POST "https://qmsg.zendee.cn/group/${QMSG_KEY}" \
-            --data-urlencode "msg=${MSG}" \
-            --data-urlencode "qq=${QMSG_GROUPS}")
-          echo "Qmsg 响应: $RESP"
-          echo "$RESP" | jq -e '.success == true' >/dev/null || {
-            echo "::error::Qmsg 推送失败"
+          if [ -z "$QMSG_KEY" ] || [ -z "$QMSG_GROUPS" ]; then
+            echo "::error::Qmsg 配置缺失，请检查 QMSG_KEY 和目标群组 Secret"
             exit 1
-          }
+          fi
+
+          RESPONSE_FILE=$(mktemp)
+          trap 'rm -f "$RESPONSE_FILE"' EXIT
+          MAX_ATTEMPTS=3
+
+          # 仅重试网络错误、限流、服务端错误和非 JSON 响应。
+          # Qmsg 没有幂等参数，次数保持保守以降低重复消息风险。
+          for ATTEMPT in $(seq 1 "$MAX_ATTEMPTS"); do
+            : > "$RESPONSE_FILE"
+            CURL_EXIT=0
+            HTTP_CODE=$(curl -sS --connect-timeout 10 --max-time 30 \
+              -o "$RESPONSE_FILE" -w "%{http_code}" \
+              -X POST "https://qmsg.zendee.cn/group/${QMSG_KEY}" \
+              --data-urlencode "msg=${MSG}" \
+              --data-urlencode "qq=${QMSG_GROUPS}") || CURL_EXIT=$?
+            RESP=$(<"$RESPONSE_FILE")
+            HTTP_CODE=${HTTP_CODE:-000}
+
+            echo "Qmsg 请求 ${ATTEMPT}/${MAX_ATTEMPTS}: curl=${CURL_EXIT}, HTTP=${HTTP_CODE}"
+
+            if [ "$CURL_EXIT" -eq 0 ] && [[ "$HTTP_CODE" =~ ^2[0-9][0-9]$ ]]; then
+              if ! jq -e 'type == "object"' >/dev/null 2>&1 <<< "$RESP"; then
+                FAILURE_REASON="响应不是合法的 JSON 对象"
+              elif jq -e '.success == true' >/dev/null 2>&1 <<< "$RESP"; then
+                echo "Qmsg 推送成功"
+                exit 0
+              else
+                REASON=$(jq -r '.reason // "响应中未提供原因"' <<< "$RESP")
+                echo "::error::Qmsg 拒绝推送: $REASON"
+                exit 1
+              fi
+            elif [ "$CURL_EXIT" -ne 0 ]; then
+              FAILURE_REASON="网络请求失败（curl 退出码 ${CURL_EXIT}）"
+            elif [[ "$HTTP_CODE" == "408" || "$HTTP_CODE" == "425" || "$HTTP_CODE" == "429" || "$HTTP_CODE" =~ ^5[0-9][0-9]$ ]]; then
+              FAILURE_REASON="Qmsg 暂时不可用（HTTP ${HTTP_CODE}）"
+            else
+              echo "::error::Qmsg 返回不可重试的 HTTP 状态: $HTTP_CODE"
+              echo "Qmsg 响应（最多 500 字符）: ${RESP:0:500}"
+              exit 1
+            fi
+
+            echo "::warning::Qmsg 第 ${ATTEMPT} 次请求失败: $FAILURE_REASON"
+            echo "Qmsg 响应（最多 500 字符）: ${RESP:0:500}"
+
+            if [ "$ATTEMPT" -lt "$MAX_ATTEMPTS" ]; then
+              if [ "$ATTEMPT" -eq 1 ]; then
+                RETRY_DELAY=5
+              else
+                RETRY_DELAY=20
+              fi
+              echo "${RETRY_DELAY} 秒后重试"
+              sleep "$RETRY_DELAY"
+            fi
+          done
+
+          {
+            echo "### Qmsg 通知未送达"
+            echo
+            echo "- 已重试 ${MAX_ATTEMPTS} 次"
+            echo "- 最后错误：${FAILURE_REASON}"
+            echo "- 构建与制品不受此次外部服务故障影响"
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "::warning::Qmsg 临时故障且重试耗尽；保留成功的构建结果"
+          exit 0
