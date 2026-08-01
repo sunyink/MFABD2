@@ -1369,17 +1369,7 @@
             "cases": [
                 {
                     "name": "Yes",
-                    "pipeline_override": {
-                        "Daily_Busin_NoGift": {
-                            "next": []
-                        },
-                        "Daily_Busin_Nothing_Binary": {
-                            "next": []
-                        },
-                        "Daily_Busin_DecorCoin_IsFull_Binary": {
-                            "next": []
-                        }
-                    }
+                    "pipeline_override": {}
                 },
                 {
                     "name": "No",
