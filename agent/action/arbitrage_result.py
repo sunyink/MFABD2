@@ -120,18 +120,35 @@ _RESCUE_CFG = {
 }
 
 
-def _load_rescue_cfg(context):
-    """从 _RESCUE_NODE.attach 覆盖救援可调参(缺项保留 py 默认)。run 起始调一次,幂等。"""
+def _load_rescue_cfg(context) -> dict:
+    """从 _RESCUE_NODE.attach 生成**本轮**救援参数副本(缺项/坏值各自回落 py 默认)。run 起始调一次。
+
+    上面的 _RESCUE_CFG 是只读默认表,本函数绝不写它——早先的原地覆盖写法有两个坑:
+      · 半覆盖:逐项转型时中途抛异常被 except 兜住,前面几项已经写进全局了,而日志却报
+        "沿用内置默认",照着日志查会以为全是默认值;
+      · 粘滞:PatchPipeline 能改 attach,任务结束框架撤销它自己那半边 override,但这个
+        全局 dict 框架不知道(同 pipeline_manager 的 _LEDGERS 处境),上一轮的覆盖值会
+        一直留着——下一轮 attach 里没这个 key 了,也回不到 py 默认。
+    改为每轮取副本后,坏值只影响它自己那一项,默认表恒定。
+    """
+    cfg = dict(_RESCUE_CFG)
     try:
         node = context.get_node_object(_RESCUE_NODE)
         attach = getattr(node, "attach", None) if node else None
         if not attach:
-            return
+            return cfg
         for k in _RESCUE_CFG:
             if k in attach:
-                _RESCUE_CFG[k] = type(_RESCUE_CFG[k])(attach[k])
+                try:
+                    cfg[k] = type(_RESCUE_CFG[k])(attach[k])
+                except (TypeError, ValueError):
+                    mfaalog.warning(
+                        f"[Arbitrage] ⚠️ 救援可调参 {k}={attach[k]!r} 非法"
+                        f"(应为 {type(_RESCUE_CFG[k]).__name__}),该项回落默认 {_RESCUE_CFG[k]!r}"
+                    )
     except Exception as e:
-        mfaalog.warning(f"[Arbitrage] ⚠️ 救援可调参读取异常({e}),沿用内置默认")
+        mfaalog.warning(f"[Arbitrage] ⚠️ 救援可调参读取异常({e}),整份沿用内置默认")
+    return cfg
 
 
 def _tail_num(s: str) -> str:
@@ -140,34 +157,34 @@ def _tail_num(s: str) -> str:
     return m.group(1) if m else ""
 
 
-def _rescue_rois(type_dets: list) -> list:
+def _rescue_rois(type_dets: list, cfg: dict) -> list:
     """尾号救援候选 roi(绝对坐标)。尺度全锚定实检类型框:H=类高中位数(自适应端字号)、W=类型块宽、
     yb=类型下缘。横向宽/窄互补(宽=类型同宽+外扩取上下文;窄=右对齐值带避左侧字底);纵向按 ±%H 多位移
-    (含下移档躲类型字底残笔)。候选 = {宽,窄} × y_shifts。"""
+    (含下移档躲类型字底残笔)。候选 = {宽,窄} × y_shifts。cfg 由 _load_rescue_cfg 逐轮生成。"""
     left = min(d["x"] for d in type_dets)
     right = max(d["x"] + d["w"] for d in type_dets)
     yb = max(d["y"] + d["h"] for d in type_dets)
     hs = sorted(d["h"] for d in type_dets)
     H = hs[len(hs) // 2]                                    # 类高中位数 = 尺度单位
     W = max(1, right - left)
-    pad = max(1, int(round(_RESCUE_CFG["pad_frac"] * W)))
-    nw = max(1, int(round(_RESCUE_CFG["narrow_frac"] * W)))
-    h = max(1, int(round(_RESCUE_CFG["h_frac"] * H)))
+    pad = max(1, int(round(cfg["pad_frac"] * W)))
+    nw = max(1, int(round(cfg["narrow_frac"] * W)))
+    h = max(1, int(round(cfg["h_frac"] * H)))
     rois = []
-    for s in _RESCUE_CFG["y_shifts"]:
+    for s in cfg["y_shifts"]:
         top = max(0, int(round(yb + s * H)))
         rois.append([max(0, left - pad), top, W + 2 * pad, h])   # 宽
         rois.append([max(0, right - nw), top, nw + pad, h])       # 窄
     return rois
 
 
-def _rescue_tail_num(context, screenshot, type_dets: list) -> tuple:
+def _rescue_tail_num(context, screenshot, type_dets: list, cfg: dict) -> tuple:
     """多候选 roi 各 only_rec,收合理号(1~99无前导0);先按号串投票取多数(真号在多档复现、杂读难复现),
     同票再以最高 score 破平 → (号串, 该号最高 score)。全不中或最优 score<min_score → ("",0.0)。"""
     if not type_dets:
         return "", 0.0
     votes = {}   # num -> [票数, 最高 score]
-    for roi in _rescue_rois(type_dets):
+    for roi in _rescue_rois(type_dets, cfg):
         roi = [int(v) for v in roi]
         try:
             reco = context.run_recognition(
@@ -193,12 +210,12 @@ def _rescue_tail_num(context, screenshot, type_dets: list) -> tuple:
         return "", 0.0
     best_num = max(votes, key=lambda n: (votes[n][0], votes[n][1]))   # 票数优先,同票比 score
     best_sc = votes[best_num][1]
-    if best_sc < _RESCUE_CFG["min_score"]:
+    if best_sc < cfg["min_score"]:
         return "", 0.0
     return best_num, best_sc
 
 
-def _cart_group_rescued(dets, context, screenshot, label="") -> tuple:
+def _cart_group_rescued(dets, context, screenshot, cfg: dict, label="") -> tuple:
     """_cart_group 外加尾号救援:拼组后若无尾号,以类型 det 为锚 only_rec 补号(号计入组分,取短板)。
     置于置信率对比之前,故上/下两子行各自先补号再比对(#B 交叉核对拿到的是补齐后的整串)。
     label=行标识(商品名·子行),仅用于日志人工核对定位。"""
@@ -207,7 +224,7 @@ def _cart_group_rescued(dets, context, screenshot, label="") -> tuple:
     if text and not _tail_num(text):
         type_dets = [d for d in dets
                      if not re.sub(r'[^\w一-龥]', '', d["text"]).isdigit()]
-        num, nsc = _rescue_tail_num(context, screenshot, type_dets)
+        num, nsc = _rescue_tail_num(context, screenshot, type_dets, cfg)
         if num:
             text, score = text + num, min(score, nsc)
             mfaalog.info(f"[Arbitrage]   ↳ 尾号救援成功: {label} → {text}(号置信{nsc:.2f})")
@@ -220,7 +237,8 @@ def _cart_group_rescued(dets, context, screenshot, label="") -> tuple:
 class ArbitrageSellController(CustomAction):
     def run(self, context: Context, argv: CustomAction.RunArg) -> bool:
         mfaalog.info("[Arbitrage] 🚀 商店套利-出售主控器启动")
-        _load_rescue_cfg(context)   # 尾号救援可调参:JSON attach 覆盖 py 默认(缺则用默认)
+        # 尾号救援可调参:JSON attach 覆盖 py 默认(缺则用默认)。每轮取副本,不写默认表。
+        self._rescue_cfg = _load_rescue_cfg(context)
         
         # ==========================================
         # 1. 提取并合并 Attach 白名单
@@ -418,6 +436,9 @@ class ArbitrageSellController(CustomAction):
             print("[Arbitrage] ❌ 严重错误: 底层截图获取失败 (返回 None)！跳过当前页解析。")
             return []
 
+        # run 起始已按本轮 attach 取好副本；单测/直调本方法时回落只读默认表。
+        rescue_cfg = getattr(self, "_rescue_cfg", None) or dict(_RESCUE_CFG)
+
         def _col(node):
             """跑某列窄 roi OCR,取 filtered → [{text,cx,cy}, ...](窄 roi 已圈好列,无需 cx 过滤分列)。"""
             reco = context.run_recognition(node, screenshot)
@@ -480,12 +501,12 @@ class ArbitrageSellController(CustomAction):
             # 组分高的一组整串。非满价不卖,仅取上子行(每月档与当前不同,交叉无意义)。
             up_str, up_sc = _cart_group_rescued(
                 (t for t in carts if abs(t["cy"] - ny) <= SUBROW_TOL),
-                context, screenshot, f"{row['name']}·当前")
+                context, screenshot, rescue_cfg, f"{row['name']}·当前")
             best_str, best_sc = up_str, up_sc
             if item_data["is_max_price"] and mon_y is not None:
                 lo_str, lo_sc = _cart_group_rescued(
                     (t for t in carts if abs(t["cy"] - mon_y) <= SUBROW_TOL),
-                    context, screenshot, f"{row['name']}·每月")
+                    context, screenshot, rescue_cfg, f"{row['name']}·每月")
                 if lo_str:                                    # 每月组也读到才交叉
                     # 号是去柜台的必需位:带号组优先(缺号组即便类型分更高也不能选,否则会像 07-25
                     # 实录——一子行救回号、另一子行没救回却因类型分高被选中→整项缺号被误跳)。

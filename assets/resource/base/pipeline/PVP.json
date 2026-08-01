@@ -243,7 +243,7 @@
         "focus": "PM.PVP.自动战斗-点击(关键节点)"
     },
     "PVP_AutoBattle_SucCK": {
-        "desc": "点击自动战斗",
+        "desc": "确认点击自动战斗,sub弹出",
         "recognition": "OCR",
         "roi": [
             327,

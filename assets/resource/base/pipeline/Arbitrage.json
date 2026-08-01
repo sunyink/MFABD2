@@ -407,16 +407,13 @@
         ]
     },
     "Arbitrage_Buy_SharedEnd": {
-        "desc": "购买选卡:成功买完后关掉刚处理的卡带([Anchor]CurCard),防节点A重复分发;origin登账供ResetAll复位",
+        "desc": "购买选卡:成功买完后关掉刚处理的卡带([Anchor]CurCard),防节点A重复分发;还原点由账本自动登记",
         "action": "Custom",
-        "custom_action": "PatchNode",
+        "custom_action": "PatchPipeline",
         "custom_action_param": {
-            "node": "[Anchor]CurCard",
+            "target": "[Anchor]CurCard",
             "patch": {
                 "enabled": false
-            },
-            "origin": {
-                "enabled": true
             }
         }
     },
@@ -2482,31 +2479,6 @@
         "next": [
             "Arbitrage_Sell_Item_ListTraverse",
             "Arbitrage_ItemList_Sorting_Type_Not"
-        ]
-    },
-    "Arbitrage_ItemList_Sorting_AllRight": {
-        "desc": "确认排序模式完全正确=%模式与降序[2026-7-22错误]条件在不打开下拉时永不满足,业务错误,不用修,准备删除",
-        "recognition": "And",
-        "all_of": [
-            "Arbitrage_ItemList_Sorting_Type_Ent",
-            "Arbitrage_ItemList_Sorting_Reverse"
-        ],
-        "next": [
-            "Arbitrage_Sell_Item_ListTraverse",
-            "Arbitrage_ItemList_Swip"
-        ]
-    },
-    "Arbitrage_ItemList_Sorting_Type_Ent": {
-        "desc": "【非孤立节点】由And调用",
-        "recognition": "TemplateMatch",
-        "roi": [
-            1138,
-            29,
-            40,
-            41
-        ],
-        "template": [
-            "UI_Selltype_0.png"
         ]
     },
     "Arbitrage_ItemList_Sorting_Type_Not": {

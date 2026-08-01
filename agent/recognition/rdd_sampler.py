@@ -23,6 +23,11 @@
 #   防脉冲动画/自循环灌盘)；间隔过后若画面(roi_crop 哈希)没变仍不采——
 #   且不刷新计时，画面一变下一次调用即采。
 #
+# 容量：目录内 PNG 超 5000 张(RDD_SAMPLE_MAX 可调)即按 mtime **淘汰最旧的**，新的顶掉旧的，
+#   任何时候都继续采。不做「达标即停采」——那等于把目录冻结在几个月前，而排查现场要的
+#   恰恰是最近那几张。台账只增不删(纯文本、几十 KB)，因此会留下指向已淘汰图的 files 项，
+#   回放器按缺图跳过即可：参数/结果/box 都还在台账里，图没了仍有分析价值。
+#
 # 模块化：识别器内仅两处 hook(命中/未命中出口各一)；关掉 = RDD_SAMPLE=off，
 #   拿掉 = 删本文件 + 那两处 hook。采样任何异常只 print，绝不影响识别主流程。
 # ================================================================
@@ -42,6 +47,18 @@ from PIL import Image
 MANIFEST_NAME = "samples.jsonl.log"
 MANIFEST_NAMES = (MANIFEST_NAME, "samples.jsonl")
 
+# 目录内 PNG 数量上限（RDD_SAMPLE_MAX 可调）。超限按 mtime 淘汰最旧的，**不是停采**：
+# 停采等于「攒够一批就再也拿不到新数据」，而出问题时要的恰恰是最近这几张。
+# 定这个数看的是文件数不是体积——实测 26 天积累 955 张仅 3.4 MB（中位数 344 B），
+# 占盘完全不是问题；真正会硌人的是一个目录里堆上万个小文件：导出日志打包、清理、
+# 甚至资源管理器打开都会明显变慢。5000 张按实测速率约合 4 个月。
+_MAX_FILES = 5000
+# 一次淘汰到上限的这个水位，而不是刚好卡在上限：否则每次 record 都要全目录扫描+排序。
+# 腾出的余量 = 上限×10%，除以每次采样的图数(≤3)即两次淘汰的间隔：默认 5000 → 余量 500
+# → 约 167 次采样才扫一次目录。把 RDD_SAMPLE_MAX 调到几十这种极小值时，余量会小于单次
+# 图数，退化成每次 record 都扫一遍——目录本身也就那么大，可以接受，知道是这么回事即可。
+_EVICT_WATERMARK = 0.9
+
 
 class RddSampler:
     _MODES = ("off", "fail", "all")
@@ -59,6 +76,11 @@ class RddSampler:
             self._interval = float(os.environ.get("RDD_SAMPLE_INTERVAL", "1800"))
         except (TypeError, ValueError):
             self._interval = 1800.0  # 环境变量非法时兜底，避免 import 阶段崩溃
+        try:
+            self._max_files = int(os.environ.get("RDD_SAMPLE_MAX", str(_MAX_FILES)))
+        except (TypeError, ValueError):
+            self._max_files = _MAX_FILES
+        self._png_count = None       # 目录内 PNG 数，首次落盘时实扫一次，之后增量维护
         self._last_ts = {}           # key -> 上次落盘时间
         self._last_hash = {}         # key -> 上次 roi_crop 内容哈希
 
@@ -104,8 +126,64 @@ class RddSampler:
             self._last_ts[key] = now
             if digest:
                 self._last_hash[key] = digest
+            self._evict(out_dir, added=len(files))
         except Exception as e:
             print(f"[RddSampler] 采样失败(不影响识别): {e}")
+
+    # ------------------------------------------------------------------
+    # 容量闸：FIFO 淘汰
+    # ------------------------------------------------------------------
+
+    def _evict(self, out_dir, added: int) -> None:
+        """PNG 数超上限时按 mtime 删最旧的一批，留出水位。台账不动。
+
+        为什么淘汰而不是停采：停采会让目录冻结在几个月前的样子，而排查现场问题要的
+        永远是最近那几张——真出事时打开一看全是陈年旧图，采集就白做了。
+
+        为什么台账只增不删：它是 JSONL 纯文本（实测 373 条不过几十 KB），且是回放器
+        唯一的元数据来源——roi/params/result/box 全在里面，图没了台账还能看参数分布。
+        代价是台账里会留下指向已淘汰图的 files 项，回放器按缺图跳过即可。
+
+        计数是增量维护的：只有跨过上限那一次才真去扫目录，平时不做任何 IO。
+        """
+        try:
+            if self._png_count is None:                  # 首次落盘，实扫一次建立基线
+                self._png_count = self._count_png(out_dir)
+            else:
+                self._png_count += added
+            if self._png_count <= self._max_files:
+                return
+
+            entries = []
+            for e in os.scandir(out_dir):
+                if e.name.endswith(".png"):
+                    try:
+                        entries.append((e.stat().st_mtime, e.path))
+                    except OSError:
+                        continue
+            self._png_count = len(entries)               # 以实扫结果校正增量误差
+            keep = max(1, int(self._max_files * _EVICT_WATERMARK))
+            if self._png_count <= self._max_files:
+                return
+
+            entries.sort()                               # 旧 → 新
+            removed = 0
+            for _, path in entries[:self._png_count - keep]:
+                try:
+                    os.remove(path)
+                    removed += 1
+                except OSError:
+                    continue
+            self._png_count -= removed
+            print(f"[RddSampler] 样本达上限({self._max_files})，已淘汰最旧 {removed} 张，"
+                  f"现存 {self._png_count}：{out_dir}")
+        except Exception as e:
+            print(f"[RddSampler] 淘汰失败(不影响识别与采样): {e}")
+            self._png_count = None                       # 计数不可信了，下次重新实扫
+
+    @staticmethod
+    def _count_png(out_dir) -> int:
+        return sum(1 for e in os.scandir(out_dir) if e.name.endswith(".png"))
 
     # ------------------------------------------------------------------
     # 配置解析
@@ -146,7 +224,8 @@ class RddSampler:
     def _digest(img):
         if img is None or not isinstance(img, np.ndarray):
             return None
-        return hashlib.md5(img.tobytes()).hexdigest()
+        # 只用于「画面是否变化」的去重比对，非安全用途（消 Ruff S324 / CWE-327 告警）
+        return hashlib.md5(img.tobytes(), usedforsecurity=False).hexdigest()
 
     @staticmethod
     def _save_img(path, img) -> bool:
@@ -166,6 +245,10 @@ class RddSampler:
 
     @staticmethod
     def _jsonable(o):
+        # np.bool_ 不是 np.integer 的子类，漏了会掉到最后的 str(o)，在 JSONL 里写成
+        # "True" 字符串而不是布尔值，回放器还得单独兼容一次
+        if isinstance(o, np.bool_):
+            return bool(o)
         if isinstance(o, np.integer):
             return int(o)
         if isinstance(o, np.floating):

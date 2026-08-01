@@ -65,8 +65,10 @@ BIND_DX_MAX = 40   # 最远不超过 40px
 BIND_DY_MAX = 15   # Y 轴差距不超过 15px
 
 # ← ReadNames_Csm.attach（3/4·名识别参数）
-# 商品名最大长度（中文字符数），过滤掉 Toast 消息
-NAME_MAX_LEN = 5
+# 商品名最大长度（中文字符数），过滤掉 Toast 消息。
+# 取 7 与 ReadNames_Csm.attach.name_max_len 对齐：商店里确有 7 字商品（当前都不是
+# 购买对象，属注入冗余）。两处必须同值，否则 attach 读失败回落时会多滤掉一截长名。
+NAME_MAX_LEN = 7
 
 # ← FindStars_Csm.attach（4/4·判色参数）
 # 黄星尖角像素饱和度 >0.3 占比约 68%，灰星约 0%；阈值 15% 居中分离
@@ -165,6 +167,17 @@ class ShopBuyFavController(CustomAction):
             "sat_ratio_threshold": self._cast(star, "sat_ratio_threshold", SAT_RATIO_THRESHOLD, float),
             "star_core_inset":     self._cast(star, "star_core_inset",     STAR_CORE_INSET,     float),
         }
+        # inset 越界只告警、不改值：判据是几何事实而非调参经验——四边各内缩 inset 比例后，
+        # 采样区宽高占比 = 1-2×inset，inset≥0.5 时它 ≤0，星心核塌成 0 像素。
+        inset = cfg["star_core_inset"]
+        if not 0.0 <= inset < 0.5:
+            mfaalog.warning(
+                f"[ShopBuy] ⚠️ star_core_inset={inset:.2f} 越界，有效范围 0 ≤ inset < 0.5"
+                f"（0=全框采样；0.3 左右=只采星心核，用于排除框角渗入的卡面暖色背景）。"
+                f"当前取值会让采样区塌成 0 像素 → 所有星一律判灰 → _decide_actions 认为"
+                f"每个目标商品都需点亮 → 点亮/熄灭振荡直到重试耗尽。"
+                f"请修正 {NODE_STAR}.attach.star_core_inset；本轮按原值继续。"
+            )
         mfaalog.info(
             "[ShopBuy] 🔧 参数: "
             f"inset={cfg['star_core_inset']:.2f} "
@@ -431,6 +444,16 @@ class ShopBuyFavController(CustomAction):
 
         patch = img[y1:y2, x1:x2, :3].astype(np.float32)
         if patch.size == 0:
+            # 采样区空 = 判色失去依据。仍返回 "gray" 保持调用方形态，但绝不能闷声返回：
+            # 这条日志是「全员判灰→点亮/熄灭振荡」现场的唯一线索。每页多颗星，只报一次。
+            if not getattr(self, "_warned_empty_patch", False):
+                self._warned_empty_patch = True
+                mfaalog.warning(
+                    f"[ShopBuy] ⚠️ ({bx},{by}) 星心核采样区为空 "
+                    f"(inset={inset:.2f} 内缩后 {x1},{y1}→{x2},{y2}，星框 {bw}×{bh})，"
+                    f"本页所有星将一律判灰、触发点亮/熄灭振荡。"
+                    f"见上方 {NODE_STAR}.attach.star_core_inset 告警。"
+                )
             return "gray"
 
         max_ch = patch.max(axis=2)
