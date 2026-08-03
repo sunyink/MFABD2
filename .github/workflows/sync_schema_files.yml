@@ -70,7 +70,7 @@ jobs:
       # 使用 peter-evans/create-pull-request 自动处理变更检测和 PR 创建
       # 它会自动对比下载的文件和仓库里的文件，如果没有变化，它什么都不做。
       - name: Create Pull Request
-        uses: peter-evans/create-pull-request@v6
+        uses: peter-evans/create-pull-request@v8
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: chore/update schema files from MaaFramework
