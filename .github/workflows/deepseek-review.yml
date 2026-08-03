@@ -45,7 +45,7 @@ jobs:
       # 供脚本读取「完整文件」「跨文件被引用节点」「agent 注册表」等参考资料。
       # refs/pull/N/head 对同仓库与 fork PR 均可用。
       - name: 检出 PR head
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: refs/pull/${{ github.event.pull_request.number || inputs.pr_number }}/head
           fetch-depth: 1

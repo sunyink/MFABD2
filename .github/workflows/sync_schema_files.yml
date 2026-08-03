@@ -38,7 +38,7 @@ jobs:
     
     steps:
       - name: Check Out Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ matrix.branch }} # 检出对应的目标分支
 

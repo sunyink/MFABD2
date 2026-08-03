@@ -21,7 +21,7 @@ jobs:
       contents: read       
     steps:
       - name: Checkout Repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       # 修复 1：升级 Python 到 3.12 以消除版本警告
       - name: Set up Python

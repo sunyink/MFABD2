@@ -52,7 +52,7 @@ jobs:
     runs-on: ubuntu-latest
     if: "github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/') || !contains(github.event.head_commit.message, '[deploy-sync]')"
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
         with:
           fetch-depth: 0
       - id: set_tag
@@ -246,7 +246,7 @@ jobs:
     needs: meta
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
         with:
           fetch-depth: 0
 
@@ -264,7 +264,7 @@ jobs:
             python -m pip install maafw=="$TARGET_VERSION" json-with-comments
 
       - name: Restore Assets (Clone from Resource Repo)
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
         with:
           repository: sunyink/MFABD2-Assets
           ref: master
@@ -394,7 +394,7 @@ jobs:
             is_android: true
 
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
         with:
           submodules: true
 
@@ -445,7 +445,7 @@ jobs:
           extract: true
 
       - name: Restore Assets (Clone from Resource Repo)
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
         with:
           repository: sunyink/MFABD2-Assets
           ref: master
@@ -875,7 +875,7 @@ jobs:
       release_body: ${{ steps.set_release_body.outputs.content }}
     steps:
       - name: Checkout
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
         with:
           fetch-depth: 0
 
