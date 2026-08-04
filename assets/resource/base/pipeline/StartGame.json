@@ -544,18 +544,14 @@
         "desc": "识别左下抽抽乐-返回地图页(原版)",
         "recognition": "And",
         "all_of": [
-            "Rec_HomePage_GA_Ocr",
-            "Rec_HomePage_GA_Clr"
+            "Global_BackPageHub_Once"
         ],
         "action": "Click",
-        "target": [
-            120,
-            35
-        ],
         "post_delay": 2000,
         "next": [
-            "[JumpBack]StartGame_PVPSet",
             "[JumpBack]StartGame_Special",
+            "[JumpBack]StartGame_PVPSet",
+            "[JumpBack]Global_ERR_AtFish",
             "[JumpBack]StartGame_NewChar",
             "[JumpBack]StartGame_AtPack_GlupyDiner",
             "[JumpBack]StartGame_AtPack_FantasiaSquare",
@@ -565,9 +561,11 @@
             "[JumpBack]PVP_PerPetTask",
             "[JumpBack]PVP_PVPMes",
             "[JumpBack]PVP_PVPMes2",
+            "[JumpBack]Weekly_LastNight_MaybeNew",
+            "[JumpBack]Dummy_Err_GetProductsFail",
             "[JumpBack]PVP_PerOperationsMain_Error",
             "[JumpBack]AutoBattle_Egress_TurnBack_SkipTalk",
-            "[JumpBack]Global_BackPageHub_Once"
+            "StartGame_BackMapPageOG"
         ],
         "focus": "SM.返回箱庭"
     },
@@ -744,7 +742,7 @@
         "recognition": "And",
         "all_of": ["Rec_Pack_GlupyDiner"],
         "next": [
-            "Global_BackToPve_2#"
+            "Global_BackToPve_1#"
         ],
         "focus": "[WRN]SM.意料外卡带-格鲁菲餐厅"
     },

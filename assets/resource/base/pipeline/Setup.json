@@ -1919,10 +1919,10 @@
     "Setup_SetSkill_OpenSklMenu": {
         "recognition": "TemplateMatch",
         "roi": [
-            699,
-            628,
-            83,
-            52
+            555,
+            623,
+            227,
+            68
         ],
         "template": [
             "UI_SetSkill.png"

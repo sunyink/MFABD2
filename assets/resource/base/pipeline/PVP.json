@@ -28,7 +28,10 @@
         "anchor": {"QCPack": ""},
         "post_delay": 2000,
         "timeout": 3000,
-        "next": ["PVP_PullUp_QuickCart_PVP"],
+        "next": [
+            "PVP_PullUp_QuickCart_PVP",
+            "[JumpBack]Global_WaitingForLoading"
+        ],
         "focus": "PCM.PVP玩法卡带-点击"
     },
     "PVP_HUB_Sandplay": {

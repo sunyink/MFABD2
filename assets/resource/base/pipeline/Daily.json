@@ -777,9 +777,13 @@
             0,
             0
         ],
+        "anchor": {"QCPack": ""},
         "post_delay": 2000,
         "timeout": 3000,
-        "next": ["Daily_Square_ToSquare"]
+        "next": [
+            "Daily_Square_ToSquare",
+            "[JumpBack]Global_WaitingForLoading"
+        ]
     },
     "Daily_FantasiaSquare": {
         "desc": "输入聊天内容（最多50字）",

@@ -32,7 +32,10 @@
         "anchor": {"QCPack": ""},
         "post_delay": 2000,
         "timeout": 3000,
-        "next": ["Redemption_ToPack"]
+        "next": [
+            "Redemption_ToPack",
+            "[JumpBack]Global_WaitingForLoading"
+        ]
     },
     "Redemption_Evil_Settlement": {
         "desc": "赛季奖励消除",
