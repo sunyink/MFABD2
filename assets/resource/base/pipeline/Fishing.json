@@ -410,23 +410,13 @@
     "Fishing_Move_Hub": {
         "max_hit": 1,
         "action": "Custom",
-        "custom_action": "PatchBatch",
+        "custom_action": "PatchPipeline",
         "custom_action_param": {
-            "patches": {
-                "Daily_FantasiaSquare": {
-                    "next": [
-                        "Fishing_Move_SandBoxAct"
-                    ]
-                }
-            },
-            "origins": {
-                "Daily_FantasiaSquare": {
-                    "next": [
-                        "Daily_Pray",
-                        "Daily_DailyIco_1",
-                        "Daily_DailyIco_2"
-                    ]
-                }
+            "target": "Daily_FantasiaSquare",
+            "patch": {
+                "next": [
+                    "Fishing_Move_SandBoxAct"
+                ]
             }
         },
         "next": ["Daily_Square_Hub"]

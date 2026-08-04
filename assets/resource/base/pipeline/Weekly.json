@@ -91,24 +91,13 @@
     "Weekly_Fishing_Anchor_Goto": {
         "max_hit": 1,
         "action": "Custom",
-        "custom_action": "PatchBatch",
+        "custom_action": "PatchPipeline",
         "custom_action_param": {
-            "patches": {
-                "Daily_Busin_SubMenu": {
-                    "next": [
-                        "[Anchor]MainMenu_GoFishing"
-                    ]
-                }
-            },
-            "origins": {
-                "Daily_Busin_SubMenu": {
-                    "next": [
-                        "[Anchor]MainMenu_GoFishing",
-                        "[JumpBack]Daily_GetBusin_SubMenu_Claim",
-                        "[JumpBack]Daily_GetBusinRewardBack",
-                        "Daily_Busin_Enter"
-                    ]
-                }
+            "target": "Daily_Busin_SubMenu",
+            "patch": {
+                "next": [
+                    "[Anchor]MainMenu_GoFishing"
+                ]
             }
         },
         "next": [
