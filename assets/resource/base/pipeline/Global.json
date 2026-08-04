@@ -275,11 +275,11 @@
             "[JumpBack]Global_ERR_AtFish",
             "[JumpBack]PVP_PVPMes",
             "[JumpBack]PVP_PVPMes2",
-            "[JumpBack]Global_ToHomePage_Crash",
             "[JumpBack]Weekly_LastNight_MaybeNew",
             "[JumpBack]Dummy_Err_GetProductsFail",
             "[JumpBack]StartGame_Error_API",
             "Global_BackToQC1",
+            "[JumpBack]Global_ToHomePage_Crash",
             "Global_Null_Exception",
             "Global_Null_Panic"
         ],
