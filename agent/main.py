@@ -3,6 +3,7 @@
 import os
 import sys
 import platform
+import threading
 from pathlib import Path
 
 # =========================================================================
@@ -11,6 +12,10 @@ from pathlib import Path
 # True  : 开启虚拟环境自动检查与接管 (默认)
 # False : 强制关闭虚拟化逻辑 (用于排查环境问题，或手动管理环境时)
 ENABLE_VENV_AUTO_CHECK = True
+# 宿主(UI)存活守护的轮询周期(秒)。
+# 注意这不是响应延迟：父进程退出会让 WaitForSingleObject 立即返回，是即时感知的。
+# 该值只决定「消息循环已正常结束」这件事最迟多久被发现。
+WATCHDOG_POLL_SECONDS = 3.0
 # =========================================================================
 # [新增] 强制全链路 UTF-8 (解决 Windows 命令行/pip 读取中文报错问题)
 # PYTHONUTF8=1 : 让 Python 3.7+ 忽略系统区域设置，强制使用 UTF-8 (PEP 540)
@@ -112,6 +117,7 @@ import action # action子文件夹:agent/action/__init__.py里声明的全部
 import recognition
 from utils.persistent_store import PersistentStore # Agent配置文件热备份
 from utils.instance_resolver import resolve_account_id  # [新增] 实例探测器
+from utils.host_watchdog import HostWatchdog, cleanup_socket_file  # 宿主(UI)存活守护
 import fishing_agent # 钓鱼~
 
 def main():
@@ -165,15 +171,68 @@ def main():
     print(f"Socket ID: {socket_id}")
 
     # 3. 启动服务
+    # start_up 返回 bool。失败时若继续走 join()，C++ 侧会打一条
+    # "msg_thread is not joinable" 然后立刻返回，进程静默退出 —— 必须在这里拦下。
+    if not AgentServer.start_up(socket_id):
+        mfaalog.error(f"❌ AgentServer 启动失败 (socket_id={socket_id})，Agent 退出")
+        return
+
+    mfaalog.info("AgentServer 已启动，等待指令...")
+
+    watchdog = HostWatchdog()
+    if not watchdog.available:
+        # 拿不到父进程句柄时退化为原来的阻塞等待，行为不比改动前差。
+        mfaalog.warning("[Agent] 宿主守护不可用，回退为阻塞等待（UI 异常退出时本进程可能残留）")
+        try:
+            AgentServer.join()
+        except Exception as e:
+            mfaalog.error(f"Agent 运行发生异常: {e}")
+        finally:
+            AgentServer.shut_down()
+            mfaalog.info("AgentServer 已关闭")
+        return
+
+    # 这里必须打出实际监视的目标：上一版只打 getppid()，把 venv launcher 说成了 UI，
+    # 排查时正是靠这条日志与进程树对不上才发现守护失效的。别再让它说谎。
+    mfaalog.info(f"[Agent] 宿主守护已启动，监视 {watchdog.describe()}")
+
+    # 把阻塞的 join 挪到后台线程，主线程腾出来守护宿主。
+    # 用 join 而非 detach：msg_thread_ 仍保持 joinable，正常关闭时 shut_down()
+    # 能干净收尾；而且 join 返回本身就是「消息循环已正常结束」的信号。
+    loop_ended = threading.Event()
+
+    def _serve():
+        try:
+            AgentServer.join()
+        except Exception as e:
+            mfaalog.error(f"Agent 运行发生异常: {e}")
+        finally:
+            loop_ended.set()
+
+    threading.Thread(target=_serve, name="AgentServerJoin", daemon=True).start()
+
     try:
-        AgentServer.start_up(socket_id)
-        mfaalog.info("AgentServer 已启动，等待指令...")
-        AgentServer.join()
-    except Exception as e:
-        mfaalog.warning(f"Agent 运行发生异常: {e}")
+        while not loop_ended.is_set():
+            if watchdog.host_exited(WATCHDOG_POLL_SECONDS):
+                # 宿主 UI 已消失。此刻 msg_thread 仍永久阻塞在 recv() 上
+                # (Transceiver 的 timeout_ 是 milliseconds::max())，调 shut_down()
+                # 会挂死在它内部的 join() 里，所以只能硬退出。
+                gone = watchdog.exited_target or f"pid={watchdog.ppid}"
+                mfaalog.error(f"[Agent] 宿主进程 {gone} 已退出，Agent 立即终止")
+                watchdog.close()
+                cleanup_socket_file(socket_id)
+                sys.stdout.flush()
+                sys.stderr.flush()
+                os._exit(1)
+    except KeyboardInterrupt:
+        mfaalog.info("[Agent] 收到中断信号，正在退出")
     finally:
-        AgentServer.shut_down()
-        mfaalog.info("AgentServer 已关闭")
+        watchdog.close()
+
+    # 走到这里说明消息循环已正常结束（UI 下发了 ShutDownRequest），
+    # msg_thread 已退出，shut_down() 的 join 会立即返回。
+    AgentServer.shut_down()
+    mfaalog.info("AgentServer 已关闭")
 
 if __name__ == "__main__":
     main()

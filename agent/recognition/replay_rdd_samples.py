@@ -26,7 +26,10 @@ if AGENT_ROOT not in sys.path:
 
 from recognition.binarymatch import (  # noqa: E402
     RedDotDetector,
+    _FLT_AREA_DEFAULT,
     _FLT_ASPECT_DEFAULT,
+    _SC_GAP_RATIO_DEFAULT,
+    _SC_MIN_CONF,
 )
 from recognition.rdd_hsv_rescue import normalize_rescue_config  # noqa: E402
 from recognition.rdd_sampler import MANIFEST_NAMES  # noqa: E402
@@ -92,6 +95,19 @@ def _rescue_impossible(outcome, area_min, asp_lo, asp_hi):
 
 
 def _expected_local(entry):
+    """取样本的 ROI 局部坐标框 —— 与 _detect_once(rx=0, ry=0) 的产出同坐标系。
+
+    新语料直接落了 box_local，无需换算。旧语料没有这个字段，才回退到按 mode 反推：
+      · standalone：box 是全局坐标，减去 roi 原点；
+      · preset：嵌套独立模式那层的 rx/ry 来自**预设节点自己的 roi**，而设计上预设
+        节点只承载识别参数、不写 roi(roi 由发起调用的业务节点给)，故 rx=ry=0，box
+        本身就是局部坐标。这条反推依赖的是 pipeline 侧约定，Python 保证不了——
+        真给预设节点加了 roi，这里会静默错位而 result_parity 照样全绿。新语料走
+        box_local 正是为了不再依赖它。
+    """
+    local = entry.get("box_local")
+    if local:
+        return list(local)
     box = entry.get("box")
     if not box:
         return None
@@ -142,11 +158,12 @@ def replay(sample_dir, rescue=False, expected_rescue_nodes=()):
 
     entries = _load_entries(sample_dir)
 
+    # 仅用于台账里没记 flt_hsv_rescue 的旧样本。比运行时宽松是有意的：离线没有
+    # 40ms 的帧预算压力，可以让救援把该走的路走完，免得把"预算不够"误算成"救不回"。
     fallback_rescue = {
         "mode": "shadow",
         "max_delta_s": 48,
         "max_delta_v": 64,
-        "max_states": 128,
         "max_full_runs": 24,
         "min_stable_states": 2,
         "time_budget_ms": 1000,
@@ -177,10 +194,12 @@ def replay(sample_dir, rescue=False, expected_rescue_nodes=()):
         params = entry.get("params") or {}
         hsv_ranges = (params.get("configured_hsv_ranges")
                       or params["hsv_ranges"])
-        area_min, area_max = params.get("red_area", [30, 1200])
+        # 缺省值一律取识别器侧的同一份常量：台账当前把这些键都写全了，走不到缺省
+        # 分支，但两边各写一份字面量迟早会漂——改了识别器忘了回放器是最难发现的那类。
+        area_min, area_max = params.get("red_area", _FLT_AREA_DEFAULT)
         asp_lo, asp_hi = params.get("flt_aspect", _FLT_ASPECT_DEFAULT)
-        min_conf = params.get("min_conf", 0.55)
-        gap_ratio = params.get("gap_ratio", 0.35)
+        min_conf = params.get("min_conf", _SC_MIN_CONF)
+        gap_ratio = params.get("gap_ratio", _SC_GAP_RATIO_DEFAULT)
         outcome = detector._detect_once(
             hsv_np, hsv_ranges, area_min, area_max, asp_lo, asp_hi,
             gap_ratio, min_conf, 0, 0,

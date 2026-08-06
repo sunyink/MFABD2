@@ -2067,8 +2067,11 @@
         }
     ],
     "agent": {
-        "child_exec": "python",
+        "child_exec": "../.venv/Scripts/python.exe",
         "child_args": [
+            "-u",
+            "-X",
+            "utf8=1",
             "../agent/main.py"
         ]
     },

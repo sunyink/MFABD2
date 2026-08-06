@@ -102,6 +102,10 @@ def _cart_group(dets) -> tuple:
 # 好互补(同帧宽崩的行窄能读对、反之亦然)。故每行按【宽+窄】各读一次,取「置信最高且号合理(1~99 无
 # 前导0)」的一版——对 crop 边界做小集成。全不合理/全低分则保持无号,交上层按「缺号可疑」跳过柜台。
 # ==========================================
+# 扫描翻页的硬上界。业务可用节点的 custom_action_param 传 max_scan_pages 覆盖,
+# 但不允许无限翻 —— 见 run() 里三层终止条件的说明。
+_MAX_SCAN_PAGES_DEFAULT = 30
+
 _RESCUE_NODE = "Arbitrage_Sell_Cart_RescueNum"
 # 救援可调参:全部无量纲(相对"实检类型 det 框"的比例)——尺度锚定 H=类高中位数、W=类型块宽、yb=类型下缘,
 # 故字号/布局不同的两端(PC 繁体小字、ADB 简体大字)可共用同一份配置。可被 _RESCUE_NODE.attach 覆盖,缺项回落此默认。
@@ -239,7 +243,19 @@ class ArbitrageSellController(CustomAction):
         mfaalog.info("[Arbitrage] 🚀 商店套利-出售主控器启动")
         # 尾号救援可调参:JSON attach 覆盖 py 默认(缺则用默认)。每轮取副本,不写默认表。
         self._rescue_cfg = _load_rescue_cfg(context)
-        
+
+        # 翻页上限:业务可传,但不允许缺省成"无限"。
+        max_scan_pages = _MAX_SCAN_PAGES_DEFAULT
+        if argv.custom_action_param:
+            try:
+                _p = json.loads(argv.custom_action_param)
+                if isinstance(_p, dict) and "max_scan_pages" in _p:
+                    max_scan_pages = max(1, int(_p["max_scan_pages"]))
+            except (ValueError, TypeError) as e:
+                mfaalog.warning(
+                    f"[Arbitrage] ⚠️ custom_action_param 解析失败({e})，翻页上限沿用默认 {max_scan_pages}"
+                )
+
         # ==========================================
         # 1. 提取并合并 Attach 白名单
         # ==========================================
@@ -273,8 +289,22 @@ class ArbitrageSellController(CustomAction):
         targets_to_sell = [] # 记录所有达标待售的商品
         all_max_price_items = []   # 记录所有扫描到的最高价商品（仅用于展示）
         page_count = 1
-        
+        prev_page_key = None    # 上一页的内容指纹,用于识别"已滑到底"
+
         while not context.tasker.stopping:
+            # 第 3 层终止:硬上界。
+            # 前两层(利润边界截断 / 内容指纹)都是业务判据,可能因数据分布或 OCR 抖动失灵,
+            # 而失灵方向是"永不终止",代价不可恢复;硬上界失灵方向是"提前结束",下次跑能补上。
+            # 两者代价不对称,所以这道防线必须在,哪怕它几乎永远不触发。
+            # 触发即说明前两层都没兜住,按异常记 warning,不静默。
+            if page_count > max_scan_pages:
+                mfaalog.warning(
+                    f"[Arbitrage] ⚠️ 已连续扫描 {max_scan_pages} 页仍未触及利润边界或页底，"
+                    f"达到翻页上限强制结束。若价目表确实更长，"
+                    f"请用节点的 custom_action_param 调大 max_scan_pages。"
+                )
+                break
+
             mfaalog.info(f"[Arbitrage] 📷 正在扫描第 {page_count} 页价目表...")
             
             # 调用内部的 V8 图像解析引擎
@@ -282,7 +312,17 @@ class ArbitrageSellController(CustomAction):
             if not page_results:
                 mfaalog.warning("[Arbitrage] ⚠️ 识别失败或页面无商品，结束扫描。")
                 break
-                
+
+            # 第 2 层终止:内容指纹。价目表滑到底后再滑不动,本页会与上一页完全相同,
+            # 而 has_non_max 在"整页全是最高价"时不会触发,过去这里就是死循环的入口。
+            # 用 canon 归一化后的名字集合而非 OCR 原文比较——原文里个别字的识别抖动
+            # 会让指纹永不相等,这道防线就形同虚设了。
+            page_key = frozenset(canon(it["name"]) for it in page_results)
+            if prev_page_key is not None and page_key == prev_page_key:
+                mfaalog.info("[Arbitrage] 🛑 本页与上一页内容一致，判定价目表已到底，结束扫描。")
+                break
+            prev_page_key = page_key
+
             has_non_max = False
             for item in page_results:
                 name = item["name"]
@@ -316,10 +356,16 @@ class ArbitrageSellController(CustomAction):
                 
             # 翻页动作：调用你写好的精准滑动链
             mfaalog.info("[Arbitrage] ⏬ 下滑翻页...")
-            # 注意：如果下面这个节点跑完了，价目表应该已经成功翻页
-            swip_success = context.run_task("Arbitrage_Swip_PriceList") 
-            if not swip_success:
-                mfaalog.warning("[Arbitrage] ⚠️ 翻页任务执行失败或遇到异常，停止扫描。")
+            # run_task 返回 Optional[TaskDetail],返回对象只表示任务被成功提交,
+            # 成败在 .status 里。旧写法 `if not swip_success` 把 TaskDetail 当 bool 用,
+            # 而 Arbitrage_Swip_PriceList 是纯 Swipe 节点必然能起来 —— 那个分支从来没执行过,
+            # 于是"滑不动"这件事对本循环完全不可见。
+            swip_detail = context.run_task("Arbitrage_Swip_PriceList")
+            if swip_detail is None:
+                mfaalog.warning("[Arbitrage] ⚠️ 翻页任务未能启动（节点缺失或正在停止），停止扫描。")
+                break
+            if not swip_detail.status.succeeded:
+                mfaalog.warning("[Arbitrage] ⚠️ 翻页任务执行失败，停止扫描。")
                 break
                 
             page_count += 1
@@ -384,7 +430,7 @@ class ArbitrageSellController(CustomAction):
 
             # 拉起 JSON 端的出售链，并阻塞等待它执行完毕
             # 起点设为进入出售菜单的识别节点
-            sell_result = context.run_task("Arbitrage_Sell_HUB", pipeline_override=override_cfg)
+            sell_detail = context.run_task("Arbitrage_Sell_HUB", pipeline_override=override_cfg)
 
             gold_after = _read_gold(context)
 
@@ -403,12 +449,15 @@ class ArbitrageSellController(CustomAction):
                         f"({gold_before:,} → {gold_after:,})，"
                         f"链条多半卡在选卡带/物品定位，run_task 的成功是假信号"
                     )
-            elif sell_result:
+            elif sell_detail is not None and sell_detail.status.succeeded:
                 # 金币读不到(画面不在出售界面/OCR失手),退回原行为但如实标注未验证
                 mfaalog.info(f"[Arbitrage] ➖ [{item_name}] 售卖链执行完毕（金币不可读，未验证）")
             else:
+                # 旧写法 `elif sell_result` 把 TaskDetail 当 bool,只要任务被提交就恒为真,
+                # 这个 else 几乎不可达。改判 .status 后"链条真的失败了"才会落到这里。
                 sold_fail.append(item_name)
-                mfaalog.warning(f"[Arbitrage] ❌ [{item_name}] 售卖流程中断或失败，继续尝试下一个。")
+                reason = "未能启动（节点缺失或正在停止）" if sell_detail is None else "执行失败"
+                mfaalog.warning(f"[Arbitrage] ❌ [{item_name}] 售卖流程{reason}，继续尝试下一个。")
 
         if sold_fail:
             mfaalog.warning(

@@ -1,0 +1,21 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "MFABD2 Agent",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/agent/main.py",
+            "args": ["{AGENT_ID}"],
+            "env": "{AGENT_ENV}",
+            "python": "${workspaceFolder}/.venv/Scripts/python.exe",
+            "pythonArgs": [
+                "-u",
+                "-X",
+                "utf8=1"
+            ],
+            "cwd": "${workspaceFolder}/assets",
+            "console": "internalConsole"
+        }
+    ]
+}

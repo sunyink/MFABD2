@@ -160,12 +160,26 @@ def ensure_venv(project_root: Path):
     # [修改] 传入 venv_path 以便读写 marker 文件
     install_deps(venv_python, project_root, venv_path)
 
-    mfaalog.info(f"正在切换到虚拟环境: {venv_python}")
-    args = [str(venv_python), sys.argv[0]] + sys.argv[1:]
-    mfaalog.info(">>> 重启 Agent 进程 >>>")
-    
     if sys.platform == "win32":
-        subprocess.run(args)
-        sys.exit(0)
+        # Windows 没有 exec 语义。原先用 subprocess.run + sys.exit(0) 重启，会留下
+        # 父进程空转等待，形成「宿主 python(A) → venv python(B)」双层进程：
+        #   · 两者在任务管理器里同名，kill 哪个都不确定；
+        #   · 杀 A 则 B 变孤儿，继续持有 AgentServer 的 socket 不放手。
+        # 故此处不再自动重启，改为硬失败并给出可直接粘贴的配置。
+        # 环境本身已在上面备妥，开发者改一次启动配置即可，不需要每次重配。
+        # 对照上游 M9A agent/bootstrap.py:56-57，其 relaunch 同样只在 Linux 生效。
+        main_py = (project_root / "agent" / "main.py").as_posix()
+        mfaalog.error("=" * 64)
+        mfaalog.error("[venv] Agent 需要用虚拟环境的解释器启动，当前用的是宿主解释器。")
+        mfaalog.error(f"[venv] 虚拟环境已就绪: {venv_python}")
+        mfaalog.error("[venv] 请把 interface.json 的 agent 段改为:")
+        mfaalog.error(f'[venv]     "child_exec": "{venv_python.as_posix()}",')
+        mfaalog.error(f'[venv]     "child_args": ["-u", "-X", "utf8=1", "{main_py}"]')
+        mfaalog.error("[venv] 或直接用该解释器运行本脚本。")
+        mfaalog.error("=" * 64)
+        raise SystemExit(1)
     else:
+        mfaalog.info(f"正在切换到虚拟环境: {venv_python}")
+        mfaalog.info(">>> 重启 Agent 进程 >>>")
+        args = [str(venv_python), sys.argv[0]] + sys.argv[1:]
         os.execv(str(venv_python), args)

@@ -1,3 +1,20 @@
+"""rdd_hsv_rescue 的纯算法单测（不依赖 MaaFramework，不碰识别器主流程）。
+
+跑法（三选一，都从仓库根执行）：
+    python agent/recognition/test_rdd_hsv_rescue.py
+    python -m unittest discover -s agent/recognition -p 'test_*.py'
+    cd agent && python -m unittest recognition.test_rdd_hsv_rescue
+
+⚠️ `python -m unittest agent.recognition.test_rdd_hsv_rescue` 用不了，且不该被"修好"。
+本项目的包根是 `agent/` 而不是仓库根 —— agent/main.py 把 agent/ 插进 sys.path 后
+`import recognition`，`agent` 目录本身没有 __init__.py、不是包。`agent.recognition.*`
+只是 Python 3 隐式命名空间包的副产物，走这条路会先执行 agent/recognition/__init__.py
+里的 `from .counter import *`，其中的 `from utils import mfaalog` 在仓库根 cwd 下
+解析不到，报 ModuleNotFoundError: No module named 'utils'。要让它可用就得在生产代码
+里塞一套只为测试服务的 sys.path 兜底，凭空多出第二套与运行时不一致的导入契约，
+不划算。上面三条跑法都落在 `recognition` 这个正确的包根上。
+"""
+
 import unittest
 
 import numpy as np

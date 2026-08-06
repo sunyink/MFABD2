@@ -167,11 +167,16 @@ CYCLE_STRATEGIES = {
         "blackout_minutes": 540      # 暂时设定。假定周日晚23点结束，有待确认:假定周一8点开始
     },
     # 【BD2】国际服-黄金竞技场刷新时间 (每14天刷新)
+    # 原写法 "reset_time": "24:00" + reset_weekday=2(周三),意为"周三 24:00"即周四 0 点。
+    # 但 weekly 的回溯是按 base_reset.weekday() 算的,而 base_reset 会先被回退一天,
+    # 于是 24:00+周三 实际落到"周三 0 点",比意图早 24 小时 —— 这个歧义源自
+    # "时刻跨到次日、weekday 却还写着前一天",代码层面消不掉,只能在配置里写明确。
+    # 故等价改写为 "00:00" + 周四,刷新点仍是周四 0 点,语义不变且无歧义。
     "golden_pvp": {
         "type": "weekly",
-        "reset_time": "24:00",
+        "reset_time": "00:00",
         "timezone": 8,
-        "reset_weekday": 2,     # 周三
+        "reset_weekday": 3,     # 周四 0 点(即原意的"周三 24:00")
         "blackout_minutes": 540  # 结算540分钟，防止刚好卡点进不去
     }
     # # 【BD2】国际服-救赎之塔 (半月常, 1号/16号刷新)时间不确定，暂时不写
@@ -236,6 +241,11 @@ class CooldownManager:
         now_server = datetime.now(server_tz)
 
         # 4. 解析基准刷新点 (例如 04:00)
+        # 注意:h/m 一律当作"距当日 0 点的偏移量"参与 timedelta 运算,而不是塞进
+        # datetime.replace(hour=...)。replace 只接受 0..23,配置里写 "24:00"
+        # (意为当日结束/次日0点)会抛 ValueError,被外层 except 兜住后 return True,
+        # 表现为该策略的冷却检查永远直接放行 —— golden_pvp 就踩过这个坑。
+        # 用偏移量语义后 "24:00" 自然溢出到次日,甚至能表达 "28:00"=次日4点。
         h, m = map(int, config.get("reset_time", "04:00").split(':'))
         
         cycle_type = config.get("type", "daily")
@@ -247,7 +257,7 @@ class CooldownManager:
             
             # 构造锚点时间 (带时区)
             anchor_naive = datetime.strptime(anchor_str, "%Y-%m-%d")
-            anchor_dt = anchor_naive.replace(hour=h, minute=m, tzinfo=server_tz)
+            anchor_dt = anchor_naive.replace(tzinfo=server_tz) + timedelta(hours=h, minutes=m)
             
             # 算出 锚点 到 现在 过去了多少天
             delta = now_server - anchor_dt
@@ -263,7 +273,8 @@ class CooldownManager:
         # --- 以下是常规逻辑 ---
         
         # 构造今天的刷新点
-        base_reset = now_server.replace(hour=h, minute=m, second=0, microsecond=0)
+        day_start = now_server.replace(hour=0, minute=0, second=0, microsecond=0)
+        base_reset = day_start + timedelta(hours=h, minutes=m)
         
         # 如果还没到今天的刷新点，说明上一次刷新是在昨天
         if now_server < base_reset:
@@ -323,7 +334,14 @@ class CooldownManager:
         try:
             reset_ts, config = self._calculate_server_reset_timestamp(strategy_name)
         except Exception as e:
-            utils.mfaalog.error(f"[Py] 策略计算异常: {e}")
+            # 注意这是"失败开放":算不出刷新点就当作可运行。方向本身有争议
+            # (冷却管理器失效时更该保守跳过),但改它会影响所有策略,留待统一评估。
+            # 眼下至少把现场留全 —— 此前只打一行 {e},golden_pvp 的 24:00 崩溃
+            # 就是这样被压成一句"策略计算异常"、查不出根因的。
+            import traceback
+            utils.mfaalog.error(f"[Py] 策略计算异常({strategy_name}): {e}")
+            for line in traceback.format_exc().rstrip().splitlines():
+                utils.mfaalog.error(f"[Py]   {line}")
             return True
 
         # --- 4. 结算期逻辑 ---

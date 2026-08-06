@@ -110,8 +110,23 @@ class SmartSwipe(CustomAction):
                         "end_hold": end_hold
                     }
                 }
-                context.run_task(proxy_node, swipe_override)
-                
+                # run_task 返回 Optional[TaskDetail],成败在 .status 里。
+                # 旧写法把返回值整个丢弃:代理节点写错/被禁用时滑动压根没发生,而前后两帧
+                # 必然一致 → diff=0 → 被判成"画面静止"→"确认触底",配置错误就这样被
+                # 静默翻译成了业务结论。这里把两种情况分开报。
+                swipe_detail = context.run_task(proxy_node, swipe_override)
+                if swipe_detail is None:
+                    utils.mfaalog.error(
+                        f"[Py] ❌ 代理节点 [{proxy_node}] 未能启动"
+                        f"（节点不存在/被禁用/正在停止），本次滑动未执行"
+                    )
+                    return False
+                if not swipe_detail.status.succeeded:
+                    utils.mfaalog.warning(
+                        f"[Py] ⚠️ 代理节点 [{proxy_node}] 执行失败，本次滑动可能未生效"
+                    )
+
+
                 # D. UI 沉淀(等待动画或回弹结束)
                 if settle_delay > 0:
                     time.sleep(settle_delay)

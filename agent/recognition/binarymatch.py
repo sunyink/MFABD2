@@ -601,6 +601,12 @@ _RED_RANGES_DEFAULT = [
     {"lower": [165, 130, 100], "upper": [180, 255, 255]},
 ]
 
+# 筛选·面积闸门：红色 blob 面积允许范围 [min, max]。菱形面积 ≈ 对角线²/2，
+# 16px 菱形 ≈ 128px、10px ≈ 50px，故下限 30 足以放行小红点；上限挡掉大面积红色 UI。
+# 与 flt_aspect 一样是"配置缺省值"而非硬结构常量 —— 离线回放器(replay_rdd_samples.py)
+# 复用同一个，避免两侧各写一份、改了一头忘另一头。
+_FLT_AREA_DEFAULT = [30, 1200]
+
 # 筛选·长宽比闸门(v3)：红块外接框 h/w 允许范围。真红点是圆/菱形，
 # 实测紧聚 [0.92, 1.10] 且极端模糊不漂移(抗模糊抗缩放)；两侧各留 ~3 倍余量，
 # 容中度连片/边缘裁切，同时杀掉横条(假1≈0.5)与实心柱(§9≈2.1)两类已知杂红。
@@ -663,6 +669,9 @@ _SC_W_CENT  = 0.04   # 居中：微调
 _SC_MIN_CONF = 0.55  # 默认命中阈值；必须 > 最大单项权重(0.45)，保证两项背书
 # 断层"细窄度"：凹陷连续高度 / 内部总高 超过此比例 → 视为"两块不相干"而非缝，细窄度归零
 _SC_GAP_MAX_RATIO = 0.40
+# sc_gap_ratio 缺省值。只影响 detail 里 gap 的"是否成双段"标注，不作命中门槛；
+# 与 _FLT_AREA_DEFAULT 同理，供离线回放器复用。
+_SC_GAP_RATIO_DEFAULT = 0.35
 
 # 同一检测点(节点名+ROI)两次落盘的最小间隔(秒)，防 next 自循环刷屏；RDD_DUMP_INTERVAL 可调
 try:
@@ -862,9 +871,9 @@ class RedDotDetector(CustomRecognition):
         """独立模式：HSV 过滤 → blob 面积筛 → 长宽比闸 → 拓扑封闭取内部 → 置信度加权打分。"""
         params = self._normalize_params(params)
         hsv_ranges = params.get("hsv_ranges", _RED_RANGES_DEFAULT)
-        area_min, area_max = params.get("red_area", [30, 1200])
+        area_min, area_max = params.get("red_area", _FLT_AREA_DEFAULT)
         asp_lo, asp_hi = params.get("flt_aspect", _FLT_ASPECT_DEFAULT)
-        gap_ratio = params.get("gap_ratio", 0.35)      # 仅用于 detail 的 gap 标注
+        gap_ratio = params.get("gap_ratio", _SC_GAP_RATIO_DEFAULT)  # 仅用于 detail 的 gap 标注
         min_conf = params.get("min_confidence", _SC_MIN_CONF)
         rescue_cfg, rescue_error = normalize_rescue_config(params.get("flt_hsv_rescue"))
         if rescue_error and "flt_hsv_rescue" in params:
@@ -1398,7 +1407,14 @@ class RedDotDetector(CustomRecognition):
         configured_hsv = params.get("hsv_ranges", _RED_RANGES_DEFAULT)
         meta = {
             "mode": "preset" if caller else "standalone",
-            "box": list(result_box), "conf": conf, "parts": parts,
+            "box": list(result_box),
+            # box 是加过 roi 偏移的坐标，偏移量取决于本次是独立还是预设模式；
+            # box_local 恒为 ROI 局部坐标，正是回放时 _detect_once(rx=0,ry=0) 产出的
+            # 那个坐标系。回放器直接读它即可，不必再按 mode 反推偏移(见 replay 的
+            # _expected_local)——那条反推依赖"预设节点不写 roi"这个 pipeline 侧约定，
+            # 约定破了不会报错，只会让 box 校验静默失真。
+            "box_local": list(candidate["box_local"]),
+            "conf": conf, "parts": parts,
             "red_blob": red_blob, "proj": chk.get("proj"),
             "params": {"hsv_ranges": configured_hsv,
                        "configured_hsv_ranges": configured_hsv,
@@ -1458,6 +1474,8 @@ class RedDotDetector(CustomRecognition):
                      best_box_local[1] + roi_tuple[1],
                      best_box_local[2], best_box_local[3]]
                     if best_box_local else None),
+            # 与 _finalize_hit 同理：未加偏移的 ROI 局部坐标，回放/诊断直接可用。
+            "box_local": list(best_box_local) if best_box_local else None,
             "conf": stat.get("conf"), "parts": stat.get("parts"),
             "red_blob": stat.get("red_blob"), "proj": stat.get("proj"),
             "gap": stat.get("gap"), "aspect_rej": stat.get("aspect_rej"),
@@ -1474,7 +1492,7 @@ class RedDotDetector(CustomRecognition):
                        "effective_hsv_ranges": hsv_ranges,
                        "red_area": [area_min, area_max],
                        "flt_aspect": [asp_lo, asp_hi],
-                       "gap_ratio": params.get("gap_ratio", 0.35),
+                       "gap_ratio": params.get("gap_ratio", _SC_GAP_RATIO_DEFAULT),
                        "min_conf": min_conf,
                        "flt_hsv_rescue": params.get("flt_hsv_rescue")},
             "failure_dump": dump_info,
@@ -1762,7 +1780,7 @@ class RedDotDetector(CustomRecognition):
             data = context.get_node_data(preset_node) or {}
             p = self._normalize_params(data.get("custom_recognition_param") or {})
             return (p.get("hsv_ranges", _RED_RANGES_DEFAULT),
-                    p.get("red_area", [30, 1200])[0])
+                    p.get("red_area", _FLT_AREA_DEFAULT)[0])
         except Exception:
             return _RED_RANGES_DEFAULT, 30
 
@@ -1771,7 +1789,7 @@ class RedDotDetector(CustomRecognition):
         hr = params.get("hsv_ranges", _RED_RANGES_DEFAULT)
         lines = [
             result_line,
-            f"params: flt_area={params.get('red_area', [30, 1200])} "
+            f"params: flt_area={params.get('red_area', _FLT_AREA_DEFAULT)} "
             f"flt_aspect={params.get('flt_aspect', _FLT_ASPECT_DEFAULT)} "
             f"sc_min_conf={params.get('min_confidence', _SC_MIN_CONF)} hsv_groups={len(hr)}",
             f"stat: red_px={stat.get('red_px')} n_blobs={stat.get('n_blobs')} "

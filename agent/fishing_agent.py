@@ -101,8 +101,15 @@ class FishingBot:
         Uses Detect_Took_Bait template matching for more accurate detection.
         """
         # Run pipeline recognition (MAA handles resolution scaling automatically)
+        # run_recognition 返回 None 表示识别流程压根没起来(节点缺失/被禁用/图像为空),
+        # 与"跑了但没命中"是两回事。旧写法直接取 .hit 会 AttributeError,而异常穿过
+        # ctypes 回调只在 stderr 留一段无前缀 traceback,GUI 里什么都看不到。
+        # (原先此处还每帧 print 整个 RecognitionDetail —— 它含 raw_image/draw_images
+        #  等 ndarray,repr 体积很大,而 stdout 是与 UI 的管道,已一并移除。)
         reco_result = self.context.run_recognition("Detect_Took_Bait", screenshot)
-        print("Detect_Took_Bait result:", reco_result)
+        if reco_result is None:
+            print("error: ❌ 识别节点 [Detect_Took_Bait] 未能启动（节点缺失/被禁用/图像为空）")
+            return False
         return reco_result.hit
 
     def analyze_progress_bar(self, screenshot: Any):
@@ -115,16 +122,31 @@ class FishingBot:
         """
         result = {"cursor_x": None, "blue_regions": [], "yellow_regions": [], "valid": False}
         
-        # Detect white cursor
         cursor_result = self.context.run_recognition("Detect_Progress_White_Cursor", screenshot)
-        if cursor_result.hit:
+        blue_result = self.context.run_recognition("Detect_Progress_Blue_Zones", screenshot)
+        yellow_result = self.context.run_recognition("Detect_Progress_Yellow_Zones", screenshot)
+
+        # 三个识别节点任一"没起来"都属配置错误,而不是"这一帧没看到"。
+        # 整帧判无效并只打一条日志 —— 这里是 minigame 的每帧路径,不能逐个刷屏。
+        if cursor_result is None or blue_result is None or yellow_result is None:
+            missing = [
+                n for n, r in (
+                    ("Detect_Progress_White_Cursor", cursor_result),
+                    ("Detect_Progress_Blue_Zones", blue_result),
+                    ("Detect_Progress_Yellow_Zones", yellow_result),
+                ) if r is None
+            ]
+            print(f"error: ❌ 进度条识别节点未能启动: {', '.join(missing)}")
+            return result
+
+        # Detect white cursor
+        if cursor_result.hit and cursor_result.best_result is not None:
             # Calculate cursor x from bounding box center of best match
             box = cursor_result.best_result.box
             cursor_x = box[0] + box[2] // 2
             result["cursor_x"] = cursor_x
-        
+
         # Detect blue zones - get all detected regions
-        blue_result = self.context.run_recognition("Detect_Progress_Blue_Zones", screenshot)
         if blue_result.hit:
             # Extract regions from all matches
             blue_regions = []
@@ -136,7 +158,6 @@ class FishingBot:
             result["blue_regions"] = blue_regions
         
         # Detect yellow zones - get all detected regions
-        yellow_result = self.context.run_recognition("Detect_Progress_Yellow_Zones", screenshot)
         if yellow_result.hit:
             # Extract regions from all matches
             yellow_regions = []
@@ -444,8 +465,18 @@ class FishingBot:
         print("🐟💰 开始卖鱼...")
         
         # Use pipeline to execute sell sequence
-        self.context.run_task("SellFish_Start")
-        
+        # run_task 返回 Optional[TaskDetail],成败在 .status 里。旧写法整个丢弃返回值后
+        # 无条件打印"卖鱼完成"并清零计数 —— 停止过程中 run_task 会立刻返回,照样报成功,
+        # 而鱼其实还在包里。带 error:/warn: 前缀是 MFAAvalonia 的日志协议,裸 print 进不了 GUI。
+        sell_detail = self.context.run_task("SellFish_Start")
+        if sell_detail is None:
+            print("warn: ⚠️ 卖鱼流程未能启动（节点缺失或正在停止），本次跳过")
+            return
+        if not sell_detail.status.succeeded:
+            # 卖鱼没成,计数不能清零,否则下次判断"该卖了"会被推迟一整个周期
+            print("error: ❌ 卖鱼流程执行失败，鱼获保留")
+            return
+
         self.total_sell_count += 1
         self.fish_since_last_sell = 0
         print(f"✅ 卖鱼完成 (第 {self.total_sell_count} 次)")
@@ -464,10 +495,26 @@ class FishingBot:
         # 运行 Casting_Rod pipeline，会自动执行抛竿和检测鱼上钩
         casting_result = self.context.run_task("Casting_Rod")
 
-        # print("task Casting_Rod result:", casting_result)
-        
-        # 检查是否检测到鱼上钩
-        if not casting_result or not casting_result.nodes[-1].action.success:
+        # run_task 返回 Optional[TaskDetail]。旧写法 `not casting_result` 把它当 bool,
+        # 再直接取 .nodes[-1].action.success —— 三处都没防护:
+        #   · nodes 是惰性属性,逐个发 IPC 取详情,任一失败即 raise RuntimeError;
+        #   · nodes 可能为空 → IndexError;
+        #   · NodeDetail.action 是 Optional[ActionDetail] → AttributeError。
+        # 这三种恰好都在"用户点了停止导致任务中断"时最容易发生,而异常穿过 ctypes 回调
+        # 只会在 stderr 留一段无前缀的 traceback,GUI 里什么都看不到。
+        if casting_result is None:
+            print("warn: ⚠️ 抛竿任务未能启动（节点缺失或正在停止）")
+            return False
+        if not casting_result.status.succeeded:
+            print("  等待鱼上钩超时或未检测到，重试")
+            return False
+        try:
+            nodes = casting_result.nodes
+            last_action = nodes[-1].action if nodes else None
+        except RuntimeError as e:
+            print(f"warn: ⚠️ 读取抛竿任务节点详情失败（任务可能已被中断）: {e}")
+            return False
+        if last_action is None or not last_action.success:
             print("  等待鱼上钩超时或未检测到，重试")
             return False
         
@@ -492,18 +539,29 @@ class FishingBot:
 
         return success
 
-    def run(self, max_count: Optional[int] = None) -> bool:
+    def run(self, max_count: Optional[int] = None, max_seconds: float = 600.0) -> bool:
         self.running = True
         self.fish_count = 0
         self.success_count = 0
         print("==================================================")
         print("🎣 自动钓鱼开始 (custom action)")
-        print(f"最大次数: {max_count if max_count else '无限'}")
+        print(f"最大次数: {max_count if max_count else '无限'} | 总时长上限: {max_seconds:.0f}s")
         print("==================================================")
+
+        # 总时长硬上界。max_count 只限轮数、不限单轮时长,而单轮里的 run_task
+        # 可能长时间阻塞(Casting_Rod 与 Move_Forward 在 pipeline 里互为 next/on_error,
+        # 且 PipelineTask.cpp 每次命中节点都会重置 error_handling,框架自带的
+        # "error handling loop detected" 保护因此不会触发),所以必须另设 wall-clock 上界。
+        # 注意:它只能在轮与轮之间生效,拦不住单次 run_task 内部的阻塞 —— 那要靠切断
+        # pipeline 自环,属另一处待定改动。
+        deadline = time.monotonic() + max_seconds
 
         try:
             while self.running and not self.context.tasker.stopping:
                 if max_count and self.fish_count >= max_count:
+                    break
+                if time.monotonic() >= deadline:
+                    print(f"warn: ⏱️ 已达总时长上限 {max_seconds:.0f}s，结束钓鱼")
                     break
                 self.main_loop()
         finally:
@@ -530,9 +588,11 @@ class FishingAction(CustomAction):
         
         max_count = int(param.get("max_count", 1))
         sell_interval = int(param.get("sell_interval", 30))
+        # 总时长上限不允许缺省成"无限":默认按每轮 120s 估,业务可用 max_seconds 显式覆盖。
+        max_seconds = float(param.get("max_seconds", max(120.0, max_count * 120.0)))
 
         bot = FishingBot(
             context=context,
             sell_interval=sell_interval
         )
-        return bot.run(max_count=max_count)
+        return bot.run(max_count=max_count, max_seconds=max_seconds)
