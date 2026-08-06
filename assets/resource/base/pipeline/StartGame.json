@@ -24,12 +24,12 @@
         }
     },
     "StartGame_RunApp": {
-        "desc": "启动游戏。长白屏超时防御",
+        "desc": "启动游戏。长白屏超时防御。框架的 StartApp 内部固定走 `monkey -p 包名 1`，部分模拟器 ROM 没有 monkey，失败后转 on_error 用 am start 兜底",
         "pre_wait_freezes": 500,
         "action": "StartApp",
         "package": "com.neowizgames.game.browndust2",
         "post_delay": 8000,
-        "timeout": 60000,
+        "timeout": 5000,
         "next": [
             "[JumpBack]StartGame_LinkError",
             "[JumpBack]StartGame_Error_API",
@@ -37,7 +37,33 @@
             "StartGame_Logo",
             "StartGame_LoadingPage",
             "[JumpBack]Global_WaitingForLoading"
+        ],
+        "on_error": [
+            "StartGame_RunApp_Shell"
         ]
+    },
+    "StartGame_RunApp_Shell": {
+        "desc": "启动游戏兜底(不依赖 monkey)：实测雷电 LDPlayer14 的 ROM 缺 monkey，adb shell 直接返回 127，StartApp 必失败。改用 am start；Activity 名由 resolve-activity 现查，不写死，避免游戏改包结构后失效",
+        "action": "Shell",
+        "cmd": "am start -n $(cmd package resolve-activity --brief com.neowizgames.game.browndust2 | tail -1)",
+        "post_delay": 8000,
+        "timeout": 20000,
+        "next": [
+            "[JumpBack]StartGame_LinkError",
+            "[JumpBack]StartGame_Error_API",
+            "StartGame_GameIsMaint",
+            "StartGame_Logo",
+            "StartGame_LoadingPage",
+            "[JumpBack]Global_WaitingForLoading"
+        ],
+        "on_error": [
+            "Global_Null_Exception",
+            "Global_Null_Panic"
+        ],
+        "focus": {
+            "Node.Action.Succeeded": "[color:green]已用 am start 兜底启动(本模拟器无 monkey)[/color]",
+            "Node.Action.Failed": "[color:red][WRN] monkey 与 am start 均无法启动游戏，请手动开一次游戏再运行[/color]"
+        }
     },
     "StartGame_Logo": {
         "recognition": "OCR",
