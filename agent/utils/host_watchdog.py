@@ -48,6 +48,7 @@ venv launcher）。POSIX 上没有 redirector 结构（`os.execv` 就地替换�
 
 import os
 import sys
+import tempfile
 import time
 
 from . import mfaalog
@@ -458,8 +459,12 @@ def cleanup_socket_file(socket_id: str) -> None:
     try:
         from pathlib import Path
 
-        # 路径与 AgentCommon/Transceiver.cpp 的 temp_directory() 保持一致
-        base = Path("C:/Temp") if sys.platform == "win32" else Path("/tmp")
+        # 路径与 AgentCommon/Transceiver.cpp 的 temp_directory() 保持一致，两侧语义不同:
+        #   · Windows: 上游硬编码 "C:/Temp"(不是 %TEMP%)，所以这里也只能写死。
+        #     别"顺手改成" tempfile.gettempdir() —— 那返回 %TEMP%，跟实际落点对不上。
+        #   · 其余平台: 上游用 std::filesystem::temp_directory_path()，它认 TMPDIR。
+        #     写死 /tmp 的话，设了 TMPDIR 的环境里这一刀就砍空了。
+        base = Path("C:/Temp") if sys.platform == "win32" else Path(tempfile.gettempdir())
         sock = base / f"maafw-agent-{socket_id}.sock"
         if sock.exists():
             sock.unlink()

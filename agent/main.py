@@ -183,6 +183,11 @@ def main():
     if not watchdog.available:
         # 拿不到父进程句柄时退化为原来的阻塞等待，行为不比改动前差。
         mfaalog.warning("[Agent] 宿主守护不可用，回退为阻塞等待（UI 异常退出时本进程可能残留）")
+        # 这里**不要**照下面主循环那样补 `except KeyboardInterrupt: os._exit()`。
+        # AgentServer.join() 是 ctypes 调用(MaaAgentServerJoin)，主线程一旦进去就不再
+        # 执行字节码；Ctrl+C 时信号处理器只能设个标志，异常要等 C 调用返回才兑现，
+        # 而它永不返回 —— 那个 handler 到不了，纯死代码。下面主循环则不同：主线程在跑
+        # Python while，host_exited() 最多阻塞一个轮询周期就交回控制权，中断能兑现。
         try:
             AgentServer.join()
         except Exception as e:
@@ -225,7 +230,15 @@ def main():
                 sys.stderr.flush()
                 os._exit(1)
     except KeyboardInterrupt:
+        # 与「宿主已退出」同一个死锁：能中断到这里，msg_thread 几乎必然还卡在 recv()，
+        # 落到下面的 shut_down() 就会挂在它的 join 里，Ctrl+C 反而按不出去。只能硬退。
+        # （极小概率是 loop_ended 刚置位的竞态，那种情况下硬退只少打一行收尾日志。）
         mfaalog.info("[Agent] 收到中断信号，正在退出")
+        watchdog.close()
+        cleanup_socket_file(socket_id)
+        sys.stdout.flush()
+        sys.stderr.flush()
+        os._exit(130)
     finally:
         watchdog.close()
 

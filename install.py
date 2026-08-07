@@ -149,10 +149,11 @@ def install_agent(target_os):
     # 1. 复制 agent 文件夹
     agent_src = working_dir / "agent"
     agent_dst = install_path / "agent"
-    if agent_src.exists():
-        shutil.copytree(agent_src, agent_dst, dirs_exist_ok=True)
-    else:
-        print("警告: 未找到 agent 源码目录，请确认代码结构！")
+    if not agent_src.exists():
+        # 没有 agent 目录 = 出的包 Agent 必然起不来。不能只警告后继续。
+        print("::error::未找到 agent 源码目录，请确认代码结构！")
+        sys.exit(1)
+    shutil.copytree(agent_src, agent_dst, dirs_exist_ok=True)
 
     # 2. 修改 interface.json 注入 Agent 配置
     interface_json_path = install_path / "interface.json"
@@ -196,10 +197,24 @@ def install_agent(target_os):
 
         with open(interface_json_path, "w", encoding="utf-8") as f:
             jsonc.dump(interface, f, ensure_ascii=False, indent=4)
-        print("✅ Agent 配置更新完成")
 
     except Exception as e:
-        print(f"❌ 更新 interface.json 失败: {e}")
+        # 这里曾经只 print 不退出：一旦读写失败，CI 照常打包上传，
+        # 产物里留着仓库版 child_exec（指向开发机 .venv），所有平台的 Agent 都起不来，
+        # 而后续没有任何一步会发现。构建必须在此中止。
+        print(f"::error::更新 interface.json 失败: {e}")
+        sys.exit(1)
+
+    # 回读校验：确认写进去的确实是本平台的配置，而不是仓库里那份开发用路径。
+    with open(interface_json_path, "r", encoding="utf-8") as f:
+        written = jsonc.load(f).get("agent", {}).get("child_exec", "")
+    if written != interface["agent"]["child_exec"]:
+        print(f"::error::child_exec 回读不符: 期望 {interface['agent']['child_exec']}，实得 {written}")
+        sys.exit(1)
+    if ".venv" in written:
+        print(f"::error::child_exec 仍指向开发环境虚拟环境: {written}")
+        sys.exit(1)
+    print(f"✅ Agent 配置更新完成: {written}")
 
 if __name__ == "__main__":
     # install_deps()

@@ -568,6 +568,7 @@
     },
     "StartGame_BackMapPageOG": {
         "desc": "识别左下抽抽乐-返回地图页(原版)",
+        "max_hit": 20,
         "recognition": "And",
         "all_of": [
             "Global_BackPageHub_Once"

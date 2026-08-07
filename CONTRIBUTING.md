@@ -80,6 +80,15 @@
 
 **划重点**：[maa-support-extension](https://github.com/neko-para/maa-support-extension) 一个 VSCode 插件把编辑、查看、调试全包了，能直接对着本仓库连模拟器跑任务、单点调试，反馈就在眼前。**所以真正的最小上手 = 模拟器 + 这个插件。** 这也是我手写 Pipeline 的主力路子。
 
+**非 Windows 开发者注意**：仓库里 `assets/interface.json` 的 `agent.child_exec` 写的是 `../.venv/Scripts/python.exe`——Windows 的 venv 布局。macOS / Linux 上虚拟环境的解释器在 `bin/` 下，这个路径不存在，**Agent 会静默起不来**（进程都没创建成功，日志里什么都看不到）。本地改两处，注意**别提交**：
+
+1. `assets/interface.json` → `"child_exec": "../.venv/bin/python3"`
+2. `.vscode/mse_config.json` 里那张映射表的 **key** 同步改成一样的字符串
+
+第 2 步不能省：maa-support-extension 是拿 `child_exec` 的**原始字面值**（不是解析后的绝对路径）去查这张表的，对不上就静默退回非调试路径——不报错，只是你的断点不生效。
+
+只有本地要这么改。**发布包不受影响**：`install.py` 打包时按目标平台无条件覆写这两个字段（Windows 用内嵌 Python、macOS 用便携版、Linux/Android 用系统 `python3`）。
+
 **别拿 MFAAvalonia 当测试环境。** MFAA 是发给终端用户的**构建物**（打包好的 GUI），人手一份；它不是开发调试用的。想用它验改动，得开调试模式、或手动替换包里的资源文件，很折腾。开发阶段用上面的调试器，别从 MFAA 起步。
 
 **提交前格式化。** Pipeline JSON 有既定字段顺序，靠 prettier 保证，两种方式随你：VSCode 装 prettier 插件、保存自动格式化；或命令行 `pnpm install` 一次、之后 `pnpm prettier --write`。（配置见 `package.json`。）

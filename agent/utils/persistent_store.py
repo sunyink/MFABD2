@@ -59,6 +59,10 @@ class PersistentStore:
             logger.info(f"[Py] 🔄 存档系统检测到账号切换指令: 原账号=[{cls._current_account_id}] -> 新请求=[{safe_id}]")
             cls._current_account_id = safe_id
             cls._initialized = False  # 关键：强制下次重新挂载路径
+            # 降级只读描述的是「当前这个账号的存档此刻拿不到」，跟着账号一起翻篇。
+            # 不重置的话，A 号的一次读失败会把随后 B 号的写也一并锁死 —— 而 B 号若是
+            # 全新存档，load() 会从初始化分支提前返回，下面那些重置点一个都到不了。
+            cls._degraded_readonly = False
             cls._init_paths()         # 立即重新初始化并挂载
 
     @classmethod
@@ -158,7 +162,11 @@ class PersistentStore:
         if not cls.FILE_PATH.exists() and not cls.BACKUP_PATH.exists():
             logger.info(f"[Py] 🌱 账号 [{cls._sanitized_account_id}] 为全新存档，正在初始化...")
             empty_data = {}
-            cls._save_file(cls.FILE_PATH, empty_data)
+            if cls._save_file(cls.FILE_PATH, empty_data):
+                # 空档落盘成功 = 这个路径此刻确实可写，先前的降级态到此为止。
+                # 这是 load() 唯一的提前返回口，不在这里清就再没机会清了。
+                # 写失败则维持原状：文件本就不存在，放行写入也不会覆盖掉任何真实数据。
+                cls._degraded_readonly = False
             return empty_data
 
         if not cls.FILE_PATH.exists() and cls.BACKUP_PATH.exists():
