@@ -453,8 +453,8 @@
         "pre_delay": 500,
         "action": "Click",
         "target": [
-            120,
-            35
+            1,
+            1
         ],
         "next": [
             "Event_NormalBattleIsOver",
@@ -547,20 +547,12 @@
     },
     "Event_NormalBattleBack": {
         "desc": "奖励返回",
-        "recognition": "OCR",
-        "roi": [
-            558,
-            627,
-            144,
-            38
-        ],
-        "expected": [
-            "^(?=.*[点击画面])(?=.*[即可])(?=.*[返回]).{4,12}$"
-        ],
+        "recognition": "Or",
+        "any_of": ["Rec_Reward_Ocr"],
         "action": "Click",
         "target": [
-            40,
-            560
+            1,
+            1
         ],
         "post_delay": 1000,
         "next": [
@@ -571,16 +563,8 @@
     },
     "Event_NormalBattleIsOver": {
         "desc": "判定，处于一般/挑战 战斗页面，用于流程结束位置判定。动作，空白处点击",
-        "recognition": "OCR",
-        "roi": [
-            626,
-            235,
-            189,
-            54
-        ],
-        "expected": [
-            "在战斗中获胜"
-        ],
+        "recognition": "Or",
+        "any_of": ["Event_Battle_IsMenu"],
         "action": "Click",
         "target": [
             40,
@@ -595,16 +579,8 @@
     },
     "Event_LeaveEventDub": {
         "desc": "离开活动页，Dub与LeaveEvent相同且不可删除，上一步error与Inf重复next，会出错且不报错",
-        "recognition": "OCR",
-        "roi": [
-            626,
-            235,
-            189,
-            54
-        ],
-        "expected": [
-            "在战斗中获胜"
-        ],
+        "recognition": "Or",
+        "any_of": ["Event_Battle_IsMenu"],
         "action": "Click",
         "target": [
             120,
@@ -619,16 +595,8 @@
     },
     "Event_LeaveEvent": {
         "desc": "判断在挑战or普通战斗关卡选择页面",
-        "recognition": "OCR",
-        "roi": [
-            626,
-            235,
-            189,
-            54
-        ],
-        "expected": [
-            "在战斗中获胜"
-        ],
+        "recognition": "Or",
+        "any_of": ["Event_Battle_IsMenu"],
         "action": "Click",
         "target": [
             120,
@@ -643,18 +611,8 @@
     },
     "Event_LeaveInterrupt": {
         "desc": "其他页面，返回按钮",
-        "recognition": "TemplateMatch",
-        "roi": [
-            1,
-            1,
-            231,
-            124
-        ],
-        "template": [
-            "BackButGe.png",
-            "BackButGe2.png"
-        ],
-        "green_mask": true,
+        "recognition": "Or",
+        "any_of": ["Global_BackPageHub_Once"],
         "action": "Click",
         "post_delay": 3000,
         "focus": "G=1.页面非预期，点击返回按钮"
@@ -1415,16 +1373,8 @@
     },
     "Event_MiniGameRewardBack": {
         "desc": "奖励返回",
-        "recognition": "OCR",
-        "roi": [
-            457,
-            607,
-            413,
-            97
-        ],
-        "expected": [
-            "^(?=.*[点击画面])(?=.*[即可])(?=.*[返回]).{4,12}$"
-        ],
+        "recognition": "Or",
+        "any_of": ["Rec_Reward_Ocr"],
         "action": "Click",
         "post_delay": 2000,
         "next": [
@@ -1517,16 +1467,8 @@
     },
     "Event_Battle_TabAutoBattle_ChangeDifficulty_TryGeneral": {
         "desc": "点击普通战斗",
-        "recognition": "OCR",
-        "roi": [
-            69,
-            365,
-            1179,
-            324
-        ],
-        "expected": [
-            "普通"
-        ],
+        "recognition": "Or",
+        "any_of": ["Event_Battle_TabAutoBattle_ChangeDifficulty_TryGeneral"],
         "action": "Click",
         "target_offset": [
             5,
@@ -1555,16 +1497,8 @@
     },
     "Event_Battle_TabAutoBattle_ChangeDifficulty_ExceptChallenge": {
         "desc": "点击挑战战斗",
-        "recognition": "OCR",
-        "roi": [
-            69,
-            365,
-            1179,
-            324
-        ],
-        "expected": [
-            "挑战"
-        ],
+        "recognition": "Or",
+        "any_of": ["SeasonEvent_EnterlBattle_Challenge"],
         "action": "Click",
         "target_offset": [
             5,
