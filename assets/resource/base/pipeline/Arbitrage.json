@@ -2088,14 +2088,14 @@
             "价目表"
         ],
         "next": [
-            "[JumpBack]Arbitrage_Sell_PriceList_FirstCalibration",
             "[JumpBack]Arbitrage_Sell_PackShopListSwich_OnlyHave_NeedDisable",
+            "[JumpBack]Arbitrage_Sell_PriceList_FirstCalibration",
             "[JumpBack]Arbitrage_Sell_PackShopListSwich_OCR_Entry",
             "Arbitrage_ShopSell_Active"
         ]
     },
     "Arbitrage_Sell_PackShopListSwich_OCR_Entry": {
-        "desc": "价目表本身的排序,若第一项存在非120%,触发",
+        "desc": "价目表本身的排序修改,若第一项存在非120%,触发",
         "max_hit": 4,
         "recognition": "OCR",
         "roi": [
@@ -2110,6 +2110,7 @@
         "next": ["Arbitrage_Sell_PackShopListSwich_Butt"]
     },
     "Arbitrage_Sell_PackShopListSwich_Butt": {
+        "desc": "改价目表排序",
         "action": "Click",
         "target": [
             991,
@@ -2173,27 +2174,32 @@
         ]
     },
     "Arbitrage_Sell_PackShopListSwich_OnlyHave_NeedDisable": {
-        "desc": "如果询价表中,'仅显示已有'为开启,则需要关闭",
+        "desc": "询价表,切换到'仅显示已有物品'",
         "max_hit": 4,
-        "recognition": "ColorMatch",
-        "roi": [
-            1039,
-            572,
-            16,
-            15
+        "recognition": "And",
+        "all_of": [
+            {
+                "sub_name": "Clr",
+                "recognition": "ColorMatch",
+                "roi": [
+                    1039,
+                    572,
+                    16,
+                    15
+                ],
+                "lower": [
+                    0,
+                    0,
+                    0
+                ],
+                "upper": [
+                    255,
+                    255,
+                    255
+                ]
+            },
+            "Rec_SliderSwitch_GryOff_Clr"
         ],
-        "method": 40,
-        "lower": [
-            17,
-            180,
-            152
-        ],
-        "upper": [
-            23,
-            200,
-            185
-        ],
-        "count": 20,
         "action": "Click",
         "post_delay": 1500
     },
@@ -2632,7 +2638,7 @@
             392,
             94,
             733,
-            267
+            540
         ],
         "expected": [
             "目标物品"
@@ -2643,7 +2649,25 @@
                 ""
             ]
         ],
+        "next": [
+            "[JumpBack]Arbitrage_Sell_Gold_Snapshot",
+            "Arbitrage_Sell_Item_Click"
+        ]
+    },
+    "Arbitrage_Sell_Gold_Snapshot": {
+        "desc": "金币检测点A",
+        "max_hit": 1,
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "GoldSnapshot",
+        "custom_action_param": {
+            "node": "Arbitrage_Sell_GoldRead"
+        },
+        "post_delay": 0
+    },
+    "Arbitrage_Sell_Item_Click": {
         "action": "Click",
+        "target": "Arbitrage_Sell_Item_ListTraverse",
         "post_delay": 2000,
         "next": [
             "Arbitrage_Sell_Item_SellMenu",
@@ -2658,8 +2682,7 @@
             "Rec_<Arbitrage_Sell_Item_SellMenu>_Ocr_02"
         ],
         "next": [
-            "Arbitrage_Sell_Item_NumberSafety_ON",
-            "Arbitrage_Sell_Item_NumberSafety_OFF"
+            "Arbitrage_Sell_Item_Price_MaxCheck"
         ]
     },
     "Rec_<Arbitrage_Sell_Item_SellMenu>_Ocr_01": {
@@ -2685,6 +2708,21 @@
         "expected": [
             "MIX",
             "MAX"
+        ]
+    },
+    "Arbitrage_Sell_Item_Price_MaxCheck": {
+        "desc": "再次检查溢价率",
+        "recognition": "OCR",
+        "roi": [
+            277,
+            380,
+            362,
+            101
+        ],
+        "expected": "120%",
+        "next": [
+            "Arbitrage_Sell_Item_NumberSafety_ON",
+            "Arbitrage_Sell_Item_NumberSafety_OFF"
         ]
     },
     "Arbitrage_Sell_Item_NumberSafety_ON": {
@@ -2735,6 +2773,13 @@
         "desc": "出售循环内已进行,卡带已复位",
         "recognition": "Or",
         "any_of": ["Arbitrage_PackList_ResetEnter"],
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "GoldVerdict",
+        "custom_action_param": {
+            "node": "Arbitrage_Sell_GoldRead"
+        },
+        "post_delay": 0,
         "focus": "Arb.B.出售一轮循环结束"
     },
     "Arbitrage_PackList_ResetSwip": {
@@ -2754,7 +2799,7 @@
         "focus": "复位商店卡带表"
     },
     "Arbitrage_Sell_GoldRead": {
-        "desc": "【Py引用·被动数据节点,不入任何流程】读右上角金币数,供出售主脑做卖出验证。背景:主脑原先只看 run_task(\"Arbitrage_Sell_HUB\") 的返回值判成败,而该返回值只表示链条\"正常结束\",链条在选卡带找不到目标、SmartSwipe 判触底 JumpOut 时同样返回 True→假报'售卖成功'(07-22实录:桑格利亚酒一件没卖仍报成功)。改为派发前后各读一次金币,增长才算真卖出。读不到时主脑自动跳过验证、退回原行为,不阻断流程。",
+        "desc": "【Py引用·被动数据节点,不入任何流程】右上角金币数范围,金币检测默认区域。",
         "recognition": "OCR",
         "roi": [
             964,

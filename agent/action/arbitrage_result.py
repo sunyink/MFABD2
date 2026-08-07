@@ -1,4 +1,3 @@
-import os
 import json
 import re
 from maa.custom_action import CustomAction
@@ -6,6 +5,7 @@ from maa.context import Context
 from maa.agent.agent_server import AgentServer
 from utils import mfaalog
 from utils.name_i18n import canon
+from action import gold_verify
 
 # ==========================================
 # 三列各自窄 roi OCR(#Q2.5,2026-07-24)：名/价/卡带在各自节点的 roi 内分别识别。
@@ -33,31 +33,38 @@ SUBROW_TOL = 14      # 同子行 y 容差(子行间距约30px,商品行距约73p
 SCORE_MIN = 0.6      # 卡带选中组组分低于此=低置信,打WRN(实录错读曾得0.51,正确读数更高,#B)
 
 
-# 卖出验证：派发前后各读一次金币,增长才算真卖出(2026-07-22)
-# run_task 的返回值只表示链条"正常结束",选卡带找不到目标而 SmartSwipe 判触底
-# JumpOut 时同样返回 True,会假报售卖成功(07-22实录:桑格利亚酒一件没卖仍报成功)
-GOLD_NODE = "Arbitrage_Sell_GoldRead"
+# 卖出验证(2026-08-06 改)：金币不再由主控在派发前后自测,改由链内 A/B 两个动作节点测量,
+# 主控只取结论 —— 时序契约见 gold_verify.py。主控那对读数跨越整条出售链,时间窗长且看不见
+# 链条内部走到哪一步、卖了几件;链内测点贴着出售动作,还能覆盖连续出售的多件累计。
+# run_task 的返回值靠不住这件事没变:它只表示链条"正常结束",选卡带找不到目标、SmartSwipe
+# 判触底 JumpOut 时同样成功(07-22实录:桑格利亚酒一件没卖仍报成功),所以成败仍以金币为准。
 
 
-def _read_gold(context) -> int:
-    """读右上角金币数。读不到返回 0(主脑据此跳过验证,退回原行为,不阻断流程)。"""
-    try:
-        ss = context.tasker.controller.post_screencap().wait().get()
-        if ss is None:
-            return 0
-        reco = context.run_recognition(GOLD_NODE, ss)
-        if not reco or not getattr(reco, "all_results", None):
-            return 0
-        best = 0
-        for m in reco.all_results:
-            digits = re.sub(r'\D', '', getattr(m, "text", "") or "")
-            # 金币至少四位;取最大者以防图标/百分比等碎片混入
-            if len(digits) >= 4:
-                best = max(best, int(digits))
-        return best
-    except Exception as e:
-        mfaalog.warning(f"[Arbitrage] ⚠️ 金币读取异常({e}),本次跳过卖出验证")
+def _task_ok(detail) -> bool:
+    """run_task 的返回值判成败。
+
+    它返回 Optional[TaskDetail],而 **TaskDetail 对象恒为真值** —— 直接 `if detail`
+    只测得出"任务提没提上去",测不出"它跑成没跑成"。本文件已因此栽过两次(翻页段把
+    TaskDetail 当 bool 导致"滑不动"完全不可见;派发段 `elif sell_result` 让失败分支
+    几乎不可达),故收成一处,新代码一律走这里。
+    """
+    return detail is not None and detail.status.succeeded
+
+
+def _verdict_rank(verdict) -> int:
+    """跨候选比"哪个结论更强"。数越大越强,同强度保留先到的那个。
+
+    2(卖成了) > 1(确凿没卖成) > 0(B 跑了但读数缺一端) > -1(B 压根没执行)。
+
+    要点在于**只升不降**:候选 1 读到确凿的「没卖出」、候选 2 的 B 却没跑成时,不能让
+    后者的空结论抹掉前者 —— 否则这项漏进"无法判断",汇总还会误报「全部无法验证」。
+    """
+    if verdict is None:
+        return -1
+    delta = verdict.get("delta")
+    if delta is None:
         return 0
+    return 2 if delta > 0 else 1
 
 
 # OCR 同趟里对繁简会来回读(07-24实录同次结果 帶/带 混用),这几个字互吃
@@ -260,13 +267,13 @@ class ArbitrageSellController(CustomAction):
         # 1. 提取并合并 Attach 白名单
         # ==========================================
         whitelist_set = set()
-        
+
         # 假设我们将此动作绑定在 Arbitrage_ShopSell_Active 节点
         node_obj = context.get_node_object("Arbitrage_ShopSell_Active")
-        
+
         if node_obj and node_obj.attach:
             # 遍历 attach 中的所有 key (default, Drops, 以及 UI 传进来的 SellName)
-            for key, val_str in node_obj.attach.items():
+            for _, val_str in node_obj.attach.items():
                 if isinstance(val_str, str) and val_str.strip():
                     # 按照逗号、分号、中文逗号切分
                     raw_items = [x.strip() for x in re.split(r'[，,;|]+', val_str) if x.strip()]
@@ -274,13 +281,13 @@ class ArbitrageSellController(CustomAction):
                         # 使用和 OCR 底层一模一样的清洗规则，保证 100% 绝对匹配
                         cleaned_item = re.sub(r'[^\w\u4e00-\u9fa5]', '', item)
                         if cleaned_item:
-                            # \u5f52\u4e00\u5316\u5230\u89c4\u8303\u7b80\u4f53\uff1a\u767d\u540d\u5355\u53ef\u7b80/\u7e41\u4e66\u5199\uff0c\u7edf\u4e00\u540e\u4e0e OCR \u540d\u540c\u57df\u6838\u5bf9\u3002
+                            # 归一化到规范简体：白名单可简/繁书写，统一后与 OCR 名同域核对。
                             whitelist_set.add(canon(cleaned_item))
-                    
+
         if not whitelist_set:
             mfaalog.warning("[Arbitrage] ⚠️ 未读取到任何待售物品白名单，流程结束。")
             return True
-            
+
         mfaalog.info(f"[Arbitrage] 📋 期望售卖清单 ({len(whitelist_set)}项): {', '.join(whitelist_set)}")
 
         # ==========================================
@@ -306,7 +313,7 @@ class ArbitrageSellController(CustomAction):
                 break
 
             mfaalog.info(f"[Arbitrage] 📷 正在扫描第 {page_count} 页价目表...")
-            
+
             # 调用内部的 V8 图像解析引擎
             page_results = self._parse_current_page(context)
             if not page_results:
@@ -328,17 +335,17 @@ class ArbitrageSellController(CustomAction):
                 name = item["name"]
                 is_max = item["is_max_price"]
                 cart = item["target_cartridge"]
-                
+
                 # 触发截断：遇到非最高价商品
                 if not is_max:
                     has_non_max = True
                     mfaalog.info(f"[Arbitrage] 🛑 扫描到非最高价商品 [{name}]，已触及利润边界，停止向下扫描。")
-                    break 
+                    break
 
                 # 记录所有扫描到的最高价商品（去重保存）
                 if name not in all_max_price_items:
                     all_max_price_items.append(name)
-                   
+
                 # 检查是否在白名单中（仅归一化「比较用副本」；name 原文保留回填售卖链，
                 # 繁体端须以 OCR 原文匹配同语言 UI，切勿把归一化后的简体名传给 expected）
                 if canon(name) in whitelist_set:
@@ -348,12 +355,13 @@ class ArbitrageSellController(CustomAction):
                             "name": name,
                             "cartridge_raw": cart,
                             "cart_score": item.get("cart_score", 0.0),
-                            "cart_conflict": item.get("cart_conflict", False)
+                            "cart_conflict": item.get("cart_conflict", False),
+                            "cartridge_alt": item.get("alt_cartridge", "")
                         })
 
             if has_non_max:
-                break 
-                
+                break
+
             # 翻页动作：调用你写好的精准滑动链
             mfaalog.info("[Arbitrage] ⏬ 下滑翻页...")
             # run_task 返回 Optional[TaskDetail],返回对象只表示任务被成功提交,
@@ -367,27 +375,27 @@ class ArbitrageSellController(CustomAction):
             if not swip_detail.status.succeeded:
                 mfaalog.warning("[Arbitrage] ⚠️ 翻页任务执行失败，停止扫描。")
                 break
-                
+
             page_count += 1
-        
+
         # 🌟 优化日志 2：列出今日市面上的所有最高价商品
-        mfaalog.info(f"[Arbitrage] 📈 今日最高价商品总览: {', '.join(all_max_price_items) if all_max_price_items else '无'}")
-        
+        mfaalog.info(f"[Arbitrage] 📈 今日最高价&有库存商品总览: {', '.join(all_max_price_items) if all_max_price_items else '无'}")
+
         # ==========================================
         # 3. 派发阶段：循环注入并执行售卖节点链
         # ==========================================
         if not targets_to_sell:
             mfaalog.info("[Arbitrage] 💤 今日无符合条件的最高价商品，收工！")
             return True
-            
+
         # 🌟 优化日志 3：列出最终交集的执行清单
         final_sell_names = [t["name"] for t in targets_to_sell]
         mfaalog.info(f"[Arbitrage] 🛒 扫描完毕！确认共 {len(targets_to_sell)} 项物品待出售: {', '.join(final_sell_names)}")
-        
+
         sold_ok, sold_fail = [], []
         for idx, target in enumerate(targets_to_sell, 1):
             if context.tasker.stopping: break
-            
+
             item_name = target["name"]
             cart_raw = target["cartridge_raw"]
             mfaalog.info(f"[Arbitrage] 👉 正在执行 {idx}/{len(targets_to_sell)}: 前往 [{cart_raw}] 售卖 [{item_name}]")
@@ -411,71 +419,121 @@ class ArbitrageSellController(CustomAction):
                     f"若进错柜台将当作未卖出处理"
                 )
 
-            # 核心：构造多节点参数替换字典
-            # 卡带名走容错正则(OCR 把'剧'读成'则'等,前缀模糊卡号精确)
-            cart_pat = _cart_expected(cart_raw)
-            if cart_pat != cart_raw:
-                mfaalog.info(f"[Arbitrage]   ↳ 卡带匹配用容错式: {cart_pat}")
-            override_cfg = {
-                "Arbitrage_Sell_PackShopSwich": {
-                    "expected": cart_pat
-                },
-                "Arbitrage_Sell_Item_ListTraverse": {
-                    "expected": item_name
-                }
-            }
-            
-            # 卖出验证:派发前后各读一次金币
-            gold_before = _read_gold(context)
+            # 候选序列(2026-08-03):首选=判读胜者;上下分歧且另一串带号时,金币验证失败后改试
+            # 另一串一次(实录:双1.00分歧,首选"当前行17"进错柜台,真身在"每月行12")。
+            cands = [cart_raw]
+            alt_raw = target.get("cartridge_alt", "")
+            # 去重比「匹配式」而非 OCR 原文(2026-08-03):原文差一个 帶/带 会被 _cart_expected 折成
+            # 同一条正则(见上方 _CART_FUZZ;同趟 OCR 繁简混读是实录常态),按原文比会把一个生成完全
+            # 相同 override 的候选塞进来,白跑一整轮 UI 往返且不可能有不同结果。
+            # 只有匹配式真不同(=真会去到别的柜台)才值得回退重试。
+            if (target.get("cart_conflict") and alt_raw and _tail_num(alt_raw)
+                    and _cart_expected(alt_raw) != _cart_expected(cart_raw)):
+                cands.append(alt_raw)
 
-            # 拉起 JSON 端的出售链，并阻塞等待它执行完毕
-            # 起点设为进入出售菜单的识别节点
-            sell_detail = context.run_task("Arbitrage_Sell_HUB", pipeline_override=override_cfg)
-
-            gold_after = _read_gold(context)
-
-            if gold_before and gold_after:
-                delta = gold_after - gold_before
-                if delta > 0:
-                    sold_ok.append(item_name)
-                    mfaalog.info(
-                        f"[Arbitrage] ✅ [{item_name}] 确认售出，金币 +{delta:,} "
-                        f"({gold_before:,} → {gold_after:,})"
-                    )
-                else:
-                    sold_fail.append(item_name)
+            verdict = None                     # 跨候选保留的最强结论(gold_verify 的 dict)
+            # 初值必须是 None 而非 False:下方收尾分支按 `is not None` 判"链条跑过了",
+            # False 会被判成跑过 → 取 .status 抛 AttributeError(停止指令恰好落在内层
+            # 循环头、一轮未跑时可达)。
+            sell_result = None
+            for att, cand in enumerate(cands):
+                # 停止指令只打断框架侧任务,管不到 Python 控制流(post_stop 清队列+断当前任务,
+                # stopping 仅表示"已发指令未结束")。不在循环头拦一道,回退轮仍会白提一次注定被
+                # 拒的 run_task。本文件的翻页循环、外层目标循环与 shop_buy_fav_controller 的
+                # 重试/动作循环都是在循环头检查,此处补齐同一约定。
+                if context.tasker.stopping:
+                    break
+                # 上轮链条没跑成(任务没提上去 / status 失败) = 出售流程自身垮了,换个卡带串
+                # 解决不了,不空跑。判成败必须走 _task_ok:`not sell_result` 只拦得住"没提上去"。
+                # 注意"链条正常收尾但没走到 B"时 _task_ok 仍为真,那种要继续试下一个候选。
+                if att and not _task_ok(sell_result):
+                    break
+                if att:
                     mfaalog.warning(
-                        f"[Arbitrage] ❌ [{item_name}] 未实际售出！金币无变化"
-                        f"({gold_before:,} → {gold_after:,})，"
-                        f"链条多半卡在选卡带/物品定位，run_task 的成功是假信号"
+                        f"[Arbitrage]   🔁 上下分歧回退：首选 [{cart_raw}] 未售出，改试 [{cand}]"
                     )
-            elif sell_detail is not None and sell_detail.status.succeeded:
-                # 金币读不到(画面不在出售界面/OCR失手),退回原行为但如实标注未验证
-                mfaalog.info(f"[Arbitrage] ➖ [{item_name}] 售卖链执行完毕（金币不可读，未验证）")
-            else:
-                # 旧写法 `elif sell_result` 把 TaskDetail 当 bool,只要任务被提交就恒为真,
-                # 这个 else 几乎不可达。改判 .status 后"链条真的失败了"才会落到这里。
+                # 核心：构造多节点参数替换字典
+                # 卡带名走容错正则(OCR 把'剧'读成'则'等,前缀模糊卡号精确)
+                cart_pat = _cart_expected(cand)
+                if cart_pat != cand:
+                    mfaalog.info(f"[Arbitrage]   ↳ 卡带匹配用容错式: {cart_pat}")
+                override_cfg = {
+                    "Arbitrage_Sell_PackShopSwich": {
+                        "expected": cart_pat
+                    },
+                    "Arbitrage_Sell_Item_ListTraverse": {
+                        "expected": item_name
+                    }
+                }
+
+                # 发包前清槽:不清的话,本轮链条若没走到 B(中途断了),会读到上一轮的残留结论。
+                gold_verify.clear_verdict()
+
+                # 拉起 JSON 端的出售链，并阻塞等待它执行完毕
+                # 起点设为进入出售菜单的识别节点
+                sell_result = context.run_task("Arbitrage_Sell_HUB", pipeline_override=override_cfg)
+
+                # 金币由链内 A/B 测量(见 gold_verify 的时序契约),这里只取结论。
+                # None = B 压根没执行;delta is None = B 跑了但两端读数缺一个。
+                this_round = gold_verify.take_verdict()
+                if _verdict_rank(this_round) > _verdict_rank(verdict):
+                    verdict = this_round
+                delta = this_round.get("delta") if this_round else None
+                if delta is not None and delta > 0:
+                    break            # 已售出,毙掉后续候选,少跑一个柜台
+                # delta == 0(确凿没卖出) 与 delta is None(无法判断) 都按"这个候选不行"处理,
+                # 接着试下一个卡带候选 —— 但绝不拿同一套参数重跑,那只会复现同样的结果。
+
+            delta = verdict.get("delta") if verdict else None
+            before = verdict.get("before") if verdict else None
+            after = verdict.get("after") if verdict else None
+
+            if delta is not None and delta > 0:
+                sold_ok.append(item_name)
+                mfaalog.info(
+                    f"[Arbitrage] ✅ [{item_name}] 确认售出，金币 +{delta:,} "
+                    f"({before:,} → {after:,})"
+                )
+            elif delta is not None:
                 sold_fail.append(item_name)
-                reason = "未能启动（节点缺失或正在停止）" if sell_detail is None else "执行失败"
-                mfaalog.warning(f"[Arbitrage] ❌ [{item_name}] 售卖流程{reason}，继续尝试下一个。")
+                # delta < 0 出售链里不该出现(卖东西只会加钱),真出现多半是读串了行或期间
+                # 有别的消耗,单独点出来免得当成普通的"没卖出"放过去。
+                extra = "金币不增反减，读数可疑" if delta < 0 else "金币无变化"
+                mfaalog.warning(
+                    f"[Arbitrage] ❌ [{item_name}] 未实际售出！{extra}"
+                    f"({before:,} → {after:,})，"
+                    f"链条多半卡在选卡带/物品定位，run_task 的成功是假信号"
+                )
+            else:
+                # 无法判断一律计入失败(2026-08-06 定):金币是次要保险,保险失效时不能当成
+                # "大概卖成了"放过 —— 物品存在性才是主判据,而它此刻同样没有结论。
+                sold_fail.append(item_name)
+                if not _task_ok(sell_result):
+                    reason = "售卖流程未能启动（节点缺失或正在停止）" if sell_result is None else "售卖流程执行失败"
+                elif verdict is None:
+                    reason = "链条未走到金币复核点（B 未执行，多半中途断链）"
+                else:
+                    reason = f"金币读数不可用（前 {before} / 后 {after}）"
+                mfaalog.warning(f"[Arbitrage] ⚠️ [{item_name}] 无法判断是否售出：{reason}")
 
         if sold_fail:
             mfaalog.warning(
                 f"[Arbitrage] ⚠️ 本轮 {len(sold_fail)}/{len(targets_to_sell)} 项未能售出："
                 f"{', '.join(sold_fail)}"
             )
-        # 无待售商品的情形已在上方提前 return,故此处 targets_to_sell 必非空:
-        # sold_ok 空只可能是「全失败」或「全部金币不可读=未验证」,两者都不该报喜。
+        # 无待售商品的情形已在上方提前 return,故此处 targets_to_sell 必非空。
+        # "无法判断"现已一并计入 sold_fail(见上方三分支),所以 sold_ok / sold_fail 双空
+        # 只剩一种成因:外层循环还没处理完第一项就被停止指令打断。
         if sold_ok:
             mfaalog.info(f"[Arbitrage] 🎉 本轮实际售出 {len(sold_ok)} 项：{', '.join(sold_ok)}")
         elif sold_fail:
             mfaalog.warning(f"[Arbitrage] 🚫 本轮无一项成功售出({len(targets_to_sell)} 项全部失败),请检查上方失败原因。")
         else:
-            mfaalog.info(f"[Arbitrage] ➖ 本轮 {len(targets_to_sell)} 项派发执行完毕,但金币均不可读、无一项通过验证。")
+            mfaalog.info(f"[Arbitrage] ➖ 本轮 {len(targets_to_sell)} 项待售,一项都未及处理(多半是收到停止指令)。")
         return True
 
     # ==========================================
-    # 附：V8 图像解析引擎 
+    # 附：V8 图像解析引擎
     # ==========================================
     def _parse_current_page(self, context: Context) -> list:
         # 每商品占价目表两行:上子行(当前,与名同高)/下子行(每月最高价日)
@@ -529,7 +587,7 @@ class ArbitrageSellController(CustomAction):
         results = []
         for i, row in enumerate(anchors):
             item_data = {"name": row["name"], "is_max_price": False, "target_cartridge": "",
-                         "cart_score": 0.0, "cart_conflict": False}
+                         "cart_score": 0.0, "cart_conflict": False, "alt_cartridge": ""}
             ny = row["cy"]                                    # 上子行(当前)y = 名锚 y
             next_ny = anchors[i + 1]["cy"] if i + 1 < len(anchors) else ny + gap_bound
 
@@ -564,7 +622,16 @@ class ArbitrageSellController(CustomAction):
                         best_str, best_sc = lo_str, lo_sc
                     elif up_has == lo_has and lo_sc > up_sc:  # 两组同态(都带号/都缺号)→ 比组分
                         best_str, best_sc = lo_str, lo_sc
-                    item_data["cart_conflict"] = (up_str != lo_str)
+                    # 分歧判定同样走匹配式(2026-08-03):繁简互吃的两串生成同一条正则、指向同一
+                    # 柜台,不算分歧——否则会对无害的 帶/带 差异打误导性告警并触发回退空跑。
+                    item_data["cart_conflict"] = (
+                        _cart_expected(up_str) != _cart_expected(lo_str)
+                    )
+                    if item_data["cart_conflict"]:
+                        # 分歧回退候选(2026-08-03):两子行各自笃定却互斥时(实录组分双1.00,当前行误读
+                        # 17/每月行12,首选进错柜台白跑),把未被选中的一串也带走,执行层金币验证失败后
+                        # 可改试一次——把"抛硬币"变成"两个都试",真相仍由金币验证承担。
+                        item_data["alt_cartridge"] = lo_str if best_str == up_str else up_str
             item_data["target_cartridge"] = best_str
             item_data["cart_score"] = best_sc
 
