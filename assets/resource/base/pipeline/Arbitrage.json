@@ -2836,7 +2836,7 @@
     "Arbitrage_Cooking_MenuPatch": {
         "desc": "借用setup管路,从技能菜单进入烹饪菜单",
         "anchor": {
-            "SetSkill": "Setup_SetSkill_tab3_Reset5",
+            "SetSkill": "Arbitrage_Cooking_SetupToSkill",
             "SkillList_ReLift": "",
             "SkillList_Right": "Setup_SetSkill_4to5_Swip"
         },
@@ -2863,6 +2863,9 @@
         "next": [
             "Arbitrage_Cooking_MenuEnter",
             "Arbitrage_Cooking_SetupToSkill"
+        ],
+        "on_error": [
+            "Global_BackPageHub_Once"
         ]
     },
     "Arbitrage_Cooking_MenuEnter": {

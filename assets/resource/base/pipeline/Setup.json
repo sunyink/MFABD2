@@ -1902,6 +1902,9 @@
         },
         "next": [
             "Setup_SetSkill_Per"
+        ],
+        "on_error": [
+            "Global_BackPageHub_Once"
         ]
     },
     "Setup_SetSkill_Per": {

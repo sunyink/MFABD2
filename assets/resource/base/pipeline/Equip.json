@@ -21,6 +21,9 @@
         "next": [
             "Equip_Skill",
             "Setup_SetSkill_Per"
+        ],
+        "on_error": [
+            "Global_BackPageHub_Once"
         ]
     },
     "Equip_Skill": {
