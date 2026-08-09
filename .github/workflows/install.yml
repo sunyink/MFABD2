@@ -969,8 +969,10 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "安全触发镜像服务: 版本=$tag"
-          gh workflow run --repo $GITHUB_REPOSITORY --ref ${{ github.ref }} mirrorchyan_release.yml -f tag=$tag
-          gh workflow run --repo $GITHUB_REPOSITORY --ref ${{ github.ref }} mirrorchyan_release_note.yml -f tag=$tag
+          gh workflow run --repo $GITHUB_REPOSITORY --ref ${{ github.ref }} mirrorchyan.yml -f tag=$tag \
+            || echo "::warning::触发 mirrorchyan.yml 失败（tag=$tag）"
+          gh workflow run --repo $GITHUB_REPOSITORY --ref ${{ github.ref }} mirrorchyan_release_note.yml -f tag=$tag \
+            || echo "::warning::触发 mirrorchyan_release_note.yml 失败（tag=$tag）"
 
   notify:
     needs: [meta, install]
