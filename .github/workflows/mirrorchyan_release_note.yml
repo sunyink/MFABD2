@@ -4,19 +4,15 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: '目标版本号'
-        required: true
-        type: string
-      body:
-        description: '更新内容'
-        required: true
-        type: string
+        default: ''
+        required: false
   release:
     types: [edited]
 
 jobs:
   mirrorchyan:
     runs-on: macos-latest
+    if: ${{ github.repository_owner == 'sunyink' }}
 
     steps:
       - id: uploading
@@ -24,9 +20,8 @@ jobs:
         with:
           mirrorchyan_rid: MFABD2
           version_name: ${{ inputs.tag }}
-          release_note: ${{ inputs.body }}
 
           owner: sunyink
           repo: MFABD2
-          upload_token: ${{ secrets.MirrorChyanUploadToken }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          upload_token: ${{ secrets.MirrorChyanUploadToken }}

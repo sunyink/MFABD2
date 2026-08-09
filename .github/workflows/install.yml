@@ -966,17 +966,11 @@ jobs:
         shell: bash
         env:
           tag: ${{ needs.meta.outputs.tag }}
-          CHANGELOG_BODY: ${{ needs.changelog.outputs.release_body }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "安全触发镜像服务: 版本=$tag"
-          # 将 " 替换为 \"
-          ESCAPED_BODY="${CHANGELOG_BODY//\"/\\\"}"
-          # 触发包发布流程
-          gh workflow run --repo $GITHUB_REPOSITORY --ref ${{ github.ref }} mirrorchyan.yml -f tag=$tag
-
-          # 触发更新信息推送流程 (现在可以安全处理带引号的日志了)
-          gh workflow run --repo $GITHUB_REPOSITORY --ref ${{ github.ref }} mirrorchyan_release_note.yml -f tag=$tag -f body="$ESCAPED_BODY"
+          gh workflow run --repo $GITHUB_REPOSITORY --ref ${{ github.ref }} mirrorchyan_release.yml -f tag=$tag
+          gh workflow run --repo $GITHUB_REPOSITORY --ref ${{ github.ref }} mirrorchyan_release_note.yml -f tag=$tag
 
   notify:
     needs: [meta, install]
