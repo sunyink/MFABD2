@@ -107,6 +107,8 @@
             "Collect_Skill3_3_perOcr",
             "Collect_Skill3_3_Nothing",
             "Collect_Skill3_3",
+            "Collect_Skill3_5_perOcr",
+            "Collect_Skill3_5",
             "Collect_Skill_TapReset",
             "Global_Null_Exception",
             "Global_Null_Panic"
@@ -394,14 +396,19 @@
         "focus": "CSB.[WRM]'吸取'技能施放错误"
     },
     "Collect_Skill_TapReset": {
-        "desc": "第一页技能点击现在已不需要，保留结构备用",
+        "desc": "第一页技能点击现在已不需要，保留结构备用。【出口锚'OnFoot_Skill'由步行吸取模块声明并自行清锚;未设锚时走Collect_Skill_End】",
         "recognition": "Or",
         "any_of": [
             "Rec_SandBox_Pin_Tpl"
         ],
         "next": [
+            "[Anchor]OnFoot_Skill",
             "Collect_Skill_End",
             "Collect_Skill_TapReset"
+        ],
+        "on_error": [
+            "[JumpBack]Global_QuickCart_MenuReset",
+            "Global_Null"
         ]
     },
     "Collect_Skill_End": {

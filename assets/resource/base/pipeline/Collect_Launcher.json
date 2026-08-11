@@ -1460,7 +1460,8 @@
             "Collect_Pack_Event_1",
             "Collect_Pack_Event_2",
             "Collect_Pack_Event_3",
-            "Collect_Pack_Event_4"
+            "Collect_Pack_Event_4",
+            "Collect_Pack_Event_5"
         ]
     },
     "Collect_Pack_Story_1": {
@@ -2706,6 +2707,45 @@
                 "custom_action": "MarkComplete",
                 "custom_action_param": {
                     "card_name": "Event_4_记忆边缘",
+                    "cycle_type": "g_weekly"
+                }
+            }
+        },
+        "anchor": "Pack_Click",
+        "post_delay": 5000,
+        "next": [
+            "Collect_Pack_Click"
+        ]
+    },
+    "Collect_Pack_Event_5": {
+        "recognition": "And",
+        "all_of": [
+            {
+                "recognition": "TemplateMatch",
+                "roi": "[Anchor]PackFrame_Loc",
+                "template": [
+                    "Cartridges/Q_vp5.png"
+                ]
+            },
+            {
+                "recognition": "Custom",
+                "custom_recognition": "CheckCoolDown",
+                "custom_recognition_param": {
+                    "card_name": "Event_5_戏水女王",
+                    "cycle_type": "g_weekly"
+                }
+            }
+        ],
+        "box_index": 0,
+        "action": "Custom",
+        "custom_action": "PatchPipeline",
+        "custom_action_param": {
+            "target": "Collect_PackEnd_Ck",
+            "patch": {
+                "action": "Custom",
+                "custom_action": "MarkComplete",
+                "custom_action_param": {
+                    "card_name": "Event_5_戏水女王",
                     "cycle_type": "g_weekly"
                 }
             }
