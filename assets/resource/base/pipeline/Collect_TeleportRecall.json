@@ -26,24 +26,8 @@
     },
     "Collect_Tab3_Switch": {
         "desc": "检查tab3,并切换,为传送阵可用状态做准备",
-        "recognition": "ColorMatch",
-        "roi": [
-            1189,
-            649,
-            32,
-            32
-        ],
-        "lower": [
-            121,
-            121,
-            121
-        ],
-        "upper": [
-            126,
-            126,
-            126
-        ],
-        "count": 200,
+        "recognition": "Or",
+        "any_of": ["Collect_Skill_Tap3"],
         "action": "Click",
         "target": [
             1203,
@@ -53,29 +37,8 @@
     },
     "Collect_Tab3_Ck": {
         "desc": "检查tab3,并切换,为传送阵可用状态做准备",
-        "recognition": "ColorMatch",
-        "roi": [
-            1189,
-            649,
-            32,
-            32
-        ],
-        "lower": [
-            192,
-            141,
-            23
-        ],
-        "upper": [
-            223,
-            194,
-            129
-        ],
-        "count": 200,
-        "action": "Click",
-        "target": [
-            1203,
-            664
-        ],
+        "recognition": "Or",
+        "any_of": ["Collect_Skill_Tap3_Enable"],
         "timeout": 5000,
         "next": [
             "Collect_TeleportRecall_Skill"
@@ -129,6 +92,7 @@
             "Collect_ForceTeleporCircle",
             "Collect_ForceTeleporCircle_No"
         ],
+        "on_error": ["Collect_TeleporCircle_OnFoot_Start"],
         "focus": "CRT.传送阵技能已放置"
     },
     "Rec_<Collect_TeleportRecall_Skill>_Tpl": {
@@ -148,19 +112,8 @@
     },
     "Collect_TeleportRecall_Skill_Bin": {
         "desc": "【不要删不要改后挪用】custom需要调用此节点的识别",
-        "recognition": "TemplateMatch",
-        "roi": [
-            1051,
-            400,
-            81,
-            86
-        ],
-        "template": [
-            "Binary/Binary_skill4_Nol.png",
-            "Binary/Binary_skill4_Lgt.png"
-        ],
-        "green_mask": true,
-        "threshold": 0.6
+        "recognition": "Or",
+        "any_of": ["Setup_SkillScan_Skill4_Bin"]
     },
     "Collect_ForceTeleporCircle": {
         "recognition": "ColorMatch",
@@ -191,17 +144,8 @@
     },
     "Collect_ForceTelepor_MapCk": {
         "desc": "潜在大漏洞,当塔柱传送满级,可以去任何地方,就不是单独回主城了,以后适配",
-        "recognition": "OCR",
-        "roi": [
-            195,
-            15,
-            141,
-            49
-        ],
-        "expected": [
-            "移动魔法阵"
-        ],
-        "action": "DoNothing",
+        "recognition": "Or",
+        "any_of": ["Collect_OperationsMain_ToAreaMap"],
         "next": [
             "Collect_ForceTeleporCircle_Ico"
         ]
@@ -244,15 +188,10 @@
         ]
     },
     "Collect_ForceTeleporCircle_Arrive": {
-        "recognition": "TemplateMatch",
-        "roi": [
-            1108,
-            637,
-            65,
-            57
-        ],
-        "template": [
-            "pin.png"
+        "recognition": "Or",
+        "any_of": [
+            "Rec_SandBox_Pin_Tpl",
+            "Rec_SandBox_Run_Tpl"
         ],
         "post_delay": 5000,
         "next": [
@@ -862,12 +801,6 @@
             "战斗区"
         ],
         "action": "Click",
-        "target": [
-            367,
-            428,
-            74,
-            87
-        ],
         "post_delay": 2000,
         "timeout": 8000,
         "next": [
@@ -1173,16 +1106,8 @@
     //=-=-=
     "Collect_TeleporCircle_OnFoot_StateResolGroup_Step1_Lift": {
         "desc": "两层级的导航地图箭头状态识别,来判断最左/中间/最右 ;+地图安全/危险来辅助操作 | Step2_Right下面为判定为最右",
-        "recognition": "TemplateMatch",
-        "roi": [
-            123,
-            299,
-            108,
-            94
-        ],
-        "template": [
-            "Nvimap_Butt_left.png"
-        ],
+        "recognition": "Or",
+        "any_of": ["Rec_NavMap_Lift"],
         "next": [
             "Collect_TeleporCircle_OnFoot_StateResolGroup_Step2_Right",
             "Collect_TeleporCircle_OnFoot_NviMap_IsBattleArea",
@@ -1190,16 +1115,8 @@
         ]
     },
     "Collect_TeleporCircle_OnFoot_StateResolGroup_Step1_Right": {
-        "recognition": "TemplateMatch",
-        "roi": [
-            615,
-            300,
-            136,
-            98
-        ],
-        "template": [
-            "Nvimap_Butt_right.png"
-        ],
+        "recognition": "Or",
+        "any_of": ["Rec_NavMap_Right"],
         "timeout": 5000,
         "next": [
             "Collect_TeleporCircle_OnFoot_TPIco",
@@ -1209,16 +1126,8 @@
         "focus": "CTOB.导航地图判定为最左"
     },
     "Collect_TeleporCircle_OnFoot_StateResolGroup_Step2_Right": {
-        "recognition": "TemplateMatch",
-        "roi": [
-            615,
-            300,
-            136,
-            98
-        ],
-        "template": [
-            "Nvimap_Butt_right.png"
-        ],
+        "recognition": "Or",
+        "any_of": ["Rec_NavMap_Right"],
         "timeout": 5000,
         "next": [
             "Collect_TeleporCircle_OnFoot_TPIco",
@@ -1347,31 +1256,15 @@
         ]
     },
     "Collect_TeleporCircle_OnFoot_NviMapChange_Lift": {
-        "recognition": "TemplateMatch",
-        "roi": [
-            123,
-            299,
-            108,
-            94
-        ],
-        "template": [
-            "Nvimap_Butt_left.png"
-        ],
+        "recognition": "Or",
+        "any_of": ["Rec_NavMap_Lift"],
         "action": "Click",
         "post_delay": 1000,
         "focus": "CTOB.导航地图左移1次"
     },
     "Collect_TeleporCircle_OnFoot__NviMapChange_Right": {
-        "recognition": "TemplateMatch",
-        "roi": [
-            615,
-            300,
-            136,
-            98
-        ],
-        "template": [
-            "Nvimap_Butt_right.png"
-        ],
+        "recognition": "Or",
+        "any_of": ["Rec_NavMap_Right"],
         "action": "Click",
         "post_delay": 1000,
         "focus": "CTOB.导航地图右移1次"
@@ -1400,17 +1293,8 @@
     },
     "Collect_TeleporCircle_OnFoot_TPIco_Mirror": {
         "desc": "_TPIco的同等镜像节点,用于某些Error管路,使用其他中断方法恢复到next同样节点冲突",
-        "recognition": "TemplateMatch",
-        "roi": [
-            197,
-            76,
-            440,
-            535
-        ],
-        "template": [
-            "Nvi_TpCircleMap.png"
-        ],
-        "green_mask": true,
+        "recognition": "Or",
+        "any_of": ["Collect_TeleporCircle_OnFoot_TPIco"],
         "action": "Click",
         "post_delay": 3000,
         "next": [
@@ -1484,14 +1368,15 @@
                     10,
                     2
                 ],
+                "method": 40,
                 "lower": [
-                    253,
-                    253,
-                    252
+                    0,
+                    0,
+                    200
                 ],
                 "upper": [
-                    255,
-                    255,
+                    180,
+                    20,
                     255
                 ],
                 "count": 10
@@ -1548,14 +1433,15 @@
                     10,
                     2
                 ],
+                "method": 40,
                 "lower": [
-                    253,
-                    253,
-                    252
+                    0,
+                    0,
+                    200
                 ],
                 "upper": [
-                    255,
-                    255,
+                    180,
+                    20,
                     255
                 ],
                 "count": 10
@@ -1578,6 +1464,7 @@
         "template": [
             "Onfight.png"
         ],
+        "threshold": [0.9],
         "next": [
             "Collect_TeleporCircle_OnFoot_Skirmish_Tpause"
         ],
@@ -1635,33 +1522,16 @@
         "focus": "CTOB.逃离战斗"
     },
     "Collect_ForceTelepor_IsEffect": {
-        "recognition": "OCR",
-        "roi": [
-            195,
-            15,
-            141,
-            49
-        ],
-        "expected": [
-            "移动魔法阵"
-        ],
-        "action": "DoNothing",
+        "recognition": "Or",
+        "any_of": ["Collect_OperationsMain_ToAreaMap"],
         "next": [
             "Collect_ForceTelepor_IsEffect_ResetFoot",
             "[JumpBack]Global_BackPageHub_Once"
         ]
     },
     "Collect_ForceTelepor_IsEffect_ResetFoot": {
-        "recognition": "TemplateMatch",
-        "roi": [
-            619,
-            623,
-            41,
-            41
-        ],
-        "template": [
-            "AutoNvi_ico.png"
-        ],
+        "recognition": "Or",
+        "any_of": ["Arbitrage_NviGuide_Onfoot_Loop"],
         "action": "Click",
         "post_delay": 5000,
         "next": [
@@ -1672,18 +1542,8 @@
     },
     "Collect_ForceTelepor_FindTeleporCircle": {
         "desc": "发现传送按钮标,（步行到终点）模块出口",
-        "recognition": "TemplateMatch",
-        "roi": [
-            828,
-            519,
-            91,
-            90
-        ],
-        "template": [
-            "IcoHand.png"
-        ],
-        "green_mask": true,
-        "threshold": 0.9,
+        "recognition": "Or",
+        "any_of": ["Collect_FindTeleporCircle0.9"],
         "focus": "CTOB.到达传送阵-按钮标,End"
     },
     "Rec_NavMap_Lift": {
