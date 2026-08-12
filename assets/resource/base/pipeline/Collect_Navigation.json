@@ -227,6 +227,7 @@
         ],
         "next": [
             "Collect_TargetMap1_Special_Right",
+            "[JumpBack]Collect_ClickTeleporOccupy",
             "Collect_TargetMap2",
             "Collect_TargetMap3",
             "Collect_TargetMap4",
@@ -239,6 +240,31 @@
             "[JumpBack]Collect_TeleporNotFind"
         ],
         "focus": "确认区域地图tp1"
+    },
+    "Collect_ClickTeleporOccupy": {
+        "desc": "区域地图传送阵上站了人,遮蔽了传送图标。第一图判定用。",
+        "recognition": "TemplateMatch",
+        "roi": [
+            328,
+            89,
+            633,
+            527
+        ],
+        "template": "TeleporZero.png",
+        "green_mask": true,
+        "action": "Click",
+        "target": [
+            120,
+            35
+        ],
+        "post_delay": 5000,
+        "next": [
+            "[Anchor]Arbitrage5",
+            "Collect_Skill_Start",
+            "Collect_ClickTeleporOccupy",
+            "[JumpBack]Global_WaitingForLoading"
+        ],
+        "focus": "CM.N.区域地图.sp.人物已在传送阵"
     },
     "Collect_TargetMap2": {
         "desc": "详细地图确定位置2",
@@ -462,7 +488,8 @@
         ],
         "next": [
             "Collect_TargetMap2",
-            "Collect_TargetMap1_Special_Right"
+            "Collect_TargetMap1_Special_Right",
+            "[JumpBack]Collect_ClickTelepor_ButNotActive"
         ]
     },
     "Collect_TargetMap2_Special_Right": {
@@ -487,7 +514,8 @@
         ],
         "next": [
             "Collect_TargetMap3",
-            "Collect_TargetMap2_Special_Right"
+            "Collect_TargetMap2_Special_Right",
+            "[JumpBack]Collect_ClickTelepor_ButNotActive"
         ]
     },
     "Collect_MapRight_NoFind": {
@@ -895,7 +923,8 @@
         "next": [
             "Collect_Skill_Start",
             "Collect_ClickTelepor_TargetClass_White",
-            "[JumpBack]Global_WaitingForLoading"
+            "[JumpBack]Global_WaitingForLoading",
+            "Collect_ClickTelepor_Abnormal_Overlap"
         ],
         "focus": "CM.N.区域地图.tp1.找到传送阵图标"
     },
