@@ -934,14 +934,73 @@ jobs:
         with:
           path: artifacts
 
+      # actions/upload-artifact 不保留 Unix 权限位：构建时 chmod 过的文件到这里一律变 0644，
+      # 而 zip 会忠实记录，于是 mac/linux 用户解压后 MFAAvalonia 与内嵌 python3 都不可执行，
+      # MFA 全量更新整包覆盖安装目录后直接起不来（2026-08-08 mac 用户实例）。
+      # zip 格式本身存得下权限（external attributes 高 16 位，version-made-by=3），
+      # 所以在打包前补回执行位即可，不必把发布资产换成 tar.gz——
+      # 换格式会断掉 MFA 的 zip 解压路径和 MirrorChyan 的增量差分基线。
+      - name: Restore exec bits for unix artifacts
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          # ELF 与 Mach-O(32/64/fat，两种字节序) 的魔数。
+          # PE 的 "MZ" 不在其中，Windows 产物不会被波及。
+          MAGIC = {
+              b"\x7fELF",
+              b"\xcf\xfa\xed\xfe", b"\xce\xfa\xed\xfe",
+              b"\xfe\xed\xfa\xcf", b"\xfe\xed\xfa\xce",
+              b"\xca\xfe\xba\xbe",
+          }
+          UNIX_PKG = ("-macos-", "-linux-", "-android-")
+
+          pkgs = [p for p in sorted(Path("artifacts").iterdir())
+                  if p.is_dir() and any(k in p.name for k in UNIX_PKG)]
+
+          total = 0
+          for pkg in pkgs:
+              n = 0
+              for f in pkg.rglob("*"):
+                  if f.is_symlink() or not f.is_file():
+                      continue
+                  try:
+                      with f.open("rb") as fh:
+                          head = fh.read(4)
+                  except OSError:
+                      continue
+                  # 二进制看魔数，脚本看 shebang 或后缀；
+                  # 按内容判定省得维护一份必然会漏的文件名清单
+                  if head in MAGIC or head[:2] == b"#!" or f.suffix in (".sh", ".command"):
+                      f.chmod(f.stat().st_mode | 0o755)
+                      n += 1
+              print(f"{pkg.name}: 恢复执行位 {n} 个")
+              total += n
+
+          if not pkgs:
+              print("::warning::未找到 macos/linux/android 产物目录，跳过执行位恢复")
+          elif total == 0:
+              # 一个都没命中说明产物布局变了，别让它静默通过——这正是上次翻车的方式
+              raise SystemExit("::error::unix 产物无一文件被赋予执行位，打包布局可能已变更")
+          print(f"合计恢复 {total} 个")
+          PY
+
       - name: Package release assets
         run: |
           cd artifacts
           mkdir -p release_assets
           for dir in *; do
+            # release_assets 是本步骤自己的输出目录。它按字母序排在最后，轮到它时
+            # 里面已躺着前面生成的全部平台包，再打一遍就得到一个等于所有包之和的
+            # 套娃 zip（v4.3.18-alpha 那次实测 1.29GB），对用户毫无意义。
+            # 注：CHANGES 是 changelog job 的构建物，打成 CHANGES.zip 是有意保留的。
+            if [ "$dir" = "release_assets" ]; then
+              continue
+            fi
+
             # 直接使用目录名作为 zip 文件名
             zip_name="${dir}.zip"
-            
+
             # 创建压缩包
             (cd "$dir" && zip -r "../release_assets/$zip_name" .)
           done
@@ -1061,26 +1120,111 @@ jobs:
             echo "::error::NOTIFY_URL 或 QMSG_GROUPS 未配置"
             exit 1
           fi
+
+          # 中继是自建的（NapCat + Cloudflare Tunnel），重启或隧道重连会留下秒级到十几秒的空窗，
+          # 重试专为扛过这类抖动。notify 是 install 的最后一个 job，多等一两分钟不拖慢任何人。
+          # 重试按「每个群」独立进行：整体重试会让已经发成功的群重复收到消息，OneBot 无幂等参数。
+          MAX_ATTEMPTS=3
+          RETRY_DELAYS="10 20"    # 第 1、2 次失败后的退避秒数，单群最多等 30s
+          RELAY_DOWN=0            # 判定中继整体不可用后，后续群不再重试，避免最坏耗时随群数翻倍
+
           FAIL=0
+          FAILED_GROUPS=""
+          LAST_REASON=""
+
           # 不加引号的命令替换借词分割顺带剥掉群号两侧空白；群号为纯数字，无 glob 风险
           for GID in $(echo "$QMSG_GROUPS" | tr ',' ' '); do
             BODY=$(jq -n --arg gid "$GID" --arg msg "$MSG" '{group_id: ($gid | tonumber), message: $msg}') || {
               echo "::error::群号非法: $GID"
               FAIL=1
+              FAILED_GROUPS="${FAILED_GROUPS} ${GID}(群号非法)"
+              LAST_REASON="群号非法"
               continue
             }
-            RC=0
-            RESP=$(curl -sS --max-time 60 -w '\n%{http_code}' -X POST "${NOTIFY_URL}/send_group_msg" \
-              -H "Authorization: Bearer ${NOTIFY_TOKEN}" \
-              -H "Content-Type: application/json" \
-              -d "$BODY") || RC=$?
-            CODE=$(printf '%s' "$RESP" | tail -n1)
-            JSON=$(printf '%s' "$RESP" | sed '$d')
-            echo "群 $GID → curl_rc=$RC http=$CODE 响应: $JSON"
-            if [ "$RC" -ne 0 ] || [ "$CODE" != "200" ] \
-               || ! printf '%s' "$JSON" | jq -e '.status == "ok" and .retcode == 0' >/dev/null 2>&1; then
-              echo "::error::推送到群 $GID 失败"
+
+            if [ "$RELAY_DOWN" -eq 1 ]; then
+              ATTEMPTS=1
+              echo "群 $GID：中继已判定不可用，只试一次不再退避"
+            else
+              ATTEMPTS="$MAX_ATTEMPTS"
+            fi
+
+            SENT=0
+            RETRIABLE=0
+            REASON=""
+            for ATTEMPT in $(seq 1 "$ATTEMPTS"); do
+              RC=0
+              RESP=$(curl -sS --connect-timeout 10 --max-time 30 -w '\n%{http_code}' \
+                -X POST "${NOTIFY_URL}/send_group_msg" \
+                -H "Authorization: Bearer ${NOTIFY_TOKEN}" \
+                -H "Content-Type: application/json" \
+                -d "$BODY") || RC=$?
+              CODE=$(printf '%s' "$RESP" | tail -n1)
+              JSON=$(printf '%s' "$RESP" | sed '$d')
+              # curl 自身失败时 -w 的内容可能根本没写出来，规范成 000 以免后面的数值比较炸掉
+              case "$CODE" in ''|*[!0-9]*) CODE=000 ;; esac
+              echo "群 $GID 第 ${ATTEMPT}/${ATTEMPTS} 次 → curl_rc=$RC http=$CODE 响应: ${JSON:0:500}"
+
+              RETRIABLE=0
+              if [ "$RC" -ne 0 ]; then
+                REASON="网络请求失败（curl 退出码 ${RC}）"
+                RETRIABLE=1
+              elif [ "$CODE" = "200" ]; then
+                if ! printf '%s' "$JSON" | jq -e 'type == "object"' >/dev/null 2>&1; then
+                  # 隧道断开时 Cloudflare 会回 HTML 错误页而非 JSON，按暂时性故障处理
+                  REASON="响应不是合法 JSON（疑似中继或隧道返回错误页）"
+                  RETRIABLE=1
+                elif printf '%s' "$JSON" | jq -e '.status == "ok" and .retcode == 0' >/dev/null 2>&1; then
+                  echo "群 $GID 推送成功"
+                  SENT=1
+                  break
+                else
+                  # 中继收到了但拒绝执行（群号不存在、bot 不在群里…），重试只会重复失败
+                  REASON="中继拒绝推送: $(printf '%s' "$JSON" | jq -c '{status, retcode, message: (.message // .msg // .wording // "无")}' 2>/dev/null || printf '%s' "${JSON:0:200}")"
+                fi
+              elif [ "$CODE" = "401" ] || [ "$CODE" = "403" ]; then
+                REASON="鉴权失败（HTTP ${CODE}），检查 NOTIFY_TOKEN"
+              elif [ "$CODE" = "408" ] || [ "$CODE" = "425" ] || [ "$CODE" = "429" ] || [ "$CODE" -ge 500 ]; then
+                REASON="中继暂时不可用（HTTP ${CODE}）"
+                RETRIABLE=1
+              else
+                REASON="不可重试的 HTTP 状态 ${CODE}"
+              fi
+
+              if [ "$RETRIABLE" -ne 1 ]; then
+                break
+              fi
+              echo "::warning::群 $GID 第 ${ATTEMPT} 次失败: $REASON"
+              if [ "$ATTEMPT" -lt "$ATTEMPTS" ]; then
+                DELAY=$(echo "$RETRY_DELAYS" | cut -d' ' -f"$ATTEMPT")
+                echo "${DELAY}s 后重试"
+                sleep "$DELAY"
+              fi
+            done
+
+            if [ "$SENT" -ne 1 ]; then
+              echo "::error::推送到群 $GID 失败: $REASON"
               FAIL=1
+              FAILED_GROUPS="${FAILED_GROUPS} ${GID}"
+              LAST_REASON="$REASON"
+              # 重试都救不回来的暂时性故障 = 中继整体挂了，后面的群不必再各等 30s
+              if [ "$RETRIABLE" -eq 1 ]; then
+                RELAY_DOWN=1
+              fi
             fi
           done
-          if [ "$FAIL" -ne 0 ]; then exit 1; fi
+
+          if [ "$FAIL" -ne 0 ]; then
+            {
+              echo "### 构建通知未送达"
+              echo
+              echo "- 失败群号：${FAILED_GROUPS# }"
+              echo "- 最后错误：${LAST_REASON}"
+              if [ "$RELAY_DOWN" -eq 1 ]; then
+                echo "- 已判定为**中继整体不可用**，请检查自建 NapCat 与 Cloudflare Tunnel"
+              fi
+              echo "- 构建产物与 Release **不受影响**，失败的只是通知通道"
+            } >> "$GITHUB_STEP_SUMMARY"
+            # 自建中继挂了需要人工介入，故意保持非零退出：让这次 run 标红充当故障告警
+            exit 1
+          fi
