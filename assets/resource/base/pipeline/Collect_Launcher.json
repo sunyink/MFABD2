@@ -175,7 +175,7 @@
         },
         "timeout": 1,
         "next": [
-            "[JumpBack]Global_QuickCart_MenuReset_2P",
+            "[JumpBack]Global_QuickCart_MenuReset",
             "Collect_EventPack_SetSimpleSkip"
         ]
     },
@@ -331,7 +331,7 @@
         ],
         "focus": "CM.L.店长游戏卡带集"
     },
-    "Collect_QuickCart_SelectType_GameplayPack": {
+    "Collect_QuickCart_SelectType_BattleplayPack": {
         "recognition": "OCR",
         "roi": [
             36,
@@ -340,15 +340,34 @@
             63
         ],
         "expected": [
-            "玩法游戏卡"
+            "战斗玩法游戏卡"
         ],
         "action": "Click",
         "post_delay": 500,
         "next": [
-            "Collect_QuickCart_GameplayPack_OcrCheck",
-            "Collect_QuickCart_SelectType_GameplayPack"
+            "Collect_QuickCart_BattleplayPack_OcrCheck",
+            "Collect_QuickCart_SelectType_BattleplayPack"
         ],
-        "focus": "CM.L.玩法游戏卡带集"
+        "focus": "CM.L.战斗玩法游戏卡带集"
+    },
+    "Collect_QuickCart_SelectType_LifeplayPack": {
+        "recognition": "OCR",
+        "roi": [
+            36,
+            527,
+            1104,
+            63
+        ],
+        "expected": [
+            "生活玩法游戏卡"
+        ],
+        "action": "Click",
+        "post_delay": 500,
+        "next": [
+            "Collect_QuickCart_LifeplayPack_OcrCheck",
+            "Collect_QuickCart_SelectType_LifeplayPack"
+        ],
+        "focus": "CM.L.生活玩法游戏卡带集"
     },
     "Collect_QuickCart_StoryPack_OcrCheck": {
         "desc": "当前节点链层数标记：2。初次调取卡带菜单完毕，开始初次点击卡带.先复位再to1,to1没判定的!不可直接IsPresent,防止用户行为干扰",
@@ -459,9 +478,9 @@
         ],
         "focus": "CM.L.店长-卡带调取完毕"
     },
-    "Collect_QuickCart_GameplayPack_OcrCheck": {
+    "Collect_QuickCart_BattleplayPack_OcrCheck": {
         "recognition": "ColorMatch",
-        "roi": "Collect_QuickCart_SelectType_GameplayPack",
+        "roi": "Collect_QuickCart_SelectType_BattleplayPack",
         "lower": [
             167,
             167,
@@ -484,7 +503,34 @@
         "next": [
             "Collect_FirstBootPack"
         ],
-        "focus": "CM.L.玩法-卡带调取完毕"
+        "focus": "CM.L.战斗玩法-卡带调取完毕"
+    },
+    "Collect_QuickCart_LifeplayPack_OcrCheck": {
+        "recognition": "ColorMatch",
+        "roi": "Collect_QuickCart_SelectType_LifeplayPack",
+        "lower": [
+            167,
+            167,
+            165
+        ],
+        "upper": [
+            255,
+            255,
+            255
+        ],
+        "count": 500,
+        "action": "Custom",
+        "custom_action": "RestorePipeline",
+        "custom_action_param": {
+            "target": "Collect_LocatePackFrame_Smart_Swip"
+        },
+        "anchor": {
+            "LocSmartSwip_Limit Ctr": "Collect_Loc_Swip_1Page"
+        },
+        "next": [
+            "Collect_FirstBootPack"
+        ],
+        "focus": "CM.L.生活玩法-卡带调取完毕"
     },
     "Collect_FirstBootPack": {
         "next": [

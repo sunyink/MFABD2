@@ -173,7 +173,7 @@
         ],
         "anchor": {"QCPack": "Weekly_LastNight_Pack"},
         "next": [
-            "Global_BackToQC_Gameplay_Anc",
+            "Global_BackToQC_Battleplay_Anc",
             "[JumpBack]Global_ToSandBox"
         ],
         "focus": "PM.末日之书-卡带调取"

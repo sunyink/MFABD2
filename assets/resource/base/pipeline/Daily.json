@@ -753,7 +753,7 @@
         "anchor": {"QCPack": "Daily_Square_ToSquare"},
         "next": [
             "Daily_FantasiaSquare",
-            "[JumpBack]Global_BackToQC_Gameplay_Anc",
+            "[JumpBack]Global_BackToQC_Lifeplay_Anc",
             "[JumpBack]Global_ToSandBox",
             "[JumpBack]Global_WaitingForLoading"
         ]
