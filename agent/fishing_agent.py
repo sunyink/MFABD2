@@ -25,43 +25,158 @@ from maa.context import Context
 from maa.custom_action import CustomAction
 
 
-# ==================== 基础配置 ====================
+# ==================== 参数来源 ====================
+# 下列参数全部改由 pipeline JSON 的节点提供,py 只保留一份「回落默认」。
+# 【改值一律落 JSON、不动 py】—— py 里的默认值仅在「节点缺失 / 键缺失 / 值非法」时兜底,
+# 正常运行时不生效。对应节点见 assets/resource/base/pipeline/Fishing.json:
+#   Fishing_Minigame_Data      机制常量(游戏决定,三端共用)
+#   Fishing_Minigame_Timing    时序补偿(设备决定,per端可覆盖)
+#   Fishing_Minigame_Strategy  策略阈值
+#   Fishing_Minigame_Settle    结算点击点
+# 另有两处坐标不另设参数,直接取自既有节点 —— 它们本就必须与识别 ROI 严格一致,各存一份
+# 必然漂移(本次改造前 progress_bar 的 484/858 与 ROI 的 480/863 已经对不上了):
+#   进度条左右边界 <- Rec_FishMinigame_Cursor_Clr.roi
+#   拉杆点         <- Casting_Rod.target
 
-# 游标移动速度（像素/帧）
-CURSOR_SPEED_PX_PER_FRAME = 4.2
-# 蓝色区域每帧收缩像素数
-BLUE_ZONE_SHRINK_PX_PER_FRAME = 0.83  
+_NODE_DATA = "Fishing_Minigame_Data"
+_NODE_TIMING = "Fishing_Minigame_Timing"
+_NODE_STRATEGY = "Fishing_Minigame_Strategy"
+_NODE_SETTLE = "Fishing_Minigame_Settle"
+_NODE_CURSOR = "Rec_FishMinigame_Cursor_Clr"
+_NODE_CAST = "Casting_Rod"
+
+# 机制常量:游标速度(px/帧)、蓝区单边收缩(px/帧)、游标单程帧数、上述速率的基准帧率、单局时长上界(秒)
+_DATA_DEFAULT = {
+    "cursor_speed": 4.2,
+    "blue_shrink": 0.83,
+    "cursor_half_cycle": 88,
+    "ref_fps": 60.0,
+    "minigame_seconds": 17,
+}
+# 时序补偿:点击提前量、输入链路延迟、游标复位等待、抛竿后等待、结算等待(全部为秒)
+_TIMING_DEFAULT = {
+    "click_lead": 0.27,
+    "input_comp": 0.045,
+    "cursor_reset_wait": 0.6,
+    "after_cast": 0.2,
+    "after_catch": 3.0,
+}
+# 策略阈值:攒几条卖一次、单次等待上限(秒)、蓝区预测宽度下限(px)
+_STRATEGY_DEFAULT = {
+    "sell_interval": 30,
+    "wait_cap": 5.0,
+    "blue_min_width": 5,
+}
+
+
+def _load_node_attach(context: Context, node: str, defaults: dict) -> dict:
+    """读节点 attach,生成**本轮**配置副本(缺项/坏值各自回落 py 默认)。
+
+    绝不原地改写 defaults —— 那样有两个坑(与 arbitrage_result._load_rescue_cfg 同源):
+      · 半覆盖:逐项转型中途抛异常被兜住,前几项已写进全局,日志却报「沿用默认」;
+      · 粘滞:PatchPipeline 能改 attach,任务结束时框架撤销自己那半边 override,但全局
+        dict 它不知道,上一轮的值会一直留着,下一轮 attach 里删了该键也回不到 py 默认。
+    """
+    cfg = dict(defaults)
+    try:
+        obj = context.get_node_object(node)
+        attach = getattr(obj, "attach", None) if obj else None
+        if not attach:
+            print(f"warn: 节点 [{node}] 无 attach 配置，本轮沿用 py 内置默认")
+            return cfg
+        for k, dv in defaults.items():
+            if k not in attach:
+                continue
+            try:
+                cfg[k] = type(dv)(attach[k])
+            except (TypeError, ValueError):
+                print(
+                    f"warn: [{node}] 的 {k}={attach[k]!r} 非法"
+                    f"（应为 {type(dv).__name__}），该项回落默认 {dv!r}"
+                )
+    except Exception as e:
+        print(f"warn: 读取 [{node}] 配置异常（{e}），整份沿用 py 内置默认")
+    return cfg
+
+
+def _node_field(context: Context, node: str, field: str, default=None):
+    """读节点的协议字段(roi / target 等)。节点或字段缺失时回落 default。"""
+    try:
+        data = context.get_node_data(node)
+        val = (data or {}).get(field)
+        if val:
+            return val
+        print(f"warn: 节点 [{node}] 未取到 {field}，回落内置默认")
+    except Exception as e:
+        print(f"warn: 读取 [{node}].{field} 异常（{e}），回落内置默认")
+    return default
+
 
 @dataclass
 class TimingCfg:
+    after_cast: float = 0.2       # <- Fishing_Minigame_Timing.attach
+    after_catch: float = 3.0      # <- 同上
+    # 下面两项目前无任何调用方:wait_for_fish 已被 pipeline 的 Casting_Rod->Detect_Took_Bait
+    # 取代,input_delay 从未被读过(实际生效的是 Timing.attach 的 input_comp)。保留待
+    # iOS / PC 适配时再评估是否复用,故也未纳入 JSON。
     wait_fish_interval: float = 0.08
-    after_cast: float = 0.2
-    after_catch: float = 3.0
-    input_delay: float = 0.055  # controller is fast; keep small buffer
+    input_delay: float = 0.055
 
 
 @dataclass
 class CoordCfg:
+    """坐标容器。cast_rod / settle / progress_bar_* 由 _load_coords 在运行时从节点填入,
+    这里的字面值只是节点读不到时的兜底。"""
+
     cast_rod: Tuple[int, int] = (1130, 570)
-    screen_center: Tuple[int, int] = (640, 360)
-    progress_bar_left: int = 484
-    progress_bar_right: int = 858
-    minigame_area: Tuple[int, int, int, int] = (335,505,600,154)
+    settle: Tuple[int, int] = (640, 360)
+    progress_bar_left: int = 480
+    progress_bar_right: int = 863
+    # 无任何调用方,保留待后续评估(同 TimingCfg 末两项)。
+    minigame_area: Tuple[int, int, int, int] = (335, 505, 600, 154)
+
+
+def _load_coords(context: Context) -> CoordCfg:
+    """从 pipeline 节点取坐标:进度条边界取自游标识别 ROI,拉杆点取自 Casting_Rod。"""
+    c = CoordCfg()
+    roi = _node_field(context, _NODE_CURSOR, "roi")
+    if roi and len(roi) >= 3:
+        c.progress_bar_left = int(roi[0])
+        c.progress_bar_right = int(roi[0]) + int(roi[2])
+    cast = _node_field(context, _NODE_CAST, "target")
+    if cast and len(cast) >= 2:
+        c.cast_rod = (int(cast[0]), int(cast[1]))
+    settle = _node_field(context, _NODE_SETTLE, "target")
+    if settle and len(settle) >= 2:
+        c.settle = (int(settle[0]), int(settle[1]))
+    return c
 
 
 class FishingBot:
     def __init__(
         self,
         context: Context,
-        sell_interval: int = 30,
+        sell_interval: Optional[int] = None,
         timing: TimingCfg | None = None,
         coords: CoordCfg | None = None,
     ):
         self.context = context
         self.controller = context.tasker.controller
-        self.sell_interval = sell_interval
-        self.timing = timing or TimingCfg()
-        self.coords = coords or CoordCfg()
+
+        # 三份配置在此一次性装载,之后全程只读 self.cfg_* / self.timing / self.coords
+        self.cfg_data = _load_node_attach(context, _NODE_DATA, _DATA_DEFAULT)
+        self.cfg_timing = _load_node_attach(context, _NODE_TIMING, _TIMING_DEFAULT)
+        self.cfg_strategy = _load_node_attach(context, _NODE_STRATEGY, _STRATEGY_DEFAULT)
+
+        # 优先级:custom_action_param > 节点 attach > py 内置默认
+        self.sell_interval = (
+            sell_interval if sell_interval is not None else self.cfg_strategy["sell_interval"]
+        )
+        self.timing = timing or TimingCfg(
+            after_cast=self.cfg_timing["after_cast"],
+            after_catch=self.cfg_timing["after_catch"],
+        )
+        self.coords = coords or _load_coords(context)
 
         # runtime stats
         self.running = False
@@ -122,18 +237,18 @@ class FishingBot:
         """
         result = {"cursor_x": None, "blue_regions": [], "yellow_regions": [], "valid": False}
         
-        cursor_result = self.context.run_recognition("Detect_Progress_White_Cursor", screenshot)
-        blue_result = self.context.run_recognition("Detect_Progress_Blue_Zones", screenshot)
-        yellow_result = self.context.run_recognition("Detect_Progress_Yellow_Zones", screenshot)
+        cursor_result = self.context.run_recognition(_NODE_CURSOR, screenshot)
+        blue_result = self.context.run_recognition("Rec_FishMinigame_BlueZone_Clr", screenshot)
+        yellow_result = self.context.run_recognition("Rec_FishMinigame_YellowZone_Clr", screenshot)
 
         # 三个识别节点任一"没起来"都属配置错误,而不是"这一帧没看到"。
         # 整帧判无效并只打一条日志 —— 这里是 minigame 的每帧路径,不能逐个刷屏。
         if cursor_result is None or blue_result is None or yellow_result is None:
             missing = [
                 n for n, r in (
-                    ("Detect_Progress_White_Cursor", cursor_result),
-                    ("Detect_Progress_Blue_Zones", blue_result),
-                    ("Detect_Progress_Yellow_Zones", yellow_result),
+                    (_NODE_CURSOR, cursor_result),
+                    ("Rec_FishMinigame_BlueZone_Clr", blue_result),
+                    ("Rec_FishMinigame_YellowZone_Clr", yellow_result),
                 ) if r is None
             ]
             print(f"error: ❌ 进度条识别节点未能启动: {', '.join(missing)}")
@@ -188,9 +303,9 @@ class FishingBot:
             int: 1=向右，-1=向左
         """
         # 计算当前在第几个周期内
-        cycle_frame = frame_count % 176  # 一个完整周期是176帧（右行88+左行88）
-        # 0-87帧向右，88-175帧向左
-        return 1 if cycle_frame < 88 else -1
+        half = self.cfg_data["cursor_half_cycle"]
+        cycle_frame = frame_count % (half * 2)  # 一个完整周期 = 右行 half + 左行 half
+        return 1 if cycle_frame < half else -1
 
     def _calculate_blue_region_zero_frame(self, blue_regions: List[Tuple[int, int]]) -> Optional[int]:
         """计算蓝色区域多少帧后会收缩归0"""
@@ -202,7 +317,7 @@ class FishingBot:
         rightmost = max(all_ends)
         blue_center = (leftmost + rightmost) / 2
         distance_to_center = abs(rightmost - blue_center)
-        frames_to_zero = distance_to_center / BLUE_ZONE_SHRINK_PX_PER_FRAME
+        frames_to_zero = distance_to_center / self.cfg_data["blue_shrink"]
         return int(frames_to_zero)
 
     def _calculate_click_timing(
@@ -256,11 +371,11 @@ class FishingBot:
             total_distance = abs(distance)
         
         # 计算需要的帧数和时间
-        frames_needed = total_distance / CURSOR_SPEED_PX_PER_FRAME
-        time_needed = frames_needed / 60.0  # 假设 60 FPS
+        frames_needed = total_distance / self.cfg_data["cursor_speed"]
+        time_needed = frames_needed / self.cfg_data["ref_fps"]
         
         # 如果时间太长（超过5秒），可能计算有误或游戏状态变化
-        if time_needed > 5.0:
+        if time_needed > self.cfg_strategy["wait_cap"]:
             return None
         
         return time_needed
@@ -304,26 +419,26 @@ class FishingBot:
         total_distance = abs(distance)
         
         # 计算需要的帧数
-        frames_needed = total_distance / CURSOR_SPEED_PX_PER_FRAME
+        frames_needed = total_distance / self.cfg_data["cursor_speed"]
         
         # 计算在这段时间内，蓝色区域会收缩多少
-        # 蓝色区域从两端向中心收缩，每帧收缩 BLUE_ZONE_SHRINK_PX_PER_FRAME 像素
+        # 蓝色区域从两端向中心收缩，每帧收缩 cfg_data["blue_shrink"] 像素
         # 假设蓝色区域的左边界向右移动，右边界向左移动，各收缩一半
-        shrink_distance = BLUE_ZONE_SHRINK_PX_PER_FRAME * frames_needed
+        shrink_distance = self.cfg_data["blue_shrink"] * frames_needed
         
         # 预测到达时蓝色区域的新位置
         predicted_blue_start = blue_start + shrink_distance
         predicted_blue_end = blue_end - shrink_distance
         
-        # 检查预测的蓝色区域是否还有效（宽度大于10像素）
-        if predicted_blue_end - predicted_blue_start < 5:
+        # 检查预测的蓝色区域是否还够宽(阈值 blue_min_width;原注释写「大于10像素」与代码不符)
+        if predicted_blue_end - predicted_blue_start < self.cfg_strategy["blue_min_width"]:
             return None  # 区域太小，无法点击
         
         # 转换为时间
-        time_needed = frames_needed / 60.0  # 假设 60 FPS
+        time_needed = frames_needed / self.cfg_data["ref_fps"]
         
         # 如果时间太长（超过5秒），可能计算有误或游戏状态变化
-        if time_needed > 5.0:
+        if time_needed > self.cfg_strategy["wait_cap"]:
             return None
         
         return time_needed
@@ -356,7 +471,7 @@ class FishingBot:
         print("  开始小游戏（预测式策略）...")
         start_time = time.time()
         click_count = 0
-        total_time = 17  # 默认总时间，后续从识别结果更新
+        total_time = self.cfg_data["minigame_seconds"]  # 后续可由识别结果更新
         
 
         while self.running and not self.context.tasker.stopping:
@@ -384,7 +499,9 @@ class FishingBot:
             
             # 计算蓝色区域归0时间
             frames_to_zero = self._calculate_blue_region_zero_frame(blue_regions)
-            blue_region_zero_time = frames_to_zero / 60.0 if frames_to_zero is not None else None
+            blue_region_zero_time = (
+                frames_to_zero / self.cfg_data["ref_fps"] if frames_to_zero is not None else None
+            )
             
             # 2. 选择点击策略：优先黄色，其次蓝色
             target_zone = None
@@ -396,7 +513,12 @@ class FishingBot:
                 # 检查游标是否已经越过所有黄色区域（在最后一个黄色区域的右侧）
                 last_yellow_end = yellow_regions[-1][1]
                 cursor_direction = self._get_cursor_direction_from_frame(frame)
-                if cursor_x + CURSOR_SPEED_PX_PER_FRAME * 0.27 * 60 < last_yellow_end:
+                lead_px = (
+                    self.cfg_data["cursor_speed"]
+                    * self.cfg_timing["click_lead"]
+                    * self.cfg_data["ref_fps"]
+                )
+                if cursor_x + lead_px < last_yellow_end:
                     should_click_yellow = True
             
             if should_click_yellow:
@@ -404,7 +526,10 @@ class FishingBot:
                 wait_time = self._calculate_click_timing(cursor_x, yellow_regions, frame)
                 # 检查是否在蓝色区域归0前能点击
                 if wait_time is not None:
-                    if blue_region_zero_time is None or wait_time + 0.27 < blue_region_zero_time:
+                    if (
+                        blue_region_zero_time is None
+                        or wait_time + self.cfg_timing["click_lead"] < blue_region_zero_time
+                    ):
                         target_zone = "yellow"
                     else:
                         wait_time = None  # 超时，无法点击
@@ -414,7 +539,10 @@ class FishingBot:
                 wait_time = self._calculate_blue_click_timing(cursor_x, blue_regions, frame)
                 # 检查是否在蓝色区域归0前能点击
                 if wait_time is not None:
-                    if blue_region_zero_time is None or wait_time + 0.27 < blue_region_zero_time:
+                    if (
+                        blue_region_zero_time is None
+                        or wait_time + self.cfg_timing["click_lead"] < blue_region_zero_time
+                    ):
                         target_zone = "blue"
                     else:
                         wait_time = None  # 超时，无法点击
@@ -436,7 +564,7 @@ class FishingBot:
             print("分析耗时: {:.3f}s".format(elapsed))
             
             # 3. 等待到最佳时机（提前补偿输入延迟） 点击后有7帧延迟，点击动作需要约0.055s 
-            adjusted_wait = wait_time - elapsed - 0.045 
+            adjusted_wait = wait_time - elapsed - self.cfg_timing["input_comp"]
             
             if adjusted_wait > 0:
                 zone_name = "黄色区" if target_zone == "yellow" else "蓝色区"
@@ -455,7 +583,7 @@ class FishingBot:
             print(f"    {zone_emoji} 点击{zone_name}! (游标: {cursor_x}, 帧: {frame}, 方向: {'→' if cursor_direction > 0 else '←'})")
             
             # 5. 点击后短暂等待，让游标重置到最左边
-            self.delay(0.6)  # 等待游标重置
+            self.delay(self.cfg_timing["cursor_reset_wait"])  # 等待游标重置
             start_time = time.time()  # 重置开始时间
         
         return False
@@ -532,7 +660,7 @@ class FishingBot:
         # 结算
         self.delay(self.timing.after_catch)
         print("  点击结算...")
-        self.tap(*self.coords.screen_center)
+        self.tap(*self.coords.settle)
         self.delay(1.0)
 
         self.check_and_sell_fish()
@@ -587,7 +715,9 @@ class FishingAction(CustomAction):
         param = json.loads(param_str) if isinstance(param_str, str) else param_str
         
         max_count = int(param.get("max_count", 1))
-        sell_interval = int(param.get("sell_interval", 30))
+        # 不给默认值:None 表示「本次未指定」,交由 FishingBot 回落到节点 attach
+        sell_interval = param.get("sell_interval")
+        sell_interval = int(sell_interval) if sell_interval is not None else None
         # 总时长上限不允许缺省成"无限":默认按每轮 120s 估,业务可用 max_seconds 显式覆盖。
         max_seconds = float(param.get("max_seconds", max(120.0, max_count * 120.0)))
 
