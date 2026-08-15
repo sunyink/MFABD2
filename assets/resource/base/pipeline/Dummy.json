@@ -3,9 +3,12 @@
         "focus": "占位符.需要正确的资源选择."
     },
     "Custom_Proxy_Swipe": {
-        "desc": "不要使用,不要删除。这是验证滑动custom的预留节点。",
+        "desc": "不要使用,不要删除。这是旧 SmartSwipe 的滑动代理节点,自带 post_delay:1000。仅剩 Collect_LocatePackFrame_Smart_Swip 在用,该处迁到 SmartAction 后连同 smart_scroller.py 一起删。新写请用 Agt_Proxy_Blank。",
         "action": "Swipe",
         "post_delay": 1000
+    },
+    "Agt_Proxy_Blank": {
+        "desc": "不要使用,不要删除。SmartAction 的空代理节点,全部内容由 custom_action_param.proxy_override 注入。这里必须保持真空——写任何 action/delay 都会在调用方没覆盖该字段时被意外继承。"
     },
     "Env_AccountSave_Switch": {
         "desc": "一个存储存档名称/呼叫检查动作的,可复用节点. | 默认节点为0,此时生成不带额外名称的存档文件.| max_hit,利用流程级变量只运行一次,流程结束会销毁",

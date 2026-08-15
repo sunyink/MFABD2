@@ -472,29 +472,34 @@
         "recognition": "And",
         "all_of": ["Activities_Index"],
         "action": "Custom",
-        "custom_action": "SmartSwipe",
+        "custom_action": "SmartAction",
         "custom_action_param": {
-            "action": "Swipe",
-            "begin": [
-                210,
-                300
-            ],
+            "proxy_node": "Agt_Proxy_Blank",
+            "proxy_override": {
+                "action": "Swipe",
+                "begin": [
+                    210,
+                    300
+                ],
+                "end": [
+                    210,
+                    100
+                ],
+                "duration": 1000,
+                "end_hold": 1000,
+                "post_delay": 1000
+            },
             "detect_roi": [
                 138,
                 153,
                 145,
                 52
             ],
-            "duration": 1000,
-            "end": [
-                210,
-                100
-            ],
-            "end_hold": 1000,
-            "proxy_node": "Custom_Proxy_Swipe",
-            "retry_times": 1,
+            "threshold": 2.0,
             "settle_delay": 1000,
-            "threshold": 2.0
+            "on_changed": "next",
+            "on_unchanged": "error",
+            "unchanged_streak": 3
         },
         "next": [
             "Activities_FindActive",

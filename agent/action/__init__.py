@@ -4,6 +4,7 @@
 from .cartridge_lib import *
 from .pipeline_manager import *
 from .smart_scroller import *
+from .smart_action import *
 from .ocr_decision import *
 from .string_processor import *
 # gold_verify 必须排在 arbitrage_result 之前：后者按包内先例(pipeline_manager 引

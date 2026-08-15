@@ -1108,29 +1108,34 @@
     },
     "Setup_Main_Swip": {
         "action": "Custom",
-        "custom_action": "SmartSwipe",
+        "custom_action": "SmartAction",
         "custom_action_param": {
-            "proxy_node": "Custom_Proxy_Swipe",
-            "action": "Swipe",
-            "begin": [
-                810,
-                620
-            ],
-            "end": [
-                810,
-                25
-            ],
-            "duration": 700,
-            "end_hold": 1000,
-            "settle_delay": 1000,
-            "retry_times": 1,
-            "threshold": 2.0,
+            "proxy_node": "Agt_Proxy_Blank",
+            "proxy_override": {
+                "action": "Swipe",
+                "begin": [
+                    810,
+                    620
+                ],
+                "end": [
+                    810,
+                    25
+                ],
+                "duration": 700,
+                "end_hold": 1000,
+                "post_delay": 1000
+            },
             "detect_roi": [
                 544,
                 402,
                 488,
                 215
-            ]
+            ],
+            "threshold": 2.0,
+            "settle_delay": 1000,
+            "on_changed": "next",
+            "on_unchanged": "error",
+            "unchanged_streak": 3
         }
     },
     "Setup_Main_SkipAv": {

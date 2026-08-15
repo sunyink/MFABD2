@@ -1906,30 +1906,34 @@
         "recognition": "Or",
         "any_of": ["Arbitrage_Merchant_Menu"],
         "action": "Custom",
-        "custom_action": "SmartSwipe",
+        "custom_action": "SmartAction",
         "custom_action_param": {
-            "proxy_node": "Custom_Proxy_Swipe",
-            "focus": "Arb.商店列表滑动",
-            "action": "Swipe",
+            "proxy_node": "Agt_Proxy_Blank",
+            "proxy_override": {
+                "action": "Swipe",
+                "begin": [
+                    285,
+                    660
+                ],
+                "end": [
+                    285,
+                    135
+                ],
+                "duration": 600,
+                "end_hold": 1000,
+                "post_delay": 1000
+            },
             "detect_roi": [
                 195,
                 104,
                 52,
                 120
             ],
-            "begin": [
-                285,
-                660
-            ],
-            "end": [
-                285,
-                135
-            ],
-            "duration": 600,
-            "end_hold": 1000,
+            "threshold": 3.0,
             "settle_delay": 500,
-            "retry_times": 2,
-            "threshold": 3.0
+            "on_changed": "next",
+            "on_unchanged": "error",
+            "unchanged_streak": 3
         },
         "post_wait_freezes": 1000,
         "timeout": 2000,
