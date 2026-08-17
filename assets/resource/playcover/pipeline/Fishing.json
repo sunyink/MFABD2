@@ -1,0 +1,64 @@
+{
+    "Casting_Rod": {
+        "doc": "iOS 抛竿改为按住蓄力、蓄力环变绿瞬间松手(Perfect Cast),由 agent 的 HoldCastGreen 执行。base(安卓)仍走原 LongPress。注意本节点的 target 由 base 继承下来且必须保留 —— _load_coords 从它取拉杆坐标,HoldCastGreen 也按住这一点。",
+        "action": "Custom",
+        "custom_action": "HoldCastGreen"
+    },
+    "Fishing_PlayCover_Cast": {
+        "doc": "[配置] iOS 蓄力抛竿参数。仅 PlayCover 端存在,agent 以本节点是否存在作为「当前是 iOS 端」的判据,故不要在 base/pc 包里定义同名节点。enabled:false —— 不进管路,只供 attach 读取。",
+        "enabled": false,
+        "attach": {
+            "ring_center_x": 1138,
+            "ring_center_y": 570,
+            "ring_r_inner": 66,
+            "ring_r_outer": 94,
+            "green_h_min": 35,
+            "green_h_max": 85,
+            "green_s_min": 80,
+            "green_v_min": 100,
+            "green_px_min": 40,
+            "max_hold": 5.0,
+            "retry_on_no_press": 3
+        }
+    },
+    "Fishing_PlayCover_Sell": {
+        "doc": "[配置] iOS 卖鱼前置。结算后游戏仍停在钓鱼态,顶栏卖鱼图标是隐藏的,需先点屏幕中央数次退回初始态再等图标出现,期间不能碰抛竿。",
+        "enabled": false,
+        "attach": {
+            "center_tap_times": 3,
+            "center_retap_times": 2,
+            "retap_interval": 8.0,
+            "entry_wait_cap": 90.0,
+            "poll_interval": 2.0
+        }
+    },
+    "Fishing_Start": {
+        "doc": "iOS 顶栏卖鱼图标是半透明浅底,安卓的 Sell_ico(深蓝实底)匹配分只有 ~0.48 永远不命中。换用 iOS 实机截图制作的绿幕掩码模板,昼/夜各一版任一命中即可。",
+        "template": [
+            "Fish/Sell_ico_playcover.png",
+            "Fish/Sell_ico_playcover_day.png"
+        ],
+        "green_mask": true
+    },
+    "SellFish_Start": {
+        "doc": "同 Fishing_Start,换 iOS 模板。roi / action / target / next 全部继承 base。",
+        "template": [
+            "Fish/Sell_ico_playcover.png",
+            "Fish/Sell_ico_playcover_day.png"
+        ],
+        "green_mask": true
+    },
+    "SellFish_Shop": {
+        "doc": "iOS 点钱袋打开的页面标题是「钓鱼包」而非「商店」,两者都接受。后续出售流程与安卓一致。",
+        "expected": [
+            "商店",
+            "钓鱼包"
+        ]
+    },
+    "Fishing_Minigame_Strategy": {
+        "doc": "iOS 鱼包容量 30。留 5 条余量,避免开局未能清包时计数与实际背包脱节导致包满、抛竿被禁用。",
+        "attach": {
+            "sell_interval": 25
+        }
+    }
+}

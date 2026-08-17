@@ -33,6 +33,17 @@
             ]
         },
         {
+            "name": "PlayCover",
+            "label": "PlayCover(iOS)",
+            "path": [
+                "./resource/base",
+                "./resource/playcover"
+            ],
+            "controller": [
+                "PlayCover"
+            ]
+        },
+        {
             "name": "PC",
             "path": [
                 "./resource/base",
@@ -252,7 +263,8 @@
             "name": "[半自动]自动钓鱼",
             "entry": "Fishing_Entry",
             "controller": [
-                "Adb"
+                "Adb",
+                "PlayCover"
             ],
             "option": [
                 "钓鱼地点",
@@ -1350,7 +1362,9 @@
                 {
                     "name": "Yes",
                     "pipeline_override": {},
-                    "option": ["亲密度谈心等级筛选"]
+                    "option": [
+                        "亲密度谈心等级筛选"
+                    ]
                 },
                 {
                     "name": "No",
@@ -1371,7 +1385,9 @@
                     "name": "Lv<10",
                     "pipeline_override": {
                         "Sub_Intimacy_LV": {
-                            "expected": ["^[1-9]$"]
+                            "expected": [
+                                "^[1-9]$"
+                            ]
                         }
                     }
                 },
@@ -1379,7 +1395,9 @@
                     "name": "Lv<15",
                     "pipeline_override": {
                         "Sub_Intimacy_LV": {
-                            "expected": ["^([1-9]|1[0-4])$"]
+                            "expected": [
+                                "^([1-9]|1[0-4])$"
+                            ]
                         }
                     }
                 },
@@ -1387,7 +1405,9 @@
                     "name": "Lv<20",
                     "pipeline_override": {
                         "Sub_Intimacy_LV": {
-                            "expected": ["^([1-9]|1[0-9])$"]
+                            "expected": [
+                                "^([1-9]|1[0-9])$"
+                            ]
                         }
                     }
                 }
