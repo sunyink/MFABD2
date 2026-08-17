@@ -53,6 +53,13 @@ _NODE_CAST = "Casting_Rod"
 _NODE_PC_CAST = "Fishing_PlayCover_Cast"
 _NODE_PC_SELL = "Fishing_PlayCover_Sell"
 
+# 连续没能蓄力到绿的竿数。HoldCastGreenAction 每次调用都会新建 FishingBot,
+# 跨竿的状态只能放模块级。鱼包满是唯一已知会让「环亮但永不变绿」持续发生的原因。
+_no_green_streak = 0
+# 累计卖鱼次数。放模块级而非实例级:包满自救走的是 HoldCastGreenAction 里新建的
+# FishingBot,实例计数会从头算,日志上表现为"第 1 次"反复出现。
+_total_sell_count = 0
+
 # 机制常量:游标速度(px/帧)、蓝区单边收缩(px/帧)、游标单程帧数、上述速率的基准帧率、单局时长上界(秒)
 _DATA_DEFAULT = {
     "cursor_speed": 4.2,
@@ -93,6 +100,9 @@ _PC_CAST_DEFAULT = {
     "green_px_min": 800,
     "max_hold": 10.0,
     "retry_on_no_press": 2,
+    # 连续几竿「蓄力环亮着却始终不变绿」就判定鱼包已满并去卖鱼。鱼包满时游戏不让蓄力,
+    # 环照亮但颜色停在非绿档 —— 只看「环亮不亮」判断不出来,必须用这个连败计数。
+    "no_green_rescue_streak": 3,
 }
 # iOS 卖鱼前置:退回初始态的中央点击次数、补点次数与间隔(秒)、等待入口出现的上限与轮询间隔(秒)
 _PC_SELL_DEFAULT = {
@@ -835,10 +845,13 @@ class FishingBot:
         print("\n==================================================")
         print("🐟💰 开始卖鱼...")
 
-        # iOS 端先把界面从钓鱼态/结算浮层还原,再走卖鱼链(链内 OCR 自己会把关)
+        # iOS 端先把界面还原:先关掉结算浮层,再确保抛竿键回到可抛竿态 ——
+        # SellFish_Start 在 iOS 上以抛竿按钮为判据(见 playcover 覆盖层),结算刚结束
+        # 那一刻它往往还没出现,链路会直接空跑。
         if self.cfg_pc_sell is not None:
             self.prepare_sell()
-        
+            self.ensure_castable()
+
         # Use pipeline to execute sell sequence
         # run_task 返回 Optional[TaskDetail],成败在 .status 里。旧写法整个丢弃返回值后
         # 无条件打印"卖鱼完成"并清零计数 —— 停止过程中 run_task 会立刻返回,照样报成功,
@@ -851,10 +864,24 @@ class FishingBot:
             # 卖鱼没成,计数不能清零,否则下次判断"该卖了"会被推迟一整个周期
             print("error: ❌ 卖鱼流程执行失败，鱼获保留")
             return
+        # status.succeeded 只说明"任务跑完了没报错",不代表鱼真卖掉了:入口节点
+        # 识别不到时链路一步没走也算 succeeded。实测遇到过这种假成功 —— 计数被清零、
+        # 鱼却还在包里,再钓几条就满仓,抛竿被游戏禁用、整个流程卡死。故以退栈点
+        # SellFish_End 是否执行过作为"确实走完了出售"的判据。
+        try:
+            nodes = [getattr(n, "name", "") for n in (sell_detail.nodes or [])]
+        except RuntimeError as e:
+            print(f"warn: ⚠️ 读取卖鱼任务节点详情失败（任务可能已被中断）: {e}")
+            return
+        if "SellFish_End" not in nodes:
+            print(f"error: ❌ 卖鱼未走完出售流程（节点轨迹: {nodes}），鱼获保留，下条鱼后重试")
+            return
 
-        self.total_sell_count += 1
+        global _total_sell_count
+        _total_sell_count += 1
+        self.total_sell_count = _total_sell_count
         self.fish_since_last_sell = 0
-        print(f"✅ 卖鱼完成 (第 {self.total_sell_count} 次)")
+        print(f"✅ 卖鱼完成 (第 {_total_sell_count} 次)")
         print("==================================================\n")
         self.delay(1.0)
 
@@ -987,28 +1014,44 @@ class HoldCastGreenAction(CustomAction):
     """
 
     def run(self, context: Context, argv: CustomAction.RunArg) -> bool:
+        global _no_green_streak
         bot = FishingBot(context=context)
         bot.running = True
-        retries = int((bot.cfg_pc_cast or _PC_CAST_DEFAULT)["retry_on_no_press"])
+        cfg = bot.cfg_pc_cast or _PC_CAST_DEFAULT
+        retries = int(cfg["retry_on_no_press"])
+        streak_cap = int(cfg["no_green_rescue_streak"])
         # 顶层兜底:截图 / 识别 / 控制器接口抛异常不该逸出到框架核心。异常穿过 ctypes
         # 回调只会在 stderr 留一段无前缀 traceback,GUI 里什么都看不到。
         try:
             # 线还在水里时按住抛竿键不会有任何蓄力,先收线再抛
             bot.ensure_castable()
+            got_green = False
             for attempt in range(max(1, retries)):
                 if bot.hold_cast_until_green():
-                    return True
+                    got_green = True
+                    break
                 if bot.last_hold_registered:
                     # 蓄力环亮过 = 按压已被接收,松手时线就已经抛出去了(只是没赶上绿)。
                     # 此时绝不能重按 —— 那等于把刚抛出去的线又收回来。
-                    return True
+                    break
                 if attempt < retries - 1:
                     print(f"  🔁 蓄力环全程未亮,按压未被接收,1s 后重试(第 {attempt + 2} 次)")
                     bot.delay(1.0)
-            # 连续多次按压都没被接收,最常见的原因是鱼包已满、抛竿键被游戏禁用
-            print("warn: 🆘 按压持续无响应,疑似鱼包已满,尝试卖鱼自救...")
-            bot.sell_all_fish()
-            bot.hold_cast_until_green()
+
+            if got_green:
+                _no_green_streak = 0
+                return True
+
+            # 没抓到绿。偶发一两次是正常的(绿窗口间歇出现),但**连续**多竿抓不到,
+            # 已知唯一成因是鱼包已满:此时游戏不让蓄力,环照亮、颜色却停在非绿档,
+            # 「环亮不亮」这个判据分辨不出来,只能靠连败计数识别。
+            _no_green_streak += 1
+            if _no_green_streak >= streak_cap:
+                print(f"warn: 🆘 连续 {_no_green_streak} 竿未能蓄力到绿,疑似鱼包已满,尝试卖鱼自救...")
+                bot.sell_all_fish()
+                _no_green_streak = 0
+                bot.ensure_castable()
+                bot.hold_cast_until_green()
             return True
         except Exception as e:
             print(f"error: ❌ HoldCastGreen 执行异常: {e}")
