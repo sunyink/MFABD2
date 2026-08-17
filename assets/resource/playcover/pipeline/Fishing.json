@@ -72,5 +72,18 @@
         "attach": {
             "sell_interval": 25
         }
+    },
+    "SellFish_ActionButt": {
+        "doc": "判据从「全选开关的颜色」换成「全选」二字。base 用 ColorMatch 盯开关那一小块(roi [1012,656,12,11]),而上游 SellFish_SwichAll 的 next 里带着自己(失败就再点一次全选),开关被反复切换、颜色随之翻转,ColorMatch 就打不准 —— 实测鱼包 27 条时该节点连续 6 次识别失败,整条卖鱼链停在选择界面,鱼没卖出去。「全选」二字的位置与内容不随开关状态变化,用它做判据稳定得多;点击目标仍是 base 的 target(右下角 ✓)。",
+        "recognition": "OCR",
+        "roi": [
+            950,
+            640,
+            72,
+            40
+        ],
+        "expected": [
+            "全选"
+        ]
     }
 }

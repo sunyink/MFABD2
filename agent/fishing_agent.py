@@ -704,6 +704,29 @@ class FishingBot:
         h = np.where(h < 0, h + 360.0, h) / 2.0
         return h, s, v
 
+    def ensure_castable(self, tries: int = 3) -> bool:
+        """确保抛竿键处于「可抛竿」态,线还在水里就先点一下收线。
+
+        上一轮若在「线已抛出」时被打断(掉线重连、任务中途停止、鱼跑了),抛竿键会变成
+        收线图标。此时再怎么按住也不会有蓄力环,而 Casting_Rod 与 Move_Forward 互为
+        next/on_error 会一直空转 —— 必须先把线收回来。
+
+        判据复用 base 的 Fishing_Already_Setsail(抛竿键模板,实测 0.99),不新增节点。
+        """
+        for i in range(max(1, tries)):
+            shot = self.get_screenshot()
+            if shot is None:
+                self.delay(0.5)
+                continue
+            reco = self.context.run_recognition("Fishing_Already_Setsail", shot)
+            if reco is not None and getattr(reco, "hit", False):
+                return True
+            print(f"  🪝 抛竿键处于收线态(线还在水里),点一下收线({i + 1}/{tries})")
+            self.tap(*self.coords.cast_rod)
+            self.delay(2.5)
+        print("warn: ⚠️ 多次收线后仍未回到可抛竿态,继续尝试抛竿")
+        return False
+
     def hold_cast_until_green(self) -> bool:
         """按住抛竿键蓄力,蓄力环变绿的瞬间松手(Perfect Cast)。
 
@@ -970,6 +993,8 @@ class HoldCastGreenAction(CustomAction):
         # 顶层兜底:截图 / 识别 / 控制器接口抛异常不该逸出到框架核心。异常穿过 ctypes
         # 回调只会在 stderr 留一段无前缀 traceback,GUI 里什么都看不到。
         try:
+            # 线还在水里时按住抛竿键不会有任何蓄力,先收线再抛
+            bot.ensure_castable()
             for attempt in range(max(1, retries)):
                 if bot.hold_cast_until_green():
                     return True
