@@ -84,23 +84,20 @@ _STRATEGY_DEFAULT = {
 _PC_CAST_DEFAULT = {
     "ring_center_x": 1138,
     "ring_center_y": 570,
-    "ring_r_inner": 66,
-    "ring_r_outer": 94,
+    "ring_r_inner": 95,
+    "ring_r_outer": 125,
     "green_h_min": 35,
     "green_h_max": 85,
-    "green_s_min": 80,
-    "green_v_min": 100,
-    "green_px_min": 40,
-    "max_hold": 5.0,
-    "retry_on_no_press": 3,
+    "green_s_min": 110,
+    "green_v_min": 140,
+    "green_px_min": 800,
+    "max_hold": 10.0,
+    "retry_on_no_press": 2,
 }
 # iOS 卖鱼前置:退回初始态的中央点击次数、补点次数与间隔(秒)、等待入口出现的上限与轮询间隔(秒)
 _PC_SELL_DEFAULT = {
     "center_tap_times": 3,
-    "center_retap_times": 2,
-    "retap_interval": 8.0,
-    "entry_wait_cap": 90.0,
-    "poll_interval": 2.0,
+    "settle_wait": 1.5,
 }
 
 
@@ -249,8 +246,9 @@ class FishingBot:
         self.success_count = 0
         self.fish_since_last_sell = 0
         self.total_sell_count = 0
-        # iOS 蓄力抛竿的上一轮峰值绿像素数,供 HoldCastGreenAction 判断「按压有没有被接收」
+        # iOS 蓄力抛竿的上一轮观测:峰值绿像素数,以及蓄力环是否亮过(= 按压被接收)
         self.last_hold_best_green = 0
+        self.last_hold_registered = False
 
     # ============ Controller wrappers ============
     def tap(self, x: float, y: float):
@@ -712,9 +710,13 @@ class FishingBot:
         iOS 端的绿色只在按住蓄力期间出现,空闲时环上只有白弧 —— 所以不能「等变绿再点」,
         必须 touch_down 持续按住、边按边判、见绿 touch_up。超时也松手(等效普通抛竿)。
 
-        返回 True 表示抓到了绿。返回 False 分两种情形,由 last_hold_best_green 区分:
-        >0 说明蓄力确实发生过(只是没到阈值),线已抛出,不可重按;==0 说明这一按压根本
-        没被游戏接收(常见于结算转场未结束),线没抛出,重按是安全的。
+        实测:蓄力环是抛竿键外圈半径 95~125 的一道弧,按住后颜色循环 橙→黄→绿,约
+        1.5~2s 一轮;**松手即抛竿,绿色只是完美抛竿加成,不是抛竿的前提**。所以超时松手
+        同样把线抛了出去,绝不能因为"没抓到绿"就重按 —— 那会把刚抛出去的线收回来。
+
+        返回 True 表示抓到了绿。是否可以重按只看 last_hold_registered:蓄力环整轮都没
+        亮过,说明这一按压根本没被游戏接收(线还没抛出,常见于结算转场未结束或鱼包已满),
+        此时重按才是安全的。
         """
         cfg = self.cfg_pc_cast or _PC_CAST_DEFAULT
         cx, cy = int(cfg["ring_center_x"]), int(cfg["ring_center_y"])
@@ -730,7 +732,8 @@ class FishingBot:
         print("  按住抛竿蓄力,等待变绿...")
         self.controller.post_touch_down(*self.coords.cast_rod).wait()
         t0 = time.time()
-        best_seen, got_green, n = 0, False, 0
+        best_seen, best_vivid, got_green, n = 0, 0, False, 0
+        hues: List[float] = []          # 环亮时的色相采样,仅用于诊断/调参
         try:
             while self.running and not self.context.tasker.stopping:
                 shot = self.get_screenshot()
@@ -753,15 +756,30 @@ class FishingBot:
                 )
                 n = int(green.sum())
                 best_seen = max(best_seen, n)
+                # 环带上任何高饱和亮像素都算「蓄力环亮了」,与颜色无关 —— 这是判断
+                # 「按压有没有被游戏接收」的可靠信号(环会循环变色,只看绿会误判)
+                vivid_mask = (S >= cfg["green_s_min"]) & (V >= cfg["green_v_min"]) & annulus
+                vivid = int(vivid_mask.sum())
+                best_vivid = max(best_vivid, vivid)
+                if vivid > 0:
+                    hues.append(float(np.median(H[vivid_mask])))
                 if n >= px_min:
                     got_green = True
                     break
                 if time.time() - t0 > max_hold:
-                    print(f"  ⏳ 蓄力 {max_hold}s 未见变绿(峰值绿像素 {best_seen}),直接松手")
+                    hue_info = ""
+                    if hues:
+                        hs = sorted(hues)
+                        hue_info = f" 色相[{hs[0]:.0f}~{hs[-1]:.0f}]中位{hs[len(hs)//2]:.0f}"
+                    print(
+                        f"  ⏳ 蓄力 {max_hold}s 未抓到绿(峰值绿 {best_seen} / 环亮 {best_vivid}{hue_info}),"
+                        f"松手抛竿（普通抛竿，无完美加成）"
+                    )
                     break
         finally:
             self.controller.post_touch_up().wait()
         self.last_hold_best_green = best_seen
+        self.last_hold_registered = best_vivid > 0
         if got_green:
             print(f"  🟢 蓄力环变绿(绿像素 {n},耗时 {time.time() - t0:.2f}s),松手抛竿!")
         return got_green
@@ -778,43 +796,25 @@ class FishingBot:
             self.tap(*self.coords.settle)
             self.delay(0.5)
 
-    def wait_sell_entry(self) -> bool:
-        """退回初始态并等顶栏卖鱼图标出现。
+    def prepare_sell(self):
+        """卖鱼前退回初始态:点几下屏幕中央关掉结算浮层 / 退出钓鱼态。
 
-        结算后游戏仍停在钓鱼态,此时顶栏的卖鱼图标是隐藏的,直接跑卖鱼链必然识别不到。
-        需要先点几下屏幕中央退回初始态,之后钓鱼态衰减、图标才出现。等待期间只截图识别、
-        按固定间隔补点中央,绝不碰抛竿键 —— 碰了就又回到钓鱼态,前功尽弃。
+        不做「等卖鱼图标出现」那种前置判断 —— 该图标在 iOS 上是半透明白色浮在天空/海面
+        之上,实测有无图标的模板得分只差 0.03,根本判不出来;而卖鱼链本身有下游 OCR
+        (SellFish_Shop)把关,进没进商店由它说了算,这里只需把界面还原到可点击的状态。
         """
         cfg = self.cfg_pc_sell or _PC_SELL_DEFAULT
-        cap = float(cfg["entry_wait_cap"])
-        print(f"  🧘 退回初始态并等待卖鱼入口出现(最多 {cap:.0f}s)...")
-        t0 = time.time()
+        print("  🧘 卖鱼前退回初始态...")
         self._tap_center_to_dismiss(cfg["center_tap_times"])
-        last_retap = time.time()
-        while self.running and not self.context.tasker.stopping:
-            shot = self.get_screenshot()
-            if shot is not None:
-                reco = self.context.run_recognition("SellFish_Start", shot)
-                if reco is not None and getattr(reco, "hit", False):
-                    print(f"  💰 卖鱼入口已出现(等待 {time.time() - t0:.0f}s)")
-                    return True
-            if time.time() - t0 > cap:
-                print(f"warn: ⚠️ {cap:.0f}s 内未见卖鱼入口,本次卖鱼跳过（鱼获保留）")
-                return False
-            if time.time() - last_retap > float(cfg["retap_interval"]):
-                self._tap_center_to_dismiss(cfg["center_retap_times"])
-                last_retap = time.time()
-            self.delay(float(cfg["poll_interval"]))
-        return False
+        self.delay(float(cfg["settle_wait"]))
 
     def sell_all_fish(self):
         print("\n==================================================")
         print("🐟💰 开始卖鱼...")
 
-        # iOS 端要先退出钓鱼态,否则卖鱼图标是隐藏的。入口没等到就不进卖鱼链 ——
-        # 直接跑必然失败,还会白白吃掉一次 run_task。
-        if self.cfg_pc_sell is not None and not self.wait_sell_entry():
-            return
+        # iOS 端先把界面从钓鱼态/结算浮层还原,再走卖鱼链(链内 OCR 自己会把关)
+        if self.cfg_pc_sell is not None:
+            self.prepare_sell()
         
         # Use pipeline to execute sell sequence
         # run_task 返回 Optional[TaskDetail],成败在 .status 里。旧写法整个丢弃返回值后
@@ -973,11 +973,12 @@ class HoldCastGreenAction(CustomAction):
             for attempt in range(max(1, retries)):
                 if bot.hold_cast_until_green():
                     return True
-                if bot.last_hold_best_green > 0:
-                    # 蓄力发生过,线已抛出(只是没到绿),重按会把刚抛出去的线收回来
+                if bot.last_hold_registered:
+                    # 蓄力环亮过 = 按压已被接收,松手时线就已经抛出去了(只是没赶上绿)。
+                    # 此时绝不能重按 —— 那等于把刚抛出去的线又收回来。
                     return True
                 if attempt < retries - 1:
-                    print(f"  🔁 按压未被游戏接收,1s 后重试(第 {attempt + 2} 次)")
+                    print(f"  🔁 蓄力环全程未亮,按压未被接收,1s 后重试(第 {attempt + 2} 次)")
                     bot.delay(1.0)
             # 连续多次按压都没被接收,最常见的原因是鱼包已满、抛竿键被游戏禁用
             print("warn: 🆘 按压持续无响应,疑似鱼包已满,尝试卖鱼自救...")

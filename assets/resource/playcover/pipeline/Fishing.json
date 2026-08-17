@@ -5,46 +5,58 @@
         "custom_action": "HoldCastGreen"
     },
     "Fishing_PlayCover_Cast": {
-        "doc": "[配置] iOS 蓄力抛竿参数。仅 PlayCover 端存在,agent 以本节点是否存在作为「当前是 iOS 端」的判据,故不要在 base/pc 包里定义同名节点。enabled:false —— 不进管路,只供 attach 读取。",
+        "doc": "[配置] iOS 蓄力抛竿参数。实测:蓄力环是抛竿键外圈的一道弧,半径 95~125(不是按钮本体那圈),按住后颜色循环 橙(色相15)→黄(25)→绿(46),约 1.5~2s 一轮,绿色时环带内亮像素约 6300 个。松手即抛竿 —— 绿色只是完美抛竿加成,不是抛竿的前提。仅 PlayCover 端存在,agent 以本节点是否存在判定「当前是 iOS 端」。",
         "enabled": false,
         "attach": {
             "ring_center_x": 1138,
             "ring_center_y": 570,
-            "ring_r_inner": 66,
-            "ring_r_outer": 94,
+            "ring_r_inner": 95,
+            "ring_r_outer": 125,
             "green_h_min": 35,
             "green_h_max": 85,
-            "green_s_min": 80,
-            "green_v_min": 100,
-            "green_px_min": 40,
-            "max_hold": 5.0,
-            "retry_on_no_press": 3
+            "green_s_min": 110,
+            "green_v_min": 140,
+            "green_px_min": 800,
+            "max_hold": 10.0,
+            "retry_on_no_press": 2
         }
     },
     "Fishing_PlayCover_Sell": {
-        "doc": "[配置] iOS 卖鱼前置。结算后游戏仍停在钓鱼态,顶栏卖鱼图标是隐藏的,需先点屏幕中央数次退回初始态再等图标出现,期间不能碰抛竿。",
+        "doc": "[配置] iOS 卖鱼前置:结算后游戏仍停在钓鱼态并可能压着结算浮层,先点几下屏幕中央退回初始态再走卖鱼链。中央点取自 Fishing_Minigame_Settle.target,是这套界面里已知的安全点,不会误触抛竿键。",
         "enabled": false,
         "attach": {
             "center_tap_times": 3,
-            "center_retap_times": 2,
-            "retap_interval": 8.0,
-            "entry_wait_cap": 90.0,
-            "poll_interval": 2.0
+            "settle_wait": 1.5
         }
     },
     "Fishing_Start": {
-        "doc": "iOS 顶栏卖鱼图标是半透明浅底,安卓的 Sell_ico(深蓝实底)匹配分只有 ~0.48 永远不命中。换用 iOS 实机截图制作的绿幕掩码模板,昼/夜各一版任一命中即可。",
-        "template": [
-            "Fish/Sell_ico_playcover.png",
-            "Fish/Sell_ico_playcover_day.png"
+        "doc": "入场判据换成抛竿按钮,且不再顺手清包。base 用「卖鱼图标可见」入场,而 iOS 端该图标在天空/海面背景上模板匹配不出来(有无图标只差 0.03),每次新开一轮都卡死;顺带触发的入场清包又会把游戏带进商店并停在那里。抛竿按钮只要在船上就一定在(实测 0.99),用它入场后直接进钓鱼循环。清包由「攒够 sell_interval 条自动卖」与「鱼包满导致抛竿失效时的卖鱼自救」两条路负责。",
+        "recognition": "TemplateMatch",
+        "roi": [
+            1057,
+            483,
+            162,
+            175
         ],
-        "green_mask": true
+        "template": [
+            "Fishhook.png"
+        ],
+        "green_mask": true,
+        "next": [
+            "Custom_Fishing_Task"
+        ]
     },
     "SellFish_Start": {
-        "doc": "同 Fishing_Start,换 iOS 模板。roi / action / target / next 全部继承 base。",
+        "doc": "不以卖鱼图标为判据。iOS 的该图标是半透明白色浮在天空/海面上,实测「有图标 0.759 / 无图标(纯天空) 0.727」,间距只有 0.03 —— 灰度模板匹配无法与背景区分,压低阈值必然误命中(实测误命中后会点开商店并卡在里面),抬高阈值则永远进不去。改用抛竿按钮确认「人在船上」(实测 0.95),点击位仍用 base 的 target:该位置实测可靠打开商店(即便图标未渲染出来也有效),是否真的进入交由下游 SellFish_Shop 的 OCR 把关。",
+        "recognition": "TemplateMatch",
+        "roi": [
+            1057,
+            483,
+            162,
+            175
+        ],
         "template": [
-            "Fish/Sell_ico_playcover.png",
-            "Fish/Sell_ico_playcover_day.png"
+            "Fishhook.png"
         ],
         "green_mask": true
     },
