@@ -49,7 +49,9 @@
         "attach": {
             "sell_interval": 30,
             "wait_cap": 5.0,
-            "blue_min_width": 5
+            "blue_min_width": 5,
+            "bar_wait_cap": 4.0,
+            "end_invalid_frames": 3
         }
     },
     "Fishing_Minigame_Settle": {

@@ -66,6 +66,10 @@ _STRATEGY_DEFAULT = {
     "sell_interval": 30,
     "wait_cap": 5.0,
     "blue_min_width": 5,
+    # 开局等进度条渲染出来的上限(秒),与「判定小游戏已结束」所需的连续无效帧数。
+    # 两者都是为了不把「还没画出来」和「偶发漏检」当成「已经钓完」,见 play_minigame。
+    "bar_wait_cap": 4.0,
+    "end_invalid_frames": 3,
 }
 
 
@@ -472,7 +476,17 @@ class FishingBot:
         start_time = time.time()
         click_count = 0
         total_time = self.cfg_data["minigame_seconds"]  # 后续可由识别结果更新
-        
+        # 进度条「没测到」有三种成因,不能一律当成小游戏已结束:
+        #   1. 开局那几帧还没渲染出来 —— 改造前靠单帧分析耗时 0.7s+ 恰好等过了这一段,
+        #      分析一提速(如 iOS 端本地算)立刻暴露,表现为每轮秒结束并误报成功;
+        #   2. 中途偶发漏检(动画遮挡 / 掉帧)—— 单帧就收手会把还能救的一局判死;
+        #   3. 真结束。
+        # 故:见到第一帧有效之前按 (1) 等,见过之后要连续 N 帧无效才认 (3)。
+        seen_valid = False
+        invalid_streak = 0
+        bar_wait_cap = float(self.cfg_strategy["bar_wait_cap"])
+        end_invalid = int(self.cfg_strategy["end_invalid_frames"])
+
 
         while self.running and not self.context.tasker.stopping:
             current_time = time.time()
@@ -491,8 +505,20 @@ class FishingBot:
             # 分析进度条
             bar_info = self.analyze_progress_bar(screenshot)
             if not bar_info["valid"]:
-                return True  # 分析失败，结束小游戏(可能已经钓到)
-            
+                if not seen_valid:
+                    if current_time - start_time < bar_wait_cap:
+                        self.delay(0.15)   # 还没画出来,等
+                        continue
+                    print("warn: ⚠️ 开局 %.0fs 内未检测到进度条,本轮判失败" % bar_wait_cap)
+                    return False
+                invalid_streak += 1
+                if invalid_streak >= end_invalid:
+                    return True  # 进度条持续消失,小游戏结束(可能已经钓到)
+                self.delay(0.05)
+                continue
+            seen_valid = True
+            invalid_streak = 0
+
             cursor_x = bar_info["cursor_x"]
             yellow_regions = bar_info["yellow_regions"]
             blue_regions = bar_info["blue_regions"]
