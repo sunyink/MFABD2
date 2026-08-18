@@ -49,7 +49,9 @@
         "attach": {
             "sell_interval": 30,
             "wait_cap": 5.0,
-            "blue_min_width": 5
+            "blue_min_width": 5,
+            "bar_wait_cap": 4.0,
+            "end_invalid_frames": 3
         }
     },
     "Fishing_Minigame_Settle": {
@@ -404,21 +406,39 @@
         ]
     },
     "Fishing_Start": {
-        "recognition": "TemplateMatch",
-        "roi": [
-            802,
-            11,
-            92,
-            74
-        ],
-        "template": [
-            "Fish/Sell_ico.png"
+        "recognition": "Or",
+        "any_of": [
+            "Rec_Fishing_UI_Tpl",
+            "Rec_Fishing_UI_Ocr"
         ],
         "post_wait_freezes": 800,
         "next": [
             "[JumpBack]SellFish_Start",
             "Custom_Fishing_Task"
         ]
+    },
+    "Rec_Fishing_UI_Tpl": {
+        "desc": "[识别]钓鱼船上UI已存在",
+        "recognition": "TemplateMatch",
+        "roi": [
+            76,
+            12,
+            87,
+            67
+        ],
+        "template": ["Fish/fishbuff.png"],
+        "green_mask": true
+    },
+    "Rec_Fishing_UI_Ocr": {
+        "desc": "[识别]钓鱼船上UI已存在",
+        "recognition": "OCR",
+        "roi": [
+            179,
+            106,
+            116,
+            51
+        ],
+        "expected": "使用时间"
     },
     "Move_Forward": {
         "action": "Swipe",

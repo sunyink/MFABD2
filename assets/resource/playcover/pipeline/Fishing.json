@@ -1,0 +1,134 @@
+{
+    "Casting_Rod": {
+        "desc": "iOS 抛竿改为按住蓄力、蓄力环变绿瞬间松手(Perfect Cast),由 agent 的 HoldCastGreen 执行。base(安卓)仍走原 LongPress。注意本节点的 target 由 base 继承下来且必须保留 —— _load_coords 从它取拉杆坐标,HoldCastGreen 也按住这一点。",
+        "action": "Custom",
+        "custom_action": "HoldCastGreen"
+    },
+    "Fishing_PlayCover_Cast": {
+        "desc": "[配置] iOS 蓄力抛竿参数。实测:蓄力环是抛竿键外圈的一道弧,半径 95~125(不是按钮本体那圈),按住后颜色循环 橙(色相15)→黄(25)→绿(46),约 1.5~2s 一轮,绿色时环带内亮像素约 6300 个。松手即抛竿 —— 绿色只是完美抛竿加成,不是抛竿的前提。仅 PlayCover 端存在,agent 以本节点是否存在判定「当前是 iOS 端」。",
+        "enabled": false,
+        "attach": {
+            "ring_center_x": 1138,
+            "ring_center_y": 570,
+            "ring_r_inner": 95,
+            "ring_r_outer": 125,
+            "green_h_min": 35,
+            "green_h_max": 85,
+            "green_s_min": 110,
+            "green_v_min": 140,
+            "green_px_min": 800,
+            "max_hold": 10.0,
+            "retry_on_no_press": 2,
+            "no_green_rescue_streak": 3
+        }
+    },
+    "Fishing_PlayCover_Sell": {
+        "desc": "[配置] iOS 卖鱼前置:结算后游戏仍停在钓鱼态并可能压着结算浮层,先点几下屏幕中央退回初始态再走卖鱼链。中央点取自 Fishing_Minigame_Settle.target,是这套界面里已知的安全点,不会误触抛竿键。",
+        "enabled": false,
+        "attach": {
+            "center_tap_times": 3,
+            "settle_wait": 1.5
+        }
+    },
+    "Fishing_Start": {
+        "desc": "入场判据换成抛竿按钮,且不再顺手清包。base 用「卖鱼图标可见」入场,而 iOS 端该图标在天空/海面背景上模板匹配不出来(有无图标只差 0.03),每次新开一轮都卡死;顺带触发的入场清包又会把游戏带进商店并停在那里。抛竿按钮只要在船上就一定在(实测 0.99),用它入场后直接进钓鱼循环。清包由「攒够 sell_interval 条自动卖」与「鱼包满导致抛竿失效时的卖鱼自救」两条路负责。",
+        "recognition": "TemplateMatch",
+        "roi": [
+            1057,
+            483,
+            162,
+            175
+        ],
+        "template": [
+            "Fishhook.png"
+        ],
+        "green_mask": true,
+        "next": [
+            "Custom_Fishing_Task"
+        ]
+    },
+    "SellFish_Start": {
+        "desc": "不以卖鱼图标为判据。iOS 的该图标是半透明白色浮在天空/海面上,实测「有图标 0.759 / 无图标(纯天空) 0.727」,间距只有 0.03 —— 灰度模板匹配无法与背景区分,压低阈值必然误命中(实测误命中后会点开商店并卡在里面),抬高阈值则永远进不去。改用抛竿按钮确认「人在船上」(实测 0.95),点击位仍用 base 的 target:该位置实测可靠打开商店(即便图标未渲染出来也有效),是否真的进入交由下游 SellFish_Shop 的 OCR 把关。另把 base 的 max_hit 从 1 抬到 9999 —— 该上限是跨会话累计的,而 agent 每攒够 sell_interval 条就会 run_task 调一次本节点:第一次卖鱼用掉唯一命中后,后续每次都直接空返回(节点轨迹只剩 ['', 'Global_Null']),鱼再也卖不出去、最终满仓把抛竿也卡死。注意不能写 0 —— 实测 0 表示「一次都不命中」,不是无限。",
+        "max_hit": 9999,
+        "recognition": "TemplateMatch",
+        "roi": [
+            1057,
+            483,
+            162,
+            175
+        ],
+        "template": [
+            "Fishhook.png"
+        ],
+        "green_mask": true
+    },
+    "SellFish_Shop": {
+        "desc": "iOS 点钱袋打开的页面标题是「钓鱼包」而非「商店」,两者都接受。后续出售流程与安卓一致。",
+        "expected": [
+            "商店",
+            "钓鱼包"
+        ]
+    },
+    "Fishing_Minigame_Strategy": {
+        "desc": "iOS 鱼包容量 30。留 5 条余量,避免开局未能清包时计数与实际背包脱节导致包满、抛竿被禁用。",
+        "attach": {
+            "sell_interval": 25
+        }
+    },
+    "SellFish_SwichAll": {
+        "desc": "只在全选处于「关」时才点。base 的 SellFish_SwichAll 无 recognition,点了就走,而它的 next 里带着自己 —— 下游 SellFish_ActionButt(判据是「全选已打开」)一旦没通过就会退回来再点一次,把开关又关上,于是在「开/关」之间来回翻,鱼一条都没选中却已经去点了出售,整条链停在选择界面。加一个「当前是关」的判据后,开关只会被点到开为止,不会再翻回去。判据取自同一小块 roi:开=浅蓝(RGB≈181,215,255),关=白色旋钮(≈253,253,253),实测两态判别度 132/132 与 127/132,分得很干净。",
+        "recognition": "ColorMatch",
+        "roi": [
+            1012,
+            656,
+            12,
+            11
+        ],
+        "lower": [
+            230,
+            230,
+            230
+        ],
+        "upper": [
+            255,
+            255,
+            255
+        ],
+        "count": 60
+    },
+    "Fishing_PlayCover_ReelIn": {
+        "desc": "线还在水里时先收线。上一轮若在「已抛竿」状态下被打断(掉线、手动停止、鱼跑了),抛竿键会变成收线图标,Fishing_Already_Setsail 认不出钓鱼场景,整条链只能退到 [JumpBack]Global_ToHomePage 空转 —— agent 侧的 ensure_castable 救不了,因为压根没走到 Custom_Fishing_Task。故在入口这层补一个复位:认出收线图标就点一下把线收回来。模板取自 iOS 实机,实测 收线态 1.00 / 可抛竿态 0.21 / 商店 0.16,判别很干净。",
+        "recognition": "TemplateMatch",
+        "roi": [
+            1057,
+            483,
+            162,
+            175
+        ],
+        "template": [
+            "Fish/Reelin_playcover.png"
+        ],
+        "green_mask": true,
+        "action": "Click",
+        "target": [
+            1130,
+            570,
+            1,
+            1
+        ],
+        "post_delay": 3000,
+        "next": [
+            "Fishing_Already_Setsail",
+            "Fishing_PlayCover_ReelIn"
+        ]
+    },
+    "Fishing_Entry": {
+        "desc": "next 里插入 Fishing_PlayCover_ReelIn:线还在水里时先收线,再走原有识别。其余字段(anchor 等)继承 base。",
+        "next": [
+            "Daily_Busin_Hub_Post",
+            "Fishing_Already_Setsail",
+            "Fishing_PlayCover_ReelIn",
+            "[JumpBack]Global_ToHomePage"
+        ]
+    }
+}
