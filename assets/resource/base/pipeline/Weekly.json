@@ -160,55 +160,48 @@
         },
         "next": [
             "Weekly_LastNight_Ind",
-            "Weekly_LastNight_HomePage",
+            "Weekly_LastNight_GoTo",
             "[JumpBack]Global_ToHomePage"
         ]
     },
-    "Weekly_LastNight_HomePage": {
+    "Weekly_LastNight_GoTo": {
         "desc": "识别左下抽抽乐-主页-点击选择章节",
         "recognition": "And",
         "all_of": [
             "Rec_HomePage_GA_Ocr",
             "Sub_HomePage_GA_Bright_Clr"
         ],
-        "action": "Click",
-        "target": [
-            1111,
-            650
-        ],
+        "anchor": {"QCPack": "Weekly_LastNight_Pack"},
         "next": [
-            "Weekly_MoreBook_LastNight",
-            "Weekly_LastNight_HomePageSwipe"
+            "Global_BackToQC_Battleplay_Anc",
+            "[JumpBack]Global_ToSandBox"
         ],
-        "focus": "PM.主页面"
+        "focus": "PM.末日之书-卡带调取"
     },
-    "Weekly_LastNight_HomePageSwipe": {
-        "recognition": "OCR",
+    "Weekly_LastNight_Pack": {
+        "desc": "点击More本子",
+        "recognition": "TemplateMatch",
         "roi": [
-            99,
-            78,
-            212,
-            630
+            26,
+            573,
+            1248,
+            114
         ],
-        "expected": [
-            "角色游戏卡"
+        "template": ["Pack_LastNight.png"],
+        "action": "Click",
+        "target_offset": [
+            -15,
+            15,
+            0,
+            0
         ],
-        "pre_delay": 1000,
-        "action": "Swipe",
-        "begin": [
-            70,
-            640
-        ],
-        "end": [
-            70,
-            270
-        ],
-        "duration": 500,
+        "post_delay": 5000,
         "next": [
-            "Weekly_MoreBook_LastNight",
-            "Weekly_LastNight_HomePageSwipe"
+            "Weekly_LastNight_Ind",
+            "Weekly_LastNight_Pack",
+            "[JumpBack]Global_WaitingForLoading"
         ],
-        "focus": "PM.卡带界面垂直复位(一次性)"
+        "focus": "PM.末日之书-卡带点击"
     },
     "Weekly_LastNight_Ind": {
         "recognition": "OCR",
@@ -225,34 +218,6 @@
         "next": [
             "Weekly_LastNight_Move"
         ]
-    },
-    "Weekly_MoreBook_LastNight": {
-        "desc": "点击More本子",
-        "recognition": "OCR",
-        "roi": [
-            97,
-            237,
-            1122,
-            408
-        ],
-        "expected": [
-            "混战"
-        ],
-        "threshold": 0.9,
-        "action": "Click",
-        "target_offset": [
-            0,
-            -100,
-            0,
-            0
-        ],
-        "post_delay": 8000,
-        "next": [
-            "[JumpBack]Global_WaitingForLoading",
-            "Weekly_LastNight_Move",
-            "Weekly_MoreBook_LastNight"
-        ],
-        "focus": "PM.More卡带"
     },
     "Weekly_LastNight_Move": {
         "recognition": "Or",
@@ -344,24 +309,15 @@
         "action": "Click",
         "post_delay": 1500,
         "next": [
-            "[JumpBack]Global_WaitingForLoading",
-            "Weekly_LastNight_MaybeNew",
             "Weekly_LastNight_MenuPageEnd",
-            "Weekly_LastNight_Pin",
-            "Weekly_LastNight_LeavButt"
-        ]
-    },
-    "Weekly_LastNight_Pin": {
-        "recognition": "Or",
-        "any_of": [
-            "Rec_SandBox_Pin_Tpl",
-            "Rec_SandBox_Run_Tpl"
-        ],
-        "next": [
-            "Weekly_LastNight_End"
+            "Weekly_LastNight_LeavButt",
+            "[JumpBack]Global_WaitingForLoading",
+            "[JumpBack]Weekly_LastNight_MaybeNew",
+            "[JumpBack]Global_ToSandBox"
         ]
     },
     "Weekly_LastNight_MaybeNew": {
+        "desc": "末日之书结算界面",
         "recognition": "OCR",
         "roi": [
             736,
@@ -374,31 +330,20 @@
             "最高伤害"
         ],
         "action": "Click",
-        "post_delay": 1500,
-        "next": [
-            "Weekly_LastNight_MenuPageEnd",
-            "Weekly_LastNight_MaybeNew"
-        ]
+        "target": [
+            1,
+            1
+        ],
+        "post_delay": 1500
     },
     "Weekly_LastNight_MenuPageEnd": {
-        "recognition": "OCR",
-        "roi": [
-            189,
-            5,
-            280,
-            194
+        "recognition": "Or",
+        "any_of": [
+            "Rec_SandBox_Pin_Tpl",
+            "Rec_SandBox_Run_Tpl",
+            "Weekly_LastNight_Ind"
         ],
-        "expected": [
-            "末日之书"
-        ],
-        "action": "Click",
-        "target": [
-            120,
-            35
-        ],
-        "post_delay": 2000,
         "next": [
-            "Weekly_LastNight_MenuPageEnd",
             "Weekly_LastNight_End"
         ]
     },
