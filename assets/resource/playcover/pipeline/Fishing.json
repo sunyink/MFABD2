@@ -1,57 +1,10 @@
-// ⚠️ 同 base:本文件带 // 注释,是审阅稿不是合法 JSON —— 删完注释再跑 fmt。
-//
-// 本轮做的事:跟随 base 钓鱼重构,把已经对不上的覆盖删干净。识别参数与 #449 的实测数值一律没动,
-// 只搬了位置。改完从 10 键降到 7 键,且**一个 next 都不再覆盖**。
-//
-// ════ 删掉了四个键,base 分别由谁接手 ════
-//
-// [删] Fishing_Entry    —— base 入口已改走「快速卡带」:anchor {"QCPack": "Fishing_PackIn"}
-//                          + [JumpBack]Global_BackToQC_Lifeplay_Anc。本覆盖照抄的旧 next 里那条
-//                          Daily_Busin_Hub_Post 路,其锚点 MainMenu_GoFishing 已在 Daily.json 删除,
-//                          iOS 入口是断的;而 anchor 因字段合并仍被设上却无人消费 → 锚点泄漏到下个 task。
-//                          ⚠️ 教训:列表字段(next/on_error/template/expected)是**整段替换**不合并,
-//                             覆盖 next 等于照抄一份 base 的数组,base 一动就静默失效。能不覆盖就不覆盖。
-//
-// [删] Fishing_Start    —— 它不再是「入场判据」,base 把它改成了无识别的分流点,next 上挂着
-//                          收线复位 / 未就位走位 / 开局清包 / 钓鱼循环四条。继续覆盖会把三条全丢掉。
-//                          本覆盖原本要保的那份抛竿键判据没有丢:base 的 Rec_Fishing_InPlace_Tpl
-//                          (TemplateMatch / roi[1057,483,162,175] / Fishhook.png / green_mask)
-//                          与本文件原先那份**逐字相同,同一张图**,现由 Custom_Fishing_Task 与
-//                          Fishing_NotInPlace 消费。base 只是额外 And 了一个色核 Rec_Fishing_InPlace_Clr
-//                          (判抛竿键是否高亮可用)做加强 —— 是补强不是换判据,所以这里无需再覆盖。
-//
-// [删] Fishing_PlayCover_ReelIn —— base 已有 Fishing_ReelIn,用的就是本包提供的那张图
-//                          (playcover/image/Fish/Reelin_playcover.png → base/image/Fish/ReelinGE.png)。
-//                          它挂在 Fishing_Start.next 的第一位,iOS 照样能走到。
-//                          两处差异待实机复核:roi 从 [1057,483,162,175] 扩到 [1006,444,270,270];
-//                          点击点从显式 target[1130,570] 改为模板匹配框中心。
-//
-// [删] SellFish_SelectAll —— base 把「全选」拆成了判据 + 点击器两个节点,这个键的语义**反转**了:
-//                          现在它是 Or[Rec_SellFish_SelectAll_On_Clr] 的**开态**判据,而本覆盖塞的是
-//                          **关态**色值 —— 继续覆盖会导致全选打开后判不中,鱼卖不出去。
-//                          实测色值已迁到下面的 Rec_SellFish_SelectAll_Off_Clr。
-//
-// ════ 覆盖层三条铁律(本次踩到的,依据见 F:\MaaOWM\ARCHITECTURE.md) ════
-//   a. 层里**不写某字段 ≡ 沿用 base**,不是「取框架默认值」。要让字段回到框架默认必须显式写出来。
-//   b. **同 type**:param 走子字段级合并 → 只写想改的字段,其余从 base 继承(小心继承到不想要的)。
-//   c. **换 type**:param 整体替换、按新 type 重置,不与 base 旧 param 合并。
-//      另:custom_action_param / custom_recognition_param 是原子 dict,要覆盖就得整块写全。
 {
-    // ════════════ ① 钓鱼主流程 ════════════
     "Fishing_CastRod": {
-        // 换 type(LongPress → Custom),按铁律 c,base 的 target[1130,570] 与 duration:100 **不会**继承,
-        // action.param 按 Custom 重置(JCustomAction.target 回落协议默认 True = 用识别框)。
-        // task 顶层字段不受影响:timeout / rate_limit / next / on_error 仍沿用 base。
         "desc": "iOS 抛竿改为按住蓄力、蓄力环变绿瞬间松手(Perfect Cast),由 agent 的 HoldCastGreen 执行。拉杆坐标不从本节点取:_load_coords 读的是顶层 target,而换 type 后 action.param 已重置、且 get_node_data 吐的是 canonical 形态(target 在 action.param.target),两端实际都回落到 py 内置默认 CoordCfg.cast_rod=(1130,570) —— 数值与 base 的 target 恰好相同,所以一直没暴露。台账「债 1」修好后要连带复核这里。",
         "action": "Custom",
         "custom_action": "HoldCastGreen"
     },
-    // ════════════ ② 售卖 ════════════
     "SellFish_Start": {
-        // 同 type(TemplateMatch → TemplateMatch),按铁律 b 走字段级合并:
-        // roi / template / green_mask 被本层改写,action / target / post_delay / next / focus 沿用 base。
-        // [上一批] 已删掉 "max_hit": 9999 —— base 把那个字段整个删了(协议默认就是 UINT_MAX),
-        //          覆盖层不写 ≡ 沿用 base,再写一个有限值反而是把无限压回去。
         "desc": "不以卖鱼图标为判据。iOS 的该图标是半透明白色浮在天空/海面上,实测「有图标 0.759 / 无图标(纯天空) 0.727」,间距只有 0.03 —— 灰度模板匹配无法与背景区分,压低阈值必然误命中(实测误命中后会点开商店并卡在里面),抬高阈值则永远进不去。改用抛竿按钮确认「人在船上」(实测 0.95),点击位仍用 base 的 target:该位置实测可靠打开商店(即便图标未渲染出来也有效),是否真的进入交由下游 SellFish_Shop 的 OCR 把关。",
         "recognition": "TemplateMatch",
         "roi": [
@@ -72,15 +25,7 @@
             "钓鱼包"
         ]
     },
-    // ════════════ ③ 售卖引用 ════════════
     "Rec_SellFish_SelectAll_Off_Clr": {
-        // [迁移] 色值原样来自旧 SellFish_SelectAll 覆盖,是 #449 的 iOS 实测值,未做任何换算。
-        // ⚠️ method 必须显式写。base 这个节点写的是 method:40(HSV);同 type 覆盖走字段级合并(铁律 b),
-        //    不写 method 就会继承 40,把下面这组 RGB 数当 HSV 解 —— H 最大只有 179,230 直接越界。
-        // roi 也保持 iOS 实测的 [1012,656,12,11]:base 的关态看的是右半边轨道 [1026,656,13,11],
-        // iOS 上那半边没测过。开态无需覆盖 —— iOS 实测浅蓝 RGB(181,215,255) 换成 HSV 是 (106,74,255),
-        // 正落在 base 的 Rec_SellFish_SelectAll_On_Clr 区间 [90,27,225]~[126,94,255] 内。
-        // 待实机复核:若 base 的关态判据在 iOS 上同样命中,本节点整个删掉。
         "desc": "[识别]全选开关处于「关」——白色旋钮。iOS 实测:同一小块 roi 上 开=浅蓝(RGB≈181,215,255)、关=白旋钮(≈253,253,253),两态判别度 132/132 与 127/132,分得很干净。",
         "recognition": "ColorMatch",
         "roi": [
@@ -102,11 +47,6 @@
         ],
         "count": 60
     },
-    // ════════════ ④ agent 独占 ════════════
-    // ⚠️ 下面两个节点名【一个字都不能改】。fishing_agent.py:53-54 的 _NODE_PC_CAST / _NODE_PC_SELL
-    //    指着它们,py 靠 get_node_object() 返回不返回 None 判断「当前是不是 iOS 端」——
-    //    它们既是配置载荷、又是端判据本身。改名或删除会让蓄力抛竿与卖鱼前置整段静默失效,
-    //    而安卓端毫无异常,不会有任何报错。enabled:false 不影响取到对象,保留。
     "Agt_FishPlayCover_Cast": {
         "desc": "[配置] iOS 蓄力抛竿参数。实测:蓄力环是抛竿键外圈的一道弧,半径 95~125(不是按钮本体那圈),按住后颜色循环 橙(色相15)→黄(25)→绿(46),约 1.5~2s 一轮,绿色时环带内亮像素约 6300 个。松手即抛竿 —— 绿色只是完美抛竿加成,不是抛竿的前提。仅 PlayCover 端存在,agent 以本节点是否存在判定「当前是 iOS 端」。",
         "enabled": false,
@@ -134,8 +74,6 @@
         }
     },
     "Agt_FishMinigame_Strategy": {
-        // attach 不在原子 dict 表里 → 按 key 合并(铁律 b 的一种):这里只写 sell_interval,
-        // base 的另外四键(wait_cap / blue_min_width / bar_wait_cap / end_invalid_frames)照常沿用。
         "desc": "iOS 鱼包容量 30。留 5 条余量,避免开局未能清包时计数与实际背包脱节导致包满、抛竿被禁用。",
         "attach": {
             "sell_interval": 25
