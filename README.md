@@ -162,7 +162,7 @@ UI 内可直接获取更新推送、下载，由[![Mirror酱](https://img.shield
 **软件本体部署**：配置流程略复杂，可参考 [M9A 文档站](https://1999.fan/zh_cn/manual/newbie.html)（同框架，软件部署部分通用）。Mac 版 Agent 功能在根目录提供一键修复环境脚本，遇到环境问题时可使用。
 
 **控制方式**：Apple Silicon Mac 推荐用 **PlayCover 直接控制 iOS 版，无需安卓模拟器**，详见 [PlayCover 适配指南](docs/zh_cn/PlayCover适配指南.md)。
-> ⚠️ 需使用带 MaaTools 的 [hguandl fork 版 PlayCover](https://github.com/hguandl/PlayCover/releases)，**官方主线版没有 MaaTools、连不上**。当前覆盖全部**非钓鱼**任务，钓鱼适配随后续 PR 合入。
+> ⚠️ 需使用带 MaaTools 的 [hguandl fork 版 PlayCover](https://github.com/hguandl/PlayCover/releases)，**官方主线版没有 MaaTools、连不上**。
 >
 > PlayCover 支持由 [@KoujiMinamoto](https://github.com/KoujiMinamoto) 贡献与维护，相关问题欢迎在 issue 中 @他。
 
