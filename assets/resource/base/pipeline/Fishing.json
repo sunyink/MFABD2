@@ -21,6 +21,48 @@
             "max_count": 100
         }
     },
+    "Fishing_Minigame_Data": {
+        "desc": "【钓鱼小游戏 1/4·数据·三端共用/勿删】小游戏的机制常量,由游戏本身决定,与设备和端无关;py 读取,缺项回落 py 内置默认。cursor_speed=游标移动速度(px/帧);blue_shrink=蓝区单边向心收缩速度(px/帧);cursor_half_cycle=游标单程帧数(一个完整往返=2倍此值);ref_fps=上面两个「每帧」速率所基于的帧率;minigame_seconds=单局时长上界(超时即收尾)。【注意】前四项互相咬合,共同决定「游标此刻在哪、朝哪走」的推算,改任一项都要连带复核其余三项。",
+        "enabled": false,
+        "attach": {
+            "cursor_speed": 4.2,
+            "blue_shrink": 0.83,
+            "cursor_half_cycle": 88,
+            "ref_fps": 60.0,
+            "minigame_seconds": 17
+        }
+    },
+    "Fishing_Minigame_Timing": {
+        "desc": "【钓鱼小游戏 2/4·时序·per端可覆盖(attach 按 key 字典合并)】决策层到画面真正生效之间的时间差补偿,与设备/控制器性能相关。click_lead=点击提前量(判定「还追不追得上目标区」「蓝区归零前来不来得及」时预留的余量,秒);input_comp=从算完到点击生效的链路延迟(秒,直接从等待时长里扣);cursor_reset_wait=点击后游标复位等待(秒);after_cast=抛竿命中后进入小游戏的等待(秒);after_catch=上鱼后结算动画等待(秒)。【调参】点击总是偏早→调小 click_lead 与 input_comp;总是偏晚→调大。",
+        "enabled": false,
+        "attach": {
+            "click_lead": 0.27,
+            "input_comp": 0.045,
+            "cursor_reset_wait": 0.6,
+            "after_cast": 0.2,
+            "after_catch": 3.0
+        }
+    },
+    "Fishing_Minigame_Strategy": {
+        "desc": "【钓鱼小游戏 3/4·策略·per端可覆盖】行为决策阈值;py 读取,缺项回落 py 内置默认。sell_interval=累计钓到几条触发一次自动卖鱼(亦可由 Custom_Fishing_Task 的 custom_action_param 同名键覆盖,该处优先);wait_cap=单次等待时长上限(秒,算出超过此值视为游戏状态已变,放弃本次点击);blue_min_width=蓝区预测宽度下限(px,预测到达时窄于此值则不点)。",
+        "enabled": false,
+        "attach": {
+            "sell_interval": 30,
+            "wait_cap": 5.0,
+            "blue_min_width": 5,
+            "bar_wait_cap": 4.0,
+            "end_invalid_frames": 3
+        }
+    },
+    "Fishing_Minigame_Settle": {
+        "desc": "【钓鱼小游戏 4/4·坐标·per端可覆盖】上鱼后关结算界面的点击点。py 读本节点 target 后自行点击,不走 run_task,故不写 recognition/next —— 它只作为该坐标的唯一出处存在,勿挂进管路。",
+        "enabled": false,
+        "action": "Click",
+        "target": [
+            640,
+            360
+        ]
+    },
     "Detect_CountDown": {
         "next": [
             "Detect_CountDown_Green",
@@ -69,7 +111,7 @@
         ],
         "count": 20
     },
-    "Detect_Progress_Blue_Zones": {
+    "Rec_FishMinigame_BlueZone_Clr": {
         "recognition": "ColorMatch",
         "roi": [
             480,
@@ -90,7 +132,7 @@
         ],
         "count": 10
     },
-    "Detect_Progress_White_Cursor": {
+    "Rec_FishMinigame_Cursor_Clr": {
         "recognition": "ColorMatch",
         "roi": [
             480,
@@ -111,7 +153,7 @@
         ],
         "count": 15
     },
-    "Detect_Progress_Yellow_Zones": {
+    "Rec_FishMinigame_YellowZone_Clr": {
         "recognition": "ColorMatch",
         "roi": [
             480,
@@ -364,21 +406,39 @@
         ]
     },
     "Fishing_Start": {
-        "recognition": "TemplateMatch",
-        "roi": [
-            802,
-            11,
-            92,
-            74
-        ],
-        "template": [
-            "Fish/Sell_ico.png"
+        "recognition": "Or",
+        "any_of": [
+            "Rec_Fishing_UI_Tpl",
+            "Rec_Fishing_UI_Ocr"
         ],
         "post_wait_freezes": 800,
         "next": [
             "[JumpBack]SellFish_Start",
             "Custom_Fishing_Task"
         ]
+    },
+    "Rec_Fishing_UI_Tpl": {
+        "desc": "[识别]钓鱼船上UI已存在",
+        "recognition": "TemplateMatch",
+        "roi": [
+            76,
+            12,
+            87,
+            67
+        ],
+        "template": ["Fish/fishbuff.png"],
+        "green_mask": true
+    },
+    "Rec_Fishing_UI_Ocr": {
+        "desc": "[识别]钓鱼船上UI已存在",
+        "recognition": "OCR",
+        "roi": [
+            179,
+            106,
+            116,
+            51
+        ],
+        "expected": "使用时间"
     },
     "Move_Forward": {
         "action": "Swipe",
@@ -419,7 +479,9 @@
                 ]
             }
         },
-        "next": ["Daily_Square_Hub"]
+        "next": [
+            "Daily_Square_Hub"
+        ]
     },
     "Fishing_Move_SandBoxAct": {
         "next": [
@@ -465,8 +527,164 @@
     },
     "Fishing_Move_NviGuide_CKMsgBox_Ocr": {
         "recognition": "Or",
-        "any_of": ["Arbitrage_NviGuide_CKMsgBox_Ocr"],
+        "any_of": [
+            "Arbitrage_NviGuide_CKMsgBox_Ocr"
+        ],
         "action": "Click",
         "post_delay": 2000
+    },
+    "SellFish_Start": {
+        "max_hit": 1,
+        "recognition": "TemplateMatch",
+        "roi": [
+            802,
+            11,
+            92,
+            74
+        ],
+        "template": [
+            "Fish/Sell_ico.png"
+        ],
+        "action": "Click",
+        "target": [
+            827,
+            28,
+            35,
+            38
+        ],
+        "post_delay": 2000,
+        "next": [
+            "SellFish_Shop"
+        ]
+    },
+    "SellFish_Shop": {
+        "recognition": "OCR",
+        "roi": [
+            194,
+            12,
+            113,
+            66
+        ],
+        "expected": [
+            "商店"
+        ],
+        "next": [
+            "SellFish_Step2_NoFish",
+            "SellFish_SellModOn"
+        ]
+    },
+    "SellFish_ActionButt": {
+        "recognition": "ColorMatch",
+        "roi": [
+            1012,
+            656,
+            12,
+            11
+        ],
+        "lower": [
+            161,
+            195,
+            225
+        ],
+        "upper": [
+            201,
+            225,
+            255
+        ],
+        "action": "Click",
+        "target": [
+            1133,
+            636,
+            48,
+            49
+        ],
+        "post_delay": 2000,
+        "next": [
+            "SellFish_ActionButt_Ck",
+            "SellFish_ActionButt"
+        ],
+        "focus": "出售按钮"
+    },
+    "SellFish_ActionButt_Ck": {
+        "recognition": "OCR",
+        "roi": [
+            662,
+            399,
+            153,
+            94
+        ],
+        "expected": [
+            "确认"
+        ],
+        "action": "Click",
+        "post_delay": 2000,
+        "next": [
+            "SellFish_End",
+            "SellFish_ActionButt_Ck"
+        ]
+    },
+    "SellFish_End": {
+        "recognition": "TemplateMatch",
+        "roi": [
+            120,
+            20,
+            39,
+            43
+        ],
+        "template": [
+            "Fish/back.png"
+        ],
+        "action": "Click",
+        "post_delay": 2000,
+        "focus": "出售鱼获完毕,返回钓鱼"
+    },
+    "SellFish_SellModOn": {
+        "recognition": "OCR",
+        "roi": [
+            981,
+            638,
+            193,
+            48
+        ],
+        "expected": [
+            "一键出售"
+        ],
+        "action": "Click",
+        "post_delay": 2000,
+        "next": [
+            "SellFish_SwichAll"
+        ],
+        "focus": "开始出售鱼获"
+    },
+    "SellFish_Step2_NoFish": {
+        "recognition": "OCR",
+        "roi": [
+            585,
+            397,
+            254,
+            118
+        ],
+        "expected": [
+            "^(?=.*[没有])(?=.*[可出售])(?=.*[的道具]).{5,10}$"
+        ],
+        "next": [
+            "SellFish_End"
+        ],
+        "focus": "没有鱼获"
+    },
+    "SellFish_SwichAll": {
+        "action": "Click",
+        "target": [
+            1004,
+            648,
+            43,
+            25
+        ],
+        "post_delay": 2000,
+        "next": [
+            "SellFish_ActionButt",
+            "SellFish_SwichAll"
+        ],
+        "focus": "全选"
     }
 }
