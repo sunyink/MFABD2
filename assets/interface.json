@@ -30,6 +30,9 @@
             "label": "安卓端",
             "path": [
                 "./resource/base"
+            ],
+            "controller": [
+                "Adb"
             ]
         },
         {
