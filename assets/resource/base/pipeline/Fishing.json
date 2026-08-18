@@ -289,6 +289,13 @@
         "focus": "FSH.钓鱼界面已就绪-移交到Agent"
     },
     "Fishing_CastRod": {
+        // ⚠️ **不要给本节点写 timeout。** 它管的是「抛完竿之后等 next(Fishing_TookBait)
+        //    命中多久」,也就是**留给鱼咬钩的窗口**,不是抛竿动作本身的耗时。
+        //    重构时曾写 "timeout": 5000,配合 rate_limit:800 实际只给出 5.7s ——
+        //    而实测咬钩要等 5.3~6.2s(2026-08-17 日志,5 次全部命中,用时 5.33/6.13/6.14s),
+        //    窗口正好卡在这个分布的正中间:2026-08-18 的 6 轮里 5 轮超时走位,17% 成功率。
+        //    删字段回到协议默认 20000ms。(Fishing_TookBait 自己那个 timeout 从来不生效
+        //    —— 它没有 next,timeout 无处可管。)
         "desc": "抛竿。安卓走 LongPress;iOS 由 playcover 覆盖成 HoldCastGreen(按住蓄力到绿再松)。",
         "action": "LongPress",
         "target": [
@@ -296,7 +303,6 @@
             570
         ],
         "duration": 100,
-        "timeout": 5000,
         "rate_limit": 800,
         "next": [
             "Fishing_TookBait"

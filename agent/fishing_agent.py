@@ -59,6 +59,13 @@ _no_green_streak = 0
 # 累计卖鱼次数。放模块级而非实例级:包满自救走的是 HoldCastGreenAction 里新建的
 # FishingBot,实例计数会从头算,日志上表现为"第 1 次"反复出现。
 _total_sell_count = 0
+# 距上次卖鱼攒了几条。同因放模块级:包满自救调的是 HoldCastGreenAction 里那个临时
+# FishingBot 的 sell_all_fish(),它清的是自己的计数,主循环那个实例纹丝不动 ——
+# 自救把包卖空了,主循环仍以为攒着 N 条,到 sell_interval 时白跑一趟卖鱼链
+# (不卡死,只是浪费一次)。两个实例共享同一个计数即可对齐。
+# ⚠️ 因此 FishingBot.__init__ 里**不能**再把它清零 —— 那正是漂移的来源。
+# 归零点只有一处:sell_all_fish() 确认走完出售流程之后。
+_fish_since_last_sell = 0
 
 # 机制常量:游标速度(px/帧)、蓝区单边收缩(px/帧)、游标单程帧数、上述速率的基准帧率、单局时长上界(秒)
 _DATA_DEFAULT = {
@@ -104,7 +111,7 @@ _PC_CAST_DEFAULT = {
     # 环照亮但颜色停在非绿档 —— 只看「环亮不亮」判断不出来,必须用这个连败计数。
     "no_green_rescue_streak": 3,
 }
-# iOS 卖鱼前置:退回初始态的中央点击次数、补点次数与间隔(秒)、等待入口出现的上限与轮询间隔(秒)
+# iOS 卖鱼前置:退回初始态的中央点击次数、点完之后的静置等待(秒)
 _PC_SELL_DEFAULT = {
     "center_tap_times": 3,
     "settle_wait": 1.5,
@@ -169,12 +176,32 @@ def _load_optional_attach(context: Context, node: str, defaults: dict) -> Option
 
 
 def _node_field(context: Context, node: str, field: str, default=None):
-    """读节点的协议字段(roi / target 等)。节点或字段缺失时回落 default。"""
+    """读节点上的**坐标类**协议字段(roi / target / begin ...)。取不到就回落 default。
+
+    ⚠️ 不能用 get_node_data() 直接 .get(field) —— 它返回的不是节点 JSON 原文,而是框架
+    内部的 canonical 形态(V2 嵌套 + 默认值全展开),顶层既没有 roi 也没有 target:
+        roi    -> data["recognition"]["param"]["roi"]
+        target -> data["action"]["param"]["target"]
+    (可核 .venv/Lib/site-packages/maa/pipeline.py 的 JPipelineData:顶层只有
+     recognition / action / next / rate_limit / attach 等。)
+    旧写法因此**永远**返回 default,「坐标从节点读、不各存一份」那套机制一直没真正生效,
+    全靠 py 内置默认恰好与 JSON 一致在撑着。改走 get_node_object() 的对象形态,
+    按 recognition.param → action.param 的顺序找。
+
+    ⚠️ 返回值保证是长度 >= 2 的序列,拿不到就回 default。这一层收敛是必须的:
+    JClick / JLongPress 的 target 默认值是**布尔 True**(协议含义「用识别框」)而不是坐标,
+    没写 target 的节点会把它交出来,调用方一 len() 就 TypeError。
+    """
     try:
-        data = context.get_node_data(node)
-        val = (data or {}).get(field)
-        if val:
-            return val
+        obj = context.get_node_object(node)
+        if obj is None:
+            print(f"warn: 节点 [{node}] 不存在，[{field}] 回落内置默认")
+            return default
+        for holder in (getattr(obj, "recognition", None), getattr(obj, "action", None)):
+            param = getattr(holder, "param", None) if holder is not None else None
+            val = getattr(param, field, None) if param is not None else None
+            if isinstance(val, (list, tuple)) and len(val) >= 2:
+                return val
         print(f"warn: 节点 [{node}] 未取到 {field}，回落内置默认")
     except Exception as e:
         print(f"warn: 读取 [{node}].{field} 异常（{e}），回落内置默认")
@@ -254,11 +281,26 @@ class FishingBot:
         self.running = False
         self.fish_count = 0
         self.success_count = 0
-        self.fish_since_last_sell = 0
         self.total_sell_count = 0
+        # ⚠️ 这里**故意不写** self.fish_since_last_sell = 0 —— 它是 property,
+        # 转发到模块级 _fish_since_last_sell,清零会重新引入包满自救的计数漂移。
         # iOS 蓄力抛竿的上一轮观测:峰值绿像素数,以及蓄力环是否亮过(= 按压被接收)
         self.last_hold_best_green = 0
         self.last_hold_registered = False
+
+    @property
+    def fish_since_last_sell(self) -> int:
+        """距上次卖鱼攒了几条。**跨实例共享**,读写都落到模块级 _fish_since_last_sell。
+
+        做成 property 而不是普通属性,是为了让 HoldCastGreenAction 里临时新建的
+        FishingBot 与主循环那个看到同一个数 —— 详见模块级变量处的说明。
+        """
+        return _fish_since_last_sell
+
+    @fish_since_last_sell.setter
+    def fish_since_last_sell(self, value: int) -> None:
+        global _fish_since_last_sell
+        _fish_since_last_sell = int(value)
 
     # ============ Controller wrappers ============
     def tap(self, x: float, y: float):
@@ -561,9 +603,15 @@ class FishingBot:
 
         while self.running and not self.context.tasker.stopping:
             current_time = time.time()
-            frame = int((current_time - start_time) * 60)
-            
+
             screenshot = self.get_screenshot()
+            # 截图返回这一刻,才是画面内容对应的时刻 —— 后面所有「已经过去多久」都从这里算。
+            # 从 current_time(截图之前)算会把 post_screencap 的往返也扣进等待里:实测该
+            # 往返中位 174ms(56 组样本,取自 agent 日志的 enter/leave 时间戳),而游标速度是
+            # cursor_speed × ref_fps = 4.2 × 60 = 252 px/s ⇒ 每次点击系统性提前约 44px,
+            # 而整条进度条只有 383px(Agt_FishMinigame_Cursor_Clr.roi 的宽)。
+            shot_time = time.time()
+            frame = int((shot_time - start_time) * 60)
             # if total_time is None:
             #     result = self.context.run_recognition("Agt_FishMinigame_TotalTime_Ocr", screenshot)
             #     total_time = int(result.best_result.text)
@@ -655,12 +703,13 @@ class FishingBot:
                     print("    ⚠️ 未检测到有效区域，等待...")
                     continue
 
-            now = time.time()
-            elapsed = now - current_time
+            # wait_time 是「从画面那一刻起,游标还要走多久到目标」,所以这里要扣的是
+            # **画面之后**已经流掉的时间,即从 shot_time 起算(不是 current_time)。
+            elapsed = time.time() - shot_time
 
             print("分析耗时: {:.3f}s".format(elapsed))
-            
-            # 3. 等待到最佳时机（提前补偿输入延迟） 点击后有7帧延迟，点击动作需要约0.055s 
+
+            # 3. 等待到最佳时机（提前补偿输入延迟） 点击后有7帧延迟，点击动作需要约0.055s
             adjusted_wait = wait_time - elapsed - self.cfg_timing["input_comp"]
             
             if adjusted_wait > 0:
@@ -720,11 +769,22 @@ class FishingBot:
         上一轮若在「线已抛出」时被打断(掉线重连、任务中途停止、鱼跑了),抛竿键会变成
         收线图标。此时再怎么按住也不会有蓄力环 —— 必须先把线收回来。
 
-        判据复用 base 的 Fishing_OnBoard(抛竿键模板,实测 0.99),不新增节点。
+        ⚠️ **当前的判据已经失效,本方法实际上是个空转,待修。** 它调 run_recognition
+        ("Fishing_OnBoard") 靠「不中 = 收线态」决定要不要点收线,但 2026-08-18 的
+        pipeline 重构把 Fishing_OnBoard 改成了 Or(Rec_Fishing_UI_Tpl, Rec_Fishing_UI_Ocr)
+        —— 判的是**船上 UI**(buff 图标 / 「使用时间」文字)在不在,而线还在水里时那些
+        照样在,所以它恒命中、收线复位永远不触发。
+        修法方向:改指 Fishing_ReelIn(收线图标模板 Fish/ReelinGE.png)当**正向**判据 ——
+        命中 = 收线态 = 该点。日志实测非收线态时它只有 0.19~0.21 分,离默认阈值 0.7 很远,
+        判别度足够。(不要用 Rec_Fishing_InPlace_Tpl 反着判:Fishhook.png 在收线态可能
+        仍有相当相似度;也不建议 Rec_Fishing_InPlace_Clr —— 它的 roi 只有 12×7 像素
+        且要借 Sub_Ocr_Enable_Clr 的框,比模板匹配脆。)
 
-        注:pipeline 侧现在也有收线复位了 —— iOS 走 Fishing_PlayCover_ReelIn(已实测),
-        安卓的 Fishing_ReelIn 还是个 enabled:false 的空槽(缺收线态模板图)。等安卓图补齐、
-        两端都在 Fishing_Entry 那层复位之后,本方法可以删掉。
+        注:pipeline 侧的收线复位现在是 base 的 Fishing_ReelIn(两端共用 Fish/ReelinGE.png,
+        已启用),挂在 Fishing_Start.next 首位,iOS 也并入了同一条路径。
+        **但本方法删不掉** —— Fishing_Start 只在 py 接管之前跑一次,而 main_loop() 本身
+        就是主循环,永远不会再回到 Fishing_Start;pipeline 那一层管不到 py 循环内部的复位。
+        判据修好后反而应当扩到安卓/PC 端(当前只有 iOS 路径会调它)。
         """
         for i in range(max(1, tries)):
             shot = self.get_screenshot()
@@ -913,16 +973,25 @@ class FishingBot:
         if not casting_result.status.succeeded:
             print("  等待鱼上钩超时或未检测到，重试")
             return False
+        # ⚠️ 不能用 nodes[-1].action.success 判「鱼上钩了没」。等咬钩超时后
+        # Fishing_CastRod 走 on_error → Fishing_MoveForward_Swip,那一步的 Swipe 同样
+        # success=True,而整个 task 因为 on_error 接住了也算 succeeded —— 两个字段都为真,
+        # py 却什么都没钓到。实测(2026-08-18 日志)6 轮抛竿有 5 轮走的是这条假成功路径:
+        # 判成功 → 进 play_minigame → 进度条根本不存在 → 空转 bar_wait_cap 秒 → 结算点击
+        # → 下一轮,单轮白烧约 17.8s,而 max_seconds 默认按 max_count×120 给,能转几百轮。
+        # 改判「轨迹里有没有真的执行过 Fishing_TookBait」—— NodeDetail.name 记的是实际
+        # 命中并执行的节点(已在日志里核实:走位轮是 Fishing_MoveForward_Swip、
+        # 咬钩轮是 Fishing_TookBait),与 sell_all_fish() 用 SellFish_End 把关是同一手法。
         try:
             nodes = casting_result.nodes
-            last_action = nodes[-1].action if nodes else None
+            names = [getattr(n, "name", "") for n in (nodes or [])]
         except RuntimeError as e:
             print(f"warn: ⚠️ 读取抛竿任务节点详情失败（任务可能已被中断）: {e}")
             return False
-        if last_action is None or not last_action.success:
-            print("  等待鱼上钩超时或未检测到，重试")
+        if "Fishing_TookBait" not in names:
+            print(f"  等待鱼上钩超时或未检测到，重试（节点轨迹: {names}）")
             return False
-        
+
         print("  鱼上钩! 进入小游戏...")
         self.delay(self.timing.after_cast)
 
