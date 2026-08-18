@@ -31,27 +31,27 @@ from maa.custom_action import CustomAction
 # 下列参数全部改由 pipeline JSON 的节点提供,py 只保留一份「回落默认」。
 # 【改值一律落 JSON、不动 py】—— py 里的默认值仅在「节点缺失 / 键缺失 / 值非法」时兜底,
 # 正常运行时不生效。对应节点见 assets/resource/base/pipeline/Fishing.json:
-#   Fishing_Minigame_Data      机制常量(游戏决定,三端共用)
-#   Fishing_Minigame_Timing    时序补偿(设备决定,per端可覆盖)
-#   Fishing_Minigame_Strategy  策略阈值
-#   Fishing_Minigame_Settle    结算点击点
+#   Agt_FishMinigame_Data      机制常量(游戏决定,三端共用)
+#   Agt_FishMinigame_Timing    时序补偿(设备决定,per端可覆盖)
+#   Agt_FishMinigame_Strategy  策略阈值
+#   Agt_FishMinigame_Settle    结算点击点
 # 另有两处坐标不另设参数,直接取自既有节点 —— 它们本就必须与识别 ROI 严格一致,各存一份
 # 必然漂移(本次改造前 progress_bar 的 484/858 与 ROI 的 480/863 已经对不上了):
-#   进度条左右边界 <- Rec_FishMinigame_Cursor_Clr.roi
-#   拉杆点         <- Casting_Rod.target
+#   进度条左右边界 <- Agt_FishMinigame_Cursor_Clr.roi
+#   拉杆点         <- Fishing_CastRod.target
 
-_NODE_DATA = "Fishing_Minigame_Data"
-_NODE_TIMING = "Fishing_Minigame_Timing"
-_NODE_STRATEGY = "Fishing_Minigame_Strategy"
-_NODE_SETTLE = "Fishing_Minigame_Settle"
-_NODE_CURSOR = "Rec_FishMinigame_Cursor_Clr"
-_NODE_CAST = "Casting_Rod"
+_NODE_DATA = "Agt_FishMinigame_Data"
+_NODE_TIMING = "Agt_FishMinigame_Timing"
+_NODE_STRATEGY = "Agt_FishMinigame_Strategy"
+_NODE_SETTLE = "Agt_FishMinigame_Settle"
+_NODE_CURSOR = "Agt_FishMinigame_Cursor_Clr"
+_NODE_CAST = "Fishing_CastRod"
 # 下面两个节点【只存在于 playcover 资源包】。agent 以「节点是否存在」判断当前是不是 iOS 端:
 # 存在则启用蓄力抛竿与卖鱼前置,不存在(安卓 / PC)则整段逻辑不参与,base 行为一字不变。
 # 判据用的是节点存在性而非控制器类型 —— 控制器类型在 Agent 侧拿不到,而资源包与控制器
 # 在 interface.json 里本就是绑定的(PlayCover 资源仅对 PlayCover 控制器可选)。
-_NODE_PC_CAST = "Fishing_PlayCover_Cast"
-_NODE_PC_SELL = "Fishing_PlayCover_Sell"
+_NODE_PC_CAST = "Agt_FishPlayCover_Cast"
+_NODE_PC_SELL = "Agt_FishPlayCover_Sell"
 
 # 连续没能蓄力到绿的竿数。HoldCastGreenAction 每次调用都会新建 FishingBot,
 # 跨竿的状态只能放模块级。鱼包满是唯一已知会让「环亮但永不变绿」持续发生的原因。
@@ -183,9 +183,9 @@ def _node_field(context: Context, node: str, field: str, default=None):
 
 @dataclass
 class TimingCfg:
-    after_cast: float = 0.2       # <- Fishing_Minigame_Timing.attach
+    after_cast: float = 0.2       # <- Agt_FishMinigame_Timing.attach
     after_catch: float = 3.0      # <- 同上
-    # 下面两项目前无任何调用方:wait_for_fish 已被 pipeline 的 Casting_Rod->Detect_Took_Bait
+    # 下面两项目前无任何调用方:wait_for_fish 已被 pipeline 的 Fishing_CastRod->Fishing_TookBait
     # 取代,input_delay 从未被读过(实际生效的是 Timing.attach 的 input_comp)。保留待
     # iOS / PC 适配时再评估是否复用,故也未纳入 JSON。
     wait_fish_interval: float = 0.08
@@ -206,7 +206,7 @@ class CoordCfg:
 
 
 def _load_coords(context: Context) -> CoordCfg:
-    """从 pipeline 节点取坐标:进度条边界取自游标识别 ROI,拉杆点取自 Casting_Rod。"""
+    """从 pipeline 节点取坐标:进度条边界取自游标识别 ROI,拉杆点取自 Fishing_CastRod。"""
     c = CoordCfg()
     roi = _node_field(context, _NODE_CURSOR, "roi")
     if roi and len(roi) >= 3:
@@ -288,7 +288,7 @@ class FishingBot:
     def detect_exclamation(self, screenshot: Any) -> bool:
         """Detect fish hook indicator using pipeline TemplateMatch.
         
-        Uses Detect_Took_Bait template matching for more accurate detection.
+        Uses Rec_Fishing_TookBait_Tpl template matching for more accurate detection.
         """
         # Run pipeline recognition (MAA handles resolution scaling automatically)
         # run_recognition 返回 None 表示识别流程压根没起来(节点缺失/被禁用/图像为空),
@@ -296,9 +296,9 @@ class FishingBot:
         # ctypes 回调只在 stderr 留一段无前缀 traceback,GUI 里什么都看不到。
         # (原先此处还每帧 print 整个 RecognitionDetail —— 它含 raw_image/draw_images
         #  等 ndarray,repr 体积很大,而 stdout 是与 UI 的管道,已一并移除。)
-        reco_result = self.context.run_recognition("Detect_Took_Bait", screenshot)
+        reco_result = self.context.run_recognition("Rec_Fishing_TookBait_Tpl", screenshot)
         if reco_result is None:
-            print("error: ❌ 识别节点 [Detect_Took_Bait] 未能启动（节点缺失/被禁用/图像为空）")
+            print("error: ❌ 识别节点 [Rec_Fishing_TookBait_Tpl] 未能启动（节点缺失/被禁用/图像为空）")
             return False
         return reco_result.hit
 
@@ -313,8 +313,8 @@ class FishingBot:
         result = {"cursor_x": None, "blue_regions": [], "yellow_regions": [], "valid": False}
         
         cursor_result = self.context.run_recognition(_NODE_CURSOR, screenshot)
-        blue_result = self.context.run_recognition("Rec_FishMinigame_BlueZone_Clr", screenshot)
-        yellow_result = self.context.run_recognition("Rec_FishMinigame_YellowZone_Clr", screenshot)
+        blue_result = self.context.run_recognition("Agt_FishMinigame_BlueZone_Clr", screenshot)
+        yellow_result = self.context.run_recognition("Agt_FishMinigame_YellowZone_Clr", screenshot)
 
         # 三个识别节点任一"没起来"都属配置错误,而不是"这一帧没看到"。
         # 整帧判无效并只打一条日志 —— 这里是 minigame 的每帧路径,不能逐个刷屏。
@@ -322,8 +322,8 @@ class FishingBot:
             missing = [
                 n for n, r in (
                     (_NODE_CURSOR, cursor_result),
-                    ("Rec_FishMinigame_BlueZone_Clr", blue_result),
-                    ("Rec_FishMinigame_YellowZone_Clr", yellow_result),
+                    ("Agt_FishMinigame_BlueZone_Clr", blue_result),
+                    ("Agt_FishMinigame_YellowZone_Clr", yellow_result),
                 ) if r is None
             ]
             print(f"error: ❌ 进度条识别节点未能启动: {', '.join(missing)}")
@@ -565,7 +565,7 @@ class FishingBot:
             
             screenshot = self.get_screenshot()
             # if total_time is None:
-            #     result = self.context.run_recognition("Reco_Minigame_Total_Time", screenshot)
+            #     result = self.context.run_recognition("Agt_FishMinigame_TotalTime_Ocr", screenshot)
             #     total_time = int(result.best_result.text)
             #     print("小游戏⏲️总时间识别结果:", total_time)
             
@@ -718,17 +718,20 @@ class FishingBot:
         """确保抛竿键处于「可抛竿」态,线还在水里就先点一下收线。
 
         上一轮若在「线已抛出」时被打断(掉线重连、任务中途停止、鱼跑了),抛竿键会变成
-        收线图标。此时再怎么按住也不会有蓄力环,而 Casting_Rod 与 Move_Forward 互为
-        next/on_error 会一直空转 —— 必须先把线收回来。
+        收线图标。此时再怎么按住也不会有蓄力环 —— 必须先把线收回来。
 
-        判据复用 base 的 Fishing_Already_Setsail(抛竿键模板,实测 0.99),不新增节点。
+        判据复用 base 的 Fishing_OnBoard(抛竿键模板,实测 0.99),不新增节点。
+
+        注:pipeline 侧现在也有收线复位了 —— iOS 走 Fishing_PlayCover_ReelIn(已实测),
+        安卓的 Fishing_ReelIn 还是个 enabled:false 的空槽(缺收线态模板图)。等安卓图补齐、
+        两端都在 Fishing_Entry 那层复位之后,本方法可以删掉。
         """
         for i in range(max(1, tries)):
             shot = self.get_screenshot()
             if shot is None:
                 self.delay(0.5)
                 continue
-            reco = self.context.run_recognition("Fishing_Already_Setsail", shot)
+            reco = self.context.run_recognition("Fishing_OnBoard", shot)
             if reco is not None and getattr(reco, "hit", False):
                 return True
             print(f"  🪝 抛竿键处于收线态(线还在水里),点一下收线({i + 1}/{tries})")
@@ -820,7 +823,7 @@ class FishingBot:
     def _tap_center_to_dismiss(self, times: int):
         """点击屏幕中央若干次,退出钓鱼态 / 关掉结算浮层。
 
-        中央点取的是 Fishing_Minigame_Settle.target(结算点击点)—— 那本就是这套界面里
+        中央点取的是 Agt_FishMinigame_Settle.target(结算点击点)—— 那本就是这套界面里
         已知安全的一点,不会误触抛竿键或方向键,不必另设坐标。
         """
         for _ in range(int(times)):
@@ -894,8 +897,8 @@ class FishingBot:
         self.fish_count += 1
         print(f"\n[第 {self.fish_count} 次钓鱼]")
         
-        # 运行 Casting_Rod pipeline，会自动执行抛竿和检测鱼上钩
-        casting_result = self.context.run_task("Casting_Rod")
+        # 运行 Fishing_CastRod pipeline，会自动执行抛竿和检测鱼上钩
+        casting_result = self.context.run_task("Fishing_CastRod")
 
         # run_task 返回 Optional[TaskDetail]。旧写法 `not casting_result` 把它当 bool,
         # 再直接取 .nodes[-1].action.success —— 三处都没防护:
@@ -950,12 +953,13 @@ class FishingBot:
         print(f"最大次数: {max_count if max_count else '无限'} | 总时长上限: {max_seconds:.0f}s")
         print("==================================================")
 
-        # 总时长硬上界。max_count 只限轮数、不限单轮时长,而单轮里的 run_task
-        # 可能长时间阻塞(Casting_Rod 与 Move_Forward 在 pipeline 里互为 next/on_error,
-        # 且 PipelineTask.cpp 每次命中节点都会重置 error_handling,框架自带的
-        # "error handling loop detected" 保护因此不会触发),所以必须另设 wall-clock 上界。
-        # 注意:它只能在轮与轮之间生效,拦不住单次 run_task 内部的阻塞 —— 那要靠切断
-        # pipeline 自环,属另一处待定改动。
+        # 总时长硬上界。max_count 只限轮数、不限单轮时长,所以另设一个 wall-clock 上界。
+        # 曾经这里还兜着一个更严重的问题:Fishing_CastRod 与 Fishing_MoveForward_Swip 在
+        # pipeline 里互为 next/on_error 构成死循环,而 PipelineTask.cpp 每次命中节点都会重置
+        # error_handling,框架自带的 "error handling loop detected" 保护因此不会触发 ——
+        # 单次 run_task 内部就能无限阻塞,而 deadline 只在轮与轮之间生效,拦不住。
+        # 该自环已在 pipeline 侧切断(Fishing_MoveForward_Swip 不再写 next,走完即退栈),
+        # 现在 deadline 只承担它本来的职责:给总时长封顶。
         deadline = time.monotonic() + max_seconds
 
         try:
@@ -1006,11 +1010,11 @@ class FishingAction(CustomAction):
 class HoldCastGreenAction(CustomAction):
     """iOS(PlayCover)抛竿:按住蓄力,蓄力环变绿瞬间松手(Perfect Cast)。
 
-    只由 playcover 资源包覆盖后的 Casting_Rod 以 Custom 动作调用;安卓 / PC 走的仍是
+    只由 playcover 资源包覆盖后的 Fishing_CastRod 以 Custom 动作调用;安卓 / PC 走的仍是
     base 的 LongPress,不经过这里。
 
-    始终返回 True:抛竿这一步的成败由下游 Detect_Took_Bait 判定,这里返回 False 只会让
-    Casting_Rod 走 on_error 进 Move_Forward,反而绕开了本该发生的上钩检测。
+    始终返回 True:抛竿这一步的成败由下游 Fishing_TookBait 判定,这里返回 False 只会让
+    Fishing_CastRod 走 on_error 进 Fishing_MoveForward_Swip,反而绕开了本该发生的上钩检测。
     """
 
     def run(self, context: Context, argv: CustomAction.RunArg) -> bool:

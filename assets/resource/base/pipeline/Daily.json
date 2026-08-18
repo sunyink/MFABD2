@@ -158,7 +158,7 @@
         ]
     },
     "Daily_Busin_Hub_Post": {
-        "desc": "左下抽抽乐高亮存在",
+        "desc": "左下抽抽乐高亮存在||会被钓鱼锚点MainMenu_GoFishing借道入口",
         "recognition": "And",
         "all_of": [
             "Rec_HomePage_GA_Ocr",
@@ -236,7 +236,6 @@
         ],
         "timeout": 8000,
         "next": [
-            "[Anchor]MainMenu_GoFishing",
             "[JumpBack]Daily_GetBusin_SubMenu_Claim",
             "[JumpBack]Daily_GetBusinRewardBack",
             "Daily_Busin_Enter"

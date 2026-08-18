@@ -42,14 +42,14 @@
         "timeout": 1,
         "next": [
             "Weekly_Fishing_Start_pre",
-            "[JumpBack]Global_ToHomePage"
+            "[JumpBack]Global_BackToPve_1#"
         ]
     },
     "Weekly_Fishing_Start_pre": {
-        "desc": "先恢复到主界面",
+        "desc": "先恢复到箱庭",
         "recognition": "And",
         "all_of": [
-            "Global_ToHomePage_Enter"
+            "Global_ToSandBox_Enter"
         ],
         "timeout": 1,
         "next": [
@@ -96,7 +96,7 @@
             "target": "Daily_Busin_SubMenu",
             "patch": {
                 "next": [
-                    "[Anchor]MainMenu_GoFishing"
+                    "Fishing_Entry"
                 ]
             }
         },

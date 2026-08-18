@@ -1,27 +1,389 @@
+// ⚠️ 本文件是「重构审阅稿」,带 // 注释故不是合法 JSON —— 删完注释再跑 fmt。
+// 顺序:① 钓鱼主流程 → ② 钓鱼引用 → ③ 售卖 → ④ 售卖引用 → ⑤ 导航
+// 注释里的 [债N] 对应 priv/doc 台账「债 2」的四件;[改名] 标的是需要连坐同步的点。
 {
-    "Casting_Rod": {
+    // ════════════ ① 钓鱼主流程 ════════════
+    "Fishing_Entry": {
+        "desc": "[入口]钓鱼主动调用",
+        "anchor": {
+            "QCPack": "Fishing_PackIn"
+        },
+        "next": [
+            "Fishing_OnBoard",
+            "Fishing_InMap",
+            "[JumpBack]Global_BackToQC_Lifeplay_Anc",
+            "[JumpBack]Fishing_InMap_TalkSkip",
+            "[JumpBack]Global_WaitingForLoading"
+        ],
+        "on_error": ["[JumpBack]Fishing_Entry_Err"]
+    },
+    "Fishing_Entry_Err": {
+        "max_hit": 3,
+        "next": ["Global_BackToPve_1#"]
+    },
+    "Fishing_PackIn": {
+        "desc": "点击钓鱼快速卡带",
+        "recognition": "TemplateMatch",
+        "roi": [
+            51,
+            582,
+            873,
+            133
+        ],
+        "template": [
+            "Fish/Fishing_Pack.png"
+        ],
+        "action": "Click",
+        "target_offset": [
+            -30,
+            25,
+            0,
+            0
+        ],
+        "anchor": {"QCPack": ""},
+        "post_delay": 2000,
+        "timeout": 3000,
+        "next": ["Fishing_PackIn"]
+    },
+    "Fishing_OnBoard": {
+        "desc": "[识别]人已在船上、抛竿键可见(实测 0.99)。是钓鱼场景的到位判据,也被 py 的收线复位复用。",
+        "recognition": "Or",
+        "any_of": [
+            "Rec_Fishing_UI_Tpl",
+            "Rec_Fishing_UI_Ocr"
+        ],
+        "next": [
+            "Fishing_Start"
+        ],
+        "focus": "FSH.已启航,进入钓鱼场景"
+    },
+    "Fishing_ReelIn": {
+        "desc": "线还在水里时先收线复位。|模板PlayCover,ADB可用,直接更名作为主图.",
+        "recognition": "TemplateMatch",
+        "roi": [
+            1006,
+            444,
+            270,
+            270
+        ],
+        "template": [
+            "Fish/ReelinGE.png"
+        ],
+        "green_mask": true,
+        "action": "Click",
+        "post_delay": 3000
+    },
+    "Fishing_NotInPlace": {
+        "desc": "未就位,抛竿识别不成功。泛兜底。",
+        "recognition": "Or",
+        "any_of": [
+            "Rec_Fishing_InPlace_Tpl",
+            "Rec_Fishing_InPlace_Clr"
+        ],
+        "inverse": true,
+        "action": "Swipe",
+        "begin": [
+            230,
+            580
+        ],
+        "end": [
+            230,
+            620
+        ],
+        "duration": 1000,
+        "post_delay": 1000
+    },
+    "Fishing_InMap": {
+        "desc": "进入地图选择界面",
+        "recognition": "OCR",
+        "roi": [
+            1097,
+            651,
+            107,
+            42
+        ],
+        "expected": [
+            "开始钓鱼"
+        ],
+        "action": "Click",
+        "post_delay": 2000,
+        "next": [
+            "Fishing_MapNavigate",
+            "Fishing_InMap"
+        ]
+    },
+    "Fishing_MapNavigate": {
+        "recognition": "OCR",
+        "roi": [
+            175,
+            3,
+            268,
+            73
+        ],
+        "expected": ["选择钓鱼地区"],
+        "next": [
+            "Fishing_EnterFishingSpot_Lake",
+            "Fishing_EnterFishingSpot_Shallow",
+            "Fishing_EnterFishingSpot_Frost"
+        ]
+    },
+    "Fishing_EnterFishingSpot_Lake": {
+        "desc": "烟波湖",
+        "roi": [
+            407,
+            492,
+            22,
+            27
+        ],
+        "action": "Click",
+        "anchor": "Fishing_Selected",
+        "post_delay": 1000,
+        "next": [
+            "Anc_Fishing_Selected_Clr"
+        ]
+    },
+    "Fishing_EnterFishingSpot_Shallow": {
+        "desc": "浅岸",
+        "roi": [
+            369,
+            315,
+            22,
+            25
+        ],
+        "action": "Click",
+        "anchor": "Fishing_Selected",
+        "post_delay": 1000,
+        "next": [
+            "Anc_Fishing_Selected_Clr"
+        ]
+    },
+    "Fishing_EnterFishingSpot_Frost": {
+        "desc": "寒霜海峡",
+        "roi": [
+            227,
+            85,
+            21,
+            27
+        ],
+        "action": "Click",
+        "anchor": "Fishing_Selected",
+        "post_delay": 1000,
+        "next": [
+            "Anc_Fishing_Selected_Clr"
+        ]
+    },
+    "Anc_Fishing_Selected_Clr": {
+        "recognition": "ColorMatch",
+        "roi": "[Anchor]Fishing_Selected",
+        "roi_offset": [
+            -40,
+            -40,
+            80,
+            80
+        ],
+        "method": 40,
+        "lower": [
+            60,
+            170,
+            0
+        ],
+        "upper": [
+            95,
+            255,
+            255
+        ],
+        "count": 200,
+        "pre_delay": 0,
+        "post_delay": 0,
+        "next": ["Fishing_SetSail"]
+    },
+    "Fishing_SetSail": {
+        "recognition": "OCR",
+        "roi": [
+            1040,
+            656,
+            56,
+            32
+        ],
+        "expected": [
+            "启航"
+        ],
+        "action": "Click",
+        "post_delay": 2000,
+        "next": [
+            "[JumpBack]Global_WaitingForLoading",
+            "[JumpBack]Fishing_InMap_TutorialSkip",
+            "Fishing_OnBoard"
+        ]
+    },
+    "Fishing_Start": {
+        "next": [
+            "[JumpBack]Fishing_ReelIn",
+            "[JumpBack]Fishing_NotInPlace",
+            "[JumpBack]Fishing_Initial_Entry",
+            "Custom_Fishing_Task"
+        ],
+        "on_error": ["Fishing_BoardReset"]
+    },
+    "Fishing_BoardReset": {
+        "desc": "防卡商店",
+        "max_hit": 3,
+        "next": [
+            "Fishing_OnBoard",
+            "[JumpBack]SellFish_End"
+        ],
+        "on_error": ["Fishing_Entry"]
+    },
+    "Rec_Fishing_InPlace_Tpl": {
+        "desc": "[识别]钓鱼抛竿图标存在",
+        "recognition": "TemplateMatch",
+        "roi": [
+            1057,
+            483,
+            162,
+            175
+        ],
+        "template": [
+            "Fishhook.png"
+        ],
+        "green_mask": true
+    },
+    "Rec_Fishing_InPlace_Clr": {
+        "desc": "[识别]钓鱼抛竿图标已高亮",
+        "recognition": "And",
+        "all_of": [
+            {
+                "sub_name": "OCR",
+                "recognition": "ColorMatch",
+                "roi": [
+                    1154,
+                    544,
+                    12,
+                    7
+                ],
+                "lower": [
+                    0,
+                    0,
+                    0
+                ],
+                "upper": [
+                    255,
+                    255,
+                    255
+                ]
+            },
+            "Sub_Ocr_Enable_Clr"
+        ]
+    },
+    "Custom_Fishing_Task": {
+        "recognition": "And",
+        "all_of": [
+            "Rec_Fishing_InPlace_Tpl",
+            "Rec_Fishing_InPlace_Clr"
+        ],
+        "action": "Custom",
+        "custom_action": "FishingAction",
+        "custom_action_param": {
+            "max_count": 100
+        },
+        "focus": "FSH.钓鱼界面已就绪-移交到Agent"
+    },
+    "Fishing_CastRod": {
+        "desc": "抛竿。安卓走 LongPress;iOS 由 playcover 覆盖成 HoldCastGreen(按住蓄力到绿再松)。",
         "action": "LongPress",
         "target": [
             1130,
             570
         ],
         "duration": 100,
+        "timeout": 5000,
         "rate_limit": 800,
         "next": [
-            "Detect_Took_Bait"
+            "Fishing_TookBait"
         ],
         "on_error": [
-            "Move_Forward"
+            "Fishing_MoveForward_Swip"
         ]
     },
-    "Custom_Fishing_Task": {
-        "action": "Custom",
-        "custom_action": "FishingAction",
-        "custom_action_param": {
-            "max_count": 100
-        }
+    "Fishing_TookBait": {
+        // [改名] Detect_Took_Bait → Fishing_TookBait,识别参数抽成 Rec_Fishing_TookBait_Tpl
+        //        连坐:fishing_agent.py×5 —— run_recognition 那处建议改指 Rec_ 那个纯识别节点
+        "desc": "鱼已咬钩,点抛竿键收竿进小游戏。",
+        "recognition": "Or",
+        "any_of": [
+            "Rec_Fishing_TookBait_Tpl"
+        ],
+        "action": "Click",
+        "target": [
+            1130,
+            570
+        ],
+        "timeout": 6000
     },
-    "Fishing_Minigame_Data": {
+    "Fishing_MoveForward_Swip": {
+        // [债1] 自环已切断 —— 原来这里写着 "next": ["Casting_Rod"],与 Casting_Rod 的
+        //       on_error 互指构成死循环。框架每次命中节点都会重置 error_handling,自带的
+        //       "error handling loop detected" 保护打不到它;py 的 wall-clock deadline 只在
+        //       轮与轮之间生效,拦不住单次 run_task 内部的阻塞。
+        // 现在不写 next = 退栈点:走位完把控制权交还给 py 的 main_loop,由它决定要不要再抛。
+        // py 本身就是主循环(每轮一次 run_task(Fishing_CastRod)),pipeline 里不需要第二个循环。
+        // [改名] Move_Forward → Fishing_MoveForward_Swip,连坐 fishing_agent.py×3(均为注释)
+        "desc": "抛竿失败时往前挪一步换钓点。不写 next 是有意的:走完即退栈,重试由 py 主循环负责。",
+        "action": "Swipe",
+        "begin": [
+            230,
+            580
+        ],
+        "end": [
+            230,
+            620
+        ],
+        "duration": 1000,
+        "post_delay": 1000 // 退栈点惯例抬高延迟,给画面留出稳定时间
+    },
+    // ════════════ ② 钓鱼引用(识别器 / py 数据节点 / 打断处理) ════════════
+    "Rec_Fishing_UI_Tpl": {
+        "desc": "[识别]钓鱼船上UI已存在",
+        "recognition": "TemplateMatch",
+        "roi": [
+            76,
+            12,
+            87,
+            67
+        ],
+        "template": [
+            "Fish/fishbuff.png"
+        ],
+        "green_mask": true
+    },
+    "Rec_Fishing_UI_Ocr": {
+        "desc": "[识别]钓鱼船上UI已存在",
+        "recognition": "OCR",
+        "roi": [
+            179,
+            106,
+            116,
+            51
+        ],
+        "expected": "使用时间"
+    },
+    "Rec_Fishing_TookBait_Tpl": {
+        "desc": "[识别]浮标下沉的咬钩标记。",
+        "recognition": "TemplateMatch",
+        "roi": [
+            626,
+            185,
+            25,
+            53
+        ],
+        "template": [
+            "Fishing_took_bait.png"
+        ],
+        "threshold": 0.6
+    },
+    "Agt_FishMinigame_Data": {
+        // [改名] Fishing_Minigame_Data → Agt_FishMinigame_Data(py 独占的配置载荷块统一 Agt_ 前缀)
+        //        连坐:fishing_agent.py 的 _NODE_DATA
         "desc": "【钓鱼小游戏 1/4·数据·三端共用/勿删】小游戏的机制常量,由游戏本身决定,与设备和端无关;py 读取,缺项回落 py 内置默认。cursor_speed=游标移动速度(px/帧);blue_shrink=蓝区单边向心收缩速度(px/帧);cursor_half_cycle=游标单程帧数(一个完整往返=2倍此值);ref_fps=上面两个「每帧」速率所基于的帧率;minigame_seconds=单局时长上界(超时即收尾)。【注意】前四项互相咬合,共同决定「游标此刻在哪、朝哪走」的推算,改任一项都要连带复核其余三项。",
         "enabled": false,
         "attach": {
@@ -32,7 +394,8 @@
             "minigame_seconds": 17
         }
     },
-    "Fishing_Minigame_Timing": {
+    "Agt_FishMinigame_Timing": {
+        // [改名] Fishing_Minigame_Timing → Agt_FishMinigame_Timing,连坐 py 的 _NODE_TIMING
         "desc": "【钓鱼小游戏 2/4·时序·per端可覆盖(attach 按 key 字典合并)】决策层到画面真正生效之间的时间差补偿,与设备/控制器性能相关。click_lead=点击提前量(判定「还追不追得上目标区」「蓝区归零前来不来得及」时预留的余量,秒);input_comp=从算完到点击生效的链路延迟(秒,直接从等待时长里扣);cursor_reset_wait=点击后游标复位等待(秒);after_cast=抛竿命中后进入小游戏的等待(秒);after_catch=上鱼后结算动画等待(秒)。【调参】点击总是偏早→调小 click_lead 与 input_comp;总是偏晚→调大。",
         "enabled": false,
         "attach": {
@@ -43,8 +406,12 @@
             "after_catch": 3.0
         }
     },
-    "Fishing_Minigame_Strategy": {
-        "desc": "【钓鱼小游戏 3/4·策略·per端可覆盖】行为决策阈值;py 读取,缺项回落 py 内置默认。sell_interval=累计钓到几条触发一次自动卖鱼(亦可由 Custom_Fishing_Task 的 custom_action_param 同名键覆盖,该处优先);wait_cap=单次等待时长上限(秒,算出超过此值视为游戏状态已变,放弃本次点击);blue_min_width=蓝区预测宽度下限(px,预测到达时窄于此值则不点)。",
+    "Agt_FishMinigame_Strategy": {
+        // [改名] Fishing_Minigame_Strategy → Agt_FishMinigame_Strategy
+        //        连坐:py 的 _NODE_STRATEGY、playcover/Fishing.json×1(覆盖 sell_interval)
+        // desc 补齐了 bar_wait_cap / end_invalid_frames 两键 —— #449 加了键但没同步 desc,
+        // 而本节点的 desc 体例是逐项解释每个键。
+        "desc": "【钓鱼小游戏 3/4·策略·per端可覆盖】行为决策阈值;py 读取,缺项回落 py 内置默认。sell_interval=累计钓到几条触发一次自动卖鱼(亦可由 Custom_Fishing_Task 的 custom_action_param 同名键覆盖,该处优先);wait_cap=单次等待时长上限(秒,算出超过此值视为游戏状态已变,放弃本次点击);blue_min_width=蓝区预测宽度下限(px,预测到达时窄于此值则不点);bar_wait_cap=开局等进度条出现的宽限期(秒,超时即判本局未开始);end_invalid_frames=连续多少帧读不到进度条就判小游戏已结束。",
         "enabled": false,
         "attach": {
             "sell_interval": 30,
@@ -54,7 +421,9 @@
             "end_invalid_frames": 3
         }
     },
-    "Fishing_Minigame_Settle": {
+    "Agt_FishMinigame_Settle": {
+        // [改名] Fishing_Minigame_Settle → Agt_FishMinigame_Settle,连坐 py 的 _NODE_SETTLE
+        //        playcover 的 Fishing_PlayCover_Sell.desc 里也提到了旧名,一并改
         "desc": "【钓鱼小游戏 4/4·坐标·per端可覆盖】上鱼后关结算界面的点击点。py 读本节点 target 后自行点击,不走 run_task,故不写 recognition/next —— 它只作为该坐标的唯一出处存在,勿挂进管路。",
         "enabled": false,
         "action": "Click",
@@ -63,55 +432,9 @@
             360
         ]
     },
-    "Detect_CountDown": {
-        "next": [
-            "Detect_CountDown_Green",
-            "Detect_CountDown_Red"
-        ]
-    },
-    "Detect_CountDown_Green": {
-        "recognition": "ColorMatch",
-        "roi": [
-            384,
-            571,
-            46,
-            40
-        ],
-        "method": 4,
-        "lower": [
-            51,
-            245,
-            147
-        ],
-        "upper": [
-            71,
-            255,
-            167
-        ],
-        "count": 20
-    },
-    "Detect_CountDown_Red": {
-        "recognition": "ColorMatch",
-        "roi": [
-            384,
-            571,
-            46,
-            40
-        ],
-        "method": 4,
-        "lower": [
-            172,
-            66,
-            82
-        ],
-        "upper": [
-            192,
-            86,
-            102
-        ],
-        "count": 20
-    },
-    "Rec_FishMinigame_BlueZone_Clr": {
+    "Agt_FishMinigame_BlueZone_Clr": {
+        // [改名] Rec_FishMinigame_BlueZone_Clr → Agt_...(py 用 run_recognition 单点调起,不进管路)
+        "desc": "[识别]进度条上的蓝色目标区。py 独占,勿挂进管路。",
         "recognition": "ColorMatch",
         "roi": [
             480,
@@ -132,7 +455,10 @@
         ],
         "count": 10
     },
-    "Rec_FishMinigame_Cursor_Clr": {
+    "Agt_FishMinigame_Cursor_Clr": {
+        // [改名] Rec_FishMinigame_Cursor_Clr → Agt_...,连坐 py 的 _NODE_CURSOR
+        // ⚠️ py 还从本节点的 roi 推进度条左右边界(x=480 / x+w=863),改 roi 会连带改掉那两个值。
+        "desc": "[识别]进度条上的白色游标。py 独占;它的 roi 同时是进度条左右边界的唯一出处。",
         "recognition": "ColorMatch",
         "roi": [
             480,
@@ -153,7 +479,9 @@
         ],
         "count": 15
     },
-    "Rec_FishMinigame_YellowZone_Clr": {
+    "Agt_FishMinigame_YellowZone_Clr": {
+        // [改名] Rec_FishMinigame_YellowZone_Clr → Agt_...
+        "desc": "[识别]进度条上的黄色加成区。py 独占,勿挂进管路。",
         "recognition": "ColorMatch",
         "roi": [
             480,
@@ -174,158 +502,81 @@
         ],
         "count": 10
     },
-    "Detect_Took_Bait": {
-        "recognition": "TemplateMatch",
-        "roi": [
-            626,
-            185,
-            25,
-            53
-        ],
-        "template": "Fishing_took_bait.png",
-        "threshold": 0.6,
-        "action": "Click",
-        "target": [
-            1130,
-            570
-        ],
-        "timeout": 6000
-    },
-    "Fishing_Already_Setsail": {
-        "recognition": "TemplateMatch",
-        "roi": [
-            1057,
-            483,
-            162,
-            175
-        ],
-        "template": [
-            "Fishhook.png"
-        ],
-        "green_mask": true,
-        "next": [
-            "Fishing_Start"
-        ]
-    },
-    "Fishing_BusinReward": {
-        "desc": "识别点击捕网",
+    "Agt_FishMinigame_TotalTime_Ocr": {
+        // [改名] Reco_Minigame_Total_Time → Agt_FishMinigame_TotalTime_Ocr
+        //        (原名的 Reco_ 不是命名体系里的前缀,标准写法是 Rec_;这里因 py 独占改 Agt_)
+        //        连坐:fishing_agent.py×1 —— 那处 run_recognition 目前是注释掉的
+        "desc": "[识别]小游戏倒计时读数。py 侧调用当前处于注释状态,保留待用。",
         "recognition": "OCR",
         "roi": [
-            88,
-            230,
-            88,
-            25
+            384,
+            571,
+            46,
+            40
         ],
         "expected": [
-            "经营管理"
-        ],
-        "only_rec": true,
-        "action": "Click",
-        "target": [
-            128,
-            202,
-            9,
-            8
-        ],
-        "post_delay": 2000,
-        "next": [
-            "Fishing_InFishingNet"
+            "^[1-9]\\d*$"
         ]
     },
-    "Fishing_EnterFishingSpot_Frost": {
-        "action": "Click",
-        "target": [
-            221,
-            83,
-            27,
-            29
-        ],
+    "Fishing_CountDown_Hub": {
+        // [改名] Detect_CountDown → Fishing_CountDown_Hub
+        // 用 Fishing_ 而不是 Rec_:它自己不做识别,只是把下面两个色判串起来分流,是管路节点。
+        // 挂 Rec_ 前缀又带 next 会同时违反「纯识别节点不进管路」和 _Hub 的定义。
+        // 下面两个叶子保持 Rec_:它们不归 py 用(py 已改走 end_invalid_frames 判小游戏结束),
+        // 是测量好但暂无消费者的待用识别器。按「保留已测量好的入口备用」不删。
+        "desc": "【已测量保留·当前无消费者】倒计时颜色分流。判小游戏结束现由 py 的 end_invalid_frames 承担。",
         "next": [
-            "Fishing_SetSail"
+            "Rec_FishMinigame_CountDown_Green_Clr",
+            "Rec_FishMinigame_CountDown_Red_Clr"
         ]
     },
-    "Fishing_EnterFishingSpot_Lake": {
-        "action": "Click",
-        "target": [
-            407,
-            492,
-            22,
-            27
-        ],
-        "next": [
-            "Fishing_SetSail"
-        ]
-    },
-    "Fishing_EnterFishingSpot_Shallow": {
-        "action": "Click",
-        "target": [
-            369,
-            315,
-            22,
-            25
-        ],
-        "next": [
-            "Fishing_SetSail"
-        ]
-    },
-    "Fishing_Entry": {
-        "anchor": {
-            "MainMenu_GoFishing": "Fishing_InFishingNet"
-        },
-        "next": [
-            "Daily_Busin_Hub_Post",
-            "Fishing_Already_Setsail",
-            "[JumpBack]Global_ToHomePage"
-        ]
-    },
-    "Fishing_InFishingNet": {
-        "desc": "进入钓鱼界面",
-        "recognition": "OCR",
+    "Rec_FishMinigame_CountDown_Green_Clr": {
+        "desc": "[识别]倒计时读数为绿色(时间充裕)。",
+        "recognition": "ColorMatch",
         "roi": [
-            758,
-            249,
-            106,
-            129
+            384,
+            571,
+            46,
+            40
         ],
-        "expected": [
-            "立刻前往"
+        "method": 4,
+        "lower": [
+            51,
+            245,
+            147
         ],
-        "action": "Click",
-        "post_delay": 2000,
-        "next": [
-            "[JumpBack]Global_WaitingForLoading",
-            "Fishing_InMap",
-            "[JumpBack]Fishing_InMap_TalkSkip"
+        "upper": [
+            71,
+            255,
+            167
         ],
-        "focus": {
-            "Node.Recognition.Succeeded": [
-                "钓鱼鱼笼入口进入"
-            ],
-            "Node.Recognition.Failed": [
-                "[WRN]钓鱼鱼笼入口未找到,2级渔船是否已升级?"
-            ]
-        }
+        "count": 20
     },
-    "Fishing_InMap": {
-        "desc": "进入地图选择界面",
-        "recognition": "OCR",
+    "Rec_FishMinigame_CountDown_Red_Clr": {
+        "desc": "[识别]倒计时读数为红色(时间告急)。",
+        "recognition": "ColorMatch",
         "roi": [
-            1097,
-            651,
-            107,
-            42
+            384,
+            571,
+            46,
+            40
         ],
-        "expected": [
-            "开始钓鱼"
+        "method": 4,
+        "lower": [
+            172,
+            66,
+            82
         ],
-        "action": "Click",
-        "post_delay": 2000,
-        "next": [
-            "Fishing_InMap",
-            "Fishing_MapNavigate"
-        ]
+        "upper": [
+            192,
+            86,
+            102
+        ],
+        "count": 20
     },
     "Fishing_InMap_TalkSkip": {
+        // 不改名:Daily.json 借用了 2 处(any_of 复用 + [JumpBack]),pc 包也覆盖着它的 roi。
+        // 这是跨 task 的公共接口,改名等于改别人的 API。
         "desc": "点击对话快进",
         "recognition": "TemplateMatch",
         "roi": [
@@ -347,6 +598,7 @@
         "focus": "消除广场教程对话"
     },
     "Fishing_InMap_TalkSkip_Ck": {
+        // 不改名:同上,Daily.json 借用 1 处,pc 包覆盖 expected(补繁体「確認」)。
         "recognition": "OCR",
         "roi": [
             553,
@@ -379,162 +631,19 @@
         "repeat": 50,
         "repeat_delay": 457
     },
-    "Fishing_MapNavigate": {
-        "next": [
-            "Fishing_EnterFishingSpot_Lake",
-            "Fishing_EnterFishingSpot_Shallow",
-            "Fishing_EnterFishingSpot_Frost"
-        ]
-    },
-    "Fishing_SetSail": {
-        "recognition": "OCR",
-        "roi": [
-            1040,
-            656,
-            56,
-            32
-        ],
-        "expected": [
-            "启航"
-        ],
-        "action": "Click",
-        "post_delay": 2000,
-        "next": [
-            "[JumpBack]Global_WaitingForLoading",
-            "[JumpBack]Fishing_InMap_TutorialSkip",
-            "Fishing_Start"
-        ]
-    },
-    "Fishing_Start": {
-        "recognition": "Or",
-        "any_of": [
-            "Rec_Fishing_UI_Tpl",
-            "Rec_Fishing_UI_Ocr"
-        ],
-        "post_wait_freezes": 800,
-        "next": [
-            "[JumpBack]SellFish_Start",
-            "Custom_Fishing_Task"
-        ]
-    },
-    "Rec_Fishing_UI_Tpl": {
-        "desc": "[识别]钓鱼船上UI已存在",
-        "recognition": "TemplateMatch",
-        "roi": [
-            76,
-            12,
-            87,
-            67
-        ],
-        "template": ["Fish/fishbuff.png"],
-        "green_mask": true
-    },
-    "Rec_Fishing_UI_Ocr": {
-        "desc": "[识别]钓鱼船上UI已存在",
-        "recognition": "OCR",
-        "roi": [
-            179,
-            106,
-            116,
-            51
-        ],
-        "expected": "使用时间"
-    },
-    "Move_Forward": {
-        "action": "Swipe",
-        "begin": [
-            230,
-            580
-        ],
-        "end": [
-            230,
-            620
-        ],
-        "duration": 1000,
-        "next": [
-            "Casting_Rod"
-        ]
-    },
-    "Reco_Minigame_Total_Time": {
-        "recognition": "OCR",
-        "roi": [
-            384,
-            571,
-            46,
-            40
-        ],
-        "expected": [
-            "^[1-9]\\d*$"
-        ]
-    },
-    "Fishing_Move_Hub": {
+    // ════════════ ③ 售卖 ════════════
+    "Fishing_Initial_Entry": {
+        "desc": "钓鱼开始后一次性调用<清理背包>,清理环境",
         "max_hit": 1,
-        "action": "Custom",
-        "custom_action": "PatchPipeline",
-        "custom_action_param": {
-            "target": "Daily_FantasiaSquare",
-            "patch": {
-                "next": [
-                    "Fishing_Move_SandBoxAct"
-                ]
-            }
-        },
-        "next": [
-            "Daily_Square_Hub"
-        ]
-    },
-    "Fishing_Move_SandBoxAct": {
-        "next": [
-            "[JumpBack]QuickHunt_MIniMap_locErr",
-            "Fishing_Move_NviGuide_Butt"
-        ]
-    },
-    "Fishing_Move_NviGuide_Butt": {
-        "max_hit": 3,
-        "action": "Click",
-        "target": [
-            230,
-            88,
-            3,
-            3
-        ],
-        "post_delay": 2000,
-        "next": [
-            "Fishing_Move_NviGuide_SubOcr",
-            "Fishing_Move_NviGuide_Butt"
-        ]
-    },
-    "Fishing_Move_NviGuide_SubOcr": {
-        "recognition": "OCR",
-        "roi": [
-            294,
-            68,
-            130,
-            288
-        ],
-        "expected": "码头",
-        "action": "Click",
-        "post_delay": 2000,
-        "next": [
-            "Fishing_InMap",
-            "[JumpBack]Fishing_Move_NviGuide_CKMsgBox_Ocr",
-            "[JumpBack]Arbitrage_NviGuide_Onfoot_Loop",
-            "[JumpBack]Fishing_InMap_TalkSkip",
-            "[JumpBack]Fishing_InMap_TutorialSkip",
-            "[JumpBack]Global_WaitingForLoading",
-            "Fishing_Move_NviGuide_SubOcr"
-        ]
-    },
-    "Fishing_Move_NviGuide_CKMsgBox_Ocr": {
-        "recognition": "Or",
-        "any_of": [
-            "Arbitrage_NviGuide_CKMsgBox_Ocr"
-        ],
-        "action": "Click",
-        "post_delay": 2000
+        "next": ["SellFish_Start"]
     },
     "SellFish_Start": {
-        "max_hit": 1,
+        // [债3] 删掉了 "max_hit": 1。该上限是**流程级累计**的,而 py 每攒够 sell_interval 条就
+        //       run_task 调一次本节点:第一次卖鱼用掉唯一命中后,后续每次都直接空返回
+        //       (节点轨迹只剩 ['', 'Global_Null']),鱼再也卖不出去、最终满仓把抛竿一起卡死。
+        // ⚠️ 解除上限的正确写法是**删字段**,不是写一个大数 —— max_hit 的协议默认值就是
+        //    UINT_MAX(4294967295)。也不能写 0:实测 0 是「一次都不命中」不是无限。
+        //    playcover 那边写的 max_hit:9999 要一并删掉(覆盖层不写某字段 ≡ 沿用 base)。
         "recognition": "TemplateMatch",
         "roi": [
             802,
@@ -555,7 +664,8 @@
         "post_delay": 2000,
         "next": [
             "SellFish_Shop"
-        ]
+        ],
+        "focus": "FSH.开始出售鱼获" // 新增
     },
     "SellFish_Shop": {
         "recognition": "OCR",
@@ -573,71 +683,6 @@
             "SellFish_SellModOn"
         ]
     },
-    "SellFish_ActionButt": {
-        "recognition": "ColorMatch",
-        "roi": [
-            1012,
-            656,
-            12,
-            11
-        ],
-        "lower": [
-            161,
-            195,
-            225
-        ],
-        "upper": [
-            201,
-            225,
-            255
-        ],
-        "action": "Click",
-        "target": [
-            1133,
-            636,
-            48,
-            49
-        ],
-        "post_delay": 2000,
-        "next": [
-            "SellFish_ActionButt_Ck",
-            "SellFish_ActionButt"
-        ],
-        "focus": "出售按钮"
-    },
-    "SellFish_ActionButt_Ck": {
-        "recognition": "OCR",
-        "roi": [
-            662,
-            399,
-            153,
-            94
-        ],
-        "expected": [
-            "确认"
-        ],
-        "action": "Click",
-        "post_delay": 2000,
-        "next": [
-            "SellFish_End",
-            "SellFish_ActionButt_Ck"
-        ]
-    },
-    "SellFish_End": {
-        "recognition": "TemplateMatch",
-        "roi": [
-            120,
-            20,
-            39,
-            43
-        ],
-        "template": [
-            "Fish/back.png"
-        ],
-        "action": "Click",
-        "post_delay": 2000,
-        "focus": "出售鱼获完毕,返回钓鱼"
-    },
     "SellFish_SellModOn": {
         "recognition": "OCR",
         "roi": [
@@ -652,9 +697,94 @@
         "action": "Click",
         "post_delay": 2000,
         "next": [
-            "SellFish_SwichAll"
+            "SellFish_SelectAll_Pre",
+            "SellFish_SellModOn"
         ],
-        "focus": "开始出售鱼获"
+        "focus": "进入一键出售模式"
+    },
+    "SellFish_SelectAll_Pre": {
+        "recognition": "OCR",
+        "roi": [
+            955,
+            633,
+            72,
+            51
+        ],
+        "expected": ["全选"],
+        "next": [
+            "[JumpBack]SellFish_SelectAll_SetTo",
+            "SellFish_SelectAll"
+        ]
+    },
+    "SellFish_SelectAll": {
+        "recognition": "Or",
+        "any_of": [
+            "Rec_SellFish_SelectAll_On_Clr"
+        ],
+        "next": [
+            "SellFish_Sell"
+        ]
+    },
+    "SellFish_SelectAll_SetTo": {
+        "desc": "点击全选",
+        "recognition": "Or",
+        "any_of": [
+            "Rec_SellFish_SelectAll_Off_Clr"
+        ],
+        "action": "Click",
+        "target": [
+            1020,
+            659,
+            3,
+            3
+        ],
+        "post_delay": 2000
+    },
+    "SellFish_Sell": {
+        "recognition": "ColorMatch",
+        "roi": [
+            1142,
+            647,
+            27,
+            28
+        ],
+        "method": 40,
+        "lower": [
+            90,
+            130,
+            223
+        ],
+        "upper": [
+            103,
+            165,
+            254
+        ],
+        "count": 100,
+        "action": "Click",
+        "post_delay": 1000,
+        "next": [
+            "SellFish_Submit_Ck",
+            "SellFish_Sell"
+        ]
+    },
+    "SellFish_Submit_Ck": {
+        "desc": "据说稀有鱼会有二次确认,rec范围可覆盖,前置动作防错",
+        "recognition": "OCR",
+        "roi": [
+            662,
+            399,
+            153,
+            94
+        ],
+        "expected": [
+            "确认"
+        ],
+        "action": "Click",
+        "post_delay": 2000,
+        "next": [
+            "SellFish_Submit_Ck",
+            "SellFish_End"
+        ]
     },
     "SellFish_Step2_NoFish": {
         "recognition": "OCR",
@@ -672,19 +802,117 @@
         ],
         "focus": "没有鱼获"
     },
-    "SellFish_SwichAll": {
+    "SellFish_End": {
+        "recognition": "TemplateMatch",
+        "roi": [
+            120,
+            20,
+            39,
+            43
+        ],
+        "template": [
+            "Fish/back.png"
+        ],
+        "action": "Click",
+        "post_delay": 2000,
+        "focus": "出售鱼获完毕,返回钓鱼"
+    },
+    // ════════════ ④ 售卖引用 ════════════
+    "Rec_SellFish_SelectAll_Off_Clr": {
+        "desc": "[识别]全选开关处于「关」——灰色底",
+        "recognition": "ColorMatch",
+        "roi": [
+            1026,
+            656,
+            13,
+            11
+        ],
+        "method": 40,
+        "lower": [
+            80,
+            0,
+            165
+        ],
+        "upper": [
+            150,
+            30,
+            200
+        ],
+        "count": 60
+    },
+    "Rec_SellFish_SelectAll_On_Clr": {
+        "desc": "[识别]全选开关处于「开」——浅蓝底",
+        "recognition": "ColorMatch",
+        "roi": [
+            1012,
+            656,
+            12,
+            11
+        ],
+        "method": 40,
+        "lower": [
+            90,
+            27,
+            225
+        ],
+        "upper": [
+            126,
+            94,
+            255
+        ]
+    },
+    "Fishing_BusinEntry": {
+        // 零入度:全库没有任何节点/py/interface 引用它。测量好的入口,按惯例保留不删。
+        "desc": "【已测量保留·当前零入度】从经营管理页进捕网。",
+        "recognition": "OCR",
+        "roi": [
+            88,
+            230,
+            88,
+            25
+        ],
+        "expected": [
+            "经营管理"
+        ],
+        "only_rec": true,
         "action": "Click",
         "target": [
-            1004,
-            648,
-            43,
-            25
+            128,
+            202,
+            9,
+            8
         ],
         "post_delay": 2000,
         "next": [
-            "SellFish_ActionButt",
-            "SellFish_SwichAll"
+            "Fishing_InFishingNet"
+        ]
+    },
+    "Fishing_InFishingNet": {
+        "desc": "进入钓鱼界面",
+        "recognition": "OCR",
+        "roi": [
+            758,
+            249,
+            106,
+            129
         ],
-        "focus": "全选"
+        "expected": [
+            "立刻前往"
+        ],
+        "action": "Click",
+        "post_delay": 2000,
+        "next": [
+            "[JumpBack]Global_WaitingForLoading",
+            "Fishing_InMap",
+            "[JumpBack]Fishing_InMap_TalkSkip"
+        ],
+        "focus": {
+            "Node.Recognition.Succeeded": [
+                "钓鱼鱼笼入口进入"
+            ],
+            "Node.Recognition.Failed": [
+                "[WRN]钓鱼鱼笼入口未找到,2级渔船是否已升级?"
+            ]
+        }
     }
 }
