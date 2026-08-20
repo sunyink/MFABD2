@@ -840,8 +840,6 @@
             "Collect_IM_OnFoot_NviMap_E03_B2_Move"
         ]
     },
-    //++++
-    //====++++
     "Collect_IM_OnFoot_NviMap_E04_A1": {
         "desc": "记忆边缘,底层居住区",
         "recognition": "OCR",
@@ -972,7 +970,6 @@
             "Collect_IM_OnFoot_NviMap_E04_B2_Move"
         ]
     },
-    //====
     "Collect_IM_OnFoot_NviMap_E05_A1": {
         "desc": "戏水女王,水上乐园室内泳池",
         "recognition": "OCR",
@@ -1103,7 +1100,6 @@
             "Collect_IM_OnFoot_NviMap_E05_B2_Move"
         ]
     },
-    //=-=-=
     "Collect_TeleporCircle_OnFoot_StateResolGroup_Step1_Lift": {
         "desc": "两层级的导航地图箭头状态识别,来判断最左/中间/最右 ;+地图安全/危险来辅助操作 | Step2_Right下面为判定为最右",
         "recognition": "Or",

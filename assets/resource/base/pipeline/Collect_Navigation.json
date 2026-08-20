@@ -869,7 +869,7 @@
             },
             "on_changed": "next",
             "on_unchanged": "loop",
-            "unchanged_streak": 4,
+            "loop_limit": 4,
             "detect_roi": [
                 463,
                 622,

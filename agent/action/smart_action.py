@@ -11,10 +11,10 @@ from maa.context import Context
 
 import utils
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 
 # ==============================================================================
-# SmartAction  v1.0.0   （SmartSwipe 的泛化，设计契约见 priv/doc/agent/SmartAction/）
+# SmartAction  v1.1.0   （SmartSwipe 的泛化，设计契约见 priv/doc/agent/SmartAction/）
 # ==============================================================================
 # [它是什么]
 # 代理执行一个 Pipeline 节点（动作随便），前后各截一帧比对 detect_roi，
@@ -62,9 +62,22 @@ __version__ = "1.0.0"
 # 于是两个场景的计数逻辑是同一个，区别只在数满之后走哪个通道：
 #   滑到底：数"连续几次没滑动"，满了 → 到底了
 #   点到生效：数"连续几次点了没反应"，满了 → 点不动，放弃
-# ⇒ 点击场景**根本不需要 loop**，unchanged_streak 既是复检阈值也是尝试上限。
-# ⇒ loop_limit / loop_exhausted 只在 on_changed:"loop" 时才有意义（每次都清零，
-#    才真的会无限转）。两者共用 loop_ 前缀成组出现，就是这个意思。
+#
+# ⚠️ 但复检只对**结论**有意义。loop 不是结论 —— 它是"不下结论，再试一次"。
+#    在它前面挂复检，等于"多看几眼，然后决定不下结论"，下一轮还问同样的问题。
+# ⇒ on_unchanged 配成 loop 时 unchanged_streak **不生效**（写了会 warning），
+#    重试次数改由 loop_limit 管。两个参数各管一维，互不重叠：
+#
+#      unchanged_streak             下结论前的复检门槛
+#                                   → 仅 on_unchanged 是结论(next/error)时生效
+#      loop_limit / loop_exhausted  loop 的配套安全阀
+#                                   → 哪一侧配了 loop 就管哪一侧
+#
+#    所以 loop 在两侧语义完全对称：都计 loops、都受 loop_limit 约束、都从
+#    loop_exhausted 出。决策表六个格子全合法，没有例外要记。
+#
+#    ⚠️ 唯一的禁配是**两侧同时 loop** —— 那就成了纯靠 loop_limit 兜的死循环，
+#    日志里看不出是配错了，所以在 _parse 里直接拒绝。
 #
 # ------------------------------------------------------------------------------
 # JSON 参数
@@ -91,8 +104,8 @@ __version__ = "1.0.0"
 #     // ── 决策表
 #     "on_changed": "next",              // [选填] 默认 next
 #     "on_unchanged": "error",           // [选填] 默认 error
-#     "unchanged_streak": 3,             // [选填] 默认 1
-#     "loop_limit": 50,                  // [选填] 仅 on_changed:loop 时生效
+#     "unchanged_streak": 3,             // [选填] 默认 1；on_unchanged:loop 时不生效
+#     "loop_limit": 20,                  // [选填] 默认 20；哪一侧配了 loop 就管哪一侧
 #     "loop_exhausted": "error"          // [选填] 默认 error；只接受 next/error
 # }
 #
@@ -140,7 +153,19 @@ class SmartAction(CustomAction):
         if not raw:
             utils.mfaalog.error(f"{tag} ❌ 缺少 custom_action_param")
             return None
-        params = raw if isinstance(raw, dict) else json.loads(str(raw).strip())
+        if isinstance(raw, dict):
+            params = raw
+        else:
+            try:
+                params = json.loads(str(raw).strip())
+            except ValueError as e:
+                utils.mfaalog.error(f"{tag} ❌ 参数 JSON 解析失败: {e}")
+                return None
+        # json.loads 成功不代表拿到了 object —— 参数写成 "abc" / [1,2] 时下面的 .get
+        # 会抛 AttributeError，落进 run 的笼统异常分支，配置错误就查不出是哪一条。
+        if not isinstance(params, dict):
+            utils.mfaalog.error(f"{tag} ❌ custom_action_param 必须是 object，实际: {type(params).__name__}")
+            return None
 
         proxy_node = params.get("proxy_node")
         if not proxy_node:
@@ -172,7 +197,10 @@ class SmartAction(CustomAction):
             threshold = float(params.get("threshold", 3.0))
             settle_delay = int(params.get("settle_delay", 500))
             unchanged_streak = int(params.get("unchanged_streak", 1))
-            loop_limit = int(params.get("loop_limit", 50))
+            # 默认 20 而不是更大的数：它同时也是 on_unchanged:"loop" 的重试上限，而那一侧
+            # 每一轮都是原地重试（不像 on_changed:"loop" 每轮都在推进），转太久纯属白等。
+            # 定位与 timeout 一样 —— 有个够用的默认值，要精确控制就自己写。
+            loop_limit = int(params.get("loop_limit", 20))
         except (TypeError, ValueError) as e:
             utils.mfaalog.error(f"{tag} ❌ 数值参数解析失败: {e}")
             return None
@@ -183,6 +211,14 @@ class SmartAction(CustomAction):
                 f"unchanged_streak={unchanged_streak} loop_limit={loop_limit}"
             )
             return None
+
+        # loop 不是结论，复检在它前面是空转 —— 这一侧的次数归 loop_limit 管。不拒绝配置，
+        # 但必须说出来：静默吃掉一个写了的参数，等于让人对着日志猜为什么跑了 N 轮。
+        if on_unchanged == "loop" and "unchanged_streak" in params:
+            utils.mfaalog.warning(
+                f"{tag} ⚠️ on_unchanged 为 loop 时 unchanged_streak={unchanged_streak} 不生效，"
+                f"重试次数由 loop_limit={loop_limit} 决定"
+            )
 
         override = params.get("proxy_override")
         if override is not None and not isinstance(override, dict):
@@ -234,6 +270,14 @@ class SmartAction(CustomAction):
                 streak = 0
                 act = cfg["on_changed"]
                 utils.mfaalog.info(f"{tag} ✅ 第{rounds}轮 画面已改变 (diff={diff:.2f} ≥ {cfg['threshold']}) → {act}")
+            elif cfg["on_unchanged"] == "loop":
+                # 这一侧不数 streak：loop 不是结论，复检挂在它前面是空转（见文件头）。
+                # 次数归 loop_limit 管，与 on_changed:"loop" 完全对称。
+                act = "loop"
+                utils.mfaalog.warning(
+                    f"{tag} ⚠️ 第{rounds}轮 画面未改变 (diff={diff:.2f}) "
+                    f"— 重试 {loops + 1}/{cfg['loop_limit']}"
+                )
             else:
                 streak += 1
                 if streak < cfg["unchanged_streak"]:
@@ -287,10 +331,14 @@ class SmartAction(CustomAction):
     def _grab(self, context: Context, roi, tag: str):
         """截图并裁剪 detect_roi。失败返回 None —— 不得降级成"画面没变"。"""
         img = context.tasker.controller.post_screencap().wait().get()
-        if img is None:
+        if img is None or img.size == 0:
             utils.mfaalog.error(f"{tag} ❌ 截图获取失败")
             return None
-        x, y, w, h = self._parse_area(roi, img.shape)
+        area = self._parse_area(roi, img.shape)
+        if area is None:
+            utils.mfaalog.error(f"{tag} ❌ detect_roi {roi} 在 {img.shape[1]}x{img.shape[0]} 画面上取不到有效区域")
+            return None
+        x, y, w, h = area
         return img[y : y + h, x : x + w]
 
     def _diff(self, img1, img2, tag: str):
@@ -303,14 +351,27 @@ class SmartAction(CustomAction):
         if img1.shape != img2.shape:
             utils.mfaalog.error(f"{tag} ❌ 比对失败：两帧尺寸不一致 {img1.shape} vs {img2.shape}")
             return None
+        # 空切片过得了上面的尺寸检查（两帧同为 (h,0,3)），而 np.mean 对空数组返回 nan，
+        # nan >= threshold 恒为 False —— 又变回"静默判成画面没变"。_parse_area 已从源头
+        # 堵死，这里是最后一道，不靠上游正确性。
+        if img1.size == 0:
+            utils.mfaalog.error(f"{tag} ❌ 比对失败：ROI 区域为空 {img1.shape}")
+            return None
         # 转 float 防 uint8 减法溢出（2 - 5 会变成 253）。不转灰度，直接对 BGR 三通道
         # 求均值 —— 效果与加权灰度一致，甚至更灵敏。
         return float(np.mean(np.abs(img1.astype(float) - img2.astype(float))))
 
     def _parse_area(self, area, img_shape):
-        """按框架 ROI 规则把 [x,y,w,h] 转成 numpy 可用的绝对坐标。"""
+        """按框架 ROI 规则把 [x,y,w,h] 转成 numpy 可用的绝对坐标。画面退化时返回 None。
+
+        ⚠️ x/y 的上界是 **边长-1** 而不是边长：钳到边长本身时 w/h 的 max(1,...) 仍会切出
+        空数组（img[y:y+1, w_img:w_img+1]），而空数组一路畅通到 _diff 变成 nan，最终被
+        判成"画面没变"。上界收一格，切片必含至少一个像素。
+        """
         x, y, w, h = area
         h_img, w_img = img_shape[:2]
+        if w_img < 1 or h_img < 1:
+            return None
 
         # 负 x/y：从右/下边缘起算
         if x < 0:
@@ -328,8 +389,8 @@ class SmartAction(CustomAction):
         if h == 0:
             h = h_img - y
 
-        x = max(0, min(int(x), w_img))
-        y = max(0, min(int(y), h_img))
+        x = max(0, min(int(x), w_img - 1))
+        y = max(0, min(int(y), h_img - 1))
         w = max(1, min(int(w), w_img - x))
         h = max(1, min(int(h), h_img - y))
         return x, y, w, h
