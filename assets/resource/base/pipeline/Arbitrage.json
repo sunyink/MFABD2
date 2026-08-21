@@ -27,6 +27,7 @@
     },
     "Arbitrage_Card5#_Goin": {
         "desc": "点击PVE本子5",
+        "max_hit": 10,
         "recognition": "TemplateMatch",
         "roi": [
             1005,
@@ -92,6 +93,7 @@
         "focus": "小地图发现商人"
     },
     "Arbitrage_NviGuide_Butt": {
+        "max_hit": 10,
         "recognition": "TemplateMatch",
         "roi": [
             208,
@@ -112,6 +114,7 @@
         "focus": "点击小地图导航按钮"
     },
     "Arbitrage_NviGuide_Merchant_Ocr": {
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             256,
@@ -133,6 +136,7 @@
         "focus": "点击商店"
     },
     "Arbitrage_NviGuide_CKMsgBox_Ocr": {
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             690,
@@ -167,6 +171,7 @@
     },
     "#2商人交互与分支总枢纽": {},
     "Arbitrage_Merchant_Ico": {
+        "max_hit": 40,
         "recognition": "TemplateMatch",
         "roi": [
             838,
@@ -204,6 +209,7 @@
         ]
     },
     "Arbitrage_Bargaining_SkillList": {
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             108,
@@ -224,6 +230,7 @@
         ]
     },
     "Arbitrage_Bargaining_Msgbox_Ck": {
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             648,
@@ -244,6 +251,7 @@
         "focus": "使用技能砍价,进入商店"
     },
     "Arbitrage_Bargaining_SkipAm": {
+        "max_hit": 80,
         "recognition": "TemplateMatch",
         "roi": [
             963,
@@ -316,6 +324,7 @@
         ]
     },
     "Arbitrage_Merchant_Close_Ck": {
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             667,
@@ -1837,6 +1846,7 @@
         ]
     },
     "Arbitrage_Favorit_Buy_SubMenu_BuyAction": {
+        "max_hit": 8,
         "recognition": "OCR",
         "roi": [
             632,
@@ -1940,6 +1950,7 @@
         "focus": "滑动商店卡带表"
     },
     "Arbitrage_Merchant_BuyMsg": {
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             563,
@@ -1978,6 +1989,7 @@
         ]
     },
     "Arbitrage_Merchant_BuyMsg_Button": {
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             884,
@@ -2013,6 +2025,7 @@
     },
     "Arbitrage_Sell_Type_Ocr": {
         "desc": "类型确认为-出售",
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             66,
@@ -2058,6 +2071,7 @@
     },
     "Arbitrage_Sell_PriceList": {
         "desc": "点击价目表按钮",
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             863,
@@ -2143,6 +2157,7 @@
         "next": ["Arbitrage_Sell_PackShopListSwich_Close"]
     },
     "Arbitrage_Sell_PackShopListSwich_Type_Change": {
+        "max_hit": 12,
         "recognition": "OCR",
         "roi": [
             693,
@@ -2294,6 +2309,7 @@
     },
     "Arbitrage_Swip_Calibration_Down": {
         "desc": "区域识别到文字,应向下滑动.力度18大于名字和金额的△y.宁可多识别一次",
+        "max_hit": 15,
         "recognition": "ColorMatch",
         "roi": [
             484,
@@ -2326,6 +2342,7 @@
     },
     "Arbitrage_Swip_Calibration_Up": {
         "desc": "区域识别到分割线,应向上滑动,下滑过头。同时力度为6,配合下滑10使得可以反复来微调",
+        "max_hit": 15,
         "recognition": "ColorMatch",
         "roi": [
             483,
@@ -2358,6 +2375,7 @@
     },
     "Arbitrage_Swip_Calibration_Up_FineTuning": {
         "desc": "高精度识别,调整小上划,力度3,让下方文字",
+        "max_hit": 15,
         "recognition": "ColorMatch",
         "roi": [
             483,
@@ -2397,6 +2415,7 @@
     },
     "Arbitrage_Sell_Button_Ocr": {
         "desc": "类型确认为-出售",
+        "max_hit": 10,
         "recognition": "Or",
         "any_of": ["Arbitrage_Sell_Type_Ocr"],
         "action": "Click",
@@ -2432,6 +2451,7 @@
     },
     "Arbitrage_Sell_PackShopSwich": {
         "desc": "需要[custom]传入正确的名称.出售卡带选择,空格删去匹配cus源,保留默认",
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             236,
@@ -2483,6 +2503,7 @@
     },
     "Arbitrage_ItemList_Sorting_Type_Not": {
         "desc": "商店内,排序类型错误,切换(删除价格排序图像,因为除了价格图标,%图标但升序也是不对的)",
+        "max_hit": 10,
         "action": "Click",
         "target": [
             1152,
@@ -2498,6 +2519,7 @@
     },
     "Arbitrage_ItemList_Sorting_Type_Not_Change": {
         "desc": "识别下拉菜单已打开",
+        "max_hit": 20,
         "recognition": "OCR",
         "roi": [
             901,
@@ -2565,6 +2587,7 @@
         "focus": "Arb.排序结果可以确认"
     },
     "Arbitrage_ItemList_Sorting_Remove": {
+        "max_hit": 10,
         "recognition": "Or",
         "any_of": ["Arbitrage_ItemList_Sorting_Type_Not_Change"],
         "action": "Click",
@@ -2576,6 +2599,7 @@
     "Arbitrage_ItemList_Swip": {
         "desc": "商店卡带列表滑动(感觉做好排序的话,用不到滑动,停用、先保留[2026-7-22错误]上游入口永不进入,业务错误,不用修,准备删除",
         "enabled": false,
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             110,
@@ -2627,6 +2651,7 @@
     },
     "Arbitrage_Sell_Item_ListTraverse": {
         "desc": "需要[custom]传入特征词.点击目标出售物品 。注意，这里的replace是和py处理一致的。",
+        "max_hit": 15,
         "recognition": "OCR",
         "roi": [
             392,
@@ -2711,6 +2736,7 @@
         ]
     },
     "Arbitrage_Sell_Item_Selling": {
+        "max_hit": 8,
         "recognition": "OCR",
         "roi": [
             810,
@@ -2739,6 +2765,7 @@
     },
     "Arbitrage_PackList_ResetSwip": {
         "desc": "商店卡带列表滑动",
+        "max_hit": 30,
         "action": "Swipe",
         "begin": [
             285,
@@ -2803,6 +2830,7 @@
     },
     "Arbitrage_Cooking_SetupToSkill": {
         "desc": "技能菜单出口",
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             110,
@@ -3287,6 +3315,7 @@
         ]
     },
     "Arbitrage_Cooking_NubMenu_Doing": {
+        "max_hit": 40,
         "recognition": "ColorMatch",
         "roi": [
             830,
@@ -3315,6 +3344,7 @@
     },
     "Arbitrage_Cooking_Doing_Starus": {
         "desc": "按钮之前存在,现在不存在,是在动画",
+        "max_hit": 120,
         "recognition": "Or",
         "any_of": ["Arbitrage_Cooking_SubMenu"],
         "inverse": true,

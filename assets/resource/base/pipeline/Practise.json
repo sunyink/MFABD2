@@ -10,6 +10,7 @@
         ]
     },
     "Practise_Merchant_Menu_Return": {
+        "max_hit": 20,
         "recognition": "OCR",
         "roi": [
             110,
@@ -112,6 +113,7 @@
         "focus": "砍价技能已为传说级"
     },
     "Practise_Skill_Bargaining_Upgrade": {
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             126,
@@ -149,6 +151,7 @@
         ]
     },
     "Practise_Skill_Bargaining_Upgrade_Return": {
+        "max_hit": 15,
         "recognition": "OCR",
         "roi": [
             572,

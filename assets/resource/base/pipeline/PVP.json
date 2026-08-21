@@ -14,6 +14,7 @@
     },
     "PVP_PullUp_QuickCart_PVP": {
         "desc": "",
+        "max_hit": 10,
         "recognition": "TemplateMatch",
         "roi": [
             51,
@@ -132,6 +133,7 @@
         "next": ["Global_BackToQC1"]
     },
     "PVP_InsandboxAndlocAbnormal": {
+        "max_hit": 5,
         "recognition": "TemplateMatch",
         "template": "pvplocreset.png",
         "action": "Click",
@@ -145,6 +147,7 @@
     },
     "PVP_PVPMes": {
         "desc": "防守分结算，点击确认",
+        "max_hit": 35,
         "recognition": "OCR",
         "roi": [
             391,
@@ -161,6 +164,7 @@
     },
     "PVP_PVPMes2": {
         "desc": "防守分结算，点击画面返回",
+        "max_hit": 35,
         "recognition": "Or",
         "any_of": ["Rec_Reward_Ocr"],
         "action": "Click",
@@ -172,6 +176,7 @@
     },
     "PVP_Errmsg1#_Clear": {
         "desc": "以防万一,PVP防守分误点",
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             134,
@@ -189,6 +194,7 @@
     },
     "PVP_PVPStart": {
         "desc": "进入PVP舞台",
+        "max_hit": 10,
         "recognition": "TemplateMatch",
         "roi": [
             190,
@@ -211,6 +217,7 @@
     },
     "PVP_PerPetTask": {
         "desc": "宠物派遣。初始位置就在pvp图防错",
+        "max_hit": 5,
         "recognition": "Or",
         "any_of": ["StartGame_PerPetTask"],
         "action": "Click",
@@ -219,6 +226,7 @@
     },
     "PVP_AutoBattle": {
         "desc": "点击自动战斗",
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             918,
@@ -336,7 +344,7 @@
     },
     "PVP_AutoBattleMAX": {
         "desc": "点击MAX Mini",
-        "max_hit": 5,
+        "max_hit": 30,
         "recognition": "OCR",
         "roi": [
             826,
@@ -521,6 +529,7 @@
         ]
     },
     "PVP_Multiplier_Adjust_Enter": {
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             596,
@@ -539,6 +548,7 @@
     },
     "PVP_AutoBattleStart": {
         "desc": "点击战斗开始 | 考虑动画时间以及防止网络卡顿",
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             614,
@@ -578,6 +588,7 @@
     },
     "PVP_BattleResult": {
         "desc": "反复战斗结果",
+        "max_hit": 40,
         "recognition": "OCR",
         "roi": [
             540,
@@ -627,6 +638,7 @@
     },
     "PVP_BattleLeave": {
         "desc": "识别离开",
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             1069,
@@ -859,6 +871,7 @@
     },
     "PVP_Sandplay_NoFindSrena": {
         "desc": "如果1不是结算页面,2找不到舞台物件.尝试点击箱庭内其他特征物变换位置",
+        "max_hit": 10,
         "recognition": "TemplateMatch",
         "template": [
             "pvp_nofind_UT_bk.png",

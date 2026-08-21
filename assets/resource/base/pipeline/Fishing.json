@@ -266,6 +266,7 @@
     },
     "Fishing_InMap": {
         "desc": "进入地图选择界面",
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             1097,
@@ -285,6 +286,7 @@
     },
     "Fishing_InMap_TalkSkip": {
         "desc": "点击对话快进",
+        "max_hit": 40,
         "recognition": "TemplateMatch",
         "roi": [
             1005,
@@ -305,6 +307,7 @@
         "focus": "消除广场教程对话"
     },
     "Fishing_InMap_TalkSkip_Ck": {
+        "max_hit": 50,
         "recognition": "OCR",
         "roi": [
             553,
@@ -319,6 +322,7 @@
         "post_delay": 1000
     },
     "Fishing_InMap_TutorialSkip": {
+        "max_hit": 5,
         "recognition": "OCR",
         "roi": [
             410,
@@ -443,6 +447,7 @@
         ]
     },
     "Fishing_Move_NviGuide_SubOcr": {
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             294,
@@ -464,6 +469,7 @@
         ]
     },
     "Fishing_Move_NviGuide_CKMsgBox_Ocr": {
+        "max_hit": 10,
         "recognition": "Or",
         "any_of": ["Arbitrage_NviGuide_CKMsgBox_Ocr"],
         "action": "Click",

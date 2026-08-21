@@ -133,6 +133,7 @@
         "focus": "战斗结果-失利"
     },
     "AutoBattle_Egress_Next": {
+        "max_hit": 20,
         "recognition": "And",
         "all_of": [
             {
@@ -164,6 +165,7 @@
         ]
     },
     "AutoBattle_Egress_Next_Submenu": {
+        "max_hit": 30,
         "recognition": "OCR",
         "roi": [
             630,
@@ -204,6 +206,7 @@
         ]
     },
     "AutoBattle_Egress_TurnBack": {
+        "max_hit": 35,
         "recognition": "OCR",
         "roi": [
             438,
@@ -223,6 +226,7 @@
     },
     "AutoBattle_Egress_TurnBack_SkipTalk": {
         "desc": "场景转换,可能出现对话的跳过。战斗失败后,进旅馆。",
+        "max_hit": 35,
         "recognition": "TemplateMatch",
         "roi": [
             796,
@@ -241,6 +245,7 @@
     },
     "AutoBattle_Egress_TurnBack_Msg": {
         "desc": "可能的再确认,跳过对话",
+        "max_hit": 55,
         "recognition": "OCR",
         "roi": [
             440,

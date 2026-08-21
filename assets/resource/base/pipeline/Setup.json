@@ -804,6 +804,7 @@
         ]
     },
     "Setup_Main_Into_Pre": {
+        "max_hit": 10,
         "recognition": "Or",
         "any_of": [
             "Rec_SandBox_Pin_Tpl",
@@ -823,6 +824,7 @@
         "focus": "Setup.主设置修改开始"
     },
     "Setup_Main_Into": {
+        "max_hit": 10,
         "recognition": "And",
         "all_of": [
             "Rec_HomePage_GA_Ocr",
@@ -858,6 +860,7 @@
         "focus": "主设置菜单"
     },
     "Setup_MainSetup_Into": {
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             646,
@@ -910,11 +913,13 @@
         ]
     },
     "Setup_Main_Move_Chg": {
+        "max_hit": 15,
         "action": "Click",
         "target": "Setup_Main_Move",
         "post_delay": 3000
     },
     "Setup_Main_Tab_2": {
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             172,
@@ -992,6 +997,7 @@
         ]
     },
     "Setup_Main_Blurry_Chg": {
+        "max_hit": 10,
         "action": "Click",
         "target": "Setup_Main_Blurry",
         "post_delay": 3000
@@ -1032,6 +1038,7 @@
         ]
     },
     "Setup_Main_Resolution_Chg": {
+        "max_hit": 10,
         "action": "Click",
         "target": "Setup_Main_Resolution",
         "post_delay": 3000
@@ -1072,6 +1079,7 @@
         ]
     },
     "Setup_Main_StartUI_Chg": {
+        "max_hit": 10,
         "action": "Click",
         "target": "Setup_Main_StartUI",
         "post_delay": 3000
@@ -1113,11 +1121,13 @@
         ]
     },
     "Setup_Main_freshRate_Chg": {
+        "max_hit": 10,
         "action": "Click",
         "target": "Setup_Main_freshRate",
         "post_delay": 3000
     },
     "Setup_Main_Swip": {
+        "max_hit": 15,
         "action": "Custom",
         "custom_action": "SmartSwipe",
         "custom_action_param": {
@@ -1180,6 +1190,7 @@
         ]
     },
     "Setup_Main_SkipAv_Chg": {
+        "max_hit": 10,
         "action": "Click",
         "target": "Setup_Main_SkipAv",
         "post_delay": 3000
@@ -1220,11 +1231,13 @@
         ]
     },
     "Setup_Main_Silhouette_Chg": {
+        "max_hit": 10,
         "action": "Click",
         "target": "Setup_Main_Silhouette",
         "post_delay": 3000
     },
     "Setup_Main_Tab_3": {
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             172,
@@ -1301,12 +1314,14 @@
         ]
     },
     "Setup_Main_ShoundOff_Chg": {
+        "max_hit": 10,
         "action": "Click",
         "target": "Setup_Main_ShoundOff",
         "post_delay": 3000,
         "focus": "SM.设定变更关闭声音"
     },
     "Setup_Main_Tab_4": {
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             172,
@@ -1384,6 +1399,7 @@
         ]
     },
     "Setup_Main_YellowPin_Chg": {
+        "max_hit": 10,
         "action": "Click",
         "target": "Setup_Main_YellowPin",
         "post_delay": 3000
@@ -1425,6 +1441,7 @@
         ]
     },
     "Setup_Main_ClothingChange_Chg": {
+        "max_hit": 10,
         "action": "Click",
         "target": "Setup_Main_ClothingChange",
         "post_delay": 3000
@@ -1441,6 +1458,7 @@
         ]
     },
     "Setup_Equip_Into_Pre": {
+        "max_hit": 10,
         "recognition": "Or",
         "any_of": [
             "Rec_SandBox_Pin_Tpl",
@@ -1460,6 +1478,7 @@
         "focus": "Setup.装备强化选项修改开始"
     },
     "Setup_Equip_Into": {
+        "max_hit": 10,
         "recognition": "And",
         "all_of": [
             "Rec_HomePage_GA_Ocr",
@@ -1477,6 +1496,7 @@
         ]
     },
     "Setup_Equip_Per": {
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             217,
@@ -1530,6 +1550,7 @@
         ]
     },
     "Setup_EquipUp_MJ": {
+        "max_hit": 10,
         "recognition": "And",
         "all_of": [
             {
@@ -1558,6 +1579,7 @@
         "post_delay": 1500
     },
     "Setup_EquipUp_CheckBox_L1": {
+        "max_hit": 10,
         "recognition": "And",
         "all_of": [
             {
@@ -1587,6 +1609,7 @@
         "focus": "[Set.N1]"
     },
     "Setup_EquipUp_CheckBox_L2": {
+        "max_hit": 10,
         "recognition": "And",
         "all_of": [
             {
@@ -1616,6 +1639,7 @@
         "focus": "[Set.N2]"
     },
     "Setup_EquipUp_CheckBox_L3": {
+        "max_hit": 10,
         "recognition": "And",
         "all_of": [
             {
@@ -1645,6 +1669,7 @@
         "focus": "[Set.N3]"
     },
     "Setup_EquipUp_CheckBox_L4": {
+        "max_hit": 10,
         "recognition": "And",
         "all_of": [
             {
@@ -1674,6 +1699,7 @@
         "focus": "[Set.N4]"
     },
     "Setup_EquipUp_MenuQuit": {
+        "max_hit": 10,
         "recognition": "TemplateMatch",
         "roi": [
             1081,
@@ -1713,6 +1739,7 @@
     },
     "Equip_EquipDec": {
         "desc": "点击一键分解",
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             1017,
@@ -1749,6 +1776,7 @@
         ]
     },
     "Setup_EquipDec_UP": {
+        "max_hit": 10,
         "recognition": "ColorMatch",
         "roi": [
             1144,
@@ -1770,6 +1798,7 @@
         "post_delay": 1500
     },
     "Setup_EquipDec_MJ": {
+        "max_hit": 10,
         "recognition": "ColorMatch",
         "roi": [
             1142,
@@ -1791,6 +1820,7 @@
         "post_delay": 1500
     },
     "Setup_EquipDec_CheckBox_L1": {
+        "max_hit": 10,
         "recognition": "ColorMatch",
         "roi": [
             784,
@@ -1813,6 +1843,7 @@
         "focus": "[Set.N1]"
     },
     "Setup_EquipDec_CheckBox_L2": {
+        "max_hit": 10,
         "recognition": "ColorMatch",
         "roi": [
             990,
@@ -1835,6 +1866,7 @@
         "focus": "[Set.N2]"
     },
     "Setup_EquipDec_CheckBox_L3": {
+        "max_hit": 10,
         "recognition": "ColorMatch",
         "roi": [
             784,
@@ -1857,6 +1889,7 @@
         "focus": "[Set.N3]"
     },
     "Setup_EquipDec_CheckBox_L4": {
+        "max_hit": 10,
         "recognition": "ColorMatch",
         "roi": [
             1007,
@@ -1945,6 +1978,7 @@
     "Setup_SetSkill_SwipMini": {
         "desc": "小幅度滑动,使黄色消失",
         "enabled": false,
+        "max_hit": 15,
         "recognition": "ColorMatch",
         "roi": [
             110,
@@ -1977,6 +2011,7 @@
         "duration": 500
     },
     "Setup_SetSkill_tab3": {
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             87,
@@ -2025,6 +2060,7 @@
         ]
     },
     "Setup_SetSkill_ReLift": {
+        "max_hit": 15,
         "recognition": "OCR",
         "roi": [
             87,

@@ -47,6 +47,7 @@
     },
     "Equip_EquipMakeGui": {
         "desc": "制作装备界面，下滑",
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             1018,
@@ -72,6 +73,7 @@
     },
     "Equip_EquipSelect": {
         "desc": "点击筛选武器",
+        "max_hit": 10,
         "recognition": "TemplateMatch",
         "roi": [
             602,
@@ -93,6 +95,7 @@
     },
     "Equip_EquipMake": {
         "desc": "制作装备界面，点击制作",
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             943,
@@ -113,6 +116,7 @@
     },
     "Equip_EquipMakeClose": {
         "desc": "制作完成，点击X",
+        "max_hit": 10,
         "recognition": "TemplateMatch",
         "roi": [
             995,
@@ -134,6 +138,7 @@
     },
     "Equip_EquipMakeBack": {
         "desc": "制作装备界面，左上返回",
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             943,
@@ -158,6 +163,7 @@
     },
     "Equip_ToEquipGui": {
         "desc": "前往装备界面",
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             1019,
@@ -179,6 +185,7 @@
     },
     "Equip_EquipGui": {
         "desc": "寻找一键强化并点击",
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             892,
@@ -201,6 +208,7 @@
     },
     "Equip_EquipUp": {
         "desc": "寻找一键强化...",
+        "max_hit": 10,
         "recognition": "TemplateMatch",
         "roi": [
             1020,
@@ -238,6 +246,7 @@
     },
     "Equip_EquipUpSelectN": {
         "desc": "点击N",
+        "max_hit": 10,
         "recognition": "TemplateMatch",
         "roi": [
             761,
@@ -409,6 +418,7 @@
     },
     "Equip_EquipUp_Action": {
         "desc": "确认强化",
+        "max_hit": 3,
         "recognition": "OCR",
         "roi": [
             660,
@@ -429,6 +439,7 @@
     },
     "Equip_EquipUpResult": {
         "desc": "强化结果收取|然后(如果有,返回装备满溢锚点) or 去精炼",
+        "max_hit": 15,
         "recognition": "OCR",
         "roi": [
             582,
@@ -449,6 +460,7 @@
     },
     "Equip_Refine_filter": {
         "desc": "点击左上筛选",
+        "max_hit": 15,
         "recognition": "TemplateMatch",
         "roi": [
             1096,
@@ -488,6 +500,7 @@
     "Equip_filterSR": {
         "desc": "点击筛选SR",
         "enabled": false,
+        "max_hit": 10,
         "recognition": "TemplateMatch",
         "roi": [
             243,
@@ -509,6 +522,7 @@
     },
     "Equip_filterUR": {
         "desc": "点击筛选UR",
+        "max_hit": 10,
         "recognition": "TemplateMatch",
         "roi": [
             548,
@@ -577,6 +591,7 @@
         "focus": "EM.色核通过.稀有度UR"
     },
     "Equip_filter+9": {
+        "max_hit": 10,
         "recognition": "TemplateMatch",
         "roi": [
             944,
@@ -623,6 +638,7 @@
     },
     "Equip_filter<C17": {
         "enabled": false,
+        "max_hit": 10,
         "recognition": "TemplateMatch",
         "roi": [
             807,
@@ -714,6 +730,7 @@
     },
     "Equip_filterON": {
         "desc": "应用筛选,点击确认",
+        "max_hit": 15,
         "recognition": "OCR",
         "roi": [
             884,
@@ -735,6 +752,7 @@
     },
     "Equip_Sequen_Menu": {
         "enabled": false,
+        "max_hit": 10,
         "recognition": "TemplateMatch",
         "roi": [
             1134,
@@ -772,6 +790,7 @@
         ]
     },
     "Equip_Sequen_MenuSwipDown": {
+        "max_hit": 15,
         "action": "Swipe",
         "begin": [
             1019,
@@ -785,6 +804,7 @@
         "post_wait_freezes": 2000
     },
     "Equip_Sequen_MenuFind": {
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             881,
@@ -803,6 +823,7 @@
         ]
     },
     "Equip_Sequen_CKAndExt": {
+        "max_hit": 10,
         "recognition": "TemplateMatch",
         "roi": [
             1072,
@@ -863,6 +884,7 @@
     },
     "Equip_Overdrive_RefLvMax_filter": {
         "desc": "点击左上筛选",
+        "max_hit": 10,
         "recognition": "And",
         "all_of": ["Equip_Refine_filter"],
         "action": "Click",
@@ -978,6 +1000,7 @@
         ]
     },
     "Equip_Overdrive_RefLvMax_OCR": {
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             254,
@@ -1021,6 +1044,7 @@
     },
     "Equip_Refining": {
         "desc": "点击精炼",
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             935,
@@ -1058,6 +1082,7 @@
     },
     "Equip_TouchRefining": {
         "desc": "精炼界面，点击精炼2",
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             961,
@@ -1087,6 +1112,7 @@
     },
     "Equip_Backpack_Full": {
         "desc": "发现背包满了,点击进入背包",
+        "max_hit": 10,
         "recognition": "Or",
         "any_of": [
             "Rec_<Equip_Backpack_Full>_Ocr_01",
@@ -1135,6 +1161,7 @@
         "only_rec": true
     },
     "Equip_Backpack_Full_Enter": {
+        "max_hit": 10,
         "recognition": "TemplateMatch",
         "roi": [
             98,

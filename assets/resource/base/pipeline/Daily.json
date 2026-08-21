@@ -41,6 +41,7 @@
     },
     "Daily_EnterUnion": {
         "desc": "主菜单,公会存在红点标记",
+        "max_hit": 10,
         "recognition": "Custom",
         "custom_recognition": "RedDotDetector",
         "custom_recognition_param": {"preset": "Agt_RedDot_Preset"},
@@ -86,6 +87,7 @@
     },
     "Daily_Union_Intnet_Err": {
         "desc": "公会页面连接错误",
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             548,
@@ -249,6 +251,7 @@
     },
     "Daily_GetBusin_SubMenu_Claim": {
         "desc": "点击'一键获得'一键领取(结合色核)。#322 sunyink:原expected误写'获得/结算/回收'三子按钮,实应识别'一键获得'单按钮(现靠'获得'左侧优先+颜色AND兜底才未出bug);改识别词'键获得'(det易丢'一')。roi底边416致按钮(y≈600)出框恒miss,下延至500",
+        "max_hit": 10,
         "recognition": "And",
         "all_of": [
             {
@@ -271,6 +274,7 @@
     },
     "Daily_GetBusinRewardBack": {
         "desc": "点击领取全部返回",
+        "max_hit": 15,
         "recognition": "Or",
         "any_of": ["Rec_Reward_Ocr"],
         "action": "Click",
@@ -282,6 +286,7 @@
     },
     "Daily_Busin_Enter": {
         "desc": "餐馆结算页，进入餐馆",
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             699,
@@ -326,6 +331,7 @@
     },
     "Daily_Busin_GiftGet": {
         "desc": "点击常客位置，获取水晶。",
+        "max_hit": 20,
         "recognition": "TemplateMatch",
         "roi": [
             71,
@@ -442,6 +448,7 @@
         ]
     },
     "Daily_Busin_DecorCoin_PickUp": {
+        "max_hit": 40,
         "recognition": "Or",
         "any_of": [
             "Rec_<Daily_Busin_DecorCoin_PickUp>_Tpl_01",
@@ -497,6 +504,7 @@
     },
     "Daily_Busin_DecorCoin_LocReset": {
         "desc": "餐厅视图复位系列流程",
+        "max_hit": 40,
         "recognition": "OCR",
         "roi": [
             91,
@@ -673,6 +681,7 @@
     },
     "Daily_Busin_StageUp": {
         "desc": "存在亮色按钮,餐厅星星阶段升级",
+        "max_hit": 3,
         "recognition": "And",
         "all_of": [
             {
@@ -693,6 +702,7 @@
     },
     "Daily_Busin_LevelUp": {
         "desc": "存在亮色按钮,餐厅等级阶段升级",
+        "max_hit": 5,
         "recognition": "And",
         "all_of": [
             {
@@ -729,6 +739,7 @@
     },
     "Daily_Busin_Quick_BackPVEPage_Str": {
         "desc": "目前roi位置为餐馆",
+        "max_hit": 20,
         "recognition": "TemplateMatch",
         "roi": [
             74,
@@ -759,6 +770,7 @@
         ]
     },
     "Daily_Square_ToSquare": {
+        "max_hit": 10,
         "recognition": "TemplateMatch",
         "roi": [
             18,
@@ -811,6 +823,7 @@
         "focus": "ROM.梦幻广场"
     },
     "Daily_DailyIco_1": {
+        "max_hit": 10,
         "recognition": "TemplateMatch",
         "roi": [
             968,
@@ -837,6 +850,7 @@
         ]
     },
     "Daily_DailyIco_2": {
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             968,
@@ -877,6 +891,7 @@
         "focus": "ROM.导航中..."
     },
     "Daily_Pray": {
+        "max_hit": 15,
         "recognition": "OCR",
         "roi": [
             545,
@@ -1042,6 +1057,7 @@
         "focus": "[WRN]需要消除亲密度教程"
     },
     "Daily_Intimacy_RedHeart": {
+        "max_hit": 10,
         "recognition": "TemplateMatch",
         "roi": [
             101,
@@ -1138,6 +1154,7 @@
     },
     "Daily_Intimacy_Up": {
         "desc": "可以谈心的对象 开始谈心",
+        "max_hit": 60,
         "recognition": "And",
         "all_of": [
             "Sub_Intimacy_Number",
@@ -1185,6 +1202,7 @@
             ]]
     },
     "Daily_Intimacy_Up_MSG": {
+        "max_hit": 60,
         "recognition": "OCR",
         "roi": [
             662,
@@ -1220,6 +1238,7 @@
     },
     "Daily_Intimacy_TalkSkip": {
         "desc": "点击对话快进",
+        "max_hit": 120,
         "recognition": "Or",
         "any_of": ["Fishing_InMap_TalkSkip"],
         "action": "Click",
@@ -1228,12 +1247,14 @@
     },
     "Daily_Intimacy_TalkSkip_Ck": {
         "desc": "对话快进可能出现的确认框",
+        "max_hit": 180,
         "recognition": "Or",
         "any_of": ["Fishing_InMap_TalkSkip_Ck"],
         "action": "Click",
         "post_delay": 2000
     },
     "Daily_Intimacy_TalkBox": {
+        "max_hit": 120,
         "recognition": "OCR",
         "roi": [
             380,

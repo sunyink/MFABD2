@@ -14,7 +14,7 @@ Python Agent 提供自定义识别/动作，MFAAvalonia 提供 GUI。
 | `assets/MaaCommonAssets/` | **submodule**，不要直接改 |
 | `agent/` | Python Agent：`action/` `recognition/` `utils/` |
 | `scripts/` | 版本分析、changelog 生成、公告注入 |
-| `tools/` | 一次性维护脚本（目前只有 `migrate_pipeline_manager.py`） |
+| `tools/` | 维护脚本：`migrate_pipeline_manager.py`（迁移）、`lint_pipeline.py`（静态体检）、`bounded_safety_net.py`（无界循环普查与有界化） |
 
 ## 运行
 
@@ -133,3 +133,11 @@ Fork → 开分支 → PR；分支名不需纠结，PR 里说明改了什么即�
   99.4% 带模块前缀，新增节点沿用所在文件的模块名；测试节点用小写 `test_*`。
 - 协议默认 `rate_limit=1000ms`、`pre_delay`/`post_delay=200ms`——省略字段会引入隐式等待，
   不需要延迟时要显式写 `0`。
+- **循环节点必须有界**。`timeout` 只对「next 列表整轮无命中」计时——识别一直命中就永不触发；
+  而 `max_hit` 默认 UINT_MAX。于是「命中即点、点了画面不变」的节点是永动机（实测有单日
+  914 次点同一坐标、连烧 90 分钟的案例）。所以**自环节点、以及被 `[JumpBack]` 指向的节点，
+  一律要显式写 `max_hit`**。取值按「这个节点在最长的一次正常运行里合法命中几次」预算，
+  不是按「卡住时想让它几次停」——触界只是让该节点退场由 `on_error` 接手，给大只是止损慢，
+  给小会打断本来能走通的流程。跨节点定值口径：**被依赖者的额度不低于依赖它的节点**
+  （清理器 ≥ 触发器，否则触发还在点、清理先退场会留下清不掉的弹窗；识别源 ≥ 消费者）。
+  用 `python tools/lint_pipeline.py --only bounds` 普查，`tools/bounded_safety_net.py` 批量补。

@@ -24,6 +24,7 @@
     },
     "Global_HomeButton_Once": {
         "desc": "点击一次主页面图标",
+        "max_hit": 35,
         "recognition": "TemplateMatch",
         "roi": [
             1132,
@@ -62,6 +63,7 @@
     },
     "Global_QuickCart_MenuReset": {
         "desc": "调出快速卡带1/2,操作",
+        "max_hit": 200,
         "recognition": "TemplateMatch",
         "template": [
             "QuickCartGeadai.png",
@@ -78,6 +80,7 @@
     },
     "Global_QuickCart_MenuReset_2P": {
         "desc": "调出快速卡带1/2,操作",
+        "max_hit": 10,
         "recognition": "TemplateMatch",
         "template": [
             "QuickCartGeadai.png",
@@ -110,6 +113,7 @@
     },
     "Global_QuickCart_SwipTo_2P": {
         "desc": "QC滑动到第二页,同时复位锚点",
+        "max_hit": 20,
         "recognition": "Or",
         "any_of": ["Global_QuickCart_MenuReset_Ocr"],
         "action": "Swipe",
@@ -166,6 +170,7 @@
     },
     "Global_ToHomePage_HomeButton": {
         "desc": "找到run-点击返回主页",
+        "max_hit": 40,
         "recognition": "Or",
         "any_of": [
             "Rec_SandBox_Pin_Tpl",
@@ -186,6 +191,7 @@
     },
     "Global_ToHomePage_Reset": {
         "desc": "其他页面，返回按钮",
+        "max_hit": 30,
         "recognition": "And",
         "all_of": [
             "Global_BackPageHub_Once"
@@ -203,6 +209,7 @@
     },
     "Global_ToHomePage_Crash": {
         "desc": "返回箱庭兜底策略,点主页图标-调传统卡带复位",
+        "max_hit": 5,
         "recognition": "TemplateMatch",
         "roi": [
             1135,
@@ -257,6 +264,7 @@
     },
     "Global_ToSandBox_Reset": {
         "desc": "其他页面，返回按钮",
+        "max_hit": 30,
         "recognition": "And",
         "all_of": [
             "Global_BackPageHub_Once"
@@ -330,6 +338,7 @@
     },
     "Global_BackToPve_ToCardMenu": {
         "desc": "【传统卡带识别链-开始.不要直接连这里!】识别左下抽抽乐-主页-点击选择章节",
+        "max_hit": 30,
         "recognition": "And",
         "all_of": [
             "Rec_HomePage_GA_Ocr",
@@ -409,6 +418,7 @@
     },
     "Global_BackToPve_PVEBookSwipe": {
         "desc": "识别活动游戏卡-上划",
+        "max_hit": 40,
         "recognition": "And",
         "all_of": ["Global_BackToPve_CardMenu_Tp1"],
         "action": "Swipe",
@@ -426,6 +436,7 @@
     },
     "Global_BackToPve_PVEBookSwipe_Lift": {
         "desc": "识别活动游戏卡-左划",
+        "max_hit": 50,
         "recognition": "And",
         "all_of": ["Global_BackToPve_CardMenu_Tp2"],
         "action": "Swipe",
@@ -443,6 +454,7 @@
     },
     "Global_BackToPve_TouchPVE1#Pack": {
         "desc": "【传统卡带识别链-预设出口.pve1#】",
+        "max_hit": 20,
         "recognition": "Or",
         "any_of": ["Global_BackToPve_CardMenu_Tp3"],
         "action": "Click",
@@ -463,6 +475,7 @@
     },
     "Global_BackToPve_TouchPVE2#Pack": {
         "desc": "【传统卡带识别链-预设出口.pve2#】",
+        "max_hit": 20,
         "recognition": "TemplateMatch",
         "roi": [
             320,
@@ -529,6 +542,7 @@
     },
     "Global_BackToQC_Story_Anc": {
         "desc": "【快速卡带识别链-剧情页签入口_必须先声明Anc出口'QCPack' & Anc出口记得复位锚点'QCPack'】不许Patch。('QCPack_Regress'为预设复位链专用优先锚,业务方勿声明)",
+        "max_hit": 80,
         "recognition": "Or",
         "any_of": ["Global_QuickCart_MenuReset"],
         "action": "Click",
@@ -544,6 +558,7 @@
     },
     "Global_BackToQC_Character_Anc": {
         "desc": "【快速卡带识别链-角色页签入口_必须先声明Anc出口'QCPack' & Anc出口记得复位锚点'QCPack'】不许Patch。('QCPack_Regress'为预设复位链专用优先锚,业务方勿声明)",
+        "max_hit": 35,
         "recognition": "Or",
         "any_of": ["Global_QuickCart_MenuReset"],
         "action": "Click",
@@ -559,6 +574,7 @@
     },
     "Global_BackToQC_Event_Anc": {
         "desc": "【快速卡带识别链-活动页签入口_必须先声明Anc出口'QCPack' & Anc出口记得复位锚点'QCPack'】不许Patch。('QCPack_Regress'为预设复位链专用优先锚,业务方勿声明)",
+        "max_hit": 35,
         "recognition": "Or",
         "any_of": ["Global_QuickCart_MenuReset"],
         "action": "Click",
@@ -574,6 +590,7 @@
     },
     "Global_BackToQC_Manager_Anc": {
         "desc": "【快速卡带识别链-店长页签入口_必须先声明Anc出口'QCPack' & Anc出口记得复位锚点'QCPack'】不许Patch。('QCPack_Regress'为预设复位链专用优先锚,业务方勿声明)",
+        "max_hit": 35,
         "recognition": "Or",
         "any_of": ["Global_QuickCart_MenuReset"],
         "action": "Click",
@@ -589,6 +606,7 @@
     },
     "Global_BackToQC_Gameplay_Anc": {
         "desc": "【快速卡带识别链-玩法页签入口_必须先声明Anc出口'QCPack' & Anc出口记得复位锚点'QCPack'】不许Patch。('QCPack_Regress'为预设复位链专用优先锚,业务方勿声明)",
+        "max_hit": 35,
         "recognition": "Or",
         "any_of": ["Global_QuickCart_MenuReset"],
         "action": "Click",
@@ -603,6 +621,7 @@
     },
     "Global_BackToQC_SelectStory": {
         "desc": "【快速卡带识别链-走位.不要直接连这里!】借Collect识别点剧情页签",
+        "max_hit": 85,
         "recognition": "Or",
         "any_of": ["Collect_QuickCart_SelectType_StoryPack"],
         "action": "Click",
@@ -615,6 +634,7 @@
     },
     "Global_BackToQC_SelectCharacter": {
         "desc": "【快速卡带识别链-走位.不要直接连这里!】借Collect识别点角色页签",
+        "max_hit": 40,
         "recognition": "Or",
         "any_of": ["Collect_QuickCart_SelectType_CharacterPack"],
         "action": "Click",
@@ -627,6 +647,7 @@
     },
     "Global_BackToQC_SelectEvent": {
         "desc": "【快速卡带识别链-走位.不要直接连这里!】借Collect识别点活动页签",
+        "max_hit": 40,
         "recognition": "Or",
         "any_of": ["Collect_QuickCart_SelectType_EventPack"],
         "action": "Click",
@@ -639,6 +660,7 @@
     },
     "Global_BackToQC_SelectManager": {
         "desc": "【快速卡带识别链-走位.不要直接连这里!】借Collect识别点店长页签",
+        "max_hit": 40,
         "recognition": "Or",
         "any_of": ["Collect_QuickCart_SelectType_ManagerPack"],
         "action": "Click",
@@ -651,6 +673,7 @@
     },
     "Global_BackToQC_SelectGameplay": {
         "desc": "【快速卡带识别链-走位.不要直接连这里!】借Collect识别点玩法页签",
+        "max_hit": 40,
         "recognition": "Or",
         "any_of": ["Collect_QuickCart_SelectType_GameplayPack"],
         "action": "Click",
@@ -663,6 +686,7 @@
     },
     "Global_BackToQC_RewardBubble_TurnOFF": {
         "desc": "检查QC,卡带奖励气泡,若黄则点击关闭",
+        "max_hit": 20,
         "recognition": "And",
         "all_of": [
             {
@@ -692,6 +716,7 @@
     },
     "Global_CardMenu_RewardBubble_TurnOFF": {
         "desc": "检查QC,卡带奖励气泡,若黄则点击关闭",
+        "max_hit": 20,
         "recognition": "And",
         "all_of": [
             {
@@ -826,6 +851,7 @@
     },
     "Global_BackToQC_TouchQC1Pack": {
         "desc": "【快速卡带识别链-预设出口.QC1(KadaiGe)】",
+        "max_hit": 60,
         "recognition": "TemplateMatch",
         "roi": [
             51,
@@ -1090,6 +1116,7 @@
     },
     "Global_ERR_AtFish": {
         "desc": "钓鱼界面返回",
+        "max_hit": 10,
         "recognition": "TemplateMatch",
         "roi": [
             1168,
@@ -1109,6 +1136,7 @@
         ]
     },
     "Global_ERR_AtFish_SubMenu": {
+        "max_hit": 15,
         "recognition": "OCR",
         "roi": [
             704,

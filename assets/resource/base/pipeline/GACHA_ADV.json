@@ -26,6 +26,7 @@
     },
     "GachaADV_GachaRed_Have": {
         "desc": "识别左下抽抽乐-红点存在-点击抽卡",
+        "max_hit": 10,
         "recognition": "Custom",
         "custom_recognition": "RedDotDetector",
         "custom_recognition_param": {"preset": "Agt_RedDot_Preset"},
@@ -89,6 +90,7 @@
         "focus": "GA.抽抽乐页面"
     },
     "GachaADV_AREA1#": {
+        "max_hit": 10,
         "recognition": "Custom",
         "custom_recognition": "RedDotDetector",
         "custom_recognition_param": {"preset": "Agt_RedDot_Preset"},
@@ -175,6 +177,7 @@
         "focus": "GA.抽抽乐页面"
     },
     "GachaADV_AREA2#": {
+        "max_hit": 10,
         "recognition": "Custom",
         "custom_recognition": "RedDotDetector",
         "custom_recognition_param": {"preset": "Agt_RedDot_Preset"},
@@ -249,6 +252,7 @@
         ]
     },
     "GachaADV_Location1": {
+        "max_hit": 30,
         "recognition": "Custom",
         "custom_recognition": "RedDotDetector",
         "custom_recognition_param": {"preset": "Agt_RedDot_Preset"},
@@ -371,6 +375,7 @@
         ]
     },
     "GachaADV_Location2": {
+        "max_hit": 30,
         "recognition": "Custom",
         "custom_recognition": "RedDotDetector",
         "custom_recognition_param": {"preset": "Agt_RedDot_Preset"},
@@ -474,6 +479,7 @@
         ]
     },
     "GachaADV_Location3": {
+        "max_hit": 30,
         "recognition": "Custom",
         "custom_recognition": "RedDotDetector",
         "custom_recognition_param": {"preset": "Agt_RedDot_Preset"},
@@ -572,6 +578,7 @@
         ]
     },
     "GachaADV_Location4": {
+        "max_hit": 30,
         "recognition": "Custom",
         "custom_recognition": "RedDotDetector",
         "custom_recognition_param": {"preset": "Agt_RedDot_Preset"},
@@ -666,6 +673,7 @@
         ]
     },
     "GachaADV_Location5": {
+        "max_hit": 30,
         "recognition": "Custom",
         "custom_recognition": "RedDotDetector",
         "custom_recognition_param": {"preset": "Agt_RedDot_Preset"},
@@ -1022,6 +1030,7 @@
     },
     "GachaADV_Slip_Action": {
         "desc": "下滑寻找免费抽卡",
+        "max_hit": 40,
         "recognition": "And",
         "all_of": ["GachaADV_Slip"],
         "action": "Swipe",
@@ -1148,6 +1157,7 @@
     },
     "GachaADV_TouchFreeGacha": {
         "desc": "免费抽流程开始:点击右下免费1抽",
+        "max_hit": 20,
         "recognition": "OCR",
         "roi": [
             393,
@@ -1186,6 +1196,7 @@
     },
     "GachaADV_TouchFreeGachaBuy": {
         "desc": "GA.抽卡",
+        "max_hit": 20,
         "recognition": "OCR",
         "roi": [
             635,
@@ -1208,6 +1219,7 @@
     },
     "GachaADV_TouchFreeGachaSkip": {
         "desc": "抽卡商店动画,点跳过",
+        "max_hit": 30,
         "recognition": "TemplateMatch",
         "roi": [
             1126,
@@ -1221,6 +1233,7 @@
     },
     "GachaADV_5X": {
         "desc": "五星卡",
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             519,
@@ -1246,6 +1259,7 @@
     },
     "GachaADV_5X2": {
         "desc": "五星卡2",
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             519,
@@ -1270,6 +1284,7 @@
         "focus": "GA.5☆UR武器！(✧◡✧)"
     },
     "GachaADV_5XResuNew": {
+        "max_hit": 20,
         "recognition": "ColorMatch",
         "roi": [
             4,
@@ -1304,6 +1319,7 @@
         ]
     },
     "GachaADV_5XBug_LightningBall": {
+        "max_hit": 20,
         "recognition": "And",
         "all_of": ["GachaADV_TouchFreeGachaSkip"],
         "action": "Click",
@@ -1315,6 +1331,7 @@
     },
     "GachaADV_GachaResultBack": {
         "desc": "抽卡结果页返回",
+        "max_hit": 30,
         "recognition": "OCR",
         "roi": [
             93,
@@ -1343,6 +1360,7 @@
     },
     "GachaADV_FinGacha": {
         "desc": "返回首页",
+        "max_hit": 10,
         "recognition": "And",
         "all_of": ["GachaADV_PageEnter_1#"],
         "action": "Click",
@@ -1371,6 +1389,7 @@
     },
     "Gacha_Quick_All": {
         "desc": "点击页面一键抽抽乐",
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             183,
@@ -1393,6 +1412,7 @@
         "next": ["Gacha_Quick_All_SubMsg_Ck"]
     },
     "Gacha_Quick_All_SubMsg_Ck": {
+        "max_hit": 30,
         "recognition": "OCR",
         "roi": [
             660,
@@ -1412,6 +1432,7 @@
     },
     "Gacha_Quick_Skip": {
         "desc": "等于连抽,去点跳过按钮",
+        "max_hit": 35,
         "recognition": "And",
         "all_of": ["AutoBattle_Egress_TurnBack_SkipTalk"],
         "action": "Click",
@@ -1419,6 +1440,7 @@
     },
     "Gacha_Quick_5X": {
         "desc": "假设抽中会跳立绘",
+        "max_hit": 10,
         "recognition": "Or",
         "any_of": [
             "GachaADV_5X",

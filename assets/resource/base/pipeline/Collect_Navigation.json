@@ -418,6 +418,7 @@
     },
     "Collect_TargetMap1_Special_PerRight": {
         "desc": "[维护点C05]复位到箱庭1图时需要特殊跳过的图,用来跳过图1非目标图,(EP18)需要持续维护!",
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             408,
@@ -443,6 +444,7 @@
     },
     "Collect_TargetMap1_Special_Right": {
         "desc": "[维护点C04]箱庭1图转2图时,特殊跳过的节点,因为若跳过图有传送阵图标,则不能依赖_MapRight_NoFind,最后还是得多写一组节点,与nofind不同,这里是定向识别,需要持续维护!",
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             408,
@@ -467,6 +469,7 @@
     },
     "Collect_TargetMap2_Special_Right": {
         "desc": "[维护点C04]箱庭2图转3图时,特殊跳过的节点,因为若跳过图有传送阵图标,则不能依赖_MapRight_NoFind,最后还是得多写一组节点,与nofind不同,这里是定向识别,需要持续维护!",
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             408,
@@ -729,6 +732,7 @@
     },
     "Collect_Special_EP6": {
         "desc": "EP6主城默认位置异常,需要点右下角传送阵物件",
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             481,
@@ -746,6 +750,7 @@
         "focus": "CQB.[INF]检测到EP6,进行魔塔特殊操作"
     },
     "Collect_Special_QR7-CW": {
+        "max_hit": 10,
         "recognition": "TemplateMatch",
         "roi": [
             670,
@@ -809,6 +814,7 @@
         "focus": "CTB.[WRN]识别首选为紫色技能传送阵,尝试规避"
     },
     "Collect_ClickTelepor_TargetClass_PurpleProcess": {
+        "max_hit": 10,
         "recognition": "TemplateMatch",
         "roi": [
             100,
@@ -832,6 +838,7 @@
     },
     "Collect_ClickTelepor_TargetClass_White": {
         "desc": "详细地图内传送阵选择",
+        "max_hit": 10,
         "recognition": "TemplateMatch",
         "roi": [
             100,
@@ -869,6 +876,7 @@
     },
     "Collect_ClickTelepor_Abnormal_Overlap": {
         "desc": "当传送阵地图中存在重叠时的处理,找三角(无法处理紫色情况) | 注意:特征太泛,少用",
+        "max_hit": 10,
         "recognition": "TemplateMatch",
         "roi": [
             100,
@@ -901,6 +909,7 @@
     },
     "Collect_ClickBackOnSecureMap": {
         "desc": "详细地图确定位置",
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             408,
@@ -986,6 +995,7 @@
     },
     "Collect_FindTeleporCircle0.9": {
         "desc": "0.9是否过高待评，图案两侧边缘有黑色纹路，另外有场景没有纹路（每日派遣），区别待深入考证",
+        "max_hit": 10,
         "recognition": "TemplateMatch",
         "roi": [
             828,
@@ -1004,6 +1014,7 @@
     },
     "Collect_FindTeleporCircle": {
         "desc": "场景地图内传送阵选择",
+        "max_hit": 10,
         "recognition": "FeatureMatch",
         "template": [
             "TpCircle2.png",
@@ -1026,6 +1037,7 @@
     },
     "Collect_MapLift": {
         "desc": "详细地图内左图标，目的移动到最左,直接5连击.",
+        "max_hit": 15,
         "recognition": "TemplateMatch",
         "roi": [
             270,

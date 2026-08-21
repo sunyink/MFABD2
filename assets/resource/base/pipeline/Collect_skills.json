@@ -14,6 +14,7 @@
         "focus": "CSB.技能组调用开始"
     },
     "Collect_Skill_Tap3": {
+        "max_hit": 40,
         "recognition": "Or",
         "any_of": [
             "Rec_SandBox_Pin3_Tpl"
@@ -46,6 +47,7 @@
     },
     "Collect_Skill1": {
         "desc": "技能1设定为探查。识别位，技能环左1",
+        "max_hit": 40,
         "recognition": "TemplateMatch",
         "roi": [
             970,
@@ -150,6 +152,7 @@
         "focus": "技能1非正常"
     },
     "Collect_Skill3_2": {
+        "max_hit": 40,
         "recognition": "And",
         "all_of": [
             {
@@ -199,6 +202,7 @@
         "focus": "CSB.施放'吸取'技能,栏位3-2"
     },
     "Collect_Skill3_3": {
+        "max_hit": 40,
         "recognition": "And",
         "all_of": [
             {
@@ -461,6 +465,7 @@
         "focus": "CSB.施放次数已满,栏位3-5"
     },
     "Collect_Skill3_5": {
+        "max_hit": 40,
         "recognition": "And",
         "all_of": [
             {

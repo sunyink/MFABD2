@@ -26,6 +26,7 @@
     },
     "Collect_Tab3_Switch": {
         "desc": "检查tab3,并切换,为传送阵可用状态做准备",
+        "max_hit": 10,
         "recognition": "ColorMatch",
         "roi": [
             1189,
@@ -224,6 +225,7 @@
         ]
     },
     "Collect_ForceTeleporCircle_ClickMSB": {
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             680,
@@ -291,6 +293,7 @@
         "focus": "CFB.技能技能灰色"
     },
     "Collect_Skill3_4": {
+        "max_hit": 10,
         "recognition": "TemplateMatch",
         "roi": [
             1051,
@@ -346,6 +349,7 @@
     },
     "Collect_TeleporCircle_OnFoot_GoinNviMap": {
         "desc": "点击左上地图",
+        "max_hit": 10,
         "recognition": "Or",
         "any_of": [
             "Rec_SandBox_Pin_Tpl",
@@ -609,6 +613,7 @@
         "next": ["Collect_IM_OnFoot_NviMap_SkillEnd"]
     },
     "Collect_IM_Move_MGS": {
+        "max_hit": 15,
         "recognition": "OCR",
         "roi": [
             672,
@@ -737,6 +742,7 @@
     "Collect_IM_DouMap_Tab": {
         "desc": "对于双地图步行,切换地图为另一个关系or箭头标",
         "enabled": false,
+        "max_hit": 10,
         "recognition": "Or",
         "any_of": [
             "Rec_NavMap_Lift",
@@ -1077,6 +1083,7 @@
         ]
     },
     "Collect_TeleporCircle_OnFoot_NviMapChange_Lift": {
+        "max_hit": 15,
         "recognition": "TemplateMatch",
         "roi": [
             123,
@@ -1092,6 +1099,7 @@
         "focus": "CTOB.导航地图左移1次"
     },
     "Collect_TeleporCircle_OnFoot__NviMapChange_Right": {
+        "max_hit": 15,
         "recognition": "TemplateMatch",
         "roi": [
             615,
@@ -1108,6 +1116,7 @@
     },
     "Collect_TeleporCircle_OnFoot_TPIco": {
         "desc": "寻找当前页面传送阵图标",
+        "max_hit": 10,
         "recognition": "TemplateMatch",
         "roi": [
             197,
@@ -1314,6 +1323,7 @@
         "focus": "CTOB.进入战斗界面"
     },
     "Collect_TeleporCircle_OnFoot_Skirmish_Tpause": {
+        "max_hit": 10,
         "action": "Click",
         "target": [
             1178,
@@ -1329,6 +1339,7 @@
         ]
     },
     "Collect_TeleporCircle_OnFoot_Skirmish_TRun": {
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             471,
@@ -1382,6 +1393,7 @@
         ]
     },
     "Collect_ForceTelepor_IsEffect_ResetFoot": {
+        "max_hit": 10,
         "recognition": "TemplateMatch",
         "roi": [
             619,

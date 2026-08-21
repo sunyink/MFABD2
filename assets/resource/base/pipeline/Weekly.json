@@ -116,6 +116,7 @@
         ]
     },
     "Weekly_Fishing_Back": {
+        "max_hit": 10,
         "recognition": "TemplateMatch",
         "roi": [
             1154,
@@ -134,6 +135,7 @@
         ]
     },
     "Weekly_Fishing_Back_Msg": {
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             665,
@@ -183,6 +185,7 @@
         "focus": "PM.主页面"
     },
     "Weekly_LastNight_HomePageSwipe": {
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             99,
@@ -228,6 +231,7 @@
     },
     "Weekly_MoreBook_LastNight": {
         "desc": "点击More本子",
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             97,
@@ -288,6 +292,7 @@
         ]
     },
     "Weekly_LastNight_GoBattle": {
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             980,
@@ -307,6 +312,7 @@
         ]
     },
     "Weekly_LastNight_InBattle": {
+        "max_hit": 45,
         "recognition": "OCR",
         "roi": [
             45,
@@ -331,6 +337,7 @@
         ]
     },
     "Weekly_LastNight_LeavButt": {
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             1060,
@@ -362,6 +369,7 @@
         ]
     },
     "Weekly_LastNight_MaybeNew": {
+        "max_hit": 15,
         "recognition": "OCR",
         "roi": [
             736,
@@ -381,6 +389,7 @@
         ]
     },
     "Weekly_LastNight_MenuPageEnd": {
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             189,
@@ -439,6 +448,7 @@
         "focus": "WVM..主页面"
     },
     "Weekly_VisitCabin_GoIn": {
+        "max_hit": 10,
         "recognition": "Or",
         "any_of": [
             "Rec_<Weekly_VisitCabin_GoIn>_Tpl",
@@ -487,6 +497,7 @@
         ]
     },
     "Weekly_VisitCabin_TabChg": {
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             154,
@@ -510,6 +521,7 @@
         "focus": "WVM.进入小屋确认，参观"
     },
     "Weekly_VisitCabin_ModChg": {
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             149,
@@ -714,6 +726,7 @@
     },
     "Weekly_Arcade_GoIn": {
         "desc": "进入街机页面,识别器参数困难,改为直接点击",
+        "max_hit": 10,
         "action": "Click",
         "target": [
             360,

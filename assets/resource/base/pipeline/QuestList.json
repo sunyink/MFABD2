@@ -32,6 +32,7 @@
         ]
     },
     "RewardsDaily_InIndex": {
+        "max_hit": 10,
         "recognition": "Custom",
         "custom_recognition": "RedDotDetector",
         "custom_recognition_param": {"preset": "Agt_RedDot_Preset"},
@@ -82,6 +83,7 @@
         ]
     },
     "RewardsDaily_Get": {
+        "max_hit": 15,
         "recognition": "And",
         "all_of": [
             "Mail_GetAll"
@@ -91,12 +93,14 @@
     },
     "RewardsDaily_GetDailyRewardBack": {
         "desc": "点击领取全部返回",
+        "max_hit": 25,
         "recognition": "And",
         "all_of": ["Rec_Reward_Ocr"],
         "action": "Click",
         "post_delay": 3000
     },
     "RewardsDaily_TabWeeklyReward": {
+        "max_hit": 10,
         "recognition": "Custom",
         "custom_recognition": "RedDotDetector",
         "custom_recognition_param": {"preset": "Agt_RedDot_Preset"},

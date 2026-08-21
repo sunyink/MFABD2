@@ -7,6 +7,7 @@
     },
     "Pass_InToPass": {
         "desc": "识别左下抽抽乐-点击通行证",
+        "max_hit": 10,
         "recognition": "And",
         "all_of": [
             "Rec_HomePage_GA_Ocr",
@@ -80,6 +81,7 @@
     },
     "Pass_SelectPassTask": {
         "desc": "确认通行证页面,选择通行证任务",
+        "max_hit": 20,
         "recognition": "Or",
         "any_of": [
             "Rec_<Pass_SelectPassTask>_Ocr01",

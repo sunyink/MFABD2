@@ -147,6 +147,7 @@
     },
     "Activities_GetAllRe": {
         "desc": "确认抽卡",
+        "max_hit": 60,
         "recognition": "And",
         "all_of": ["Rec_Reward_Ocr"],
         "action": "Click",
@@ -329,6 +330,7 @@
         "focus": "GA.发现活动-bingo V.02509"
     },
     "Activities_Roulette": {
+        "max_hit": 10,
         "recognition": "OCR",
         "expected": [
             "1次免费"
@@ -425,6 +427,7 @@
         ]
     },
     "Activities_FreeClothing_Ty2_Ck": {
+        "max_hit": 20,
         "recognition": "ColorMatch",
         "roi": "Activities_FreeClothing_Ty2",
         "roi_offset": [
@@ -469,6 +472,7 @@
     },
     "Activities_Slip": {
         "desc": "下滑寻找免费抽卡",
+        "max_hit": 40,
         "recognition": "And",
         "all_of": ["Activities_Index"],
         "action": "Custom",
@@ -508,6 +512,7 @@
     },
     "Activities_Fin": {
         "desc": "返回首页",
+        "max_hit": 10,
         "recognition": "And",
         "all_of": ["Activities_Index"],
         "action": "Click",

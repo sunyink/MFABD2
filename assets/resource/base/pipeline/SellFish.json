@@ -40,6 +40,7 @@
         ]
     },
     "SellFish_ActionButt": {
+        "max_hit": 10,
         "recognition": "ColorMatch",
         "roi": [
             1012,
@@ -72,6 +73,7 @@
         "focus": "出售按钮"
     },
     "SellFish_ActionButt_Ck": {
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             662,
@@ -139,6 +141,7 @@
         "focus": "没有鱼获"
     },
     "SellFish_SwichAll": {
+        "max_hit": 10,
         "action": "Click",
         "target": [
             1004,

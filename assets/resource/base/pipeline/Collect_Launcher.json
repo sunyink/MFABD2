@@ -256,6 +256,7 @@
     },
     "Collect_QuickCart_SelectType_StoryPack": {
         "desc": "快速UI,点击剧情游戏卡",
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             36,
@@ -275,6 +276,7 @@
         "focus": "CM.L.剧情游戏卡带集"
     },
     "Collect_QuickCart_SelectType_CharacterPack": {
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             36,
@@ -294,6 +296,7 @@
         "focus": "CM.L.角色游戏卡带集"
     },
     "Collect_QuickCart_SelectType_EventPack": {
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             36,
@@ -313,6 +316,7 @@
         "focus": "CM.L.活动游戏卡带集"
     },
     "Collect_QuickCart_SelectType_ManagerPack": {
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             36,
@@ -332,6 +336,7 @@
         "focus": "CM.L.店长游戏卡带集"
     },
     "Collect_QuickCart_SelectType_GameplayPack": {
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             36,
@@ -2718,6 +2723,7 @@
     },
     "Collect_Pack_Click": {
         "desc": "可复用地点击已决定卡带",
+        "max_hit": 80,
         "recognition": "Or",
         "any_of": [
             "Collect_QuickCart_Menu"
@@ -2739,6 +2745,7 @@
     },
     "Collect_FirstPack": {
         "desc": "事件图可能会有新卡带",
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             413,
@@ -2757,6 +2764,7 @@
     },
     "Collect_FirstPack_Talk": {
         "desc": "初次卡带对话跳过",
+        "max_hit": 20,
         "recognition": "TemplateMatch",
         "roi": [
             915,

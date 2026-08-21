@@ -210,6 +210,7 @@
         "focus": "外部更新,下载中..."
     },
     "StartGame_UpdateEngShopnothink": {
+        "max_hit": 5,
         "recognition": "OCR",
         "roi": [
             200,
@@ -394,6 +395,7 @@
     },
     "StartGame_TouchStart": {
         "desc": "点击进入",
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             827,
@@ -441,6 +443,7 @@
     },
     "StartGame_NewChar": {
         "desc": "推出全新新角色识别",
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             121,
@@ -460,6 +463,7 @@
     },
     "StartGame_PVPSet": {
         "desc": "段位结算，点击确认",
+        "max_hit": 35,
         "recognition": "OCR",
         "roi": [
             612,
@@ -476,6 +480,7 @@
     },
     "StartGame_7dAD_Check": {
         "desc": "查找并点击 7天内不再显示此广告",
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             910,
@@ -671,6 +676,7 @@
         "post_delay": 8000
     },
     "StartGame_Error_API": {
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             452,
@@ -691,6 +697,7 @@
     },
     "StartGame_Special": {
         "desc": "另类赛季奖励接收",
+        "max_hit": 35,
         "recognition": "OCR",
         "roi": [
             304,
@@ -729,6 +736,7 @@
         "focus": "[WRN]SM.意料外卡带-黄金竞技场"
     },
     "StartGame_LinkDown": {
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             489,
@@ -868,6 +876,7 @@
     },
     "StartGame_ModMsg": {
         "desc": "mod弹窗消除,缺乏信息瞎蒙的.",
+        "max_hit": 10,
         "recognition": "OCR",
         "expected": [
             "CONFIRM"

@@ -9,6 +9,7 @@
     },
     "Event_GoinEvent": {
         "desc": "识别左下抽抽乐-点击活动",
+        "max_hit": 15,
         "recognition": "And",
         "all_of": [
             "Rec_HomePage_GA_Ocr",
@@ -524,6 +525,7 @@
     },
     "Event_TouchNormalBattle": {
         "desc": "弹出菜单，点击战斗",
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             647,
@@ -547,6 +549,7 @@
     },
     "Event_NormalBattleBack": {
         "desc": "奖励返回",
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             558,
@@ -667,6 +670,7 @@
         ]
     },
     "Even_MamonoFollowUp_InMamono": {
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             99,
@@ -846,6 +850,7 @@
         "focus": "EMMF.未与魔兽战斗过，流程即将结束"
     },
     "Even_MamonoFollowUp_lvdown": {
+        "max_hit": 4,
         "recognition": "And",
         "all_of": ["Even_MamonoFollowUp_MamonoEnter"],
         "action": "Click",
@@ -858,6 +863,7 @@
         "focus": "EM.EM.等级下调"
     },
     "Even_MamonoFollowUp_MmnHpUp": {
+        "max_hit": 30,
         "action": "Click",
         "target": [
             974,
@@ -867,6 +873,7 @@
         "focus": "EM.EM.等级上调"
     },
     "SeasonEvent_MamonoFollow_QuickBattle_Enable": {
+        "max_hit": 50,
         "recognition": "And",
         "all_of": [
             {
@@ -984,6 +991,7 @@
         "focus": "E.队伍漏配,尝试拿推荐部署"
     },
     "SeasonEvent_MamonoFollow_Team_Edit": {
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             644,
@@ -1000,6 +1008,7 @@
         ]
     },
     "SeasonEvent_MamonoFollow_Team_UsePreset": {
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             734,
@@ -1016,6 +1025,7 @@
         ]
     },
     "SeasonEvent_MamonoFollow_Team_FindPreset": {
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             972,
@@ -1041,6 +1051,7 @@
     },
     "Even_MamonoFollowUp_QuickBattle_ck": {
         "desc": "快速战斗按钮后的弹出菜单,需要点击确认",
+        "max_hit": 75,
         "recognition": "OCR",
         "roi": [
             691,
@@ -1061,6 +1072,7 @@
     },
     "Even_MamonoFollowUp_QuickBattle_Cleared": {
         "desc": "已击杀,领取奖励.",
+        "max_hit": 75,
         "recognition": "And",
         "all_of": ["Rec_Reward_Ocr"],
         "action": "Click",
@@ -1363,6 +1375,7 @@
         "focus": "快速完成OCR"
     },
     "Event_MiniGame_CLR_Enable": {
+        "max_hit": 10,
         "recognition": "And",
         "all_of": ["Anc_Ocr_Enable_Clr"],
         "action": "Click",
@@ -1587,6 +1600,7 @@
         ]
     },
     "SeasonEvent_ReMamono_Enter": {
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             833,

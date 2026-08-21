@@ -123,6 +123,7 @@
     },
     "QuickHunt_ListCollapse": {
         "desc": "消除资源下拉菜单,否则遮蔽",
+        "max_hit": 10,
         "recognition": "TemplateMatch",
         "roi": [
             1067,
@@ -360,6 +361,7 @@
     },
     "QuickHunt_CollectMapAdventureRoute_Select_Glod": {
         "desc": "硬编码选择航线-金币",
+        "max_hit": 8,
         "action": "Click",
         "target": [
             138,
@@ -380,6 +382,7 @@
     "QuickHunt_CollectMapAdventureRoute_Select_Exp": {
         "desc": "硬编码选择航线-经验",
         "enabled": false,
+        "max_hit": 8,
         "action": "Click",
         "target": [
             138,
@@ -484,6 +487,7 @@
     },
     "QuickHunt_CollectMapAdventureRoute2_Switch_A": {
         "desc": "金币A关卡转经验B",
+        "max_hit": 10,
         "recognition": "And",
         "all_of": [
             "Rec_GoldGoblin_Clr"
@@ -503,6 +507,7 @@
     },
     "QuickHunt_CollectMapAdventureRoute2_Switch_B": {
         "desc": "经验B关卡转金币A",
+        "max_hit": 10,
         "recognition": "And",
         "all_of": [
             "Rec_ExpSlime_Clr"
@@ -619,6 +624,7 @@
     },
     "QuickHunt_CollectMapAdventureRouteDoubleCk2No_ToCentral": {
         "desc": "目的是不用中断、在主流程里把地图复位，配个其他中断使用。T1",
+        "max_hit": 15,
         "action": "Click",
         "target": [
             139,
@@ -694,6 +700,7 @@
         ]
     },
     "QuickHunt_CollectMapCrystalCave": {
+        "max_hit": 15,
         "recognition": "And",
         "all_of": [
             "QuickHunt_CollectMapAdventureRoute1"
@@ -983,6 +990,7 @@
     },
     "QuickHunt_QuickBattleButton": {
         "desc": "寻找快速狩猎，点击(OCR+CLR)必定1级界面才点击",
+        "max_hit": 30,
         "recognition": "And",
         "all_of": [
             {
@@ -1007,6 +1015,7 @@
     },
     "QuickHunt_FastBattleStart": {
         "desc": "快速狩猎界面，点击狩猎 | 优化记录:这里要等动画,3S",
+        "max_hit": 30,
         "recognition": "OCR",
         "roi": [
             622,
@@ -1090,6 +1099,7 @@
     },
     "QuickHunt_CollectMap_Initialize": {
         "desc": "无判定复位,然后校验,要求极快",
+        "max_hit": 50,
         "action": "Click",
         "target": [
             139,
@@ -1260,6 +1270,7 @@
         "focus": "BM.#327 当前关即双倍图,打MAX消化米饭"
     },
     "QuickHunt_MapLocReset_once": {
+        "max_hit": 50,
         "recognition": "ColorMatch",
         "roi": [
             136,
@@ -1316,6 +1327,7 @@
     },
     "QuickHunt_TurnCharact_QuickBattleButton": {
         "desc": "寻找快速狩猎，点击",
+        "max_hit": 15,
         "recognition": "OCR",
         "roi": [
             1006,
@@ -1374,6 +1386,7 @@
         "focus": "BTM.次数=2次"
     },
     "QuickHunt_TurnCharact_TurnDuo_Int": {
+        "max_hit": 8,
         "recognition": "TemplateMatch",
         "roi": [
             785,
@@ -1389,6 +1402,7 @@
         "focus": "BTM.刷取次数调整"
     },
     "QuickHunt_TurnCharact_BattleStart": {
+        "max_hit": 15,
         "recognition": "And",
         "all_of": [
             "QuickHunt_FastBattleStart"
@@ -1406,6 +1420,7 @@
     },
     "QuickHunt_TurnCharact_FastBattleReward": {
         "desc": "狩猎Reward",
+        "max_hit": 25,
         "recognition": "And",
         "all_of": [
             "Rec_Reward_Ocr"
@@ -1474,6 +1489,7 @@
     "QuickHunt_CollectMap_SwipLeft": {
         "desc": "移动大地图-史贝伦大陆西北",
         "enabled": false,
+        "max_hit": 10,
         "recognition": "And",
         "all_of": [
             "QuickHunt_CollectMap_Initialize_Out_Ty2"
@@ -1495,6 +1511,7 @@
     "QuickHunt_CollectMap_SwipNoth": {
         "desc": "移动大地图-史贝伦大陆东北",
         "enabled": false,
+        "max_hit": 10,
         "recognition": "And",
         "all_of": [
             "QuickHunt_CollectMap_Initialize_Out_Ty2"

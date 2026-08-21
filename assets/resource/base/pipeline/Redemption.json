@@ -11,6 +11,7 @@
     },
     "Redemption_ToPack": {
         "desc": "点击箱庭卡带",
+        "max_hit": 10,
         "recognition": "TemplateMatch",
         "roi": [
             28,
@@ -39,6 +40,7 @@
     },
     "Redemption_Evil_Settlement": {
         "desc": "赛季奖励消除",
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             817,
@@ -393,6 +395,7 @@
         ]
     },
     "Redemption_Evil_Redemption_On": {
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             618,
@@ -411,6 +414,7 @@
         ]
     },
     "Redemption_Evil_Redemption_Result": {
+        "max_hit": 20,
         "recognition": "OCR",
         "roi": [
             800,

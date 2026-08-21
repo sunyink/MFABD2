@@ -7,6 +7,7 @@
     },
     "Gacha_EnterGacha": {
         "desc": "识别左下抽抽乐-点击抽卡",
+        "max_hit": 10,
         "recognition": "And",
         "all_of": [
             "Rec_HomePage_GA_Ocr",
@@ -69,6 +70,7 @@
     },
     "Gacha_Slip": {
         "desc": "下滑寻找免费抽卡",
+        "max_hit": 40,
         "recognition": "OCR",
         "roi": [
             226,
@@ -315,6 +317,7 @@
     },
     "Gacha_TouchFreeGacha": {
         "desc": "免费抽流程开始:点击右下免费1抽",
+        "max_hit": 20,
         "recognition": "OCR",
         "roi": [
             393,
@@ -358,6 +361,7 @@
     },
     "Gacha_TouchFreeGachaBuy": {
         "desc": "GA.抽卡",
+        "max_hit": 20,
         "recognition": "OCR",
         "roi": [
             635,
@@ -379,6 +383,7 @@
     },
     "Gacha_5X": {
         "desc": "五星卡",
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             519,
@@ -404,6 +409,7 @@
     },
     "Gacha_5X2": {
         "desc": "五星卡2",
+        "max_hit": 10,
         "recognition": "OCR",
         "roi": [
             519,
@@ -428,6 +434,7 @@
         "focus": "GA.5☆UR武器！(✧◡✧)"
     },
     "Gacha_5XResuNew": {
+        "max_hit": 20,
         "recognition": "ColorMatch",
         "roi": [
             4,
@@ -462,6 +469,7 @@
         ]
     },
     "Gacha_5XBug_LightningBall": {
+        "max_hit": 20,
         "recognition": "TemplateMatch",
         "roi": [
             1103,
@@ -482,6 +490,7 @@
     },
     "Gacha_GachaResultBack": {
         "desc": "抽卡结果页返回",
+        "max_hit": 30,
         "recognition": "OCR",
         "roi": [
             93,
@@ -519,6 +528,7 @@
         "focus": "GA.退出抽卡"
     },
     "Gacha_FindEquRedDot": {
+        "max_hit": 10,
         "recognition": "Custom",
         "custom_recognition": "RedDotDetector",
         "custom_recognition_param": {"preset": "Agt_RedDot_Preset"},
