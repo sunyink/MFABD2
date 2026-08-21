@@ -24,34 +24,47 @@ utils.mfaalog.info(f"[Py] 周期策略管理器已加载。")
 # 特性：支持全球时区设定。开发侧：类设定按照当地时间时区填入，后台自动同步为UTC+0。
 #  。                   用户侧：时间戳后台自动同步为UTC+0，不妨碍计算。
 # 策略漏洞：忽略了时区变化,时间戳没有时区标记，带电脑旅游历史时间戳的处理未编写应对。
+# 失败开放：参数解析失败 / 策略算不出刷新点 / 存档时间串读不懂 —— 这三类判不出来的
+#           情况一律**当作可运行放行**，并按 error 级留日志(不再静默)。写节点时要知道
+#           异常态是"放行"而不是"拦截"。方向本身有争议，但三处一致，要改得一起评估。
 #
 # ------------------------------------------------------------------------------
 # 📝 JSON Pipeline 配置指南 (标准规范版)
 # ------------------------------------------------------------------------------
 #
+# ⚠️ 判据只有一个方向："冷却已过 = 识别成功"。
+#    想表达"已完成才通过"(比如"整批都刷完了就收尾")不能靠 And 组合多个本识别器 ——
+#    三个都命中意味着三个都**还没做**，正好相反；节点级 inverse 也不行，它反转的是
+#    整个组合式，NOT(A且B且C) 会变成"任一已完成即命中"。那种判据请看【模式 C】。
+#
 # 【模式 A】作为“自定义识别器”使用 (推荐 ⭐)
 # ---------------------------------------------------
-# 逻辑：检查通过 -> 视为“识别成功”，执行当前节点的 action。
-#       检查不通过(冷却中) -> 视为“识别失败”，寻找 on_error 或跳过当前任务。
+# 逻辑：冷却已过 -> 视为“识别成功”，执行当前节点的 action。
+#       冷却未过 -> 视为“识别失败”，父节点跳过这个候选，去试 next 里的下一个。
 #
 # "Task_Daily_Dungeon": {
 #     "recognition": "Custom",               // ⚡️ 必须固定为 Custom
 #     "custom_recognition": "CheckCoolDown", // ⚡️ 指向 Python 注册的 ID
 #     "custom_recognition_param": {
 #         "card_name": "Map_01",             // 任务唯一标识 ID
-#         "cycle_type": "g_daily"            // 策略类型
+#         "cycle_type": "g_daily"            // 策略类型，缺省为 g_weekly
 #     },
-#     "timeout": 100,                        // 建议设短（如 100ms），纯逻辑无需重试
+#     "rate_limit": 0,                       // 纯逻辑判定，三个延迟都显式写 0
+#     "pre_delay": 0,                        // (协议默认 1000/200/200ms，省略就白吃)
+#     "post_delay": 0,
 #     "action": "Click",
-#     "action_param": { "target": "Button" },
-#     "next": [ "Sub_Task" ],
-#     "on_error": [ "Next_Major_Task" ]      // 冷却中会触发失败，跳转至此
+#     "target": [ 640, 360 ],
+#     "next": [ "Sub_Task" ]
 # }
+#
+# ⚠️ 识别不中走的是"父节点换下一个候选"，**不是**这个节点自己的 on_error。
+#    on_error 是本节点超时或动作失败时才走的，别指望拿它接"冷却中"的分支 ——
+#    想在冷却中做别的事，把那件事写成 next 列表里排在后面的另一个候选。
 #
 # 【模式 B】作为“自定义动作”使用
 # ---------------------------------------------------
 # 逻辑：检查通过 -> Action 返回 True，继续 next。
-#       检查不通过 -> Action 返回 False，通常导致节点失败。
+#       检查不通过 -> Action 返回 False，节点进入错误态(没写 on_error 就静默出栈)。
 #
 # "Task_Check_Action": {
 #     "action": "Custom",                    // ⚡️ 注意：Action 模式也建议写全
@@ -61,6 +74,45 @@ utils.mfaalog.info(f"[Py] 周期策略管理器已加载。")
 #     },
 #     "next": [ "Enter_Stage" ]
 # }
+#
+# 【模式 C】批量总闸 (targets + match)
+# ---------------------------------------------------
+# 一次问一批"还有没有活"，只返回一个布尔值。用途是省掉"整批都做完了、却仍逐个
+# 空转识别"的开销 —— 候选多时这笔开销是每轮都要付的。
+#
+# ⚠️ 它**不返回**"哪几项可跑"。CustomAction 读不到识别的 detail，身份信息传不下去。
+#    要按项分发仍然得靠 pipeline 把候选展开成多个节点；批量只适合做总闸。
+#
+# "Collect_AllLibGone": {
+#     "recognition": "Custom",
+#     "custom_recognition": "CheckCoolDown",
+#     "custom_recognition_param": {
+#         "targets": [                       // ← 有 targets 就走批量，否则走单个
+#             { "card_name": "Pack_Story_SimpleDone", "cycle_type": "g_weekly" },
+#             { "card_name": "Pack_Event_SimpleDone", "cycle_type": "g_weekly" }
+#         ],
+#         "match": "all_done"                // ← 见下表，缺省 "any"
+#     },
+#     "rate_limit": 0,
+#     "pre_delay": 0,
+#     "post_delay": 0,
+#     "focus": "全类已完成,收尾"
+#     // 不写 next = 命中后退栈收尾；要硬停整个 task 才写 "action": "StopTask"
+# }
+#
+# match 三种取值（"可跑" = 冷却已过）：
+#   any       至少一项可跑   -> 正向入口闸："还有活干才进这个模块"
+#   none      没有一项可跑   -> 总闸："没活了"。结算期、判定异常都算进"不可跑"
+#   all_done  全部已完成     -> 严格总闸：结算期与判定异常都不算 done
+#
+# ⚠️ none 与 all_done 的区别值得留意："不可跑"有两种原因 —— 已完成、和正处在结算
+#    保护期。拿 none 当"全完成"判据时，只是卡在结算期的项也会被算进去。
+#    判"真的都做完了"一律用 all_done。(blackout_minutes 为 0 的策略两者等价)
+#
+# ⚠️ 配置错(targets 非数组/为空/match 拼错/项缺 card_name)一律"不命中" + error 日志。
+#    这在两种 match 下安全性不对称：none 当总闸时不命中 = 照常逐个跑，不会漏任务；
+#    any 当入口闸时不命中 = 整个模块被跳过，会漏任务。
+#    排查搜日志里的 "❌ CheckCoolDown 批量模式"。
 #
 # 【通用】任务完成标记 (MarkComplete)
 # ---------------------------------------------------
@@ -209,6 +261,11 @@ class CooldownManager:
         """
         【翻译器】: "本地时间字符串" -> "UTC时间戳"
         核心逻辑: 假设存档里的时间是基于当前电脑时区的，将其转为绝对的UTC时间戳。
+
+        解析不出来时返回 None,而不是 0.0。0.0 本身是个合法时间戳(1970-01-01),
+        与"解析失败"混在一起后调用方无从区分 —— 它恒小于任何 reset_ts,于是
+        "打过标"被静默判成"从没跑过",表现为完成态下反复重跑,且日志里一个字都没有。
+        返回 None 把这两件事拆开,由调用方显式决定怎么收场。
         """
         try:
             # 1. 解析字符串为 datetime 对象 (naive time)
@@ -217,8 +274,17 @@ class CooldownManager:
             dt_local = dt_naive.replace(tzinfo=self._get_local_timezone())
             # 3. 转换为 UTC 时间戳 (float)
             return dt_local.timestamp()
-        except:
-            return 0.0
+        except (ValueError, TypeError) as e:
+            # ValueError: 格式对不上(存档被手改过、或将来换了存储格式)
+            # TypeError : 存档里根本不是字符串(JSON 里存成了数字/null)
+            # 原先是裸 except —— 连 KeyboardInterrupt / SystemExit 都一并吞掉。
+            # 不必再捕 OSError/OverflowError: 上面 replace(tzinfo=...) 之后是 aware
+            # datetime,其 timestamp() 走纯算术而非平台 mktime,1970 年之前也不报错
+            # (实测 "1960-01-01 00:00:00" 正常返回 -315597600.0)。别再往回补。
+            utils.mfaalog.error(
+                f"[Py] ❌ 存档时间戳无法解析: {time_str!r} ({type(e).__name__}: {e})"
+            )
+            return None
 
     def _calculate_server_reset_timestamp(self, strategy_name):
         """
@@ -309,6 +375,191 @@ class CooldownManager:
 
         return final_reset.timestamp(), config
 
+    # 单卡判定的四种状态。批量聚合(_check_batch)按这四态统计,别在调用处直接写
+    # 字符串字面量 —— 拼错了会静默落进 else 分支。
+    STATE_RUNNABLE = "runnable"   # 冷却已过,可以跑
+    STATE_DONE = "done"           # 本周期内已打过标
+    STATE_BLOCKED = "blocked"     # 处于结算保护期,这一刻不能碰
+    STATE_ERROR = "error"         # 判不出来(策略算不出),沿用失败开放当可跑
+
+    def _check_one(self, card_name, strategy_name, quiet=False, store=None, reset_cache=None):
+        """判定单张卡的冷却状态。
+
+        check_availability(单卡) 与 _check_batch(批量) 共用这一份比对逻辑,
+        拆出来是为了让批量判据不必复制一遍。
+
+        quiet=True 时不打结算期的 warning —— 批量下 30 多张卡同时处于结算期
+        会刷屏,汇总日志里有计数。
+
+        store / reset_cache 只在批量下由 _check_batch 传入:
+        · store       已 load 好的存档快照。PersistentStore.get() 每次都会读盘
+                      并解析 JSON,33 张卡就是 33 次文件 IO,快照把它压成 1 次。
+        · reset_cache 同一 strategy_name 的刷新点在一批内是同一个值,算一次即可。
+                      值为 None 表示这个策略上面已经算崩过,别再重复打一遍堆栈。
+
+        Returns
+        -------
+        dict: state 为上面四个 STATE_* 之一; icon/reset/last 供日志展示。
+        """
+        # --- 读取数据库 ---
+        storage_key = self._get_storage_key(card_name, strategy_name)
+        if store is not None:
+            last_run_str = store.get(storage_key, None)
+        else:
+            last_run_str = PersistentStore.get(storage_key, None)
+
+        # --- 计算服务器刷新时间 ---
+        if reset_cache is not None and strategy_name in reset_cache:
+            cached = reset_cache[strategy_name]
+            if cached is None:
+                # 这一批里已经为该策略打过堆栈了,直接沿用同一个失败结论
+                return {"state": self.STATE_ERROR, "icon": "❓", "reset": "-", "last": "-"}
+            reset_ts, config = cached
+        else:
+            try:
+                reset_ts, config = self._calculate_server_reset_timestamp(strategy_name)
+            except Exception as e:
+                # 注意这是"失败开放":算不出刷新点就当作可运行。方向本身有争议
+                # (冷却管理器失效时更该保守跳过),但改它会影响所有策略,留待统一评估。
+                # 眼下至少把现场留全 —— 此前只打一行 {e},golden_pvp 的 24:00 崩溃
+                # 就是这样被压成一句"策略计算异常"、查不出根因的。
+                import traceback
+                utils.mfaalog.error(f"[Py] 策略计算异常({strategy_name}): {e}")
+                for line in traceback.format_exc().rstrip().splitlines():
+                    utils.mfaalog.error(f"[Py]   {line}")
+                if reset_cache is not None:
+                    reset_cache[strategy_name] = None
+                return {"state": self.STATE_ERROR, "icon": "❓", "reset": "-", "last": "-"}
+            if reset_cache is not None:
+                reset_cache[strategy_name] = (reset_ts, config)
+
+        # --- 结算期逻辑 ---
+        blackout_min = config.get("blackout_minutes", 0)
+        current_ts = time.time()
+        settlement_end_ts = reset_ts + (blackout_min * 60)
+        local_reset_str = datetime.fromtimestamp(reset_ts).strftime("%Y-%m-%d %H:%M:%S")
+
+        if reset_ts <= current_ts < settlement_end_ts:
+            if not quiet:
+                end_str = datetime.fromtimestamp(settlement_end_ts).strftime("%H:%M")
+                utils.mfaalog.warning(f"\n[Py] ⛔ {card_name} 处于结算期 (至 {end_str})")
+            return {"state": self.STATE_BLOCKED, "icon": "⛔",
+                    "reset": local_reset_str, "last": "-"}
+
+        # --- 核心比对 ---
+        if last_run_str is None:
+            # 无记录 -> 通过
+            return {"state": self.STATE_RUNNABLE, "icon": "🟢",
+                    "reset": local_reset_str, "last": "新任务"}
+
+        last_run_ts = self._str_to_utc_timestamp(last_run_str)
+        if last_run_ts is None:
+            # 有记录、但那条记录读不懂。沿用本文件既有的"失败开放"方向(当作可运行),
+            # 与上面算不出刷新点时的兜底保持一致 —— 方向本身有争议(冷却管理器
+            # 失效时更该保守跳过),但改它要连着那几处一起评估,这里只负责别再静默。
+            # _str_to_utc_timestamp 已按 error 级记了原始值与异常类型。
+            return {"state": self.STATE_RUNNABLE, "icon": "🟡", "reset": local_reset_str,
+                    "last": f"{last_run_str!r} ← 解析失败,已按未运行处理"}
+        if last_run_ts < reset_ts:
+            return {"state": self.STATE_RUNNABLE, "icon": "🟢",
+                    "reset": local_reset_str, "last": last_run_str}
+        return {"state": self.STATE_DONE, "icon": "🔴",
+                "reset": local_reset_str, "last": last_run_str}
+
+    # match 取值 -> 一句话语义。写错时报错而不是静默套默认值。
+    # 刻意没有 "all"(全部可跑才命中) —— 想不出用途,要用再加。
+    MATCH_MODES = {
+        "any":      "至少一项可跑",
+        "none":     "没有一项可跑(结算期、判定异常都算进来)",
+        "all_done": "全部已完成(结算期与判定异常都不算 done)",
+    }
+
+    def _check_batch(self, params):
+        """批量聚合判据:一次问一批卡带"还有没有活",而不是逐个节点各问一次。
+
+        用途是给 pipeline 侧做"总闸"。实测 Collect_PackLocation_PassFieldsAndHub
+        的 32 个候选全刷完后仍会逐个空转,一轮约 2.7s,一次运行里空转了 22 轮共
+        约 62s —— 这些轮次里 And 因短路只发了 1 次 IPC,开销主体是 31 次模板匹配,
+        所以省不掉,只能靠总闸整轮跳过。
+
+        ⚠️ 这里**不返回**"哪几张可跑"。CustomAction 拿不到识别的 detail,身份信息
+        传不下去;能传下去的只有这一个布尔值。要按卡分发仍然得靠 pipeline 侧把
+        候选展开成多个节点(现有 33 个 And 节点就是这么做的),批量只适合做总闸。
+        """
+        targets = params.get("targets")
+        match = params.get("match", "any")
+
+        # ⚠️ 配置错一律返回"不命中"。这在两种 match 下的安全性并不对称:
+        #    match=none 当总闸时,不命中 = 闸不成立 = 照常逐个跑,不会漏做任务;
+        #    match=any  当入口闸时,不命中 = 整个模块被跳过,会漏做任务。
+        # 所以下面每一条都配 error 级日志,别让它悄悄退化。
+        if not isinstance(targets, list) or not targets:
+            utils.mfaalog.error(
+                f"[Py] ❌ CheckCoolDown 批量模式: targets 必须是非空数组,实际为 {targets!r}"
+            )
+            return False
+
+        if match not in self.MATCH_MODES:
+            utils.mfaalog.error(
+                f"[Py] ❌ CheckCoolDown 批量模式: match 取值非法 {match!r},"
+                f"可选 {list(self.MATCH_MODES)}"
+            )
+            return False
+
+        counts = {self.STATE_RUNNABLE: 0, self.STATE_DONE: 0,
+                  self.STATE_BLOCKED: 0, self.STATE_ERROR: 0}
+        runnable_names = []
+        bad_items = 0
+
+        # 整批共用一份存档快照与策略缓存,见 _check_one 的 docstring。
+        # 快照是本次判定的一致视图 —— 期间没有写入,不存在读到半旧半新的问题。
+        store = PersistentStore.load()
+        reset_cache = {}
+
+        for item in targets:
+            if not isinstance(item, dict) or not item.get("card_name"):
+                bad_items += 1
+                continue
+            c_name = item["card_name"]
+            s_name = item.get("cycle_type", "g_weekly")
+            r = self._check_one(c_name, s_name, quiet=True,
+                                store=store, reset_cache=reset_cache)
+            counts[r["state"]] += 1
+            if r["state"] == self.STATE_RUNNABLE:
+                runnable_names.append(c_name)
+            utils.mfaalog.debug(f"[Py]   · {c_name}@{s_name} -> {r['state']} (上次 {r['last']})")
+
+        if bad_items:
+            # 手写三十多项漏个 card_name 太容易了。静默跳过会让闸的判据
+            # 悄悄少算几张卡,而少算的方向恰好是"看起来更像全完成了"。
+            utils.mfaalog.error(
+                f"[Py] ❌ CheckCoolDown 批量模式: {bad_items} 项缺少 card_name 已跳过,请检查节点参数"
+            )
+
+        checked = sum(counts.values())
+        if checked == 0:
+            utils.mfaalog.error("[Py] ❌ CheckCoolDown 批量模式: targets 里没有一项有效目标")
+            return False
+
+        if match == "any":
+            hit = counts[self.STATE_RUNNABLE] > 0
+        elif match == "none":
+            hit = counts[self.STATE_RUNNABLE] == 0
+        else:  # all_done
+            hit = counts[self.STATE_DONE] == checked
+
+        preview = "、".join(runnable_names[:5])
+        if len(runnable_names) > 5:
+            preview += f" …共 {len(runnable_names)} 项"
+        utils.mfaalog.info(
+            f"[Py] 📋 批量冷却检查 {checked} 项 (match={match}: {self.MATCH_MODES[match]})\n"
+            f"      可跑 {counts[self.STATE_RUNNABLE]} / 已完成 {counts[self.STATE_DONE]}"
+            f" / 结算期 {counts[self.STATE_BLOCKED]} / 判定异常 {counts[self.STATE_ERROR]}"
+            + (f"\n      可跑: {preview}" if runnable_names else "")
+            + f"\n   -> {'✅ 命中' if hit else '⬜ 不命中'}"
+        )
+        return hit
+
     def check_availability(self, argv):
         # --- 1. 参数解析 ---
         try:
@@ -319,79 +570,46 @@ class CooldownManager:
                 params = argv
             else:
                 params = {}
-            
-            card_name = params.get("card_name", "Unknown_Card")
-            strategy_name = params.get("cycle_type", "g_weekly") 
         except Exception as e:
             utils.mfaalog.error(f"[Py] 参数解析失败: {e}")
-            return True 
-
-        # --- 2. 读取数据库 ---
-        storage_key = self._get_storage_key(card_name, strategy_name)
-        last_run_str = PersistentStore.get(storage_key, None)
-
-        # --- 3. 计算服务器刷新时间 ---
-        try:
-            reset_ts, config = self._calculate_server_reset_timestamp(strategy_name)
-        except Exception as e:
-            # 注意这是"失败开放":算不出刷新点就当作可运行。方向本身有争议
-            # (冷却管理器失效时更该保守跳过),但改它会影响所有策略,留待统一评估。
-            # 眼下至少把现场留全 —— 此前只打一行 {e},golden_pvp 的 24:00 崩溃
-            # 就是这样被压成一句"策略计算异常"、查不出根因的。
-            import traceback
-            utils.mfaalog.error(f"[Py] 策略计算异常({strategy_name}): {e}")
-            for line in traceback.format_exc().rstrip().splitlines():
-                utils.mfaalog.error(f"[Py]   {line}")
             return True
 
-        # --- 4. 结算期逻辑 ---
-        blackout_min = config.get("blackout_minutes", 0)
-        current_ts = time.time()
-        settlement_end_ts = reset_ts + (blackout_min * 60)
-        
-        # 格式化: 只显示 "月-日 时:分" 以节省空间
-        local_reset_str = datetime.fromtimestamp(reset_ts).strftime("%Y-%m-%d %H:%M:%S")
-        
-        if reset_ts <= current_ts < settlement_end_ts:
-            end_str = datetime.fromtimestamp(settlement_end_ts).strftime("%H:%M")
-            utils.mfaalog.warning(f"\n[Py] ⛔ {card_name} 处于结算期 (至 {end_str})")
-            return False
+        # params 未必是 dict:custom_*_param 写成数组时 json.loads 出来就是 list,
+        # 下面的 .get 会 AttributeError。原先靠外层 try 兜住,拆分后要显式挡一道。
+        if not isinstance(params, dict):
+            utils.mfaalog.error(
+                f"[Py] 参数应为对象,实际为 {type(params).__name__}: {params!r}"
+            )
+            return True
 
-        # --- 5. 核心比对与日志构建 ---
-        status_icon = "❓"
-        is_pass = False
-        last_run_display = "新任务" # 默认显示
+        # --- 2. 批量模式:targets 数组 + match 聚合判据 ---
+        # 与 MarkComplete 的 targets 写法对齐;不带 targets 时走下面的单卡老路。
+        if "targets" in params:
+            return self._check_batch(params)
 
-        if last_run_str is None:
-            # 无记录 -> 通过
-            status_icon = "🟢"
-            is_pass = True
-        else:
-            # 有记录 -> 比对
-            last_run_ts = self._str_to_utc_timestamp(last_run_str)
-            
-            # 直接使用完整时间字符串，不再截断
-            last_run_display = last_run_str
+        # --- 3. 单卡模式 ---
+        card_name = params.get("card_name", "Unknown_Card")
+        strategy_name = params.get("cycle_type", "g_weekly")
 
-            if last_run_ts < reset_ts:
-                status_icon = "🟢"
-                is_pass = True
-            else:
-                status_icon = "🔴"
-                is_pass = False
+        r = self._check_one(card_name, strategy_name)
+        if r["state"] == self.STATE_ERROR:
+            return True    # 失败开放,与拆分前一致:算不出刷新点就当作可运行
+        if r["state"] == self.STATE_BLOCKED:
+            return False   # 结算期的 warning 已在 _check_one 里打过
 
-        # --- 6. 最终整合打印 (单行 + 前置换行) ---
+        # --- 4. 最终整合打印 (单行 + 前置换行) ---
         # 格式: [空行] [图标] 名称(对齐) | 策略 | 基准时间 | 上次时间 -> 结果
         # :<14 表示左对齐占14个字符位，让竖线尽量对齐
-        log_msg = f"检查: {card_name:<14}（策略：{strategy_name}） \n 刷新基准: {local_reset_str} \n 上次运行: {last_run_display}"
-        
-        if is_pass:
-            utils.mfaalog.info(f"{log_msg}\n   -> {status_icon} 启动")
+        log_msg = (f"检查: {card_name:<14}（策略：{strategy_name}） \n"
+                   f" 刷新基准: {r['reset']} \n 上次运行: {r['last']}")
+
+        if r["state"] == self.STATE_RUNNABLE:
+            utils.mfaalog.info(f"{log_msg}\n   -> {r['icon']} 启动")
             return True
         else:
             # 如果你想在UI上也看到跳过信息，用 info；如果只想在文件里看，用 print 或 debug
             # 这里为了满足你的需求（看到保留的信息），使用 info
-            print(f"{log_msg}\n   -> {status_icon} 跳过")
+            print(f"{log_msg}\n   -> {r['icon']} 跳过")
             return False
 
     def mark_complete(self, argv):
@@ -479,17 +697,30 @@ class CheckCoolDownRecognition(CustomRecognition):
             
             # 3. 根据结果返回
             if is_available:
-                # 🟢 任务可用 -> 返回 AnalyzeResult (逻辑上的“识别成功”)
-                # 这里的 detail 可以传递给后续的 Action (如果有)
-                msg = f"任务 {params.get('card_name')} 可执行"
+                # 🟢 判据成立 -> 返回 AnalyzeResult (逻辑上的“识别成功”)
+                # detail 会原样进 maafw.log 的 reco_details,排查时能看到判据依据;
+                # 但 CustomAction 读不到它,别指望用它往下游传数据。
+                if isinstance(params, dict) and "targets" in params:
+                    n = len(params.get("targets") or [])
+                    mode = params.get("match", "any")
+                    detail = {"msg": f"批量判据成立 (match={mode}, {n} 项)",
+                              "match": mode, "count": n}
+                else:
+                    card = params.get('card_name') if isinstance(params, dict) else None
+                    detail = {"msg": f"任务 {card} 可执行", "card_name": card}
                 return CustomRecognition.AnalyzeResult(
                     box=[0, 0, 0, 0],  # 虚拟坐标，逻辑检查不需要真实坐标
-                    detail={"msg": msg, "card_name": params.get('card_name')}
+                    detail=detail
                 )
             else:
-                # 🔴 任务冷却中 -> 返回 None (逻辑上的“识别失败/跳过”)
+                # 🔴 判据不成立 -> 返回 None (逻辑上的“识别失败/跳过”)
                 return None
-                
+
         except Exception as e:
+            # 这里返回 None 会让上层看成"界面上没有",与真正的冷却中不可区分,
+            # 所以堆栈必须留全 —— 与 _check_one 里策略计算异常的处理保持一致。
+            import traceback
             utils.mfaalog.error(f"[Py] CheckCoolDownRecognition 异常: {e}")
+            for line in traceback.format_exc().rstrip().splitlines():
+                utils.mfaalog.error(f"[Py]   {line}")
             return None

@@ -2,6 +2,7 @@
     "Collect_StartGame_HomePage": {
         "next": [
             "[JumpBack]Collect_PerPetTask",
+            "Collect_AllLibGone",
             "Collect_Sandplay",
             "[JumpBack]Global_ToSandBox"
         ]
@@ -38,6 +39,7 @@
         "timeout": 5000,
         "next": [
             "[JumpBack]Collect_PerPetTask",
+            "Collect_AllLibGone",
             "Collect_Sandplay",
             "[JumpBack]Global_ToSandBox"
         ]
@@ -88,6 +90,23 @@
             "Collect_QuickCart_Menu",
             "[JumpBack]Global_QuickCart_MenuReset"
         ]
+    },
+    "Collect_AllLibGone": {
+        "desc": "全类标签已达标,结束task",
+        "recognition": "Custom",
+        "custom_recognition": "CheckCoolDown",
+        "custom_recognition_param": {
+            "targets": [
+                {"card_name": "Pack_Story_SimpleDone", "cycle_type": "g_weekly"},
+                {"card_name": "Pack_Character_SimpleDone", "cycle_type": "g_weekly"},
+                {"card_name": "Pack_Event_SimpleDone", "cycle_type": "g_weekly"}
+            ],
+            "match": "all_done"
+        },
+        "pre_delay": 0,
+        "post_delay": 0,
+        "rate_limit": 0,
+        "focus": "全类已有完成标签,停止任务"
     },
     "Collect_BlackList_User": {
         "enabled": false,

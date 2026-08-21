@@ -947,11 +947,14 @@ jobs:
 
           # ELF 与 Mach-O(32/64/fat，两种字节序) 的魔数。
           # PE 的 "MZ" 不在其中，Windows 产物不会被波及。
+          # fat 四个变体全列：当前 macOS 按架构分包，产出的都是 thin Mach-O，
+          # 这四个是给将来若改用 universal binary 留的，不列全等于半拉子。
           MAGIC = {
               b"\x7fELF",
               b"\xcf\xfa\xed\xfe", b"\xce\xfa\xed\xfe",
               b"\xfe\xed\xfa\xcf", b"\xfe\xed\xfa\xce",
-              b"\xca\xfe\xba\xbe",
+              b"\xca\xfe\xba\xbe", b"\xbe\xba\xfe\xca",   # FAT_MAGIC / FAT_CIGAM
+              b"\xca\xfe\xba\xbf", b"\xbf\xba\xfe\xca",   # FAT_MAGIC_64 / FAT_CIGAM_64
           }
           UNIX_PKG = ("-macos-", "-linux-", "-android-")
 
