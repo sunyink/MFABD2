@@ -880,6 +880,33 @@
         "post_delay": 5000
     },
     "Collect_FindTeleporCircle0.9": {
+        "recognition": "And",
+        "all_of": ["Collect_TeleporCircle_Ico_Enter"],
+        "action": "Custom",
+        "custom_action": "SmartAction",
+        "custom_action_param": {
+            "proxy_node": "Collect_TeleporCircle_Ico_Enter",
+            "detect_roi": [
+                129,
+                105,
+                70,
+                66
+            ],
+            "threshold": 3.0,
+            "settle_delay": 1000,
+            "on_changed": "next",
+            "on_unchanged": "loop",
+            "loop_limit": 5,
+            "loop_exhausted": "error"
+        },
+        "timeout": 5000,
+        "on_error": [
+            "[JumpBack]Collect_Tab3_Ck",
+            "[JumpBack]Global_ToSandBox"
+        ],
+        "focus": "CM.从传送按钮打开区域地图-图像比特检测"
+    },
+    "Collect_TeleporCircle_Ico_Enter": {
         "desc": "0.9是否过高待评，图案两侧边缘有黑色纹路，另外有场景没有纹路（每日派遣），区别待深入考证",
         "recognition": "TemplateMatch",
         "roi": [

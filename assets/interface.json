@@ -58,16 +58,16 @@
             ]
         }
     ],
+    "global_option": [
+        "前置助手",
+        "多存档"
+    ],
     "task": [
         {
             "name": "[全局]启动脚本(置顶)",
             "entry": "StartGame_Start",
             "default_check": true,
             "description": "<b>最新版探测&下载渠道:</b><br>[![正式版](https://img.shields.io/github/v/release/sunyink/MFABD2?label=仓库源·正式版&color=green&logo=github)](https://github.com/sunyink/MFABD2/releases/latest)<br>[![公测版](https://img.shields.io/github/v/tag/sunyink/MFABD2?include_prereleases&filter=%2Abeta%2A&label=仓库源·公测版&color=blue&logo=github)](https://github.com/sunyink/MFABD2/releases?q=beta)<br>[![Mirror酱](https://img.shields.io/badge/Mirror%E9%85%B1-镜像源·高速下载-%239af3f6?logo=countingworkspro&logoColor=4f46e5)](https://mirrorchyan.com/zh/projects?rid=MFABD2)<br><span style=\"color:Crimson;font-size:10px\">框架有PC端控制器(720P窗口化)，但资源来不及适配仅供探索。</span><br><b>启动游戏</b>：<br><span style=\"color:Crimson;font-size:16px\"><b>多存档：多实例启动时自动加载自定义存档号；游戏开启后中途更改存档号的，再次运行`任务启动`会瞬间完成并使变更生效。</b></span><br>自动判断游戏运行情况，注入全局变量。按需启动游戏，包含更新、支付失败等一些异常框点击，领取`主界面`奖励、`宠物派遣`。<br><b><span style=\"color:Crimson;font-size:12px\">注意：网络环境需提前解决。</span></b><br>【<b>首次运行前，务必至少查看</b>`使用帮助`<b>卡片！</b>】",
-            "option": [
-                "前置助手",
-                "多存档"
-            ],
             "controller": [
                 "Adb"
             ]
@@ -77,10 +77,6 @@
             "entry": "StartGame_Start",
             "default_check": true,
             "description": "<b>最新版探测&下载渠道:</b><br>[![正式版](https://img.shields.io/github/v/release/sunyink/MFABD2?label=仓库源·正式版&color=green&logo=github)](https://github.com/sunyink/MFABD2/releases/latest)<br>[![公测版](https://img.shields.io/github/v/tag/sunyink/MFABD2?include_prereleases&filter=%2Abeta%2A&label=仓库源·公测版&color=blue&logo=github)](https://github.com/sunyink/MFABD2/releases?q=beta)<br>[![Mirror酱](https://img.shields.io/badge/Mirror%E9%85%B1-镜像源·高速下载-%239af3f6?logo=countingworkspro&logoColor=4f46e5)](https://mirrorchyan.com/zh/projects?rid=MFABD2)<br><span style=\"color:Crimson;font-size:10px\">框架有PC端控制器(720P窗口化)，：需手动启动游戏；部分功能如遇模板匹配失败，可能需补充PC端截图资源。</span><br><b>启动游戏</b>：<br><span style=\"color:Crimson;font-size:16px\"><b>多存档：多实例启动时自动加载自定义存档号；游戏开启后中途更改存档号的，再次运行`任务启动`会瞬间完成并使变更生效。</b></span><br>自动判断游戏运行情况，注入全局变量。按需启动游戏，包含更新、支付失败等一些异常框点击，领取`主界面`奖励、`宠物派遣`。<br><b><span style=\"color:Crimson;font-size:12px\">注意：网络环境需提前解决。</span></b><br>【<b>首次运行前，务必至少查看</b>`使用帮助`<b>卡片！</b>】",
-            "option": [
-                "前置助手",
-                "多存档"
-            ],
             "controller": [
                 "PC客户端"
             ]
@@ -1895,10 +1891,7 @@
             "task": [
                 {
                     "name": "[全局]启动脚本(置顶)",
-                    "enabled": true,
-                    "option": {
-                        "前置助手": "按需"
-                    }
+                    "enabled": true
                 },
                 {
                     "name": "[执行]快速狩猎扫荡",
@@ -1982,10 +1975,7 @@
             "task": [
                 {
                     "name": "[全局]启动脚本(置顶)",
-                    "enabled": true,
-                    "option": {
-                        "前置助手": "按需"
-                    }
+                    "enabled": true
                 },
                 {
                     "name": "[执行]快速狩猎扫荡",
