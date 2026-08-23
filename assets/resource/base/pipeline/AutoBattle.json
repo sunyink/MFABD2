@@ -8,7 +8,7 @@
         ],
         "next": [
             "AutoBattle_Is_Auto",
-            "AutoBattle_TabTo_Auto"
+            "[JumpBack]AutoBattle_TabTo_Auto"
         ]
     },
     "AutoBattle_Is_Auto": {
@@ -61,25 +61,26 @@
         "desc": "[识别]手动战斗界面,位置01",
         "recognition": "OCR",
         "roi": [
-            1126,
-            629,
-            73,
-            29
+            1023,
+            612,
+            192,
+            67
         ],
-        "expected": ["BATTLE"],
-        "only_rec": true
+        "expected": [
+            "BATTLE",
+            "TURN"
+        ]
     },
     "Rec_<AutoBattle_TabTo_Auto>_Ocr_02": {
         "desc": "[识别]手动战斗界面,位置02",
         "recognition": "OCR",
         "roi": [
-            1034,
-            629,
-            60,
-            29
+            47,
+            588,
+            362,
+            94
         ],
-        "expected": ["TURN"],
-        "only_rec": true
+        "expected": ["更换"]
     },
     "AutoBattle_ClickAutoButt": {
         "desc": "模板点击自动战斗图标",
@@ -93,8 +94,7 @@
         "template": ["UI_AutoBattle.png"],
         "green_mask": true,
         "action": "Click",
-        "post_delay": 2000,
-        "next": ["AutoBattle_Is_Auto"]
+        "post_delay": 2000
     },
     "AutoBattle_Settlement_Victory": {
         "recognition": "OCR",

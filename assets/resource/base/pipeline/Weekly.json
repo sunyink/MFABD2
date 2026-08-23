@@ -479,8 +479,8 @@
         "focus": "WVM.随机mod"
     },
     "Weekly_VisitCabin_ModEnt": {
-        "recognition": "Or",
-        "any_of": [
+        "recognition": "And",
+        "all_of": [
             {
                 "sub_name": "OCR",
                 "recognition": "ColorMatch",

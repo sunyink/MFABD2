@@ -747,8 +747,7 @@
         "desc": "魔兽血条=Ab,正在讨伐中",
         "recognition": "Or",
         "any_of": [
-            "Rec_Mamono_HP_Hunting_Ocr",
-            "Cpt_Mamono_HP_Hunting_Clr"
+            "Rec_Mamono_HP_Hunting_Ocr"
         ],
         "next": [
             "SeasonEvent_MamonoFollow_QuickBattle_Enable",
@@ -761,8 +760,7 @@
         "max_hit": 50,
         "recognition": "Or",
         "any_of": [
-            "Rec_Mamono_HP_Hunted_Ocr",
-            "Cpt_Mamono_HP_Hunted_Clr"
+            "Rec_Mamono_HP_Hunted_Ocr"
         ],
         "next": ["Even_MamonoFollowUp_MmnHpUp"],
         "focus": "E. HP=ab.此Lv魔兽已讨伐完毕..."
@@ -1467,8 +1465,16 @@
     },
     "Event_Battle_TabAutoBattle_ChangeDifficulty_TryGeneral": {
         "desc": "点击普通战斗",
-        "recognition": "Or",
-        "any_of": ["Event_Battle_TabAutoBattle_ChangeDifficulty_TryGeneral"],
+        "recognition": "OCR",
+        "roi": [
+            69,
+            365,
+            1179,
+            324
+        ],
+        "expected": [
+            "普通"
+        ],
         "action": "Click",
         "target_offset": [
             5,

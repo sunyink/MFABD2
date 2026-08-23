@@ -398,6 +398,7 @@
             47
         ],
         "expected": [
+            "被遗忘的神殿",
             "商场1楼",
             "妖怪镇"
         ],
@@ -515,7 +516,7 @@
             "通往暗夜世界入口之路"
         ],
         "next": [
-            "Collect_TargetMap4"
+            "Collect_TargetMap3"
         ]
     },
     "Collect_MapRight_NoFind": {
@@ -1003,7 +1004,6 @@
     },
     "Collect_PackEnd_Ck_OnlyOnce": {
         "desc": "单次运行时,标记已完成",
-        "enabled": false,
         "action": "Custom",
         "custom_action": "MarkComplete",
         "custom_action_param": {
