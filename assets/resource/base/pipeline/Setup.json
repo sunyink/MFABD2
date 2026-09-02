@@ -15,6 +15,19 @@
         ]
     },
     "Setup_Entry1_Swich": {
+        "recognition": "And",
+        "all_of": [
+            "Sub_<Setup_Entry1_Swich>_M",
+            "Sub_<Setup_Entry1_Swich>_S1",
+            "Global_ToSandBox_Enter"
+        ],
+        "timeout": 3000,
+        "next": [
+            "Setup_Main_Switch"
+        ],
+        "focus": "SMSP.触发设置按需调整,原因:移动方式不应为方向键"
+    },
+    "Sub_<Setup_Entry1_Swich>_M": {
         "recognition": "Or",
         "any_of": [
             {
@@ -52,12 +65,22 @@
                 }
             },
             "Rec_<Setup_Entry1_Swich>_Tpl"
+        ]
+    },
+    "Sub_<Setup_Entry1_Swich>_S1": {
+        "desc": "普通卡带,sandbox卡带按钮",
+        "recognition": "TemplateMatch",
+        "roi": [
+            517,
+            614,
+            79,
+            76
         ],
-        "timeout": 3000,
-        "next": [
-            "Setup_Main_Switch"
+        "template": [
+            "QuickCartGeadai.png",
+            "UI_QuickPack_GE.png"
         ],
-        "focus": "SMSP.触发设置按需调整,原因:移动方式不应为方向键"
+        "green_mask": true
     },
     "Rec_<Setup_Entry1_Swich>_Tpl": {
         "desc": "[识别]方向键存在",
