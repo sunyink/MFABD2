@@ -2487,6 +2487,7 @@
         ],
         "count": 100,
         "next": [
+            "[Anchor]Sell_Bypass",
             "Arbitrage_Sell_Item_ListTraverse",
             "Arbitrage_ItemList_Sorting_Type_Not"
         ]
@@ -2811,6 +2812,133 @@
             171,
             35
         ]
+    },
+    "Arbitrage_Sell_TypeB": {
+        "desc": "使用右下按钮盲卖",
+        "next": ["Arbitrage_SellB_Button"]
+    },
+    "Arbitrage_SellB_Button": {
+        "recognition": "OCR",
+        "roi": [
+            1027,
+            642,
+            113,
+            39
+        ],
+        "expected": ["键出售"],
+        "action": "Click",
+        "post_delay": 800,
+        "next": [
+            "Arbitrage_SellB_More",
+            "Arbitrage_SellB_Button"
+        ]
+    },
+    "Arbitrage_SellB_More": {
+        "recognition": "Or",
+        "any_of": ["Equip_EquipUp"],
+        "action": "Click",
+        "post_delay": 800
+    },
+    "Arbitrage_SellB_SubMenu": {
+        "desc": "右下盲售子菜单",
+        "recognition": "OCR",
+        "roi": [
+            669,
+            524,
+            94,
+            43
+        ],
+        "expected": "溢价率",
+        "next": [
+            "Arbitrage_SellB_SubMenu_Rate",
+            "[JumpBack]Arbitrage_SellB_SubMenu_Rate_ChgMax"
+        ],
+        "focus": "一键售卖-子菜单"
+    },
+    "Arbitrage_SellB_SubMenu_Rate": {
+        "recognition": "OCR",
+        "roi": [
+            663,
+            565,
+            95,
+            44
+        ],
+        "expected": ["120"]
+    },
+    "Arbitrage_SellB_SubMenu_Rate_ChgMax": {
+        "desc": "点了溢价率会+1|后期考虑直接硬编码拖拽条",
+        "max_hit": 50,
+        "recognition": "TemplateMatch",
+        "roi": [
+            1093,
+            561,
+            87,
+            55
+        ],
+        "template": "SubBattle_+1.png",
+        "action": "Click",
+        "post_delay": 500
+    },
+    "Arbitrage_SellB_SubMenu_SetFood": {
+        "recognition": "And",
+        "all_of": [
+            {
+                "sub_name": "Clr",
+                "recognition": "ColorMatch",
+                "roi": [
+                    1004,
+                    472,
+                    16,
+                    16
+                ],
+                "lower": [
+                    0,
+                    0,
+                    0
+                ],
+                "upper": [
+                    255,
+                    255,
+                    255
+                ]
+            },
+            "Rec_SliderSwitch_GryOff_Clr"
+        ],
+        "action": "Click",
+        "post_delay": 1500,
+        "focus": "[Set.食物]"
+    },
+    "Arbitrage_SellB_SubMenu_Send": {
+        "desc": "点击对号",
+        "recognition": "ColorMatch",
+        "roi": [
+            1155,
+            651,
+            22,
+            17
+        ],
+        "method": 40,
+        "lower": [
+            40,
+            50,
+            50
+        ],
+        "upper": [
+            90,
+            255,
+            210
+        ],
+        "count": 8,
+        "action": "Click",
+        "post_delay": 1500,
+        "next": [
+            "Arbitrage_SellB_End",
+            "Arbitrage_SellB_SubMenu_Send"
+        ]
+    },
+    "Arbitrage_SellB_End": {
+        "recognition": "Or",
+        "any_of": ["Arbitrage_Sell_TypeB"]
     },
     "6#料理制作": {},
     "Arbitrage_Cooking_Weekly": {

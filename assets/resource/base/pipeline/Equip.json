@@ -203,9 +203,9 @@
         "desc": "寻找一键强化...",
         "recognition": "TemplateMatch",
         "roi": [
-            1020,
+            1001,
             646,
-            36,
+            55,
             28
         ],
         "template": [
