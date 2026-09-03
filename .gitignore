@@ -481,7 +481,10 @@ prettier.config.mjs
 .DS_Store
 **/.DS_Store
 
+# 本地 AI 助手配置与技能（不提交）
 .claude/*
+.codex/
+.agents/skills/
 
 # MaaOWM
 **/.maaowm
