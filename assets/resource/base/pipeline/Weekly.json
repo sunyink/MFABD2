@@ -547,7 +547,7 @@
                     "cycle_type": "g_weekly"
                 },
                 {
-                    "card_name": "UI_Cabin_Visit",
+                    "card_name": "Daily_Cabin",
                     "cycle_type": "g_daily"
                 }
             ]

@@ -7,7 +7,7 @@
             "[JumpBack]Daily_VisitCabin_Hub",
             "[JumpBack]Daily_Busin_Hub",
             "[JumpBack]Daily_Intimacy_HUB",
-            "[JumpBack]Daily_Square_Hub",
+            "[JumpBack]Daily_Square_Switch",
             "Global_Hub_End"
         ]
     },
@@ -19,7 +19,24 @@
         ]
     },
     "Daily_Union_Hub": {
+        "desc": "公会签到jb1入口。enabled是interface的抓手,判据在Daily_Union_Switch。timeout必写——next只剩这一项,闸不命中时不写就会空转到默认20秒才退栈",
+        "enabled": true,
         "max_hit": 1,
+        "timeout": 1,
+        "next": [
+            "Daily_Union_Switch"
+        ]
+    },
+    "Daily_Union_Switch": {
+        "desc": "公会签到存档闸:本游戏日已签到则不命中,上级next就此耗尽,退栈换下一个子模块",
+        "recognition": "Custom",
+        "custom_recognition": "CheckCoolDown",
+        "custom_recognition_param": {
+            "card_name": "Daily_Union",
+            "cycle_type": "g_daily"
+        },
+        "pre_delay": 0,
+        "post_delay": 0,
         "next": [
             "Daily_Union_Hub_Post",
             "[JumpBack]Global_ToHomePage"
@@ -146,12 +163,44 @@
         "post_delay": 3000,
         "timeout": 5000,
         "next": [
-            "Global_ToHomePage_Enter",
-            "Global_ToHomePage"
+            "Daily_Union_End"
         ]
     },
+    "Daily_Union_End": {
+        "desc": "公会签到的正常出口,打完标再走公共复位",
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "MarkComplete",
+        "custom_action_param": {
+            "card_name": "Daily_Union",
+            "cycle_type": "g_daily"
+        },
+        "post_delay": 0,
+        "next": [
+            "Global_ToHomePage_Enter",
+            "Global_ToHomePage"
+        ],
+        "focus": "GOM.公会签到完成,已记录"
+    },
     "Daily_Busin_Hub": {
+        "desc": "餐馆日结jb1入口。enabled是interface的抓手,判据在Daily_Busin_Switch。timeout必写——next只剩这一项,闸不命中时不写就会空转到默认20秒才退栈",
+        "enabled": true,
         "max_hit": 1,
+        "timeout": 1,
+        "next": [
+            "Daily_Busin_Switch"
+        ]
+    },
+    "Daily_Busin_Switch": {
+        "desc": "餐馆日结存档闸:本游戏日已结算则不命中,上级next就此耗尽,退栈换下一个子模块",
+        "recognition": "Custom",
+        "custom_recognition": "CheckCoolDown",
+        "custom_recognition_param": {
+            "card_name": "Daily_Busin",
+            "cycle_type": "g_daily"
+        },
+        "pre_delay": 0,
+        "post_delay": 0,
         "next": [
             "Daily_Busin_Hub_Post",
             "[JumpBack]Global_ToHomePage"
@@ -364,8 +413,7 @@
             ]
         },
         "next": [
-            "Daily_Busin_Quick_BackPVEPage_Str",
-            "Global_BackToPve_2#"
+            "Daily_Busin_End"
         ]
     },
     "Daily_Busin_DecorCoin_Exists": {
@@ -423,8 +471,7 @@
         },
         "next": [
             "[JumpBack]Daily_Busin_GiftGet",
-            "Daily_Busin_Quick_BackPVEPage_Str",
-            "Global_BackToPve_2#"
+            "Daily_Busin_End"
         ],
         "focus": "装饰币已拾取满"
     },
@@ -666,10 +713,25 @@
             "常客"
         ],
         "next": [
+            "Daily_Busin_End"
+        ],
+        "focus": "GBM.无圣石情况"
+    },
+    "Daily_Busin_End": {
+        "desc": "餐馆日结的正常出口,三个完成分支(无圣石/无装饰币/装饰币已满)共用。打完标再走原来的返回链。注意Daily_Busin_DecorCoin_Hub的on_error也指向Daily_Busin_Quick_BackPVEPage_Str,那条是异常路径,不经过这里",
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "MarkComplete",
+        "custom_action_param": {
+            "card_name": "Daily_Busin",
+            "cycle_type": "g_daily"
+        },
+        "post_delay": 0,
+        "next": [
             "Daily_Busin_Quick_BackPVEPage_Str",
             "Global_BackToPve_2#"
         ],
-        "focus": "GBM.无圣石情况"
+        "focus": "GBM.餐馆日结完成,已记录"
     },
     "Daily_Busin_StageUp": {
         "desc": "存在亮色按钮,餐厅星星阶段升级",
@@ -748,7 +810,24 @@
         ],
         "focus": "GO.快速卡带离开餐馆"
     },
+    "Daily_Square_Switch": {
+        "desc": "广场每日祈求的子模块入口,兼存档闸:本游戏日已祈求则不命中,上级next就此耗尽,退栈换下一个子模块。enabled是interface的抓手。闸摆在Daily_Square_Hub之前是有意的——Fishing_Move_Hub也借那个hub走到广场,闸若放在hub之后会连钓鱼一起挡住",
+        "enabled": true,
+        "max_hit": 1,
+        "recognition": "Custom",
+        "custom_recognition": "CheckCoolDown",
+        "custom_recognition_param": {
+            "card_name": "Daily_Square",
+            "cycle_type": "g_daily"
+        },
+        "pre_delay": 0,
+        "post_delay": 0,
+        "next": [
+            "Daily_Square_Hub"
+        ]
+    },
     "Daily_Square_Hub": {
+        "desc": "走到广场的公共子程序。日常祈求(经Daily_Square_Switch进来)与钓鱼(Fishing_Move_Hub直接进来)共用这条路,所以这里既不挂存档闸也不挂enabled抓手,两者都在Daily_Square_Switch上",
         "max_hit": 1,
         "anchor": {"QCPack": "Daily_Square_ToSquare"},
         "next": [
@@ -891,10 +970,27 @@
         "post_delay": 2000,
         "next": [
             "Daily_Pray",
-            "Global_BackToQC1"
+            "Daily_Square_End"
         ]
     },
+    "Daily_Square_End": {
+        "desc": "广场祈求的正常出口:Daily_Pray自循环到许愿按钮消失才会落到这里,即至少许过一次愿,打完标再走公共复位",
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "MarkComplete",
+        "custom_action_param": {
+            "card_name": "Daily_Square",
+            "cycle_type": "g_daily"
+        },
+        "post_delay": 0,
+        "next": [
+            "Global_BackToQC1"
+        ],
+        "focus": "广场每日祈求完成,已记录"
+    },
     "Daily_VisitCabin_Hub": {
+        "desc": "小屋访问jb1入口。enabled是interface的抓手;判据在既有的Daily_VisitCabin_Hub_Post,不另加",
+        "enabled": true,
         "max_hit": 1,
         "timeout": 1,
         "next": [
@@ -905,7 +1001,7 @@
         "recognition": "Custom",
         "custom_recognition": "CheckCoolDown",
         "custom_recognition_param": {
-            "card_name": "UI_Cabin_Visit",
+            "card_name": "Daily_Cabin",
             "cycle_type": "g_daily"
         },
         "action": {
@@ -948,7 +1044,7 @@
         "action": "Custom",
         "custom_action": "MarkComplete",
         "custom_action_param": {
-            "card_name": "UI_Cabin_Visit",
+            "card_name": "Daily_Cabin",
             "cycle_type": "g_daily"
         },
         "next": [
@@ -956,8 +1052,24 @@
         ]
     },
     "Daily_Intimacy_HUB": {
-        "desc": "亲密度",
+        "desc": "亲密度谈心jb1入口。enabled是interface的抓手,判据在Daily_Intimacy_Switch。timeout必写——next只剩这一项,闸不命中时不写就会空转到默认20秒才退栈",
+        "enabled": true,
         "max_hit": 1,
+        "timeout": 1,
+        "next": [
+            "Daily_Intimacy_Switch"
+        ]
+    },
+    "Daily_Intimacy_Switch": {
+        "desc": "亲密度谈心存档闸:本游戏日已谈完则不命中,上级next就此耗尽,退栈换下一个子模块",
+        "recognition": "Custom",
+        "custom_recognition": "CheckCoolDown",
+        "custom_recognition_param": {
+            "card_name": "Daily_Intimacy",
+            "cycle_type": "g_daily"
+        },
+        "pre_delay": 0,
+        "post_delay": 0,
         "next": [
             "Daily_Intimacy_Ready",
             "[JumpBack]Global_ToHomePage"
@@ -1286,8 +1398,21 @@
         ],
         "expected": "^0",
         "only_rec": true,
-        "next": ["Global_ToHomePage"],
+        "next": ["Daily_Intimacy_End"],
         "focus": "谈心次数已耗尽"
+    },
+    "Daily_Intimacy_End": {
+        "desc": "亲密度谈心的正常出口:谈心次数归零才会走到这里,打完标再走公共复位。Daily_Intimacy_Swip的on_error也去Global_ToHomePage,那条是异常路径,不经过这里",
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "MarkComplete",
+        "custom_action_param": {
+            "card_name": "Daily_Intimacy",
+            "cycle_type": "g_daily"
+        },
+        "post_delay": 0,
+        "next": ["Global_ToHomePage"],
+        "focus": "亲密度谈心完成,已记录"
     },
     "Daily_Intimacy_Swip": {
         "max_hit": 3,
