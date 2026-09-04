@@ -50,13 +50,20 @@ utils.mfaalog.info(f"[Py] 周期策略管理器已加载。")
 #         "card_name": "Map_01",             // 任务唯一标识 ID
 #         "cycle_type": "g_daily"            // 策略类型，缺省为 g_weekly
 #     },
-#     "rate_limit": 0,                       // 纯逻辑判定，三个延迟都显式写 0
-#     "pre_delay": 0,                        // (协议默认 1000/200/200ms，省略就白吃)
-#     "post_delay": 0,
+#     "pre_delay": 0,                        // 纯逻辑判定不看画面，这两个写 0
+#     "post_delay": 0,                       // (协议默认各 200ms，省略就白吃)
 #     "action": "Click",
 #     "target": [ 640, 360 ],
 #     "next": [ "Sub_Task" ]
 # }
+#
+# ⚠️ **不要写 `rate_limit: 0`。** 它管的不是本节点的延迟，而是**上游重试识别本节点的
+#    最小间隔**。上游在 timeout 窗口内会反复识别 next 候选，写 0 会让空转变成满速刷，
+#    每一轮都是一次 Python IPC 往返。默认 1000ms 正合适，别动。
+#
+# ⚠️ **上游节点要配 `timeout`。** 调用本闸的那个节点若 `next` 里只剩本闸一项，闸不命中时
+#    它会空转到默认 20 秒才退栈。队列 hub 的惯例取值是 `"timeout": 1`（1ms 超时静默出栈），
+#    照抄 `Daily_Union_Hub` / `Daily_VisitCabin_Hub`。**不要写 0**，全库无先例且协议未定义。
 #
 # ⚠️ 识别不中走的是"父节点换下一个候选"，**不是**这个节点自己的 on_error。
 #    on_error 是本节点超时或动作失败时才走的，别指望拿它接"冷却中"的分支 ——
@@ -94,7 +101,6 @@ utils.mfaalog.info(f"[Py] 周期策略管理器已加载。")
 #         ],
 #         "match": "all_done"                // ← 见下表，缺省 "any"
 #     },
-#     "rate_limit": 0,
 #     "pre_delay": 0,
 #     "post_delay": 0,
 #     "focus": "全类已完成,收尾"
