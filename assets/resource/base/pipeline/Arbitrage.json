@@ -3461,6 +3461,7 @@
             "立刻恢复"
         ],
         "next": [
+            "Arbitrage_Cooking_MaterialInsufficient",
             "Arbitrage_Cooking_NubMenu_Max"
         ],
         "focus": "Arb.料理子菜单-确认"
@@ -3468,6 +3469,7 @@
     "Arbitrage_Cooking_NubMenu_Max": {
         "desc": "数量预留,测试阶段上保险不改",
         "next": [
+            "Arbitrage_Cooking_MaterialInsufficient",
             "Arbitrage_Cooking_NubMenu_Doing"
         ]
     },
@@ -3539,9 +3541,325 @@
         "recognition": "Or",
         "any_of": ["Arbitrage_Cooking_SubMenu"],
         "next": [
+            "Arbitrage_Cooking_MaterialInsufficient",
             "Arbitrage_Cooking_Menu_ReBack",
             "[JumpBack]Global_BackPageHub_Once"
         ]
+    },
+    "Arbitrage_Cooking_MaterialInsufficient": {
+        "desc": "红色数量提示触发短缺采集；读取当前菜全部材料，完整性见记录的 complete，随后返回选菜。",
+        "recognition": "ColorMatch",
+        "roi": [
+            344,
+            598,
+            132,
+            31
+        ],
+        "method": 4,
+        "lower": [
+            220,
+            0,
+            0
+        ],
+        "upper": [
+            255,
+            65,
+            65
+        ],
+        "count": 20,
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "CookingStockSnapshot",
+        "custom_action_param": {
+            "page_node": "Arbitrage_Cooking_SubMenu",
+            "recipe_node": "Agt_Cooking_Name_Ocr",
+            "quantity_node": "Agt_Cooking_Quantity_Ocr",
+            "template_node": "Agt_Cooking_Materials_Tpl",
+            "material_nodes": [
+                "Agt_Cooking_Material1_Ocr",
+                "Agt_Cooking_Material2_Ocr",
+                "Agt_Cooking_Material3_Ocr",
+                "Agt_Cooking_Material4_Ocr",
+                "Agt_Cooking_Material5_Ocr"
+            ],
+            "presence_nodes": [
+                "Agt_Cooking_Slot1_Clr",
+                "Agt_Cooking_Slot2_Clr",
+                "Agt_Cooking_Slot3_Clr",
+                "Agt_Cooking_Slot4_Clr",
+                "Agt_Cooking_Slot5_Clr"
+            ]
+        },
+        "post_delay": 0,
+        "next": [
+            "Arbitrage_Cooking_Menu_ReBack",
+            "[JumpBack]Global_BackPageHub_Once"
+        ],
+        "focus": "Arb.料理材料不足，记录剩余库存"
+    },
+    "Agt_Cooking_Name_Ocr": {
+        "desc": "py 独占，勿挂进管路。详情页料理名称，保留 det 检测。",
+        "recognition": "OCR",
+        "roi": [
+            178,
+            70,
+            370,
+            40
+        ]
+    },
+    "Agt_Cooking_Quantity_Ocr": {
+        "desc": "py 独占，勿挂进管路。当前选择份数；只有一份时才把材料分母记为单份用量。",
+        "recognition": "OCR",
+        "roi": [
+            344,
+            598,
+            132,
+            31
+        ]
+    },
+    "Agt_Cooking_Materials_Tpl": {
+        "desc": "py 独占，勿挂进管路。逐模板扫描料理材料图标，以中心位置归到数量槽位；运行时只替换 template。",
+        "recognition": "TemplateMatch",
+        "roi": [
+            182,
+            420,
+            417,
+            61
+        ],
+        "template": [
+            "Shop/MaterialList/食材_白糖.png"
+        ],
+        "threshold": 0.8,
+        "attach": {
+            "score_margin": 0.05,
+            "templates": {
+                "白糖": "Shop/MaterialList/食材_白糖.png",
+                "藏红花": "Shop/MaterialList/食材_藏红花.png",
+                "大麦": "Shop/MaterialList/食材_大麦.png",
+                "袋装鸡胸肉": "Shop/MaterialList/食材_袋装鸡胸肉.png",
+                "蛋黄酱": "Shop/MaterialList/食材_蛋黄酱.png",
+                "地狱火辣酱": "Shop/MaterialList/食材_地狱火辣酱.png",
+                "调味海苔": "Shop/MaterialList/食材_调味海苔.png",
+                "豆子": "Shop/MaterialList/食材_豆子.png",
+                "番茄": "Shop/MaterialList/食材_番茄.png",
+                "蜂蜜": "Shop/MaterialList/食材_蜂蜜.png",
+                "橄榄油": "Shop/MaterialList/食材_橄榄油.png",
+                "哈密瓜": "Shop/MaterialList/食材_哈密瓜.png",
+                "胡椒": "Shop/MaterialList/食材_胡椒.png",
+                "胡萝卜": "Shop/MaterialList/食材_胡萝卜.png",
+                "黄金罗勒": "Shop/MaterialList/食材_黄金罗勒.png",
+                "黄油": "Shop/MaterialList/食材_黄油.png",
+                "鸡蛋": "Shop/MaterialList/食材_鸡蛋.png",
+                "姜黄": "Shop/MaterialList/食材_姜黄.png",
+                "芥末": "Shop/MaterialList/食材_芥末.png",
+                "金枪鱼罐头": "Shop/MaterialList/食材_金枪鱼罐头.png",
+                "咖啡豆": "Shop/MaterialList/食材_咖啡豆.png",
+                "凯洛药材": "Shop/MaterialList/食材_凯洛药材.png",
+                "辣椒": "Shop/MaterialList/食材_辣椒.png",
+                "辣椒素": "Shop/MaterialList/食材_辣椒素.png",
+                "雷瓦汀火腿": "Shop/MaterialList/食材_雷瓦汀火腿.png",
+                "料酒": "Shop/MaterialList/食材_料酒.png",
+                "卢戈山参": "Shop/MaterialList/食材_卢戈山参.png",
+                "萝卜缨": "Shop/MaterialList/食材_萝卜缨.png",
+                "米": "Shop/MaterialList/食材_米.png",
+                "蘑菇": "Shop/MaterialList/食材_蘑菇.png",
+                "奶酪": "Shop/MaterialList/食材_奶酪.png",
+                "能量粉末": "Shop/MaterialList/食材_能量粉末.png",
+                "牛奶": "Shop/MaterialList/食材_牛奶.png",
+                "啤酒花": "Shop/MaterialList/食材_啤酒花.png",
+                "苹果": "Shop/MaterialList/食材_苹果.png",
+                "葡萄": "Shop/MaterialList/食材_葡萄.png",
+                "巧克力": "Shop/MaterialList/食材_巧克力.png",
+                "肉桂": "Shop/MaterialList/食材_肉桂.png",
+                "三文鱼": "Shop/MaterialList/食材_三文鱼.png",
+                "闪光粉末": "Shop/MaterialList/食材_闪光粉末.png",
+                "生命木炭": "Shop/MaterialList/食材_生命木炭.png",
+                "兽肉": "Shop/MaterialList/食材_兽肉.png",
+                "水果罐头": "Shop/MaterialList/食材_水果罐头.png",
+                "松露油": "Shop/MaterialList/食材_松露油.png",
+                "甜椒": "Shop/MaterialList/食材_甜椒.png",
+                "甜辣酱": "Shop/MaterialList/食材_甜辣酱.png",
+                "透明蘑菇": "Shop/MaterialList/食材_透明蘑菇.png",
+                "秃鹫羽毛": "Shop/MaterialList/食材_秃鹫羽毛.png",
+                "土豆": "Shop/MaterialList/食材_土豆.png",
+                "吐司": "Shop/MaterialList/食材_吐司.png",
+                "西蓝花": "Shop/MaterialList/食材_西兰花.png",
+                "虾": "Shop/MaterialList/食材_虾.png",
+                "香草": "Shop/MaterialList/食材_香草.png",
+                "小麦": "Shop/MaterialList/食材_小麦.png",
+                "杏仁": "Shop/MaterialList/食材_杏仁.png",
+                "盐": "Shop/MaterialList/食材_盐.png",
+                "洋葱": "Shop/MaterialList/食材_洋葱.png",
+                "永恒之爱": "Shop/MaterialList/食材_永恒之爱.png",
+                "鱼子酱罐头": "Shop/MaterialList/食材_鱼子酱罐头.png",
+                "玉米": "Shop/MaterialList/食材_玉米.png"
+            }
+        }
+    },
+    "Agt_Cooking_Material1_Ocr": {
+        "desc": "py 独占，勿挂进管路。第 1 格完整库存/需求；保留 det 检测，不含相邻槽位。",
+        "recognition": "OCR",
+        "roi": [
+            182,
+            478,
+            77,
+            24
+        ],
+        "attach": {"retry_scale": 3}
+    },
+    "Agt_Cooking_Slot1_Clr": {
+        "desc": "py 独占，勿挂进管路。第 1 格左上角灰色卡片背景，区分空槽与数字漏识别。",
+        "recognition": "ColorMatch",
+        "roi": [
+            185,
+            427,
+            4,
+            4
+        ],
+        "method": 4,
+        "lower": [
+            35,
+            35,
+            35
+        ],
+        "upper": [
+            85,
+            85,
+            85
+        ],
+        "count": 12
+    },
+    "Agt_Cooking_Material2_Ocr": {
+        "desc": "py 独占，勿挂进管路。第 2 格完整库存/需求；保留 det 检测，不含相邻槽位。",
+        "recognition": "OCR",
+        "roi": [
+            267,
+            478,
+            77,
+            24
+        ],
+        "attach": {"retry_scale": 3}
+    },
+    "Agt_Cooking_Slot2_Clr": {
+        "desc": "py 独占，勿挂进管路。第 2 格左上角灰色卡片背景，区分空槽与数字漏识别。",
+        "recognition": "ColorMatch",
+        "roi": [
+            270,
+            427,
+            4,
+            4
+        ],
+        "method": 4,
+        "lower": [
+            35,
+            35,
+            35
+        ],
+        "upper": [
+            85,
+            85,
+            85
+        ],
+        "count": 12
+    },
+    "Agt_Cooking_Material3_Ocr": {
+        "desc": "py 独占，勿挂进管路。第 3 格完整库存/需求；保留 det 检测，不含相邻槽位。",
+        "recognition": "OCR",
+        "roi": [
+            352,
+            478,
+            77,
+            24
+        ],
+        "attach": {"retry_scale": 3}
+    },
+    "Agt_Cooking_Slot3_Clr": {
+        "desc": "py 独占，勿挂进管路。第 3 格左上角灰色卡片背景，区分空槽与数字漏识别。",
+        "recognition": "ColorMatch",
+        "roi": [
+            355,
+            427,
+            4,
+            4
+        ],
+        "method": 4,
+        "lower": [
+            35,
+            35,
+            35
+        ],
+        "upper": [
+            85,
+            85,
+            85
+        ],
+        "count": 12
+    },
+    "Agt_Cooking_Material4_Ocr": {
+        "desc": "py 独占，勿挂进管路。第 4 格完整库存/需求；保留 det 检测，不含相邻槽位。",
+        "recognition": "OCR",
+        "roi": [
+            437,
+            478,
+            77,
+            24
+        ],
+        "attach": {"retry_scale": 3}
+    },
+    "Agt_Cooking_Slot4_Clr": {
+        "desc": "py 独占，勿挂进管路。第 4 格左上角灰色卡片背景，区分空槽与数字漏识别。",
+        "recognition": "ColorMatch",
+        "roi": [
+            440,
+            427,
+            4,
+            4
+        ],
+        "method": 4,
+        "lower": [
+            35,
+            35,
+            35
+        ],
+        "upper": [
+            85,
+            85,
+            85
+        ],
+        "count": 12
+    },
+    "Agt_Cooking_Material5_Ocr": {
+        "desc": "py 独占，勿挂进管路。第 5 格完整库存/需求；保留 det 检测，不含相邻槽位。",
+        "recognition": "OCR",
+        "roi": [
+            522,
+            478,
+            77,
+            24
+        ],
+        "attach": {"retry_scale": 3}
+    },
+    "Agt_Cooking_Slot5_Clr": {
+        "desc": "py 独占，勿挂进管路。第 5 格左上角灰色卡片背景，区分空槽与数字漏识别。",
+        "recognition": "ColorMatch",
+        "roi": [
+            525,
+            427,
+            4,
+            4
+        ],
+        "method": 4,
+        "lower": [
+            35,
+            35,
+            35
+        ],
+        "upper": [
+            85,
+            85,
+            85
+        ],
+        "count": 12
     },
     "Arbitrage_Cooking_Menu_ReBack": {
         "desc": "确认返回料理菜单,回到选择流",
