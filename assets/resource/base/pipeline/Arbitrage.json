@@ -3066,7 +3066,7 @@
                     598
                 ],
                 "template": [
-                    "Shop/cook_Sparkling Griddle Shrimp.png"
+                    "Shop/RecipeList/cook_Sparkling Griddle Shrimp.png"
                 ]
             },
             "Sub_<Arbitrage_Cooking>_Clr"
@@ -3094,7 +3094,7 @@
                     598
                 ],
                 "template": [
-                    "Shop/cook_Transparent Salad.png"
+                    "Shop/RecipeList/cook_Transparent Salad.png"
                 ]
             },
             "Sub_<Arbitrage_Cooking>_Clr"
@@ -3122,7 +3122,7 @@
                     598
                 ],
                 "template": [
-                    "Shop/cook_Hellfire Gimbap.png"
+                    "Shop/RecipeList/cook_Hellfire Gimbap.png"
                 ]
             },
             "Sub_<Arbitrage_Cooking>_Clr"
@@ -3181,7 +3181,7 @@
                     598
                 ],
                 "template": [
-                    "Shop/cook_Lugas Ginseng Skewer.png"
+                    "Shop/RecipeList/cook_Lugas Ginseng Skewer.png"
                 ]
             },
             "Sub_<Arbitrage_Cooking>_Clr"
@@ -3209,7 +3209,7 @@
                     598
                 ],
                 "template": [
-                    "Shop/cook_Coal Cookies.png"
+                    "Shop/RecipeList/cook_Coal Cookies.png"
                 ]
             },
             "Sub_<Arbitrage_Cooking>_Clr"
@@ -3236,7 +3236,7 @@
                     598
                 ],
                 "template": [
-                    "Shop/cook_Honey Butter Almonds.png"
+                    "Shop/RecipeList/cook_Honey Butter Almonds.png"
                 ]
             },
             "Sub_<Arbitrage_Cooking>_Clr"
@@ -3263,7 +3263,7 @@
                     598
                 ],
                 "template": [
-                    "Shop/cook_Mayo Triangle Rice Ball.png"
+                    "Shop/RecipeList/cook_Mayo Triangle Rice Ball.png"
                 ]
             },
             "Sub_<Arbitrage_Cooking>_Clr"
@@ -3290,7 +3290,7 @@
                     598
                 ],
                 "template": [
-                    "Shop/cook_Caviar Omurice.png"
+                    "Shop/RecipeList/cook_Caviar Omurice.png"
                 ]
             },
             "Sub_<Arbitrage_Cooking>_Clr"
@@ -3317,7 +3317,7 @@
                     598
                 ],
                 "template": [
-                    "Shop/cook_Fried Salmon Bento.png"
+                    "Shop/RecipeList/cook_Fried Salmon Bento.png"
                 ]
             },
             "Sub_<Arbitrage_Cooking>_Clr"
@@ -3344,7 +3344,7 @@
                     598
                 ],
                 "template": [
-                    "Shop/cook_Sangria.png"
+                    "Shop/RecipeList/cook_Sangria.png"
                 ]
             },
             "Sub_<Arbitrage_Cooking>_Clr"
@@ -3371,7 +3371,7 @@
                     598
                 ],
                 "template": [
-                    "Shop/cook_Honey Baked Apple.png"
+                    "Shop/RecipeList/cook_Honey Baked Apple.png"
                 ]
             },
             "Sub_<Arbitrage_Cooking>_Clr"
