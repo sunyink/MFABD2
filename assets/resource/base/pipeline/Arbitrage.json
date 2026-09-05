@@ -2837,7 +2837,11 @@
         "recognition": "Or",
         "any_of": ["Equip_EquipUp"],
         "action": "Click",
-        "post_delay": 800
+        "post_delay": 1500,
+        "next": [
+            "Arbitrage_SellB_SubMenu",
+            "Arbitrage_SellB_More"
+        ]
     },
     "Arbitrage_SellB_SubMenu": {
         "desc": "右下盲售子菜单",
@@ -2863,7 +2867,11 @@
             95,
             44
         ],
-        "expected": ["120"]
+        "expected": ["120"],
+        "next": [
+            "[JumpBack]Arbitrage_SellB_SubMenu_SetFood",
+            "Arbitrage_SellB_SubMenu_Send"
+        ]
     },
     "Arbitrage_SellB_SubMenu_Rate_ChgMax": {
         "desc": "点了溢价率会+1|后期考虑直接硬编码拖拽条",
