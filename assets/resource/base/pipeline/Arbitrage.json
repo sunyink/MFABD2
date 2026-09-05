@@ -3943,12 +3943,11 @@
         ]
     },
     "Arbitrage_ShopBuy_Pack_E5": {
-        "enabled": false,
         "max_hit": 1,
         "recognition": "DirectHit",
         "action": "Custom",
         "custom_action": "ShopBuyFavController",
-        "custom_action_param": "E4:戏水女王",
+        "custom_action_param": "E5:戏水女王",
         "on_error": [
             "Arbitrage_ShopBuy_Abort"
         ]
