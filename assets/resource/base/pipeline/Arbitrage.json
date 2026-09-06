@@ -3005,7 +3005,8 @@
             "Arbitrage_Cooking_SetupToSkill"
         ],
         "on_error": [
-            "Global_BackPageHub_Once"
+            "[JumpBack]Global_BackPageHub_Once",
+            "Global_Null"
         ]
     },
     "Arbitrage_Cooking_MenuEnter": {
@@ -3025,6 +3026,7 @@
         },
         "timeout": 1,
         "next": [
+            "[JumpBack]Arbitrage_Cooking_Err_At_Sandbox",
             "[JumpBack]Arbitrage_Cooking_B10_Entry",
             "[JumpBack]Arbitrage_Cooking_B9_Entry",
             "[JumpBack]Arbitrage_Cooking_B8_Entry",
@@ -3487,7 +3489,8 @@
         },
         "timeout": 2000,
         "next": [
-            "Arbitrage_Cooking_Menu_Reset",
+            "[JumpBack]Arbitrage_Cooking_Menu_Reset",
+            "[JumpBack]Arbitrage_Cooking_Err_At_Sandbox",
             "[JumpBack]Arbitrage_Cooking_A2_Entry",
             "[JumpBack]Arbitrage_Cooking_A1_Entry",
             "[JumpBack]Arbitrage_Cooking_A7_Entry",
@@ -3503,6 +3506,43 @@
             "Global_Null_Exception",
             "Global_Null_Panic"
         ]
+    },
+    "Arbitrage_Cooking_Err_At_Sandbox": {
+        "desc": "借用setup管路,从技能菜单进入烹饪菜单",
+        "max_hit": 30,
+        "recognition": "Or",
+        "any_of": [
+            "Rec_SandBox_Pin_Tpl",
+            "Rec_SandBox_Run_Tpl"
+        ],
+        "anchor": {
+            "SetSkill": "Arbitrage_Cooking_Return",
+            "SkillList_ReLift": "",
+            "SkillList_Right": "Setup_SetSkill_4to5_Swip"
+        },
+        "next": [
+            "Setup_SetSkill_Per",
+            "Arbitrage_Cooking_Return",
+            "[JumpBack]Global_BackPageHub_Once"
+        ]
+    },
+    "Arbitrage_Cooking_Return": {
+        "recognition": "Or",
+        "any_of": ["Arbitrage_Cooking_SetupToSkill"],
+        "action": "Click",
+        "post_delay": 1000,
+        "next": [
+            "Arbitrage_Cooking_Return",
+            "Arbitrage_Cooking_Return_MenuEnter"
+        ],
+        "on_error": [
+            "[JumpBack]Global_BackPageHub_Once",
+            "Global_Null"
+        ]
+    },
+    "Arbitrage_Cooking_Return_MenuEnter": {
+        "recognition": "Or",
+        "any_of": ["Arbitrage_Cooking_MenuEnter"]
     },
     "Arbitrage_Cooking_A2_Entry": {
         "desc": "「蜂蜜黄油杏仁」入口。第一页无需翻页，只做打点与试识别。",
