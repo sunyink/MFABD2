@@ -3020,25 +3020,46 @@
         "expected": [
             "料理"
         ],
+        "anchor": {
+            "Cooking": "Arbitrage_Cooking_MenuEnter"
+        },
         "timeout": 1,
         "next": [
-            "[JumpBack]Arbitrage_Cooking_Page2",
+            "[JumpBack]Arbitrage_Cooking_B10_Entry",
+            "[JumpBack]Arbitrage_Cooking_B9_Entry",
+            "[JumpBack]Arbitrage_Cooking_B8_Entry",
+            "[JumpBack]Arbitrage_Cooking_B7_Entry",
+            "[JumpBack]Arbitrage_Cooking_B6_Entry",
+            "[JumpBack]Arbitrage_Cooking_B21_Entry",
+            "[JumpBack]Arbitrage_Cooking_B11_Entry",
+            "[JumpBack]Arbitrage_Cooking_B14_Entry",
+            "[JumpBack]Arbitrage_Cooking_B20_Entry",
+            "[JumpBack]Arbitrage_Cooking_B15_Entry",
+            "[JumpBack]Arbitrage_Cooking_B12_Entry",
+            "[JumpBack]Arbitrage_Cooking_B19_Entry",
+            "[JumpBack]Arbitrage_Cooking_B17_Entry",
+            "[JumpBack]Arbitrage_Cooking_B18_Entry",
+            "[JumpBack]Arbitrage_Cooking_B16_Entry",
+            "[JumpBack]Arbitrage_Cooking_B13_Entry",
             "[JumpBack]Arbitrage_Cooking_Page1"
         ],
         "focus": "Arb.料理界面-确认"
     },
-    "Arbitrage_Cooking_Page2": {
-        "desc": "先进行第二页，因为高级料理利多，优先。",
-        "max_hit": 1,
-        "anchor": {
-            "Cooking": "Arbitrage_Cooking_Swip_Page2"
-        },
-        "next": [
-            "Arbitrage_Cooking_Swip_Page2"
-        ]
-    },
     "Arbitrage_Cooking_Swip_Page2": {
-        "desc": "第二页五星料理。按多赚/配方最大单项用量降序识别，靠前优先。滑动到指定页面，兼做页内HUB节点。",
+        "desc": "翻到第二页（五星料理）。ROI是第二行料理",
+        "recognition": "TemplateMatch",
+        "roi": [
+            581,
+            195,
+            612,
+            110
+        ],
+        "template": [
+            "Shop/RecipeList/料理_烤菇串.png",
+            "Shop/RecipeList/料理_炸三文鱼便当.png",
+            "Shop/RecipeList/料理_哈密瓜雪酪.png",
+            "Shop/RecipeList/料理_巧克力鸡尾酒.png"
+        ],
         "action": "Swipe",
         "begin": [
             887,
@@ -3050,31 +3071,202 @@
         ],
         "end_hold": 500,
         "post_delay": 1500,
+        "focus": "Arb.下滑料理页面"
+    },
+    "Arbitrage_Cooking_B10_Entry": {
+        "desc": "「地狱火紫菜包饭」入口。先在当前页试识别，看不到就翻页再试。max_hit保证MenuEnter每轮往下挑一个。",
+        "max_hit": 1,
+        "pre_delay": 0,
+        "post_delay": 0,
         "timeout": 2000,
         "next": [
             "Arbitrage_Cooking_B10",
-            "Arbitrage_Cooking_B9",
-            "Arbitrage_Cooking_B8",
-            "Arbitrage_Cooking_B7",
-            "Arbitrage_Cooking_B6",
-            "Arbitrage_Cooking_B21",
-            "Arbitrage_Cooking_B11",
-            "Arbitrage_Cooking_B14",
-            "Arbitrage_Cooking_B20",
-            "Arbitrage_Cooking_B15",
-            "Arbitrage_Cooking_B12",
-            "Arbitrage_Cooking_B19",
-            "Arbitrage_Cooking_B17",
-            "Arbitrage_Cooking_B18",
-            "Arbitrage_Cooking_B16",
-            "Arbitrage_Cooking_B13"
+            "[JumpBack]Arbitrage_Cooking_Swip_Page2"
         ],
-        "focus": "Arb.料理页面2"
+        "focus": "Arb.料理检查:[5级]地狱火紫菜包饭"
+    },
+    "Arbitrage_Cooking_B9_Entry": {
+        "desc": "「透明沙拉」入口。先在当前页试识别，看不到就翻页再试。",
+        "max_hit": 1,
+        "pre_delay": 0,
+        "post_delay": 0,
+        "timeout": 2000,
+        "next": [
+            "Arbitrage_Cooking_B9",
+            "[JumpBack]Arbitrage_Cooking_Swip_Page2"
+        ],
+        "focus": "Arb.料理检查:[5级]透明沙拉"
+    },
+    "Arbitrage_Cooking_B8_Entry": {
+        "desc": "「闪闪铁板虾」入口。先在当前页试识别，看不到就翻页再试。",
+        "max_hit": 1,
+        "pre_delay": 0,
+        "post_delay": 0,
+        "timeout": 2000,
+        "next": [
+            "Arbitrage_Cooking_B8",
+            "[JumpBack]Arbitrage_Cooking_Swip_Page2"
+        ],
+        "focus": "Arb.料理检查:[5级]闪闪铁板虾"
+    },
+    "Arbitrage_Cooking_B7_Entry": {
+        "desc": "「煤炭饼干」入口。先在当前页试识别，看不到就翻页再试。",
+        "max_hit": 1,
+        "pre_delay": 0,
+        "post_delay": 0,
+        "timeout": 2000,
+        "next": [
+            "Arbitrage_Cooking_B7",
+            "[JumpBack]Arbitrage_Cooking_Swip_Page2"
+        ],
+        "focus": "Arb.料理检查:[5级]煤炭饼干"
+    },
+    "Arbitrage_Cooking_B6_Entry": {
+        "desc": "「卢戈山参烤串」入口。先在当前页试识别，看不到就翻页再试。",
+        "max_hit": 1,
+        "pre_delay": 0,
+        "post_delay": 0,
+        "timeout": 2000,
+        "next": [
+            "Arbitrage_Cooking_B6",
+            "[JumpBack]Arbitrage_Cooking_Swip_Page2"
+        ],
+        "focus": "Arb.料理检查:[5级]卢戈山参烤串"
+    },
+    "Arbitrage_Cooking_B21_Entry": {
+        "desc": "「香草牛排」入口。先在当前页试识别，看不到就翻页再试。",
+        "max_hit": 1,
+        "pre_delay": 0,
+        "post_delay": 0,
+        "timeout": 2000,
+        "next": [
+            "Arbitrage_Cooking_B21",
+            "[JumpBack]Arbitrage_Cooking_Swip_Page2"
+        ],
+        "focus": "Arb.料理检查:[5级]香草牛排"
+    },
+    "Arbitrage_Cooking_B11_Entry": {
+        "desc": "「洛克菲勒生蚝」入口。先在当前页试识别，看不到就翻页再试。",
+        "max_hit": 1,
+        "pre_delay": 0,
+        "post_delay": 0,
+        "timeout": 2000,
+        "next": [
+            "Arbitrage_Cooking_B11",
+            "[JumpBack]Arbitrage_Cooking_Swip_Page2"
+        ],
+        "focus": "Arb.料理检查:[5级]洛克菲勒生蚝"
+    },
+    "Arbitrage_Cooking_B14_Entry": {
+        "desc": "「橄榄油意面」入口。先在当前页试识别，看不到就翻页再试。",
+        "max_hit": 1,
+        "pre_delay": 0,
+        "post_delay": 0,
+        "timeout": 2000,
+        "next": [
+            "Arbitrage_Cooking_B14",
+            "[JumpBack]Arbitrage_Cooking_Swip_Page2"
+        ],
+        "focus": "Arb.料理检查:[5级]橄榄油意面"
+    },
+    "Arbitrage_Cooking_B20_Entry": {
+        "desc": "「街头烤鸡肉串」入口。先在当前页试识别，看不到就翻页再试。",
+        "max_hit": 1,
+        "pre_delay": 0,
+        "post_delay": 0,
+        "timeout": 2000,
+        "next": [
+            "Arbitrage_Cooking_B20",
+            "[JumpBack]Arbitrage_Cooking_Swip_Page2"
+        ],
+        "focus": "Arb.料理检查:[5级]街头烤鸡肉串"
+    },
+    "Arbitrage_Cooking_B15_Entry": {
+        "desc": "「汉堡排便当」入口。先在当前页试识别，看不到就翻页再试。",
+        "max_hit": 1,
+        "pre_delay": 0,
+        "post_delay": 0,
+        "timeout": 2000,
+        "next": [
+            "Arbitrage_Cooking_B15",
+            "[JumpBack]Arbitrage_Cooking_Swip_Page2"
+        ],
+        "focus": "Arb.料理检查:[5级]汉堡排便当"
+    },
+    "Arbitrage_Cooking_B12_Entry": {
+        "desc": "「冰镇甜点」入口。先在当前页试识别，看不到就翻页再试。",
+        "max_hit": 1,
+        "pre_delay": 0,
+        "post_delay": 0,
+        "timeout": 2000,
+        "next": [
+            "Arbitrage_Cooking_B12",
+            "[JumpBack]Arbitrage_Cooking_Swip_Page2"
+        ],
+        "focus": "Arb.料理检查:[5级]冰镇甜点"
+    },
+    "Arbitrage_Cooking_B19_Entry": {
+        "desc": "「香甜马卡龙」入口。先在当前页试识别，看不到就翻页再试。",
+        "max_hit": 1,
+        "pre_delay": 0,
+        "post_delay": 0,
+        "timeout": 2000,
+        "next": [
+            "Arbitrage_Cooking_B19",
+            "[JumpBack]Arbitrage_Cooking_Swip_Page2"
+        ],
+        "focus": "Arb.料理检查:[5级]香甜马卡龙"
+    },
+    "Arbitrage_Cooking_B17_Entry": {
+        "desc": "「三明治便当」入口。先在当前页试识别，看不到就翻页再试。",
+        "max_hit": 1,
+        "pre_delay": 0,
+        "post_delay": 0,
+        "timeout": 2000,
+        "next": [
+            "Arbitrage_Cooking_B17",
+            "[JumpBack]Arbitrage_Cooking_Swip_Page2"
+        ],
+        "focus": "Arb.料理检查:[5级]三明治便当"
+    },
+    "Arbitrage_Cooking_B18_Entry": {
+        "desc": "「手工蛋糕」入口。先在当前页试识别，看不到就翻页再试。",
+        "max_hit": 1,
+        "pre_delay": 0,
+        "post_delay": 0,
+        "timeout": 2000,
+        "next": [
+            "Arbitrage_Cooking_B18",
+            "[JumpBack]Arbitrage_Cooking_Swip_Page2"
+        ],
+        "focus": "Arb.料理检查:[5级]手工蛋糕"
+    },
+    "Arbitrage_Cooking_B16_Entry": {
+        "desc": "「泰瑞丝派」入口。先在当前页试识别，看不到就翻页再试。",
+        "max_hit": 1,
+        "pre_delay": 0,
+        "post_delay": 0,
+        "timeout": 2000,
+        "next": [
+            "Arbitrage_Cooking_B16",
+            "[JumpBack]Arbitrage_Cooking_Swip_Page2"
+        ],
+        "focus": "Arb.料理检查:[5级]泰瑞丝派"
+    },
+    "Arbitrage_Cooking_B13_Entry": {
+        "desc": "「炸猪排盖饭」入口。先在当前页试识别，看不到就翻页再试。",
+        "max_hit": 1,
+        "pre_delay": 0,
+        "post_delay": 0,
+        "timeout": 2000,
+        "next": [
+            "Arbitrage_Cooking_B13",
+            "[JumpBack]Arbitrage_Cooking_Swip_Page2"
+        ],
+        "focus": "Arb.料理检查:[5级]炸猪排盖饭"
     },
     "Arbitrage_Cooking_B8": {
         "desc": "菜品选择器,进入料理子菜单",
-        "enabled": false,
-        "max_hit": 1,
         "recognition": "And",
         "all_of": [
             {
@@ -3101,8 +3293,6 @@
     },
     "Arbitrage_Cooking_B9": {
         "desc": "菜品选择器,进入料理子菜单",
-        "enabled": false,
-        "max_hit": 1,
         "recognition": "And",
         "all_of": [
             {
@@ -3129,8 +3319,6 @@
     },
     "Arbitrage_Cooking_B10": {
         "desc": "菜品选择器,进入料理子菜单",
-        "enabled": false,
-        "max_hit": 1,
         "recognition": "And",
         "all_of": [
             {
@@ -3157,8 +3345,6 @@
     },
     "Arbitrage_Cooking_B11": {
         "desc": "菜品选择器,绿掩膜素材图标模板,进入料理子菜单",
-        "enabled": false,
-        "max_hit": 1,
         "recognition": "And",
         "all_of": [
             {
@@ -3186,8 +3372,6 @@
     },
     "Arbitrage_Cooking_B12": {
         "desc": "菜品选择器,绿掩膜素材图标模板,进入料理子菜单",
-        "enabled": false,
-        "max_hit": 1,
         "recognition": "And",
         "all_of": [
             {
@@ -3215,8 +3399,6 @@
     },
     "Arbitrage_Cooking_B13": {
         "desc": "菜品选择器,绿掩膜素材图标模板,进入料理子菜单",
-        "enabled": false,
-        "max_hit": 1,
         "recognition": "And",
         "all_of": [
             {
@@ -3244,8 +3426,6 @@
     },
     "Arbitrage_Cooking_B14": {
         "desc": "菜品选择器,绿掩膜素材图标模板,进入料理子菜单",
-        "enabled": false,
-        "max_hit": 1,
         "recognition": "And",
         "all_of": [
             {
@@ -3273,8 +3453,6 @@
     },
     "Arbitrage_Cooking_B15": {
         "desc": "菜品选择器,绿掩膜素材图标模板,进入料理子菜单",
-        "enabled": false,
-        "max_hit": 1,
         "recognition": "And",
         "all_of": [
             {
@@ -3301,30 +3479,24 @@
         "focus": "Arb.料理制作:[5级]汉堡排便当"
     },
     "Arbitrage_Cooking_Page1": {
-        "desc": "先进行第二页，因为高级料理利多，优先。【实际：】利用发送锚点，从页复位直接进入页1的HUB节点，next中HUB只是为了方便理解，实际不会触发。",
+        "desc": "第一页非五星料理，兼页内HUB。首位先做页内复位，复位链经[Anchor]Cooking_Menu_Reset回到本节点派活；其余各位是各料理入口，按多赚/配方最大单项用量降序，靠前优先，同分保留原有料理在前。全灭时经on_error首位打完成标记跳出。",
         "max_hit": 1,
         "anchor": {
-            "Cooking": "Arbitrage_Cooking_Hub",
-            "Cooking_Menu_Reset": "Arbitrage_Cooking_Hub"
+            "Cooking": "Arbitrage_Cooking_Page1",
+            "Cooking_Menu_Reset": "Arbitrage_Cooking_Page1"
         },
-        "next": [
-            "Arbitrage_Cooking_Menu_Reset",
-            "Arbitrage_Cooking_Hub"
-        ]
-    },
-    "Arbitrage_Cooking_Hub": {
-        "desc": "第一页非五星料理。按多赚/配方最大单项用量降序识别，靠前优先；同分保留原有料理在前。",
         "timeout": 2000,
         "next": [
-            "Arbitrage_Cooking_A2",
-            "Arbitrage_Cooking_A1",
-            "Arbitrage_Cooking_A7",
-            "Arbitrage_Cooking_A4",
-            "Arbitrage_Cooking_A8",
-            "Arbitrage_Cooking_A3",
-            "Arbitrage_Cooking_A9",
-            "Arbitrage_Cooking_A5",
-            "Arbitrage_Cooking_A10"
+            "Arbitrage_Cooking_Menu_Reset",
+            "[JumpBack]Arbitrage_Cooking_A2_Entry",
+            "[JumpBack]Arbitrage_Cooking_A1_Entry",
+            "[JumpBack]Arbitrage_Cooking_A7_Entry",
+            "[JumpBack]Arbitrage_Cooking_A4_Entry",
+            "[JumpBack]Arbitrage_Cooking_A8_Entry",
+            "[JumpBack]Arbitrage_Cooking_A3_Entry",
+            "[JumpBack]Arbitrage_Cooking_A9_Entry",
+            "[JumpBack]Arbitrage_Cooking_A5_Entry",
+            "[JumpBack]Arbitrage_Cooking_A10_Entry"
         ],
         "on_error": [
             "Arbitrage_Cooking_ERREND",
@@ -3332,10 +3504,107 @@
             "Global_Null_Panic"
         ]
     },
+    "Arbitrage_Cooking_A2_Entry": {
+        "desc": "「蜂蜜黄油杏仁」入口。第一页无需翻页，只做打点与试识别。",
+        "max_hit": 1,
+        "pre_delay": 0,
+        "post_delay": 0,
+        "timeout": 2000,
+        "next": [
+            "Arbitrage_Cooking_A2"
+        ],
+        "focus": "Arb.料理检查:[3级]蜂蜜黄油杏仁"
+    },
+    "Arbitrage_Cooking_A1_Entry": {
+        "desc": "「烤蜂蜜苹果」入口。",
+        "max_hit": 1,
+        "pre_delay": 0,
+        "post_delay": 0,
+        "timeout": 2000,
+        "next": [
+            "Arbitrage_Cooking_A1"
+        ],
+        "focus": "Arb.料理检查:[1级]烤蜂蜜苹果"
+    },
+    "Arbitrage_Cooking_A7_Entry": {
+        "desc": "「火烤鱼板棒」入口。",
+        "max_hit": 1,
+        "pre_delay": 0,
+        "post_delay": 0,
+        "timeout": 2000,
+        "next": [
+            "Arbitrage_Cooking_A7"
+        ],
+        "focus": "Arb.料理检查:[3级]火烤鱼板棒"
+    },
+    "Arbitrage_Cooking_A4_Entry": {
+        "desc": "「鱼子酱蛋包饭」入口。",
+        "max_hit": 1,
+        "pre_delay": 0,
+        "post_delay": 0,
+        "timeout": 2000,
+        "next": [
+            "Arbitrage_Cooking_A4"
+        ],
+        "focus": "Arb.料理检查:[3级]鱼子酱蛋包饭"
+    },
+    "Arbitrage_Cooking_A8_Entry": {
+        "desc": "「甜辣鲜虾」入口。",
+        "max_hit": 1,
+        "pre_delay": 0,
+        "post_delay": 0,
+        "timeout": 2000,
+        "next": [
+            "Arbitrage_Cooking_A8"
+        ],
+        "focus": "Arb.料理检查:[4级]甜辣鲜虾"
+    },
+    "Arbitrage_Cooking_A3_Entry": {
+        "desc": "「三角美乃滋饭团」入口。",
+        "max_hit": 1,
+        "pre_delay": 0,
+        "post_delay": 0,
+        "timeout": 2000,
+        "next": [
+            "Arbitrage_Cooking_A3"
+        ],
+        "focus": "Arb.料理检查:[3级]三角美乃滋饭团"
+    },
+    "Arbitrage_Cooking_A9_Entry": {
+        "desc": "「三文鱼芥末寿司」入口。",
+        "max_hit": 1,
+        "pre_delay": 0,
+        "post_delay": 0,
+        "timeout": 2000,
+        "next": [
+            "Arbitrage_Cooking_A9"
+        ],
+        "focus": "Arb.料理检查:[4级]三文鱼芥末寿司"
+    },
+    "Arbitrage_Cooking_A5_Entry": {
+        "desc": "「炸三文鱼便当」入口。",
+        "max_hit": 1,
+        "pre_delay": 0,
+        "post_delay": 0,
+        "timeout": 2000,
+        "next": [
+            "Arbitrage_Cooking_A5"
+        ],
+        "focus": "Arb.料理检查:[2级]炸三文鱼便当"
+    },
+    "Arbitrage_Cooking_A10_Entry": {
+        "desc": "「巧克力鸡尾酒」入口。",
+        "max_hit": 1,
+        "pre_delay": 0,
+        "post_delay": 0,
+        "timeout": 2000,
+        "next": [
+            "Arbitrage_Cooking_A10"
+        ],
+        "focus": "Arb.料理检查:[2级]巧克力鸡尾酒"
+    },
     "Arbitrage_Cooking_B6": {
         "desc": "菜品选择器,进入料理子菜单",
-        "enabled": false,
-        "max_hit": 1,
         "recognition": "And",
         "all_of": [
             {
@@ -3362,8 +3631,6 @@
     },
     "Arbitrage_Cooking_B7": {
         "desc": "菜品选择器,进入料理子菜单",
-        "enabled": false,
-        "max_hit": 1,
         "recognition": "And",
         "all_of": [
             {
@@ -3390,7 +3657,6 @@
     },
     "Arbitrage_Cooking_A2": {
         "desc": "菜品选择器,进入料理子菜单",
-        "max_hit": 1,
         "recognition": "And",
         "all_of": [
             {
@@ -3417,7 +3683,6 @@
     },
     "Arbitrage_Cooking_A3": {
         "desc": "菜品选择器,进入料理子菜单",
-        "max_hit": 1,
         "recognition": "And",
         "all_of": [
             {
@@ -3444,7 +3709,6 @@
     },
     "Arbitrage_Cooking_A4": {
         "desc": "菜品选择器,进入料理子菜单",
-        "max_hit": 1,
         "recognition": "And",
         "all_of": [
             {
@@ -3471,7 +3735,6 @@
     },
     "Arbitrage_Cooking_A5": {
         "desc": "菜品选择器,进入料理子菜单",
-        "max_hit": 1,
         "recognition": "And",
         "all_of": [
             {
@@ -3498,7 +3761,6 @@
     },
     "Arbitrage_Cooking_A1": {
         "desc": "菜品选择器,进入料理子菜单",
-        "max_hit": 1,
         "recognition": "And",
         "all_of": [
             {
@@ -3525,8 +3787,6 @@
     },
     "Arbitrage_Cooking_B16": {
         "desc": "菜品选择器,绿掩膜素材图标模板,进入料理子菜单",
-        "enabled": false,
-        "max_hit": 1,
         "recognition": "And",
         "all_of": [
             {
@@ -3554,8 +3814,6 @@
     },
     "Arbitrage_Cooking_B17": {
         "desc": "菜品选择器,绿掩膜素材图标模板,进入料理子菜单",
-        "enabled": false,
-        "max_hit": 1,
         "recognition": "And",
         "all_of": [
             {
@@ -3583,8 +3841,6 @@
     },
     "Arbitrage_Cooking_B18": {
         "desc": "菜品选择器,绿掩膜素材图标模板,进入料理子菜单",
-        "enabled": false,
-        "max_hit": 1,
         "recognition": "And",
         "all_of": [
             {
@@ -3612,8 +3868,6 @@
     },
     "Arbitrage_Cooking_B19": {
         "desc": "菜品选择器,绿掩膜素材图标模板,进入料理子菜单",
-        "enabled": false,
-        "max_hit": 1,
         "recognition": "And",
         "all_of": [
             {
@@ -3641,8 +3895,6 @@
     },
     "Arbitrage_Cooking_B20": {
         "desc": "菜品选择器,绿掩膜素材图标模板,进入料理子菜单",
-        "enabled": false,
-        "max_hit": 1,
         "recognition": "And",
         "all_of": [
             {
@@ -3670,8 +3922,6 @@
     },
     "Arbitrage_Cooking_B21": {
         "desc": "菜品选择器,绿掩膜素材图标模板,进入料理子菜单",
-        "enabled": false,
-        "max_hit": 1,
         "recognition": "And",
         "all_of": [
             {
@@ -3699,7 +3949,6 @@
     },
     "Arbitrage_Cooking_A7": {
         "desc": "菜品选择器,进入料理子菜单",
-        "max_hit": 1,
         "recognition": "And",
         "all_of": [
             {
@@ -3726,7 +3975,6 @@
     },
     "Arbitrage_Cooking_A8": {
         "desc": "菜品选择器,进入料理子菜单",
-        "max_hit": 1,
         "recognition": "And",
         "all_of": [
             {
@@ -3753,7 +4001,6 @@
     },
     "Arbitrage_Cooking_A9": {
         "desc": "菜品选择器,进入料理子菜单",
-        "max_hit": 1,
         "recognition": "And",
         "all_of": [
             {
@@ -3780,7 +4027,6 @@
     },
     "Arbitrage_Cooking_A10": {
         "desc": "菜品选择器,进入料理子菜单",
-        "max_hit": 1,
         "recognition": "And",
         "all_of": [
             {
@@ -3823,6 +4069,14 @@
     "Arbitrage_Cooking_Menu_Reset": {
         "desc": "使用Anchor复用.将菜单复位。通过随机点一个菜品后返回，利用系统机制复位最顶。",
         "max_hit": 50,
+        "recognition": "TemplateMatch",
+        "roi": [
+            585,
+            95,
+            612,
+            110
+        ],
+        "template": ["Shop/RecipeList/料理_蘑菇汤.png"],
         "action": "Click",
         "target": [
             606,
@@ -4293,8 +4547,7 @@
         "focus": "Arb.料理菜单已返回"
     },
     "Arbitrage_Cooking_ERREND": {
-        "desc": "料理最后运行的第一页HUB跳出,补个lib打标",
-        "doc": "料理最后运行的第一页HUB跳出,补个lib打标",
+        "desc": "料理最后运行的第一页跳出,补个lib打标",
         "action": "Custom",
         "custom_action": "MarkComplete",
         "custom_action_param": {
