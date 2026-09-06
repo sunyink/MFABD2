@@ -4067,16 +4067,13 @@
         ]
     },
     "Arbitrage_Cooking_Menu_Reset": {
-        "desc": "使用Anchor复用.将菜单复位。通过随机点一个菜品后返回，利用系统机制复位最顶。",
+        "desc": "在料理界面,且蘑菇汤不在第一行",
         "max_hit": 50,
-        "recognition": "TemplateMatch",
-        "roi": [
-            585,
-            95,
-            612,
-            110
+        "recognition": "And",
+        "all_of": [
+            "Not_Cooking_Menu_Reset_Csm",
+            "Arbitrage_Cooking_Menu_Reset_SubOut"
         ],
-        "template": ["Shop/RecipeList/料理_蘑菇汤.png"],
         "action": "Click",
         "target": [
             606,
@@ -4110,10 +4107,27 @@
         "expected": [
             "所需材料$"
         ],
-        "next": [
-            "[Anchor]Cooking_Menu_Reset"
-        ],
         "focus": "Arb.返回料理菜单\n\n页内复位完成"
+    },
+    "Not_Cooking_Menu_Reset_Csm": {
+        "recognition": "Custom",
+        "custom_recognition": "NotRecognition",
+        "custom_recognition_param": {
+            "node": "Rec_Cooking_Menu_Reset_True"
+        },
+        "pre_delay": 0,
+        "post_delay": 0
+    },
+    "Rec_Cooking_Menu_Reset_True": {
+        "desc": "[识别]蘑菇汤在首尾,",
+        "recognition": "TemplateMatch",
+        "roi": [
+            585,
+            95,
+            612,
+            110
+        ],
+        "template": "Shop/RecipeList/料理_蘑菇汤.png"
     },
     "Arbitrage_Cooking_SubMenu": {
         "desc": "可复用料理流程开始.确定子菜单",
@@ -4540,9 +4554,6 @@
         ],
         "expected": [
             "所需材料$"
-        ],
-        "next": [
-            "[Anchor]Cooking"
         ],
         "focus": "Arb.料理菜单已返回"
     },
