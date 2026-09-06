@@ -100,6 +100,54 @@ class CookingStockTests(unittest.TestCase):
             self.assertNotIn("only_rec", PIPELINE[node])
             self.assertNotIn("next", PIPELINE[node])
 
+    def test_green_mask_recipe_entries_are_disabled_until_selected(self):
+        recipes = {
+            "Arbitrage_Cooking_B11": "洛克菲勒生蚝",
+            "Arbitrage_Cooking_B12": "冰镇甜点",
+            "Arbitrage_Cooking_B13": "炸猪排盖饭",
+            "Arbitrage_Cooking_B14": "橄榄油意面",
+            "Arbitrage_Cooking_B15": "汉堡排便当",
+            "Arbitrage_Cooking_B16": "泰瑞丝派",
+            "Arbitrage_Cooking_B17": "三明治便当",
+            "Arbitrage_Cooking_B18": "手工蛋糕",
+            "Arbitrage_Cooking_B19": "香甜马卡龙",
+            "Arbitrage_Cooking_B20": "街头烤鸡肉串",
+            "Arbitrage_Cooking_B21": "香草牛排",
+        }
+        page_two = PIPELINE["Arbitrage_Cooking_Swip_Page2"]["next"]
+        for node, name in recipes.items():
+            self.assertIn(node, page_two)
+            data = PIPELINE[node]
+            self.assertFalse(data["enabled"])
+            matcher = data["all_of"][0]
+            self.assertTrue(matcher["green_mask"])
+            self.assertEqual(matcher["template"], [f"Shop/RecipeList/料理_{name}.png"])
+            self.assertTrue((ROOT / "assets/resource/base/image" / matcher["template"][0]).is_file())
+
+    def test_recipe_pages_cover_selectors_and_five_star_options(self):
+        page_two = PIPELINE["Arbitrage_Cooking_Swip_Page2"]["next"]
+        page_one = PIPELINE["Arbitrage_Cooking_Hub"]["next"]
+        selectors = {name for name, node in PIPELINE.items()
+                     if node.get("next") == ["Arbitrage_Cooking_SubMenu"]}
+        self.assertEqual(len(selectors), 25)
+        self.assertEqual(len(page_two), 16)
+        self.assertEqual(len(page_one), 9)
+        self.assertEqual(len(page_two + page_one), len(set(page_two + page_one)))
+        self.assertEqual(set(page_two + page_one), selectors)
+        self.assertNotIn("Arbitrage_Cooking_A6", PIPELINE)
+        interface = json.loads((ROOT / "assets/interface.json").read_text(encoding="utf-8"))
+        cases = interface["option"]["5星料理开关"]["cases"]
+        self.assertEqual({name for case in cases for name in case["pipeline_override"]}, set(page_two))
+        for name in selectors:
+            node = PIPELINE[name]
+            self.assertEqual("[5级]" in node["focus"], name in page_two)
+            self.assertEqual(node.get("enabled", True), name in page_one)
+            self.assertEqual(node["max_hit"], 1)
+            for template in node["all_of"][0]["template"]:
+                self.assertTrue((ROOT / "assets/resource/base/image" / template).is_file(), template)
+        self.assertEqual(PIPELINE["Arbitrage_Cooking_MenuEnter"]["next"], [
+            "[JumpBack]Arbitrage_Cooking_Page2", "[JumpBack]Arbitrage_Cooking_Page1"])
+
 
 def replay(images, negative_images):
     import numpy as np

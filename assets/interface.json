@@ -1638,6 +1638,94 @@
                             "enabled": true
                         }
                     }
+                },
+                {
+                    "name": "泰瑞丝派",
+                    "pipeline_override": {
+                        "Arbitrage_Cooking_B16": {
+                            "enabled": true
+                        }
+                    }
+                },
+                {
+                    "name": "三明治便当",
+                    "pipeline_override": {
+                        "Arbitrage_Cooking_B17": {
+                            "enabled": true
+                        }
+                    }
+                },
+                {
+                    "name": "手工蛋糕",
+                    "pipeline_override": {
+                        "Arbitrage_Cooking_B18": {
+                            "enabled": true
+                        }
+                    }
+                },
+                {
+                    "name": "香甜马卡龙",
+                    "pipeline_override": {
+                        "Arbitrage_Cooking_B19": {
+                            "enabled": true
+                        }
+                    }
+                },
+                {
+                    "name": "街头烤鸡肉串",
+                    "pipeline_override": {
+                        "Arbitrage_Cooking_B20": {
+                            "enabled": true
+                        }
+                    }
+                },
+                {
+                    "name": "香草牛排",
+                    "pipeline_override": {
+                        "Arbitrage_Cooking_B21": {
+                            "enabled": true
+                        }
+                    }
+                },
+                {
+                    "name": "洛克菲勒生蚝",
+                    "pipeline_override": {
+                        "Arbitrage_Cooking_B11": {
+                            "enabled": true
+                        }
+                    }
+                },
+                {
+                    "name": "冰镇甜点",
+                    "pipeline_override": {
+                        "Arbitrage_Cooking_B12": {
+                            "enabled": true
+                        }
+                    }
+                },
+                {
+                    "name": "炸猪排盖饭",
+                    "pipeline_override": {
+                        "Arbitrage_Cooking_B13": {
+                            "enabled": true
+                        }
+                    }
+                },
+                {
+                    "name": "橄榄油意面",
+                    "pipeline_override": {
+                        "Arbitrage_Cooking_B14": {
+                            "enabled": true
+                        }
+                    }
+                },
+                {
+                    "name": "汉堡排便当",
+                    "pipeline_override": {
+                        "Arbitrage_Cooking_B15": {
+                            "enabled": true
+                        }
+                    }
                 }
             ]
         },

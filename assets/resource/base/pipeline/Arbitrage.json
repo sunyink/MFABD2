@@ -3038,7 +3038,7 @@
         ]
     },
     "Arbitrage_Cooking_Swip_Page2": {
-        "desc": "滑动到指定页面。兼做页内HUB节点",
+        "desc": "第二页五星料理。按多赚/配方最大单项用量降序识别，靠前优先。滑动到指定页面，兼做页内HUB节点。",
         "action": "Swipe",
         "begin": [
             887,
@@ -3052,9 +3052,22 @@
         "post_delay": 1500,
         "timeout": 2000,
         "next": [
-            "Arbitrage_Cooking_B8",
+            "Arbitrage_Cooking_B10",
             "Arbitrage_Cooking_B9",
-            "Arbitrage_Cooking_B10"
+            "Arbitrage_Cooking_B8",
+            "Arbitrage_Cooking_B7",
+            "Arbitrage_Cooking_B6",
+            "Arbitrage_Cooking_B21",
+            "Arbitrage_Cooking_B11",
+            "Arbitrage_Cooking_B14",
+            "Arbitrage_Cooking_B20",
+            "Arbitrage_Cooking_B15",
+            "Arbitrage_Cooking_B12",
+            "Arbitrage_Cooking_B19",
+            "Arbitrage_Cooking_B17",
+            "Arbitrage_Cooking_B18",
+            "Arbitrage_Cooking_B16",
+            "Arbitrage_Cooking_B13"
         ],
         "focus": "Arb.料理页面2"
     },
@@ -3142,6 +3155,151 @@
         ],
         "focus": "Arb.料理制作:[5级]地狱火紫菜包饭"
     },
+    "Arbitrage_Cooking_B11": {
+        "desc": "菜品选择器,绿掩膜素材图标模板,进入料理子菜单",
+        "enabled": false,
+        "max_hit": 1,
+        "recognition": "And",
+        "all_of": [
+            {
+                "sub_name": "Templateroi",
+                "recognition": "TemplateMatch",
+                "roi": [
+                    592,
+                    103,
+                    596,
+                    598
+                ],
+                "template": [
+                    "Shop/RecipeList/料理_洛克菲勒生蚝.png"
+                ],
+                "green_mask": true
+            },
+            "Sub_<Arbitrage_Cooking>_Clr"
+        ],
+        "action": "Click",
+        "post_delay": 1000,
+        "next": [
+            "Arbitrage_Cooking_SubMenu"
+        ],
+        "focus": "Arb.料理制作:[5级]洛克菲勒生蚝"
+    },
+    "Arbitrage_Cooking_B12": {
+        "desc": "菜品选择器,绿掩膜素材图标模板,进入料理子菜单",
+        "enabled": false,
+        "max_hit": 1,
+        "recognition": "And",
+        "all_of": [
+            {
+                "sub_name": "Templateroi",
+                "recognition": "TemplateMatch",
+                "roi": [
+                    592,
+                    103,
+                    596,
+                    598
+                ],
+                "template": [
+                    "Shop/RecipeList/料理_冰镇甜点.png"
+                ],
+                "green_mask": true
+            },
+            "Sub_<Arbitrage_Cooking>_Clr"
+        ],
+        "action": "Click",
+        "post_delay": 1000,
+        "next": [
+            "Arbitrage_Cooking_SubMenu"
+        ],
+        "focus": "Arb.料理制作:[5级]冰镇甜点"
+    },
+    "Arbitrage_Cooking_B13": {
+        "desc": "菜品选择器,绿掩膜素材图标模板,进入料理子菜单",
+        "enabled": false,
+        "max_hit": 1,
+        "recognition": "And",
+        "all_of": [
+            {
+                "sub_name": "Templateroi",
+                "recognition": "TemplateMatch",
+                "roi": [
+                    592,
+                    103,
+                    596,
+                    598
+                ],
+                "template": [
+                    "Shop/RecipeList/料理_炸猪排盖饭.png"
+                ],
+                "green_mask": true
+            },
+            "Sub_<Arbitrage_Cooking>_Clr"
+        ],
+        "action": "Click",
+        "post_delay": 1000,
+        "next": [
+            "Arbitrage_Cooking_SubMenu"
+        ],
+        "focus": "Arb.料理制作:[5级]炸猪排盖饭"
+    },
+    "Arbitrage_Cooking_B14": {
+        "desc": "菜品选择器,绿掩膜素材图标模板,进入料理子菜单",
+        "enabled": false,
+        "max_hit": 1,
+        "recognition": "And",
+        "all_of": [
+            {
+                "sub_name": "Templateroi",
+                "recognition": "TemplateMatch",
+                "roi": [
+                    592,
+                    103,
+                    596,
+                    598
+                ],
+                "template": [
+                    "Shop/RecipeList/料理_橄榄油意面.png"
+                ],
+                "green_mask": true
+            },
+            "Sub_<Arbitrage_Cooking>_Clr"
+        ],
+        "action": "Click",
+        "post_delay": 1000,
+        "next": [
+            "Arbitrage_Cooking_SubMenu"
+        ],
+        "focus": "Arb.料理制作:[5级]橄榄油意面"
+    },
+    "Arbitrage_Cooking_B15": {
+        "desc": "菜品选择器,绿掩膜素材图标模板,进入料理子菜单",
+        "enabled": false,
+        "max_hit": 1,
+        "recognition": "And",
+        "all_of": [
+            {
+                "sub_name": "Templateroi",
+                "recognition": "TemplateMatch",
+                "roi": [
+                    592,
+                    103,
+                    596,
+                    598
+                ],
+                "template": [
+                    "Shop/RecipeList/料理_汉堡排便当.png"
+                ],
+                "green_mask": true
+            },
+            "Sub_<Arbitrage_Cooking>_Clr"
+        ],
+        "action": "Click",
+        "post_delay": 1000,
+        "next": [
+            "Arbitrage_Cooking_SubMenu"
+        ],
+        "focus": "Arb.料理制作:[5级]汉堡排便当"
+    },
     "Arbitrage_Cooking_Page1": {
         "desc": "先进行第二页，因为高级料理利多，优先。【实际：】利用发送锚点，从页复位直接进入页1的HUB节点，next中HUB只是为了方便理解，实际不会触发。",
         "max_hit": 1,
@@ -3155,17 +3313,18 @@
         ]
     },
     "Arbitrage_Cooking_Hub": {
-        "desc": "第一页料理,路由节点,菜品按等级/价值倒序",
+        "desc": "第一页非五星料理。按多赚/配方最大单项用量降序识别，靠前优先；同分保留原有料理在前。",
         "timeout": 2000,
         "next": [
-            "Arbitrage_Cooking_B6",
-            "Arbitrage_Cooking_B7",
             "Arbitrage_Cooking_A2",
-            "Arbitrage_Cooking_A3",
+            "Arbitrage_Cooking_A1",
+            "Arbitrage_Cooking_A7",
             "Arbitrage_Cooking_A4",
+            "Arbitrage_Cooking_A8",
+            "Arbitrage_Cooking_A3",
+            "Arbitrage_Cooking_A9",
             "Arbitrage_Cooking_A5",
-            "Arbitrage_Cooking_A6",
-            "Arbitrage_Cooking_A1"
+            "Arbitrage_Cooking_A10"
         ],
         "on_error": [
             "Arbitrage_Cooking_ERREND",
@@ -3337,33 +3496,6 @@
         ],
         "focus": "Arb.料理制作:[2级]炸三文鱼便当"
     },
-    "Arbitrage_Cooking_A6": {
-        "desc": "菜品选择器,进入料理子菜单",
-        "max_hit": 1,
-        "recognition": "And",
-        "all_of": [
-            {
-                "sub_name": "Templateroi",
-                "recognition": "TemplateMatch",
-                "roi": [
-                    592,
-                    103,
-                    596,
-                    598
-                ],
-                "template": [
-                    "Shop/RecipeList/料理_桑格利亚酒.png"
-                ]
-            },
-            "Sub_<Arbitrage_Cooking>_Clr"
-        ],
-        "action": "Click",
-        "post_delay": 1000,
-        "next": [
-            "Arbitrage_Cooking_SubMenu"
-        ],
-        "focus": "Arb.料理制作:[2级]桑格利亚酒"
-    },
     "Arbitrage_Cooking_A1": {
         "desc": "菜品选择器,进入料理子菜单",
         "max_hit": 1,
@@ -3390,6 +3522,288 @@
             "Arbitrage_Cooking_SubMenu"
         ],
         "focus": "Arb.料理制作:[1级]烤蜂蜜苹果"
+    },
+    "Arbitrage_Cooking_B16": {
+        "desc": "菜品选择器,绿掩膜素材图标模板,进入料理子菜单",
+        "enabled": false,
+        "max_hit": 1,
+        "recognition": "And",
+        "all_of": [
+            {
+                "sub_name": "Templateroi",
+                "recognition": "TemplateMatch",
+                "roi": [
+                    592,
+                    103,
+                    596,
+                    598
+                ],
+                "template": [
+                    "Shop/RecipeList/料理_泰瑞丝派.png"
+                ],
+                "green_mask": true
+            },
+            "Sub_<Arbitrage_Cooking>_Clr"
+        ],
+        "action": "Click",
+        "post_delay": 1000,
+        "next": [
+            "Arbitrage_Cooking_SubMenu"
+        ],
+        "focus": "Arb.料理制作:[5级]泰瑞丝派"
+    },
+    "Arbitrage_Cooking_B17": {
+        "desc": "菜品选择器,绿掩膜素材图标模板,进入料理子菜单",
+        "enabled": false,
+        "max_hit": 1,
+        "recognition": "And",
+        "all_of": [
+            {
+                "sub_name": "Templateroi",
+                "recognition": "TemplateMatch",
+                "roi": [
+                    592,
+                    103,
+                    596,
+                    598
+                ],
+                "template": [
+                    "Shop/RecipeList/料理_三明治便当.png"
+                ],
+                "green_mask": true
+            },
+            "Sub_<Arbitrage_Cooking>_Clr"
+        ],
+        "action": "Click",
+        "post_delay": 1000,
+        "next": [
+            "Arbitrage_Cooking_SubMenu"
+        ],
+        "focus": "Arb.料理制作:[5级]三明治便当"
+    },
+    "Arbitrage_Cooking_B18": {
+        "desc": "菜品选择器,绿掩膜素材图标模板,进入料理子菜单",
+        "enabled": false,
+        "max_hit": 1,
+        "recognition": "And",
+        "all_of": [
+            {
+                "sub_name": "Templateroi",
+                "recognition": "TemplateMatch",
+                "roi": [
+                    592,
+                    103,
+                    596,
+                    598
+                ],
+                "template": [
+                    "Shop/RecipeList/料理_手工蛋糕.png"
+                ],
+                "green_mask": true
+            },
+            "Sub_<Arbitrage_Cooking>_Clr"
+        ],
+        "action": "Click",
+        "post_delay": 1000,
+        "next": [
+            "Arbitrage_Cooking_SubMenu"
+        ],
+        "focus": "Arb.料理制作:[5级]手工蛋糕"
+    },
+    "Arbitrage_Cooking_B19": {
+        "desc": "菜品选择器,绿掩膜素材图标模板,进入料理子菜单",
+        "enabled": false,
+        "max_hit": 1,
+        "recognition": "And",
+        "all_of": [
+            {
+                "sub_name": "Templateroi",
+                "recognition": "TemplateMatch",
+                "roi": [
+                    592,
+                    103,
+                    596,
+                    598
+                ],
+                "template": [
+                    "Shop/RecipeList/料理_香甜马卡龙.png"
+                ],
+                "green_mask": true
+            },
+            "Sub_<Arbitrage_Cooking>_Clr"
+        ],
+        "action": "Click",
+        "post_delay": 1000,
+        "next": [
+            "Arbitrage_Cooking_SubMenu"
+        ],
+        "focus": "Arb.料理制作:[5级]香甜马卡龙"
+    },
+    "Arbitrage_Cooking_B20": {
+        "desc": "菜品选择器,绿掩膜素材图标模板,进入料理子菜单",
+        "enabled": false,
+        "max_hit": 1,
+        "recognition": "And",
+        "all_of": [
+            {
+                "sub_name": "Templateroi",
+                "recognition": "TemplateMatch",
+                "roi": [
+                    592,
+                    103,
+                    596,
+                    598
+                ],
+                "template": [
+                    "Shop/RecipeList/料理_街头烤鸡肉串.png"
+                ],
+                "green_mask": true
+            },
+            "Sub_<Arbitrage_Cooking>_Clr"
+        ],
+        "action": "Click",
+        "post_delay": 1000,
+        "next": [
+            "Arbitrage_Cooking_SubMenu"
+        ],
+        "focus": "Arb.料理制作:[5级]街头烤鸡肉串"
+    },
+    "Arbitrage_Cooking_B21": {
+        "desc": "菜品选择器,绿掩膜素材图标模板,进入料理子菜单",
+        "enabled": false,
+        "max_hit": 1,
+        "recognition": "And",
+        "all_of": [
+            {
+                "sub_name": "Templateroi",
+                "recognition": "TemplateMatch",
+                "roi": [
+                    592,
+                    103,
+                    596,
+                    598
+                ],
+                "template": [
+                    "Shop/RecipeList/料理_香草牛排.png"
+                ],
+                "green_mask": true
+            },
+            "Sub_<Arbitrage_Cooking>_Clr"
+        ],
+        "action": "Click",
+        "post_delay": 1000,
+        "next": [
+            "Arbitrage_Cooking_SubMenu"
+        ],
+        "focus": "Arb.料理制作:[5级]香草牛排"
+    },
+    "Arbitrage_Cooking_A7": {
+        "desc": "菜品选择器,进入料理子菜单",
+        "max_hit": 1,
+        "recognition": "And",
+        "all_of": [
+            {
+                "sub_name": "Templateroi",
+                "recognition": "TemplateMatch",
+                "roi": [
+                    592,
+                    103,
+                    596,
+                    598
+                ],
+                "template": [
+                    "Shop/RecipeList/料理_火烤鱼板棒.png"
+                ]
+            },
+            "Sub_<Arbitrage_Cooking>_Clr"
+        ],
+        "action": "Click",
+        "post_delay": 1000,
+        "next": [
+            "Arbitrage_Cooking_SubMenu"
+        ],
+        "focus": "Arb.料理制作:[3级]火烤鱼板棒"
+    },
+    "Arbitrage_Cooking_A8": {
+        "desc": "菜品选择器,进入料理子菜单",
+        "max_hit": 1,
+        "recognition": "And",
+        "all_of": [
+            {
+                "sub_name": "Templateroi",
+                "recognition": "TemplateMatch",
+                "roi": [
+                    592,
+                    103,
+                    596,
+                    598
+                ],
+                "template": [
+                    "Shop/RecipeList/料理_甜辣鲜虾.png"
+                ]
+            },
+            "Sub_<Arbitrage_Cooking>_Clr"
+        ],
+        "action": "Click",
+        "post_delay": 1000,
+        "next": [
+            "Arbitrage_Cooking_SubMenu"
+        ],
+        "focus": "Arb.料理制作:[4级]甜辣鲜虾"
+    },
+    "Arbitrage_Cooking_A9": {
+        "desc": "菜品选择器,进入料理子菜单",
+        "max_hit": 1,
+        "recognition": "And",
+        "all_of": [
+            {
+                "sub_name": "Templateroi",
+                "recognition": "TemplateMatch",
+                "roi": [
+                    592,
+                    103,
+                    596,
+                    598
+                ],
+                "template": [
+                    "Shop/RecipeList/料理_三文鱼芥末寿司.png"
+                ]
+            },
+            "Sub_<Arbitrage_Cooking>_Clr"
+        ],
+        "action": "Click",
+        "post_delay": 1000,
+        "next": [
+            "Arbitrage_Cooking_SubMenu"
+        ],
+        "focus": "Arb.料理制作:[4级]三文鱼芥末寿司"
+    },
+    "Arbitrage_Cooking_A10": {
+        "desc": "菜品选择器,进入料理子菜单",
+        "max_hit": 1,
+        "recognition": "And",
+        "all_of": [
+            {
+                "sub_name": "Templateroi",
+                "recognition": "TemplateMatch",
+                "roi": [
+                    592,
+                    103,
+                    596,
+                    598
+                ],
+                "template": [
+                    "Shop/RecipeList/料理_巧克力鸡尾酒.png"
+                ]
+            },
+            "Sub_<Arbitrage_Cooking>_Clr"
+        ],
+        "action": "Click",
+        "post_delay": 1000,
+        "next": [
+            "Arbitrage_Cooking_SubMenu"
+        ],
+        "focus": "Arb.料理制作:[2级]巧克力鸡尾酒"
     },
     "Sub_<Arbitrage_Cooking>_Clr": {
         "recognition": "ColorMatch",
