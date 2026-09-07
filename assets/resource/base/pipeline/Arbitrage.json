@@ -306,6 +306,7 @@
         "desc": "商店内动作路由",
         "timeout": 3000,
         "next": [
+            "[JumpBack]Arbitrage_SellItem_Preview",
             "[JumpBack]Arbitrage_BuyItem",
             "[JumpBack]Arbitrage_Favorit_Buy",
             "[JumpBack]Arbitrage_SellItem",
@@ -2010,6 +2011,22 @@
         "desc": "商店内出售",
         "enabled": true,
         "max_hit": 1,
+        "action": "Custom",
+        "custom_action": "ClearNodeHitCount",
+        "custom_action_param": {
+            "node_name": "Arbitrage_Sell_PriceList_FirstCalibration"
+        },
+        "anchor": {"Arbitrage_Sell_Preview": ""},
+        "next": [
+            "Arbitrage_Sell_Type_Ocr"
+        ],
+        "focus": "Arb.M.出售模块启动"
+    },
+    "Arbitrage_SellItem_Preview": {
+        "desc": "开局读价目表,尝试出售料理回笼资金",
+        "enabled": true,
+        "max_hit": 1,
+        "anchor": {"Arbitrage_Sell_Preview": "Arbitrage_Sell_Preview_All_Prepare"},
         "next": [
             "Arbitrage_Sell_Type_Ocr"
         ],
@@ -2092,6 +2109,7 @@
             "价目表"
         ],
         "next": [
+            "[Anchor]Arbitrage_Sell_Preview",
             "[JumpBack]Arbitrage_Sell_PackShopListSwich_OnlyHave_NeedDisable",
             "[JumpBack]Arbitrage_Sell_PriceList_FirstCalibration",
             "[JumpBack]Arbitrage_Sell_PackShopListSwich_OCR_Entry",
@@ -2178,7 +2196,7 @@
         ]
     },
     "Arbitrage_Sell_PackShopListSwich_OnlyHave_NeedDisable": {
-        "desc": "询价表,切换到'仅显示已有物品'",
+        "desc": "价目表的'仅显示已有物品'当前关闭时点击,确保后续只扫描本存档持有物",
         "max_hit": 4,
         "recognition": "And",
         "all_of": [
@@ -2207,6 +2225,36 @@
         "action": "Click",
         "post_delay": 1500
     },
+    "Arbitrage_Sell_PackShopListSwich_OnlyHave_Disable": {
+        "desc": "价目表的'仅显示已有物品'当前开启时点击,让共享行情观察覆盖所有商品",
+        "max_hit": 4,
+        "recognition": "And",
+        "all_of": [
+            {
+                "sub_name": "Clr",
+                "recognition": "ColorMatch",
+                "roi": [
+                    1039,
+                    572,
+                    16,
+                    15
+                ],
+                "lower": [
+                    0,
+                    0,
+                    0
+                ],
+                "upper": [
+                    255,
+                    255,
+                    255
+                ]
+            },
+            "Rec_SliderSwitch_YewOn_Clr"
+        ],
+        "action": "Click",
+        "post_delay": 1500
+    },
     "Arbitrage_Sell_PriceList_FirstCalibration": {
         "desc": "初次打开价目表,将4行价格纵向对齐",
         "max_hit": 1,
@@ -2224,6 +2272,57 @@
             "Drops": "巧克力鸡尾酒,火烤鱼板棒,鱼子酱蛋包饭,炸三文鱼便当,卢戈山参烤串,煤炭饼干,闪闪铁板虾,透明沙拉,地狱火紫菜包饭"
         }
     },
+    "Arbitrage_Sell_Preview_All_Prepare": {
+        "desc": "启动变现先切到全商品视图；当天共享行情已有完整快照时,Python会直接复用",
+        "pre_delay": 0,
+        "post_delay": 0,
+        "rate_limit": 0,
+        "next": [
+            "[JumpBack]Arbitrage_Sell_PackShopListSwich_OnlyHave_Disable",
+            "[JumpBack]Arbitrage_Sell_PriceList_FirstCalibration",
+            "[JumpBack]Arbitrage_Sell_PackShopListSwich_OCR_Entry",
+            "Arbitrage_ShopSell_Active_Preview_All"
+        ]
+    },
+    "Arbitrage_ShopSell_Active_Preview_All": {
+        "desc": "观察全商品视图的当日峰值商品并写入共享快照,不执行出售",
+        "action": "Custom",
+        "custom_action": "ArbitrageSellController",
+        "custom_action_param": {
+            "mode": "preview_all",
+            "max_scan_pages": 80
+        },
+        "next": [
+            "[JumpBack]Arbitrage_Sell_PackShopListSwich_OnlyHave_NeedDisable",
+            "Arbitrage_ShopSell_Active_Preview_Possess"
+        ],
+        "focus": "Arb.M.观察今日共享行情"
+    },
+    "Arbitrage_ShopSell_Active_Preview_Possess": {
+        "desc": "观察本存档持有的峰值商品并落存档,随后只尝试出售料理一次",
+        "action": "Custom",
+        "custom_action": "ArbitrageSellController",
+        "custom_action_param": {
+            "mode": "preview_possess",
+            "max_scan_pages": 80
+        },
+        "next": [
+            "Arbitrage_ShopSell_Active_Preview_End"
+        ],
+        "focus": "Arb.M.启动变现:仅出售料理"
+    },
+    "Arbitrage_ShopSell_Active_Preview_End": {
+        "desc": "启动变现结束,清理校准命中次数与预览旁路锚点",
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "ClearNodeHitCount",
+        "custom_action_param": {
+            "node_name": "Arbitrage_Sell_PriceList_FirstCalibration"
+        },
+        "anchor": {"Arbitrage_Sell_Preview": ""},
+        "post_delay": 0,
+        "rate_limit": 0
+    },
     "Arbitrage_Sell_Col_Name": {
         "desc": "数据节点:出售解析·商品名列带(py首跑查询roi后缓存,不入流程;x/w即列带范围,#380)",
         "recognition": "OCR",
@@ -2231,6 +2330,16 @@
             478,
             209,
             252,
+            344
+        ]
+    },
+    "Arbitrage_Sell_Col_Amount": {
+        "desc": "数据节点:出售解析·金额列带；与溢价率分列,用于按当前金额==月峰值金额判满价",
+        "recognition": "OCR",
+        "roi": [
+            817,
+            209,
+            79,
             344
         ]
     },
@@ -2716,7 +2825,7 @@
         ]
     },
     "Arbitrage_Sell_Item_Price_MaxCheck": {
-        "desc": "再次检查溢价率",
+        "desc": "再次检查溢价率；Python 会注入本轮价目表实读值，120% 仅为保守默认",
         "recognition": "OCR",
         "roi": [
             277,

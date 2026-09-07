@@ -1,9 +1,18 @@
 import json
 import re
+from datetime import datetime, timezone
+from pathlib import Path
 from maa.custom_action import CustomAction
 from maa.context import Context
 from maa.agent.agent_server import AgentServer
 from utils import mfaalog
+from utils.account_sync import sync_from_context
+from utils.arbitrage_store import (
+    get_market_snapshot,
+    invalidate_inventory_quantities,
+    save_market_snapshot,
+    save_possession_snapshot,
+)
 from utils.name_i18n import canon
 from action import gold_verify
 
@@ -14,6 +23,7 @@ from action import gold_verify
 # run_recognition 自动生效,故不再需要 get_node_data 读列带、也无需 cx 过滤分列。
 # ==========================================
 _COL_NAME = "Arbitrage_Sell_Col_Name"
+_COL_AMOUNT = "Arbitrage_Sell_Col_Amount"
 _COL_PRICE = "Arbitrage_Sell_Col_Price"
 _COL_CART = "Arbitrage_Sell_Col_Cart"
 
@@ -29,6 +39,7 @@ _COL_CART = "Arbitrage_Sell_Col_Cart"
 # ==========================================
 # 溢价率取两三位数+%:排除OCR把装饰符读成"4"/"A"的噪声,并吃'18120%'粘连(取靠%的三位)
 RE_PCT = re.compile(r'(\d{2,3})\s*%')
+RE_MONEY = re.compile(r'^\s*(\d[\d,.]*)\s*$')
 SUBROW_TOL = 14      # 同子行 y 容差(子行间距约30px,商品行距约73px)
 SCORE_MIN = 0.6      # 卡带选中组组分低于此=低置信,打WRN(实录错读曾得0.51,正确读数更高,#B)
 
@@ -113,6 +124,14 @@ def _cart_group(dets) -> tuple:
 # 但不允许无限翻 —— 见 run() 里三层终止条件的说明。
 _MAX_SCAN_PAGES_DEFAULT = 30
 
+_MODE_SELL = "sell"
+_MODE_PREVIEW_ALL = "preview_all"
+_MODE_PREVIEW_POSSESS = "preview_possess"
+_VALID_MODES = {_MODE_SELL, _MODE_PREVIEW_ALL, _MODE_PREVIEW_POSSESS}
+
+_ITEM_DATA_FILE = Path(__file__).resolve().parent.parent / "data" / "bd2_item_names_i18n.json"
+_RECIPE_NAMES = None
+
 _RESCUE_NODE = "Arbitrage_Sell_Cart_RescueNum"
 # 救援可调参:全部无量纲(相对"实检类型 det 框"的比例)——尺度锚定 H=类高中位数、W=类型块宽、yb=类型下缘,
 # 故字号/布局不同的两端(PC 繁体小字、ADB 简体大字)可共用同一份配置。可被 _RESCUE_NODE.attach 覆盖,缺项回落此默认。
@@ -166,6 +185,28 @@ def _tail_num(s: str) -> str:
     """整串尾部连续数字(尾号);无则空串。"""
     m = re.search(r'(\d+)\s*$', s)
     return m.group(1) if m else ""
+
+
+def _money_token_value(text: str) -> int | None:
+    """价目表金额 OCR → 整数；兼容金额与百分比粘连。"""
+    pct = RE_PCT.search(text)
+    if pct:
+        text = text[:pct.start()]
+    match = RE_MONEY.fullmatch(text)
+    if not match:
+        return None
+    value = int(re.sub(r"[,.]", "", match.group(1)))
+    return value if value > 0 else None
+
+
+def _max_price_verdict(top_money: set[int], bot_money: set[int],
+                       top_pct: set[str], bot_pct: set[str]) -> tuple[bool, str]:
+    """金额证据优先；两侧金额都读到但矛盾时，不允许溢价率把它覆盖。"""
+    if top_money and bot_money:
+        return len(top_money) == 1 and len(bot_money) == 1 and top_money == bot_money, "amount"
+    if top_pct and bot_pct:
+        return bool(top_pct & bot_pct), "rate_fallback"
+    return False, "unreadable"
 
 
 def _rescue_rois(type_dets: list, cfg: dict) -> list:
@@ -244,142 +285,225 @@ def _cart_group_rescued(dets, context, screenshot, cfg: dict, label="") -> tuple
     return text, score
 
 
+def _action_params(argv) -> dict:
+    """解析动作参数；显式写了非法 mode 时绝不回落成真实出售。"""
+    raw = getattr(argv, "custom_action_param", None)
+    if not raw:
+        return {"mode": _MODE_SELL}
+    params = raw if isinstance(raw, dict) else json.loads(str(raw))
+    if not isinstance(params, dict):
+        raise ValueError("custom_action_param 必须是对象")
+    mode = params.get("mode", _MODE_SELL)
+    if mode not in _VALID_MODES:
+        raise ValueError(f"mode={mode!r} 非法，可选 {sorted(_VALID_MODES)}")
+    params["mode"] = mode
+    return params
+
+
+def _load_recipe_names() -> set[str]:
+    """加载料理类别名录；失败时返回空集，预览模式宁可不卖也不猜类别。"""
+    global _RECIPE_NAMES
+    if _RECIPE_NAMES is not None:
+        return _RECIPE_NAMES
+    try:
+        with open(_ITEM_DATA_FILE, "r", encoding="utf-8") as handle:
+            records = json.load(handle)
+        _RECIPE_NAMES = {
+            canon(str(item.get("cn", "")).strip())
+            for item in records
+            if isinstance(item, dict) and item.get("category") == "Recipe" and item.get("cn")
+        }
+        mfaalog.info(f"[Arbitrage] 📖 料理类别名录加载 {len(_RECIPE_NAMES)} 项")
+    except Exception as exc:
+        _RECIPE_NAMES = set()
+        mfaalog.error(f"[Arbitrage] ❌ 料理类别名录加载失败({exc})，预览模式将不执行出售")
+    return _RECIPE_NAMES
+
+def _new_scan(target_rate_floor: int | None = None) -> dict:
+    """创建带明确覆盖语义的价目表观察。"""
+    return {
+        "observed_at": datetime.now(timezone.utc).isoformat(),
+        "items": [],
+        "pages_scanned": 0,
+        # complete 表示本次声明的扫描范围完成；是否扫完整表看 full_list_complete。
+        "complete": False,
+        "sale_candidates_complete": False,
+        "full_list_complete": False,
+        "termination_reason": "stopped",
+        "target_rate_floor": target_rate_floor,
+        "lowest_observed_rate": None,
+        "rate_order_safe": True if target_rate_floor is not None else None,
+    }
+
+
+def _possession_scan_plan(snapshot: dict | None, recipe_names: set[str]) -> dict:
+    """从完整公共行情生成已有物扫描计划；证据不足时要求全量扫描。"""
+    unavailable = {
+        "usable": False,
+        "skip": False,
+        "target_rate_floor": None,
+        "target_names": [],
+    }
+    if not snapshot or not snapshot.get("complete") or not recipe_names:
+        return unavailable
+
+    targets = []
+    for item in snapshot.get("items") or []:
+        if not isinstance(item, dict) or not item.get("is_max_price"):
+            continue
+        name = canon(str(item.get("name") or "").strip())
+        if name not in recipe_names:
+            continue
+        rate = item.get("current_rate")
+        targets.append((name, rate))
+
+    if not targets:
+        return {
+            "usable": True,
+            "skip": True,
+            "target_rate_floor": None,
+            "target_names": [],
+        }
+    if any(not isinstance(rate, int) or isinstance(rate, bool) for _, rate in targets):
+        return unavailable
+
+    return {
+        "usable": True,
+        "skip": False,
+        "target_rate_floor": min(rate for _, rate in targets),
+        "target_names": [name for name, _ in targets],
+    }
+
+
+
 @AgentServer.custom_action("ArbitrageSellController")
 class ArbitrageSellController(CustomAction):
     def run(self, context: Context, argv: CustomAction.RunArg) -> bool:
-        mfaalog.info("[Arbitrage] 🚀 商店套利-出售主控器启动")
+        try:
+            params = _action_params(argv)
+        except (ValueError, TypeError, json.JSONDecodeError) as exc:
+            mfaalog.error(f"[Arbitrage] ❌ 出售主控参数非法({exc})，为避免误卖已中止")
+            return False
+
+        mode = params["mode"]
+        mfaalog.info(f"[Arbitrage] 🚀 商店套利-出售主控器启动(mode={mode})")
+        sync_from_context(context, where=f"ArbitrageSellController/{mode}")
         # 尾号救援可调参:JSON attach 覆盖 py 默认(缺则用默认)。每轮取副本,不写默认表。
         self._rescue_cfg = _load_rescue_cfg(context)
 
         # 翻页上限:业务可传,但不允许缺省成"无限"。
-        max_scan_pages = _MAX_SCAN_PAGES_DEFAULT
-        if argv.custom_action_param:
+        try:
+            max_scan_pages = max(1, int(params.get("max_scan_pages", _MAX_SCAN_PAGES_DEFAULT)))
+        except (ValueError, TypeError):
+            mfaalog.error("[Arbitrage] ❌ max_scan_pages 必须是正整数，为避免无界翻页已中止")
+            return False
+
+        if mode == _MODE_PREVIEW_ALL:
             try:
-                _p = json.loads(argv.custom_action_param)
-                if isinstance(_p, dict) and "max_scan_pages" in _p:
-                    max_scan_pages = max(1, int(_p["max_scan_pages"]))
-            except (ValueError, TypeError) as e:
+                cached = get_market_snapshot()
+            except Exception as exc:
+                cached = None
+                mfaalog.error(f"[Arbitrage] ⚠️ 共享行情缓存读取失败({exc})，本轮重新扫描")
+            if cached is not None:
+                names = [item["name"] for item in cached.get("items", []) if item.get("is_max_price")]
+                mfaalog.info(
+                    f"[Arbitrage] ♻️ 已复用今日共享行情快照({len(names)}项)，跳过重复全量观察："
+                    f"{', '.join(names) if names else '无'}"
+                )
+                return True
+
+        preview_recipe_names = None
+        possession_plan = None
+        if mode == _MODE_PREVIEW_POSSESS:
+            preview_recipe_names = _load_recipe_names()
+            try:
+                possession_market = get_market_snapshot()
+            except Exception as exc:
+                possession_market = None
+                mfaalog.warning(f"[Arbitrage] ⚠️ 无法读取公共行情以计算已有物边界({exc})，改为全量扫描")
+            possession_plan = _possession_scan_plan(possession_market, preview_recipe_names)
+            if possession_plan["usable"] and possession_plan["skip"]:
+                mfaalog.info("[Arbitrage] 💤 今日公共行情没有峰值料理，已有物列表无需扫描")
+            elif possession_plan["usable"]:
+                target_names = "、".join(possession_plan["target_names"])
+                mfaalog.info(
+                    f"[Arbitrage] 🎯 已有物动态边界={possession_plan['target_rate_floor']}%，"
+                    f"覆盖今日峰值料理：{target_names}"
+                )
+            else:
                 mfaalog.warning(
-                    f"[Arbitrage] ⚠️ custom_action_param 解析失败({e})，翻页上限沿用默认 {max_scan_pages}"
+                    "[Arbitrage] ⚠️ 公共行情或料理峰值倍率不足以证明安全边界，已有物改为全量扫描"
                 )
 
-        # ==========================================
-        # 1. 提取并合并 Attach 白名单
-        # ==========================================
-        whitelist_set = set()
+        if possession_plan and possession_plan["usable"] and possession_plan["skip"]:
+            scan = _new_scan()
+            scan.update({
+                "complete": True,
+                "sale_candidates_complete": True,
+                "termination_reason": "no_peak_recipe",
+                "rate_order_safe": True,
+            })
+        else:
+            rate_floor = (
+                possession_plan["target_rate_floor"]
+                if possession_plan and possession_plan["usable"]
+                else None
+            )
+            scan = self._scan_price_list(
+                context, max_scan_pages, stop_at_non_max=mode == _MODE_SELL,
+                stop_below_rate=rate_floor,
+            )
+        peak_items = [item for item in scan["items"] if item.get("is_max_price")]
+        peak_names = [item["name"] for item in peak_items]
+        scope_label = "全量价目表" if mode == _MODE_PREVIEW_ALL else "已有物品价目表"
+        mfaalog.info(
+            f"[Arbitrage] 📈 {scope_label}·今日峰值商品总览: "
+            f"{', '.join(peak_names) if peak_names else '无'}"
+        )
 
-        # 假设我们将此动作绑定在 Arbitrage_ShopSell_Active 节点
-        node_obj = context.get_node_object("Arbitrage_ShopSell_Active")
-
-        if node_obj and node_obj.attach:
-            # 遍历 attach 中的所有 key (default, Drops, 以及 UI 传进来的 SellName)
-            for _, val_str in node_obj.attach.items():
-                if isinstance(val_str, str) and val_str.strip():
-                    # 按照逗号、分号、中文逗号切分
-                    raw_items = [x.strip() for x in re.split(r'[，,;|]+', val_str) if x.strip()]
-                    for item in raw_items:
-                        # 使用和 OCR 底层一模一样的清洗规则，保证 100% 绝对匹配
-                        cleaned_item = re.sub(r'[^\w\u4e00-\u9fa5]', '', item)
-                        if cleaned_item:
-                            # 归一化到规范简体：白名单可简/繁书写，统一后与 OCR 名同域核对。
-                            whitelist_set.add(canon(cleaned_item))
-
-        if not whitelist_set:
-            mfaalog.warning("[Arbitrage] ⚠️ 未读取到任何待售物品白名单，流程结束。")
+        if mode == _MODE_PREVIEW_ALL:
+            try:
+                stored = save_market_snapshot(scan)
+            except Exception as exc:
+                stored = False
+                mfaalog.error(f"[Arbitrage] ❌ 共享行情快照写入异常({exc})")
+            if stored:
+                state = "完整" if scan["complete"] else "不完整"
+                mfaalog.info(f"[Arbitrage] 💾 今日共享行情{state}观察已保存")
             return True
 
-        mfaalog.info(f"[Arbitrage] 📋 期望售卖清单 ({len(whitelist_set)}项): {', '.join(whitelist_set)}")
-
-        # ==========================================
-        # 2. 扫描阶段：识别当前页 -> 翻页 -> 截断
-        # ==========================================
-        targets_to_sell = [] # 记录所有达标待售的商品
-        all_max_price_items = []   # 记录所有扫描到的最高价商品（仅用于展示）
-        page_count = 1
-        prev_page_key = None    # 上一页的内容指纹,用于识别"已滑到底"
-
-        while not context.tasker.stopping:
-            # 第 3 层终止:硬上界。
-            # 前两层(利润边界截断 / 内容指纹)都是业务判据,可能因数据分布或 OCR 抖动失灵,
-            # 而失灵方向是"永不终止",代价不可恢复;硬上界失灵方向是"提前结束",下次跑能补上。
-            # 两者代价不对称,所以这道防线必须在,哪怕它几乎永远不触发。
-            # 触发即说明前两层都没兜住,按异常记 warning,不静默。
-            if page_count > max_scan_pages:
-                mfaalog.warning(
-                    f"[Arbitrage] ⚠️ 已连续扫描 {max_scan_pages} 页仍未触及利润边界或页底，"
-                    f"达到翻页上限强制结束。若价目表确实更长，"
-                    f"请用节点的 custom_action_param 调大 max_scan_pages。"
+        if mode == _MODE_PREVIEW_POSSESS:
+            try:
+                stored = save_possession_snapshot(scan)
+            except Exception as exc:
+                stored = False
+                mfaalog.error(f"[Arbitrage] ❌ 当前存档持有物观察写入异常({exc})")
+            if stored:
+                mfaalog.info(
+                    f"[Arbitrage] 💾 当前存档可售持有物观察已保存"
+                    f"({len(scan['items'])}项，其中峰值{len(peak_items)}项，数量未知)"
                 )
-                break
+            whitelist_set = preview_recipe_names if preview_recipe_names is not None else _load_recipe_names()
+            mfaalog.info("[Arbitrage] 🍳 启动变现只允许料理类别，材料与其他物品一律不卖")
+        else:
+            whitelist_set = self._load_whitelist(context)
+            if not whitelist_set:
+                mfaalog.warning("[Arbitrage] ⚠️ 未读取到任何待售物品白名单，流程结束。")
+                return True
+            mfaalog.info(f"[Arbitrage] 📋 期望售卖清单 ({len(whitelist_set)}项): {', '.join(whitelist_set)}")
 
-            mfaalog.info(f"[Arbitrage] 📷 正在扫描第 {page_count} 页价目表...")
-
-            # 调用内部的 V8 图像解析引擎
-            page_results = self._parse_current_page(context)
-            if not page_results:
-                mfaalog.warning("[Arbitrage] ⚠️ 识别失败或页面无商品，结束扫描。")
-                break
-
-            # 第 2 层终止:内容指纹。价目表滑到底后再滑不动,本页会与上一页完全相同,
-            # 而 has_non_max 在"整页全是最高价"时不会触发,过去这里就是死循环的入口。
-            # 用 canon 归一化后的名字集合而非 OCR 原文比较——原文里个别字的识别抖动
-            # 会让指纹永不相等,这道防线就形同虚设了。
-            page_key = frozenset(canon(it["name"]) for it in page_results)
-            if prev_page_key is not None and page_key == prev_page_key:
-                mfaalog.info("[Arbitrage] 🛑 本页与上一页内容一致，判定价目表已到底，结束扫描。")
-                break
-            prev_page_key = page_key
-
-            has_non_max = False
-            for item in page_results:
-                name = item["name"]
-                is_max = item["is_max_price"]
-                cart = item["target_cartridge"]
-
-                # 触发截断：遇到非最高价商品
-                if not is_max:
-                    has_non_max = True
-                    mfaalog.info(f"[Arbitrage] 🛑 扫描到非最高价商品 [{name}]，已触及利润边界，停止向下扫描。")
-                    break
-
-                # 记录所有扫描到的最高价商品（去重保存）
-                if name not in all_max_price_items:
-                    all_max_price_items.append(name)
-
-                # 检查是否在白名单中（仅归一化「比较用副本」；name 原文保留回填售卖链，
-                # 繁体端须以 OCR 原文匹配同语言 UI，切勿把归一化后的简体名传给 expected）
-                if canon(name) in whitelist_set:
-                    # 查重防抖 (防止翻页重叠导致同个物品被记录两次)
-                    if not any(t["name"] == name for t in targets_to_sell):
-                        targets_to_sell.append({
-                            "name": name,
-                            "cartridge_raw": cart,
-                            "cart_score": item.get("cart_score", 0.0),
-                            "cart_conflict": item.get("cart_conflict", False),
-                            "cartridge_alt": item.get("alt_cartridge", "")
-                        })
-
-            if has_non_max:
-                break
-
-            # 翻页动作：调用你写好的精准滑动链
-            mfaalog.info("[Arbitrage] ⏬ 下滑翻页...")
-            # run_task 返回 Optional[TaskDetail],返回对象只表示任务被成功提交,
-            # 成败在 .status 里。旧写法 `if not swip_success` 把 TaskDetail 当 bool 用,
-            # 而 Arbitrage_Swip_PriceList 是纯 Swipe 节点必然能起来 —— 那个分支从来没执行过,
-            # 于是"滑不动"这件事对本循环完全不可见。
-            swip_detail = context.run_task("Arbitrage_Swip_PriceList")
-            if swip_detail is None:
-                mfaalog.warning("[Arbitrage] ⚠️ 翻页任务未能启动（节点缺失或正在停止），停止扫描。")
-                break
-            if not swip_detail.status.succeeded:
-                mfaalog.warning("[Arbitrage] ⚠️ 翻页任务执行失败，停止扫描。")
-                break
-
-            page_count += 1
-
-        # 🌟 优化日志 2：列出今日市面上的所有最高价商品
-        mfaalog.info(f"[Arbitrage] 📈 今日最高价&有库存商品总览: {', '.join(all_max_price_items) if all_max_price_items else '无'}")
+        targets_to_sell = [
+            {
+                "name": item["name"],
+                "cartridge_raw": item.get("target_cartridge", ""),
+                "cart_score": item.get("cart_score", 0.0),
+                "cart_conflict": item.get("cart_conflict", False),
+                "cartridge_alt": item.get("alt_cartridge", ""),
+                "current_rate": item.get("current_rate"),
+            }
+            for item in peak_items
+            if canon(item["name"]) in whitelist_set
+        ]
 
         # ==========================================
         # 3. 派发阶段：循环注入并执行售卖节点链
@@ -393,6 +517,7 @@ class ArbitrageSellController(CustomAction):
         mfaalog.info(f"[Arbitrage] 🛒 扫描完毕！确认共 {len(targets_to_sell)} 项物品待出售: {', '.join(final_sell_names)}")
 
         sold_ok, sold_fail = [], []
+        sold_audit = []
         for idx, target in enumerate(targets_to_sell, 1):
             if context.tasker.stopping: break
 
@@ -465,6 +590,14 @@ class ArbitrageSellController(CustomAction):
                         "expected": item_name
                     }
                 }
+                current_rate = target.get("current_rate")
+                if (isinstance(current_rate, int) and not isinstance(current_rate, bool)
+                        and 0 < current_rate < 1000):
+                    # 低价物品会因向下取整在 117%/118% 提前达到峰值金额；最终确认必须
+                    # 复核本轮实际读到的比例，不能继续拿固定 120% 把它们误拦下来。
+                    override_cfg["Arbitrage_Sell_Item_Price_MaxCheck"] = {
+                        "expected": f"{current_rate}%"
+                    }
 
                 # 发包前清槽:不清的话,本轮链条若没走到 B(中途断了),会读到上一轮的残留结论。
                 gold_verify.clear_verdict()
@@ -490,6 +623,7 @@ class ArbitrageSellController(CustomAction):
 
             if delta is not None and delta > 0:
                 sold_ok.append(item_name)
+                sold_audit.append({"name": canon(item_name), "gold_delta": delta})
                 mfaalog.info(
                     f"[Arbitrage] ✅ [{item_name}] 确认售出，金币 +{delta:,} "
                     f"({before:,} → {after:,})"
@@ -530,7 +664,158 @@ class ArbitrageSellController(CustomAction):
             mfaalog.warning(f"[Arbitrage] 🚫 本轮无一项成功售出({len(targets_to_sell)} 项全部失败),请检查上方失败原因。")
         else:
             mfaalog.info(f"[Arbitrage] ➖ 本轮 {len(targets_to_sell)} 项待售,一项都未及处理(多半是收到停止指令)。")
+        if sold_ok and mode == _MODE_PREVIEW_POSSESS:
+            # 金币上涨只能证明“卖出过”，不能证明卖光：界面保险选项可能只卖 1 个。
+            # 因售出数量也没有可靠读数，只作废旧数量，交给后续库存扫描重新校准。
+            try:
+                stored = invalidate_inventory_quantities(
+                    sold_ok,
+                    reason="sale_quantity_unreadable",
+                    reference={"mode": mode, "items": sold_audit},
+                )
+            except Exception as exc:
+                stored = False
+                mfaalog.error(f"[Arbitrage] ❌ 出售后库存更新异常({exc})")
+            if not stored:
+                mfaalog.warning("[Arbitrage] ⚠️ 商品已售出，但库存数量状态未能作废；下次扫描会重新校准")
         return True
+
+    @staticmethod
+    def _load_whitelist(context: Context) -> set[str]:
+        """读取正常出售节点的合并白名单。"""
+        whitelist = set()
+        node_obj = context.get_node_object("Arbitrage_ShopSell_Active")
+        attach = getattr(node_obj, "attach", None) if node_obj else None
+        for val_str in (attach or {}).values():
+            if not isinstance(val_str, str) or not val_str.strip():
+                continue
+            for item in (x.strip() for x in re.split(r"[，,;|]+", val_str) if x.strip()):
+                cleaned = re.sub(r"[^\w\u4e00-\u9fa5]", "", item)
+                if cleaned:
+                    whitelist.add(canon(cleaned))
+        return whitelist
+
+    def _scan_price_list(self, context: Context, max_scan_pages: int, stop_at_non_max: bool,
+                         stop_below_rate: int | None = None) -> dict:
+        """扫描价目表；已有物可在公共行情推导出的安全倍率边界处提前结束。"""
+        scan = _new_scan(stop_below_rate)
+        seen_items = set()
+        prev_page_key = None
+        page_count = 1
+        boundary_safe = stop_below_rate is not None
+        last_new_rate = None
+
+        def disable_rate_boundary(reason: str) -> None:
+            nonlocal boundary_safe
+            if not boundary_safe:
+                return
+            boundary_safe = False
+            scan["rate_order_safe"] = False
+            mfaalog.warning(
+                f"[Arbitrage] ⚠️ 已有物倍率顺序证据不完整({reason})，取消提前终止并改为扫到底"
+            )
+
+        while not context.tasker.stopping:
+            # 前两层(动态边界/内容指纹)失灵会无限翻页，硬上界把代价收敛成一次不完整观察。
+            if page_count > max_scan_pages:
+                scan["termination_reason"] = "max_pages"
+                mfaalog.warning(
+                    f"[Arbitrage] ⚠️ 已连续扫描 {max_scan_pages} 页仍未触及利润边界或页底，"
+                    f"达到翻页上限强制结束。若价目表确实更长，请调大 max_scan_pages。"
+                )
+                break
+
+            mfaalog.info(f"[Arbitrage] 📷 正在扫描第 {page_count} 页价目表...")
+            try:
+                page_results = self._parse_current_page(context)
+            except Exception as exc:
+                scan["termination_reason"] = "parse_exception"
+                mfaalog.error(f"[Arbitrage] ❌ 第 {page_count} 页解析异常({exc})，结束扫描")
+                break
+            scan["pages_scanned"] = page_count
+            if not page_results:
+                scan["termination_reason"] = "parse_empty"
+                mfaalog.warning("[Arbitrage] ⚠️ 识别失败或页面无商品，结束扫描。")
+                break
+
+            page_key = frozenset(canon(item["name"]) for item in page_results)
+            if prev_page_key is not None and page_key == prev_page_key:
+                scan["complete"] = True
+                scan["sale_candidates_complete"] = True
+                scan["full_list_complete"] = True
+                if stop_below_rate is not None:
+                    scan["rate_order_safe"] = boundary_safe
+                scan["termination_reason"] = "repeated_page"
+                mfaalog.info("[Arbitrage] 🛑 本页与上一页内容一致，判定价目表已到底，结束扫描。")
+                break
+            prev_page_key = page_key
+
+            page_rates = [item.get("current_rate") for item in page_results]
+            if stop_below_rate is not None and boundary_safe:
+                if any(not isinstance(rate, int) or isinstance(rate, bool) for rate in page_rates):
+                    disable_rate_boundary(f"第{page_count}页存在未读出的当前倍率")
+                elif any(left < right for left, right in zip(page_rates, page_rates[1:])):
+                    disable_rate_boundary(f"第{page_count}页倍率不是从高到低")
+
+            reached_boundary = False
+            for item in page_results:
+                name = item["name"]
+                if stop_at_non_max and not item["is_max_price"]:
+                    reached_boundary = True
+                    scan["complete"] = True
+                    scan["sale_candidates_complete"] = True
+                    scan["termination_reason"] = "non_max_boundary"
+                    mfaalog.info(f"[Arbitrage] 🛑 扫描到非最高价商品 [{name}]，已触及利润边界，停止向下扫描。")
+                    break
+
+                rate = item.get("current_rate")
+                if isinstance(rate, int) and not isinstance(rate, bool):
+                    lowest = scan["lowest_observed_rate"]
+                    scan["lowest_observed_rate"] = rate if lowest is None else min(lowest, rate)
+                item_key = canon(name)
+                if item_key not in seen_items:
+                    if stop_below_rate is not None and boundary_safe:
+                        if last_new_rate is not None and rate > last_new_rate:
+                            disable_rate_boundary(
+                                f"跨页新增商品 [{name}] 的 {rate}% 高于上一新增商品 {last_new_rate}%"
+                            )
+                        else:
+                            last_new_rate = rate
+                    seen_items.add(item_key)
+                    scan["items"].append(item)
+
+            if reached_boundary:
+                break
+
+            crossed_rate_boundary = (
+                stop_below_rate is not None
+                and boundary_safe
+                and any(rate < stop_below_rate for rate in page_rates)
+            )
+            if crossed_rate_boundary:
+                scan["complete"] = True
+                scan["sale_candidates_complete"] = True
+                scan["termination_reason"] = "target_rate_boundary"
+                scan["rate_order_safe"] = True
+                mfaalog.info(
+                    f"[Arbitrage] 🛑 本页已从高到低越过 {stop_below_rate}% 动态边界，"
+                    "今日峰值料理候选已全部覆盖"
+                )
+                break
+
+            mfaalog.info("[Arbitrage] ⏬ 下滑翻页...")
+            swip_detail = context.run_task("Arbitrage_Swip_PriceList")
+            if swip_detail is None:
+                scan["termination_reason"] = "swipe_not_started"
+                mfaalog.warning("[Arbitrage] ⚠️ 翻页任务未能启动（节点缺失或正在停止），停止扫描。")
+                break
+            if not swip_detail.status.succeeded:
+                scan["termination_reason"] = "swipe_failed"
+                mfaalog.warning("[Arbitrage] ⚠️ 翻页任务执行失败，停止扫描。")
+                break
+            page_count += 1
+
+        return scan
 
     # ==========================================
     # 附：V8 图像解析引擎
@@ -558,6 +843,7 @@ class ArbitrageSellController(CustomAction):
             return out
 
         names = _col(_COL_NAME)
+        amounts = _col(_COL_AMOUNT)
         prices = _col(_COL_PRICE)
         carts = _col(_COL_CART)
 
@@ -584,10 +870,32 @@ class ArbitrageSellController(CustomAction):
                         out.add(m.group(1))
             return out
 
+        def _row_money(center_y):
+            """金额列内的整数集合；兼容金额与百分比粘成 `4.416120%`。"""
+            out = set()
+            for item in amounts:
+                if abs(item["cy"] - center_y) > SUBROW_TOL:
+                    continue
+                value = _money_token_value(item["text"])
+                if value is not None:
+                    out.add(value)
+            return out
+
         results = []
         for i, row in enumerate(anchors):
-            item_data = {"name": row["name"], "is_max_price": False, "target_cartridge": "",
-                         "cart_score": 0.0, "cart_conflict": False, "alt_cartridge": ""}
+            item_data = {
+                "name": row["name"],
+                "is_max_price": False,
+                "max_price_basis": "unreadable",
+                "current_price": None,
+                "peak_price": None,
+                "current_rate": None,
+                "peak_rate": None,
+                "target_cartridge": "",
+                "cart_score": 0.0,
+                "cart_conflict": False,
+                "alt_cartridge": "",
+            }
             ny = row["cy"]                                    # 上子行(当前)y = 名锚 y
             next_ny = anchors[i + 1]["cy"] if i + 1 < len(anchors) else ny + gap_bound
 
@@ -598,11 +906,23 @@ class ArbitrageSellController(CustomAction):
             )
             mon_y = below_ys[0] if below_ys else None
 
-            # 满价 = 今日溢价率 与 每月最高价档 相同(两子行都读到且有交集)
+            # 金额相等才是最终满价判据。低价物品会因向下取整在 117%/118% 提前撞到峰值金额；
+            # 只比溢价率会漏卖。金额列有一侧读不到时才退回旧的溢价率交集判据。
+            top_money = _row_money(ny)
+            bot_money = _row_money(mon_y) if mon_y is not None else set()
             top_pct = _row_pcts(ny)
             bot_pct = _row_pcts(mon_y) if mon_y is not None else set()
-            if top_pct and bot_pct and (top_pct & bot_pct):
-                item_data["is_max_price"] = True
+            if len(top_money) == 1:
+                item_data["current_price"] = next(iter(top_money))
+            if len(bot_money) == 1:
+                item_data["peak_price"] = next(iter(bot_money))
+            if len(top_pct) == 1:
+                item_data["current_rate"] = int(next(iter(top_pct)))
+            if len(bot_pct) == 1:
+                item_data["peak_rate"] = int(next(iter(bot_pct)))
+            item_data["is_max_price"], item_data["max_price_basis"] = _max_price_verdict(
+                top_money, bot_money, top_pct, bot_pct
+            )
 
             # 卡带:上子行(当前)组;满价时下子行(每月)是同柜台、理应同串(#B),两组各取组分并取
             # 组分高的一组整串。非满价不卖,仅取上子行(每月档与当前不同,交叉无意义)。

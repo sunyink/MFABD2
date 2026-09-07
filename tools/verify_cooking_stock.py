@@ -23,7 +23,9 @@ Library.version()  # 在导入 maa.agent 前固定为本地 MaaFramework 模式�
 spec = importlib.util.spec_from_file_location("cooking_stock", ROOT / "agent/action/cooking_stock.py")
 stock = importlib.util.module_from_spec(spec)
 # 单进程回放用 Resource 注册动作，避免装饰器提前把库切到 AgentServer 模式。
-with patch("maa.agent.agent_server.AgentServer.custom_action", return_value=lambda cls: cls):
+action_decorator = patch("maa.agent.agent_server.AgentServer.custom_action", return_value=lambda cls: cls)
+recognition_decorator = patch("maa.agent.agent_server.AgentServer.custom_recognition", return_value=lambda cls: cls)
+with action_decorator, recognition_decorator:
     spec.loader.exec_module(stock)
 
 PIPELINE = json.loads((ROOT / "assets/resource/base/pipeline/Arbitrage.json").read_text(encoding="utf-8"))
@@ -34,17 +36,21 @@ PARAMS = PIPELINE[ENTRY]["custom_action_param"]
 class FakeContext:
     def __init__(self, texts=None):
         self.texts = texts or {}
+        self.next_reco_id = 1
 
     def get_node_object(self, name):
         node = PIPELINE[name]
         return SimpleNamespace(attach=node.get("attach", {}),
                                recognition=SimpleNamespace(param=SimpleNamespace(roi=node["roi"])))
 
-    def run_recognition(self, name, image):
+    def run_recognition(self, name, image, pipeline_override=None):
+        reco_id = self.next_reco_id
+        self.next_reco_id += 1
         if name in PARAMS["presence_nodes"]:
-            return SimpleNamespace(hit=PARAMS["presence_nodes"].index(name) < 3)
+            return SimpleNamespace(hit=PARAMS["presence_nodes"].index(name) < 3, reco_id=reco_id)
         texts = self.texts.get(name, [])
-        return SimpleNamespace(hit=bool(texts), filtered_results=[SimpleNamespace(text=t) for t in texts])
+        return SimpleNamespace(hit=bool(texts), reco_id=reco_id,
+                               filtered_results=[SimpleNamespace(text=t) for t in texts])
 
 
 class CookingStockTests(unittest.TestCase):
@@ -79,6 +85,8 @@ class CookingStockTests(unittest.TestCase):
             self.assertTrue(record["complete"], record)
             self.assertEqual(record["recipe"], "酱炒牛排")
             self.assertEqual(len(record["materials"]), 3)
+            self.assertTrue(record["recognitions"])
+            self.assertTrue(all(entry["reco_id"] is not None for entry in record["recognitions"]))
             self.assertEqual(record["materials"][1]["stock"], 0)
             texts[PARAMS["material_nodes"][1]] = []
             partial = stock.collect_cooking_stock(FakeContext(texts), PARAMS, object())
@@ -100,7 +108,43 @@ class CookingStockTests(unittest.TestCase):
             self.assertNotIn("only_rec", PIPELINE[node])
             self.assertNotIn("next", PIPELINE[node])
 
-    def test_green_mask_recipe_entries_are_disabled_until_selected(self):
+    def test_summary_recognition_keeps_business_result_in_detail(self):
+        payload = {
+            "recipe": "酱炒牛排",
+            "observed_at": "2026-09-08T02:00:00+00:00",
+            "complete": False,
+            "errors": ["slot_2:unreadable"],
+            "materials": [{"name": "兽肉", "stock": 12, "match_candidates": []}],
+        }
+        result = stock.CookingStockSummary().analyze(
+            None, SimpleNamespace(custom_recognition_param=json.dumps(payload, ensure_ascii=False))
+        )
+        self.assertEqual(result.detail["kind"], "cooking_stock_summary")
+        self.assertEqual(result.detail["recipe"], "酱炒牛排")
+        self.assertEqual(result.detail["errors"], ["slot_2:unreadable"])
+
+    def test_summary_emitter_reuses_snapshot_and_passes_full_record(self):
+        calls = []
+
+        class SummaryContext:
+            @staticmethod
+            def run_recognition(name, image, pipeline_override=None):
+                calls.append((name, image, pipeline_override))
+                return SimpleNamespace(hit=True)
+
+        image = SimpleNamespace(size=1)
+        record = {"recipe": "recipe", "complete": True, "recognitions": [{"reco_id": 7}]}
+        self.assertTrue(stock._emit_summary_detail(SummaryContext(), image, record))
+        self.assertEqual(len(calls), 1)
+        name, used_image, override = calls[0]
+        self.assertEqual(name, stock._SUMMARY_NODE)
+        self.assertIs(used_image, image)
+        node = override[stock._SUMMARY_NODE]
+        self.assertEqual(node["recognition"], "Custom")
+        self.assertEqual(node["custom_recognition"], "CookingStockSummary")
+        self.assertIs(node["custom_recognition_param"], record)
+
+    def test_green_mask_recipes_use_single_hit_page_entries(self):
         recipes = {
             "Arbitrage_Cooking_B11": "洛克菲勒生蚝",
             "Arbitrage_Cooking_B12": "冰镇甜点",
@@ -114,19 +158,29 @@ class CookingStockTests(unittest.TestCase):
             "Arbitrage_Cooking_B20": "街头烤鸡肉串",
             "Arbitrage_Cooking_B21": "香草牛排",
         }
-        page_two = PIPELINE["Arbitrage_Cooking_Swip_Page2"]["next"]
+        menu = PIPELINE["Arbitrage_Cooking_MenuEnter"]["next"]
         for node, name in recipes.items():
-            self.assertIn(node, page_two)
+            entry = f"{node}_Entry"
+            self.assertIn(f"[JumpBack]{entry}", menu)
+            self.assertEqual(PIPELINE[entry]["next"], [node, "[JumpBack]Arbitrage_Cooking_Swip_Page2"])
+            self.assertEqual(PIPELINE[entry]["max_hit"], 1)
             data = PIPELINE[node]
-            self.assertFalse(data["enabled"])
             matcher = data["all_of"][0]
             self.assertTrue(matcher["green_mask"])
             self.assertEqual(matcher["template"], [f"Shop/RecipeList/料理_{name}.png"])
             self.assertTrue((ROOT / "assets/resource/base/image" / matcher["template"][0]).is_file())
 
-    def test_recipe_pages_cover_selectors_and_five_star_options(self):
-        page_two = PIPELINE["Arbitrage_Cooking_Swip_Page2"]["next"]
-        page_one = PIPELINE["Arbitrage_Cooking_Hub"]["next"]
+    def test_recipe_pages_cover_every_selector_once(self):
+        def entry_targets(hub):
+            targets = []
+            for ref in PIPELINE[hub]["next"]:
+                entry = ref.removeprefix("[JumpBack]")
+                if entry.endswith("_Entry"):
+                    targets.append(PIPELINE[entry]["next"][0])
+            return targets
+
+        page_two = entry_targets("Arbitrage_Cooking_MenuEnter")
+        page_one = entry_targets("Arbitrage_Cooking_Page1")
         selectors = {name for name, node in PIPELINE.items()
                      if node.get("next") == ["Arbitrage_Cooking_SubMenu"]}
         self.assertEqual(len(selectors), 25)
@@ -135,18 +189,15 @@ class CookingStockTests(unittest.TestCase):
         self.assertEqual(len(page_two + page_one), len(set(page_two + page_one)))
         self.assertEqual(set(page_two + page_one), selectors)
         self.assertNotIn("Arbitrage_Cooking_A6", PIPELINE)
-        interface = json.loads((ROOT / "assets/interface.json").read_text(encoding="utf-8"))
-        cases = interface["option"]["5星料理开关"]["cases"]
-        self.assertEqual({name for case in cases for name in case["pipeline_override"]}, set(page_two))
         for name in selectors:
             node = PIPELINE[name]
             self.assertEqual("[5级]" in node["focus"], name in page_two)
-            self.assertEqual(node.get("enabled", True), name in page_one)
-            self.assertEqual(node["max_hit"], 1)
+            entry = PIPELINE[f"{name}_Entry"]
+            self.assertEqual(entry["max_hit"], 1)
             for template in node["all_of"][0]["template"]:
                 self.assertTrue((ROOT / "assets/resource/base/image" / template).is_file(), template)
-        self.assertEqual(PIPELINE["Arbitrage_Cooking_MenuEnter"]["next"], [
-            "[JumpBack]Arbitrage_Cooking_Page2", "[JumpBack]Arbitrage_Cooking_Page1"])
+        self.assertEqual(PIPELINE["Arbitrage_Cooking_MenuEnter"]["next"][-1],
+                         "[JumpBack]Arbitrage_Cooking_Page1")
 
 
 def replay(images, negative_images):
@@ -156,6 +207,10 @@ def replay(images, negative_images):
     from maa.resource import Resource
     from maa.tasker import Tasker
     from maa.define import LoggingLevelEnum
+
+    # 回放只验图像采集，不应读写开发者真实存档。
+    stock.sync_from_context = lambda context, where="": True
+    stock.save_cooking_stock_observation = lambda record: True
 
     class ScreenshotController(CustomController):
         def __init__(self, path):
@@ -185,6 +240,7 @@ def replay(images, negative_images):
         resource = Resource()
         assert resource.post_bundle(ROOT / "assets/resource/base").wait().status.succeeded
         assert resource.register_custom_action("CookingStockSnapshot", stock.CookingStockSnapshot())
+        assert resource.register_custom_recognition("CookingStockSummary", stock.CookingStockSummary())
         for image, should_trigger in [(path, True) for path in images] + [(path, False) for path in negative_images]:
             controller = ScreenshotController(image.resolve())
             assert controller.post_connection().wait().status.succeeded

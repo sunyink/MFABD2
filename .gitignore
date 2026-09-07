@@ -471,8 +471,8 @@ assets/resource/*/pipeline/*.mpe.json
 
 
 # 忽略用户运行Agent数据库
-agent_save_data.json
-agent_save_data.json.bak
+agent_save_data*.json*
+agent_shared_data.json*
 cartridge_history.json
 package-lock.json
 prettier.config.mjs
