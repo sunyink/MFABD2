@@ -18,6 +18,14 @@ from utils.arbitrage_store import (
 from utils.name_i18n import canon
 
 
+_REASON_TEXT = {
+    "detail": "详情数量已核实",
+    "ingredient_boundary": "已到食材末端，确认没有",
+    "detail_unreadable": "图标命中，但详情未核实",
+    "page_limit": "达到翻页上限，仍未确认",
+}
+
+
 def bag_catalog(context, config) -> dict[str, str]:
     source = context.get_node_object(config["catalog_node"]).attach["templates"]
     return {canon(name): str(PurePosixPath(config["template_dir"]) / PurePosixPath(path).name)
@@ -165,7 +173,7 @@ class BagStockScan(CustomAction):
                 quantity, reason = scanner.find(name, catalog[name])
                 if quantity is None:
                     record["errors"][name] = reason
-                    mfaalog.warning(f"[BagStock] {name}: 未知 ({reason})")
+                    mfaalog.warning(f"[BagStock] {name}: 未知 ({_REASON_TEXT.get(reason, reason)})")
                     continue
                 if not set_inventory_quantities({name: quantity}, "bag_detail" if reason == "detail"
                                                 else "bag_absent", {"evidence": reason}):
@@ -173,7 +181,7 @@ class BagStockScan(CustomAction):
                 record["unknown_item_names"].remove(name)
                 key = "absent_item_names" if reason == "ingredient_boundary" else "read_item_names"
                 record[key].append(name)
-                mfaalog.info(f"[BagStock] {name}: {quantity} ({reason})")
+                mfaalog.info(f"[BagStock] {name}: {quantity} ({_REASON_TEXT.get(reason, reason)})")
             record["complete"] = not record["unknown_item_names"]
         except Exception as exc:
             record["errors"]["scan"] = str(exc)

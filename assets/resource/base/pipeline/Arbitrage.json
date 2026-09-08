@@ -2268,6 +2268,9 @@
         "desc": "由此开始出售模块,拉起Py",
         "action": "Custom",
         "custom_action": "ArbitrageSellController",
+        "custom_action_param": {
+            "mode": "sell"
+        },
         "focus": "出售模块启动",
         "attach": {
             "default": "烤蜂蜜苹果,蜂蜜黄油杏仁,三角美乃滋饭团,鱼子酱蛋包饭,炸三文鱼便当,桑格利亚酒",
@@ -4389,7 +4392,7 @@
         "custom_action": "CookingInventoryBoundary",
         "custom_action_param": {
             "mode": "commit",
-            "template_node": "Agt_Cooking_Materials_Tpl",
+            "snapshot_node": "Arbitrage_Cooking_MaterialInsufficient",
             "click_node": "Agt_Cooking_Commit_Click"
         },
         "post_delay": 1000,
@@ -5426,24 +5429,39 @@
         "focus": "背包排序复位"
     },
     "Arbitrage_Bag_TabReset_Coll": {
-        "desc": "色核收藏品按钮,点亮状态",
-        "recognition": "ColorMatch",
-        "roi": [
-            138,
-            357,
-            7,
-            6
-        ],
-        "method": 40,
-        "lower": [
-            0,
-            0,
-            230
-        ],
-        "upper": [
-            180,
-            30,
-            255
+        "desc": "同时确认收集品页标题与按钮点亮，避免切页动画中把旧列表当成已复位",
+        "recognition": "And",
+        "all_of": [
+            {
+                "recognition": "ColorMatch",
+                "roi": [
+                    138,
+                    357,
+                    7,
+                    6
+                ],
+                "method": 40,
+                "lower": [
+                    0,
+                    0,
+                    230
+                ],
+                "upper": [
+                    180,
+                    30,
+                    255
+                ]
+            },
+            {
+                "recognition": "OCR",
+                "roi": [
+                    215,
+                    15,
+                    300,
+                    50
+                ],
+                "expected": "^收集品"
+            }
         ],
         "next": [
             "Arbitrage_Bag_TabReset_Cons",
@@ -5462,26 +5480,43 @@
         "post_delay": 800
     },
     "Arbitrage_Bag_TabReset_Cons": {
-        "desc": "色核消耗品按钮,点亮状态",
-        "recognition": "ColorMatch",
-        "roi": [
-            138,
-            125,
-            4,
-            6
+        "desc": "同时确认消耗品页标题与按钮点亮，避免切页动画中把旧列表当成已复位",
+        "recognition": "And",
+        "all_of": [
+            {
+                "recognition": "ColorMatch",
+                "roi": [
+                    138,
+                    125,
+                    4,
+                    6
+                ],
+                "method": 40,
+                "lower": [
+                    0,
+                    0,
+                    230
+                ],
+                "upper": [
+                    180,
+                    30,
+                    255
+                ]
+            },
+            {
+                "recognition": "OCR",
+                "roi": [
+                    215,
+                    15,
+                    300,
+                    50
+                ],
+                "expected": "^消耗品"
+            }
         ],
-        "method": 40,
-        "lower": [
-            0,
-            0,
-            230
-        ],
-        "upper": [
-            180,
-            30,
-            255
-        ],
-        "next": ["Arbitrage_Bag_TabReset_Egress"]
+        "next": [
+            "Arbitrage_Bag_TabReset_Egress"
+        ]
     },
     "Arbitrage_Bag_TabReset_Cons_Act": {
         "max_hit": 10,
@@ -5572,6 +5607,7 @@
             634
         ],
         "template": "Shop/BagList/食材_兽肉.png",
+        "threshold": 0.9,
         "order_by": "Score"
     },
     "Agt_BagStock_Item_Click": {
@@ -5619,6 +5655,6 @@
             "Shop/BagList/成长材料_生活技能书4.png",
             "Shop/BagList/成长材料_史莱姆1.png"
         ],
-        "green_mask": true
+        "threshold": 0.9
     }
 }

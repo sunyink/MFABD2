@@ -5,6 +5,7 @@
 """
 
 import argparse
+import copy
 import importlib.util
 import json
 import sys
@@ -13,7 +14,7 @@ import time
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "agent"))
@@ -56,6 +57,82 @@ class FakeContext:
 class CookingStockTests(unittest.TestCase):
     def setUp(self):
         stock._OBSERVATIONS.clear()
+        stock._SCAN_STARTS.clear()
+
+    def test_begin_keeps_first_timestamp_within_task(self):
+        boundary = stock.CookingInventoryBoundary()
+        argv = SimpleNamespace(custom_action_param={"mode": "begin"},
+                               task_detail=SimpleNamespace(task_id=101))
+        with patch.object(stock, "utc_now", side_effect=["01", "02", "03"]):
+            self.assertTrue(boundary.run(None, argv))
+            self.assertTrue(boundary.run(None, argv))
+            self.assertEqual(stock.get_cooking_scan_start(101), "01")
+            argv.task_detail.task_id = 102
+            self.assertTrue(boundary.run(None, argv))
+            self.assertEqual(stock.get_cooking_scan_start(102), "03")
+
+    def test_recipe_materials_require_every_occupied_slot_and_clear_matches(self):
+        context = FakeContext({PARAMS["page_node"]: ["拥有"]})
+        candidates = [[{"name": name, "score": 0.99}]
+                      for name in ("兽肉", "西蓝花", "盐")] + [[], []]
+        with patch.object(stock, "_match_materials", return_value=candidates):
+            self.assertEqual(stock._current_recipe_materials(context, PARAMS, object()),
+                             ["兽肉", "西蓝花", "盐"])
+            candidates[1] = []
+            with self.assertRaisesRegex(RuntimeError, "图标未识别"):
+                stock._current_recipe_materials(context, PARAMS, object())
+            candidates[1] = [{"name": "西蓝花", "score": 0.99}, {"name": "白糖", "score": 0.97}]
+            with self.assertRaisesRegex(RuntimeError, "歧义"):
+                stock._current_recipe_materials(context, PARAMS, object())
+
+    def test_commit_preserves_other_materials_and_later_observation_refreshes_consumed(self):
+        from utils import arbitrage_store as store
+
+        data = {}
+        memory = Mock()
+        memory.load.side_effect = lambda: copy.deepcopy(data)
+
+        def save(value):
+            data.clear()
+            data.update(copy.deepcopy(value))
+            return True
+
+        memory.save.side_effect = save
+        context = Mock()
+        context.get_node_object.side_effect = lambda name: (
+            SimpleNamespace(action=SimpleNamespace(param=SimpleNamespace(custom_action_param=PARAMS)))
+            if name == ENTRY else SimpleNamespace(attach=PIPELINE[name]["attach"]))
+        context.tasker.controller.post_screencap.return_value.wait.return_value.get.return_value = SimpleNamespace(size=1)
+        context.run_action.return_value = SimpleNamespace(success=True)
+        argv = SimpleNamespace(custom_action_param=PIPELINE["Arbitrage_Cooking_NubMenu_Doing"]["custom_action_param"],
+                               task_detail=SimpleNamespace(task_id=101), box=[1, 2, 3, 4])
+        with patch.object(store, "PersistentStore", memory), \
+                patch.object(stock, "sync_from_context", return_value=True), \
+                patch.object(stock, "_current_recipe_materials", return_value=["蜂蜜", "苹果"]) as identify:
+            store.save_cooking_stock_observation({"observed_at": "01", "materials": [
+                {"name": "蜂蜜", "stock": 1}, {"name": "黄油", "stock": 146339}]})
+            self.assertTrue(stock.CookingInventoryBoundary().run(context, argv))
+            items = store.get_inventory_items()
+            self.assertEqual(items["蜂蜜"]["quantity_status"], "unknown")
+            self.assertEqual(items["黄油"]["quantity"], 146339)
+            self.assertEqual(items["黄油"]["quantity_observed_at"], "01")
+            context.run_action.assert_called_once_with("Agt_Cooking_Commit_Click", box=argv.box)
+            store.save_cooking_stock_observation({"observed_at": "02", "materials": [
+                {"name": "蜂蜜", "stock": 0}, {"name": "苹果", "stock": 479072}]})
+            items = store.get_inventory_items()
+            self.assertEqual(items["蜂蜜"]["quantity"], 0)
+            self.assertEqual(items["蜂蜜"]["quantity_observed_at"], "02")
+            self.assertEqual(items["黄油"]["quantity"], 146339)
+            identify.side_effect = RuntimeError("材料槽位未识别")
+            self.assertTrue(stock.CookingInventoryBoundary().run(context, argv))
+            self.assertTrue(all(item["quantity_status"] == "unknown"
+                                for item in store.get_inventory_items().values()))
+            # 作废写入失败时，不能继续制作却保留旧数量。
+            store.save_cooking_stock_observation({"materials": [{"name": "蜂蜜", "stock": 8}]})
+            context.run_action.reset_mock()
+            memory.save.side_effect = lambda value: False
+            self.assertFalse(stock.CookingInventoryBoundary().run(context, argv))
+            context.run_action.assert_not_called()
 
     def test_numeric_reading_does_not_invent_zero_or_join_fragments(self):
         pattern = stock._NUMBER + "/" + stock._NUMBER

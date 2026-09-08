@@ -44,7 +44,7 @@ def get_cooking_scan_start(task_id: int) -> str | None:
 
 @AgentServer.custom_action("CookingInventoryBoundary")
 class CookingInventoryBoundary(CustomAction):
-    """记录本轮起点；制作前作废旧食材数量，随后执行原有点击。"""
+    """记录本轮起点；制作前只作废当前配方的旧数量，随后执行原有点击。"""
 
     def run(self, context: Context, argv: CustomAction.RunArg) -> bool:
         try:
@@ -52,7 +52,7 @@ class CookingInventoryBoundary(CustomAction):
             params = raw if isinstance(raw, dict) else json.loads(str(raw))
             if params["mode"] == "begin":
                 with _LOCK:
-                    _SCAN_STARTS[argv.task_detail.task_id] = utc_now()
+                    _SCAN_STARTS.setdefault(argv.task_detail.task_id, utc_now())
                     _SCAN_STARTS.move_to_end(argv.task_detail.task_id)
                     while len(_SCAN_STARTS) > 16:
                         _SCAN_STARTS.popitem(last=False)
@@ -61,13 +61,28 @@ class CookingInventoryBoundary(CustomAction):
                 raise ValueError("未知库存边界模式")
             if not sync_from_context(context, where="CookingInventoryBoundary"):
                 return False
-            catalog = context.get_node_object(params["template_node"]).attach["templates"]
+            raw_scan = context.get_node_object(params["snapshot_node"]).action.param.custom_action_param
+            scan = raw_scan if isinstance(raw_scan, dict) else json.loads(str(raw_scan))
+            catalog = context.get_node_object(scan["template_node"]).attach["templates"]
             items = get_inventory_items()
-            # 尚无可靠的实作配方/份数回执。不能假定早先扫过的材料没有被后一道菜消耗。
-            names = [canon(name) for name in catalog
-                     if items.get(canon(name), {}).get("quantity_status") == "known"]
+            known = {canon(name) for name in catalog
+                     if items.get(canon(name), {}).get("quantity_status") == "known"}
+            names = []
+            if known:
+                try:
+                    image = context.tasker.controller.post_screencap().wait().get()
+                    if image is None or not image.size:
+                        raise RuntimeError("制作前截图失败")
+                    recipe_names = _current_recipe_materials(context, scan, image)
+                    names = sorted(known.intersection(recipe_names))
+                except Exception as exc:
+                    # 不能确定配方时仍允许原制作流程继续，但不能保留可能被消耗的旧量。
+                    names = sorted(known)
+                    mfaalog.warning(f"[CookingStock] 当前配方未核实，全部 {len(names)} 项旧数量待补查: {exc}")
             if not invalidate_inventory_quantities(names, "cooking_attempt"):
                 raise RuntimeError("制作前库存作废未能写入")
+            if names:
+                mfaalog.info("[CookingStock] 制作前待更新: " + "、".join(names))
             result = context.run_action(params["click_node"], box=argv.box)
             return bool(result is not None and result.success)
         except Exception as exc:
@@ -167,6 +182,35 @@ def _match_materials(context: Context, node: str, image, slot_rois: list,
                 best_by_name[name] = item
         candidates[index] = sorted(best_by_name.values(), key=lambda item: item["score"], reverse=True)
     return candidates
+
+
+def _current_recipe_materials(context: Context, params: dict, image) -> list[str]:
+    """复用短缺采集的图标与槽位配置；配方未识全时不能据此保留其他旧数量。"""
+    page = context.run_recognition(params["page_node"], image)
+    if page is None or not page.hit:
+        raise RuntimeError("截图不在料理详情页")
+    material_nodes, presence_nodes = params["material_nodes"], params["presence_nodes"]
+    if not material_nodes or len(material_nodes) != len(presence_nodes):
+        raise ValueError("材料 OCR 与槽位检测节点数量不一致")
+    rois = [context.get_node_object(node).recognition.param.roi for node in material_nodes]
+    template_node = params["template_node"]
+    margin = context.get_node_object(template_node).attach["score_margin"]
+    candidates = _match_materials(context, template_node, image, rois)
+    names = []
+    for index, (node, ranked) in enumerate(zip(presence_nodes, candidates)):
+        present = context.run_recognition(node, image)
+        if present is None:
+            raise RuntimeError(f"材料槽位 {index + 1} 检测未能执行")
+        if not ranked:
+            if present.hit:
+                raise RuntimeError(f"材料槽位 {index + 1} 图标未识别")
+            continue
+        if len(ranked) > 1 and ranked[0]["score"] - ranked[1]["score"] < margin:
+            raise RuntimeError(f"材料槽位 {index + 1} 图标有歧义")
+        names.append(ranked[0]["name"])
+    if not names or len(set(names)) != len(names):
+        raise RuntimeError("配方材料缺失或重复")
+    return names
 
 
 def _unique_parsed(texts: list[str], pattern: str):
