@@ -24,13 +24,55 @@ from maa.custom_recognition import CustomRecognition
 
 from utils import mfaalog
 from utils.account_sync import sync_from_context
-from utils.arbitrage_store import save_cooking_stock_observation
+from utils.arbitrage_store import (
+    save_cooking_stock_observation, get_inventory_items,
+    invalidate_inventory_quantities, utc_now,
+)
 from utils.name_i18n import canon
 
 
 _OBSERVATIONS = OrderedDict()
 _LOCK = threading.Lock()
 _SUMMARY_NODE = "Arbitrage_Cooking_StockSummary"
+_SCAN_STARTS = OrderedDict()
+
+
+def get_cooking_scan_start(task_id: int) -> str | None:
+    with _LOCK:
+        return _SCAN_STARTS.get(task_id)
+
+
+@AgentServer.custom_action("CookingInventoryBoundary")
+class CookingInventoryBoundary(CustomAction):
+    """记录本轮起点；制作前作废旧食材数量，随后执行原有点击。"""
+
+    def run(self, context: Context, argv: CustomAction.RunArg) -> bool:
+        try:
+            raw = argv.custom_action_param
+            params = raw if isinstance(raw, dict) else json.loads(str(raw))
+            if params["mode"] == "begin":
+                with _LOCK:
+                    _SCAN_STARTS[argv.task_detail.task_id] = utc_now()
+                    _SCAN_STARTS.move_to_end(argv.task_detail.task_id)
+                    while len(_SCAN_STARTS) > 16:
+                        _SCAN_STARTS.popitem(last=False)
+                return True
+            if params["mode"] != "commit":
+                raise ValueError("未知库存边界模式")
+            if not sync_from_context(context, where="CookingInventoryBoundary"):
+                return False
+            catalog = context.get_node_object(params["template_node"]).attach["templates"]
+            items = get_inventory_items()
+            # 尚无可靠的实作配方/份数回执。不能假定早先扫过的材料没有被后一道菜消耗。
+            names = [canon(name) for name in catalog
+                     if items.get(canon(name), {}).get("quantity_status") == "known"]
+            if not invalidate_inventory_quantities(names, "cooking_attempt"):
+                raise RuntimeError("制作前库存作废未能写入")
+            result = context.run_action(params["click_node"], box=argv.box)
+            return bool(result is not None and result.success)
+        except Exception as exc:
+            mfaalog.error(f"[CookingStock] 库存边界处理失败: {exc}")
+            return False
 
 
 def get_cooking_stock(task_id: int) -> list[dict]:

@@ -290,6 +290,30 @@ def set_inventory_quantities(quantities: dict[str, int], reason: str,
         return bool(PersistentStore.save(data))
 
 
+def get_inventory_items() -> dict:
+    """读取当前账号逐物品库存的副本，未知状态由调用方显式处理。"""
+    with _LOCK:
+        return copy.deepcopy(_inventory(PersistentStore.load())["items"])
+
+
+def save_bag_stock_summary(record: dict) -> bool:
+    """背包补查只保存覆盖情况；逐项数量通过统一 inventory_set 入口即时落盘。"""
+    with _LOCK:
+        data = PersistentStore.load()
+        inventory = _inventory(data)
+        summary = copy.deepcopy(record)
+        inventory["latest"]["bag"] = summary
+        inventory["events"].append({
+            "kind": "bag_stock", "observed_at": summary["observed_at"],
+            "complete": summary["complete"],
+            "read_count": len(summary["read_item_names"]),
+            "absent_count": len(summary["absent_item_names"]),
+            "unknown_item_names": summary["unknown_item_names"],
+        })
+        _trim_list(inventory["events"], OBSERVATION_LIMIT)
+        return bool(PersistentStore.save(data))
+
+
 def invalidate_inventory_quantities(names: list[str], reason: str,
                                     reference: dict | None = None) -> bool:
     """执行已改变库存但数量未知时，作废旧数量；不把“卖过”猜成“卖光”。"""

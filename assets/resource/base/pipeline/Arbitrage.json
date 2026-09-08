@@ -4,6 +4,7 @@
         "next": [
             "[JumpBack]Arbitrage_Cooking_Weekly",
             "[JumpBack]Arbitrage_Cooking",
+            "[JumpBack]Arbitrage_BagStockScan",
             "Arbitrage_Merchant_Ico",
             "Arbitrage_Merchant_Menu",
             "Arbitrage_HomePageOldCardMenu_Goin",
@@ -65,6 +66,7 @@
         "next": [
             "[JumpBack]Arbitrage_Cooking_Weekly",
             "[JumpBack]Arbitrage_Cooking",
+            "[JumpBack]Arbitrage_BagStockScan",
             "[JumpBack]PVP_PerPetTask",
             "Arbitrage_Merchant_Ico",
             "Arbitrage_Sandplay_SeeMerchant",
@@ -3090,6 +3092,9 @@
     },
     "Arbitrage_Cooking_MenuPatch": {
         "desc": "借用setup管路,从技能菜单进入烹饪菜单",
+        "action": "Custom",
+        "custom_action": "CookingInventoryBoundary",
+        "custom_action_param": {"mode": "begin"},
         "anchor": {
             "SetSkill": "Arbitrage_Cooking_SetupToSkill",
             "SkillList_ReLift": "",
@@ -4329,7 +4334,13 @@
             16,
             224
         ],
-        "action": "Click",
+        "action": "Custom",
+        "custom_action": "CookingInventoryBoundary",
+        "custom_action_param": {
+            "mode": "commit",
+            "template_node": "Agt_Cooking_Materials_Tpl",
+            "click_node": "Agt_Cooking_Commit_Click"
+        },
         "post_delay": 1000,
         "next": [
             "Arbitrage_Cooking_Doing_Starus",
@@ -4461,7 +4472,7 @@
             182,
             420,
             417,
-            61
+            82
         ],
         "template": [
             "Shop/MaterialList/食材_白糖.png"
@@ -5118,7 +5129,9 @@
     "Arbitrage_BagStockScan": {
         "desc": "背包仓捡食材",
         "max_hit": 1,
+        "anchor": {"BagStockReturn": "Global_ToHomePage"},
         "next": [
+            "Arbitrage_BagStockScan_Bag",
             "Arbitrage_BagStockScan_Entry_Main",
             "Arbitrage_BagStockScan_Entry_Sand",
             "[JumpBack]Global_ToHomePage"
@@ -5140,6 +5153,7 @@
             0,
             0
         ],
+        "anchor": {"BagStockReturn": "Global_ToHomePage"},
         "post_delay": 2000,
         "next": [
             "Arbitrage_BagStockScan_Bag",
@@ -5183,6 +5197,7 @@
             }
         ],
         "action": "Click",
+        "anchor": {"BagStockReturn": "Global_ToSandBox"},
         "post_delay": 2000,
         "next": [
             "Arbitrage_BagStockScan_Bag",
@@ -5206,7 +5221,38 @@
         "desc": "背包界面确认",
         "recognition": "Or",
         "any_of": ["Setup_Equip_Per"],
-        "next": ["[JumpBack]Arbitrage_BagStockScan_Sort"]
+        "next": ["Arbitrage_BagStockScan_Prepare"]
+    },
+    "Arbitrage_BagStockScan_Prepare": {
+        "desc": "切回消耗品并复位页首，再设置料理食材排序",
+        "action": "Custom",
+        "custom_action": "ClearNodeHitCount",
+        "custom_action_param": {
+            "node_name": [
+                "Arbitrage_BagStockScan_Sort",
+                "Arbitrage_BagStockScan_Sort_Enty",
+                "Arbitrage_BagStockScan_Sort_Menu_Swipe"
+            ]
+        },
+        "next": [
+            "[JumpBack]Arbitrage_Bag_TabReset_Once",
+            "[JumpBack]Arbitrage_BagStockScan_Sort",
+            "Arbitrage_BagStockScan_Run"
+        ]
+    },
+    "Arbitrage_Bag_TabReset_Once": {
+        "max_hit": 1,
+        "next": ["Arbitrage_Bag_TabReset_Entry"]
+    },
+    "Arbitrage_BagStockScan_Run": {
+        "desc": "补齐本轮仍未知的食材精确数量；逐项写入现有账号库存后退出背包",
+        "action": "Custom",
+        "custom_action": "BagStockScan",
+        "custom_action_param": {
+            "config_node": "Agt_BagStock_Config"
+        },
+        "next": ["[Anchor]BagStockReturn"],
+        "focus": "Arb.背包仓捡：补查食材精确数量"
     },
     "Arbitrage_BagStockScan_Sort": {
         "max_hit": 1,
@@ -5313,6 +5359,7 @@
             7,
             6
         ],
+        "method": 40,
         "lower": [
             0,
             0,
@@ -5348,6 +5395,7 @@
             4,
             6
         ],
+        "method": 40,
         "lower": [
             0,
             0,
@@ -5394,5 +5442,108 @@
         ],
         "end_hold": 500,
         "duration": 600
+    },
+    "Agt_Cooking_Commit_Click": {
+        "desc": "py 独占，勿挂进管路。库存作废后点击原制作按钮识别框，外层保留等待和后续链",
+        "pre_delay": 0,
+        "action": "Click",
+        "target": true,
+        "post_delay": 0
+    },
+    "Agt_BagStock_Config": {
+        "desc": "py 独占，勿挂进管路。沿用料理材料名称与图片文件名，切换为背包模板目录；查找与动作节点统一在此传参",
+        "enabled": false,
+        "attach": {
+            "catalog_node": "Agt_Cooking_Materials_Tpl",
+            "template_dir": "Shop/BagList",
+            "template_node": "Agt_BagStock_Item_Tpl",
+            "list_node": "Agt_BagStock_List_Ready",
+            "name_node": "Agt_BagStock_Name_Ocr",
+            "quantity_node": "Agt_BagStock_Quantity_Ocr",
+            "end_node": "Agt_BagStock_End_Tpl",
+            "click_node": "Agt_BagStock_Item_Click",
+            "close_node": "Arbitrage_BagStockScan_Sort_Egress",
+            "reset_node": "Arbitrage_Bag_TabReset_Entry",
+            "reset_exit": "Arbitrage_Bag_TabReset_Egress",
+            "swipe_node": "Arbitrage_BagStockScan_Swipe",
+            "max_pages_per_item": 30,
+            "timeout_seconds": 900
+        }
+    },
+    "Agt_BagStock_List_Ready": {
+        "desc": "py 独占，勿挂进管路。确认消耗品页签亮起且排序为料理食材优先，弹窗遮罩存在时不应命中",
+        "recognition": "And",
+        "all_of": [
+            "Arbitrage_Bag_TabReset_Cons",
+            {
+                "recognition": "OCR",
+                "roi": [
+                    850,
+                    15,
+                    300,
+                    40
+                ],
+                "expected": "^料理食材[优優]先$"
+            }
+        ]
+    },
+    "Agt_BagStock_Item_Tpl": {
+        "desc": "py 独占，勿挂进管路。每次注入目标材料模板；只点击图标，绝不读取列表缩略数量",
+        "recognition": "TemplateMatch",
+        "roi": [
+            578,
+            62,
+            600,
+            634
+        ],
+        "template": "Shop/BagList/食材_兽肉.png",
+        "order_by": "Score"
+    },
+    "Agt_BagStock_Item_Click": {
+        "desc": "py 独占，勿挂进管路。点击模板命中框进入物品详情",
+        "pre_delay": 0,
+        "action": "Click",
+        "target": true,
+        "post_delay": 800
+    },
+    "Agt_BagStock_Name_Ocr": {
+        "desc": "py 独占，勿挂进管路。背包详情名称复核，简繁名称交由共用字典处理",
+        "recognition": "OCR",
+        "roi": [
+            262,
+            183,
+            215,
+            51
+        ]
+    },
+    "Agt_BagStock_Quantity_Ocr": {
+        "desc": "py 独占，勿挂进管路。完整读取拥有234,937个；不接受K缩写、不拼接独立识别结果",
+        "recognition": "OCR",
+        "roi": [
+            265,
+            254,
+            280,
+            39
+        ],
+        "attach": {"retry_scale": 3}
+    },
+    "Agt_BagStock_End_Tpl": {
+        "desc": "py 独占，勿挂进管路。任一成长材料命中即到食材列表末端；同屏目标必须先查再判断缺货",
+        "recognition": "TemplateMatch",
+        "roi": [
+            578,
+            62,
+            600,
+            634
+        ],
+        "template": [
+            "Shop/BagList/成长材料_等级突破1.png",
+            "Shop/BagList/成长材料_生活技能书1.png",
+            "Shop/BagList/成长材料_生活技能书2.png",
+            "Shop/BagList/成长材料_生活技能书3.png",
+            "Shop/BagList/成长材料_生活技能书4.png",
+            "Shop/BagList/成长材料_史莱姆1.png"
+        ],
+        "green_mask": true
     }
 }
