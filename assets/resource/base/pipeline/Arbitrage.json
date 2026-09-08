@@ -5295,5 +5295,104 @@
         ],
         "repeat": 3,
         "repeat_delay": 150
+    },
+    "Arbitrage_Bag_TabReset_Entry": {
+        "desc": "进行一次背包位置复位到头部.通过切换类别实现",
+        "next": [
+            "Arbitrage_Bag_TabReset_Coll",
+            "[JumpBack]Arbitrage_Bag_TabReset_Coll_Act"
+        ],
+        "focus": "背包排序复位"
+    },
+    "Arbitrage_Bag_TabReset_Coll": {
+        "desc": "色核收藏品按钮,点亮状态",
+        "recognition": "ColorMatch",
+        "roi": [
+            138,
+            357,
+            7,
+            6
+        ],
+        "lower": [
+            0,
+            0,
+            230
+        ],
+        "upper": [
+            180,
+            30,
+            255
+        ],
+        "next": [
+            "Arbitrage_Bag_TabReset_Cons",
+            "[JumpBack]Arbitrage_Bag_TabReset_Cons_Act"
+        ]
+    },
+    "Arbitrage_Bag_TabReset_Coll_Act": {
+        "max_hit": 10,
+        "action": "Click",
+        "target": [
+            134,
+            350,
+            12,
+            13
+        ],
+        "post_delay": 800
+    },
+    "Arbitrage_Bag_TabReset_Cons": {
+        "desc": "色核消耗品按钮,点亮状态",
+        "recognition": "ColorMatch",
+        "roi": [
+            138,
+            125,
+            4,
+            6
+        ],
+        "lower": [
+            0,
+            0,
+            230
+        ],
+        "upper": [
+            180,
+            30,
+            255
+        ],
+        "next": ["Arbitrage_Bag_TabReset_Egress"]
+    },
+    "Arbitrage_Bag_TabReset_Cons_Act": {
+        "max_hit": 10,
+        "action": "Click",
+        "target": [
+            134,
+            120,
+            13,
+            15
+        ],
+        "post_delay": 800
+    },
+    "Arbitrage_Bag_TabReset_Egress": {
+        "action": "Custom",
+        "custom_action": "ClearNodeHitCount",
+        "custom_action_param": {
+            "node_name": [
+                "Arbitrage_Bag_TabReset_Coll_Act",
+                "Arbitrage_Bag_TabReset_Cons_Act"
+            ]
+        }
+    },
+    "Arbitrage_BagStockScan_Swipe": {
+        "desc": "列表向下滑动,参数要准,刚好顶端齐平",
+        "action": "Swipe",
+        "begin": [
+            634,
+            640
+        ],
+        "end": [
+            640,
+            120
+        ],
+        "end_hold": 500,
+        "duration": 600
     }
 }
