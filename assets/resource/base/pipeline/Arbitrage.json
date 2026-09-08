@@ -5114,5 +5114,186 @@
     "Arbitrage_ShopBuy_Abort": {
         "desc": "商店出售意外终止节点",
         "focus": "[Arb.Buy]商店内购买，e出口。"
+    },
+    "Arbitrage_BagStockScan": {
+        "desc": "背包仓捡食材",
+        "max_hit": 1,
+        "next": [
+            "Arbitrage_BagStockScan_Entry_Main",
+            "Arbitrage_BagStockScan_Entry_Sand",
+            "[JumpBack]Global_ToHomePage"
+        ]
+    },
+    "Arbitrage_BagStockScan_Entry_Main": {
+        "recognition": "OCR",
+        "roi": [
+            236,
+            613,
+            128,
+            89
+        ],
+        "expected": "背包",
+        "action": "Click",
+        "target_offset": [
+            0,
+            -5,
+            0,
+            0
+        ],
+        "post_delay": 2000,
+        "next": [
+            "Arbitrage_BagStockScan_Bag",
+            "Arbitrage_BagStockScan_Entry_Main"
+        ]
+    },
+    "Arbitrage_BagStockScan_Entry_Sand": {
+        "recognition": "Or",
+        "any_of": [
+            {
+                "recognition": "TemplateMatch",
+                "roi": [
+                    886,
+                    8,
+                    344,
+                    76
+                ],
+                "template": "Bag_GE.png",
+                "green_mask": true
+            },
+            {
+                "recognition": "Custom",
+                "custom_recognition": "HSVShapeMatching",
+                "custom_recognition_param": {
+                    "hsv_map": {
+                        "Rec_BagStockScan_Entry_Sand_Bin": {
+                            "lower": [
+                                0,
+                                0,
+                                200
+                            ],
+                            "upper": [
+                                180,
+                                25,
+                                255
+                            ]
+                        }
+                    },
+                    "edge_assist": true
+                }
+            }
+        ],
+        "action": "Click",
+        "post_delay": 2000,
+        "next": [
+            "Arbitrage_BagStockScan_Bag",
+            "Arbitrage_BagStockScan_Entry_Sand"
+        ]
+    },
+    "Rec_BagStockScan_Entry_Sand_Bin": {
+        "recognition": "TemplateMatch",
+        "roi": [
+            886,
+            8,
+            344,
+            76
+        ],
+        "template": [
+            "Bag_Bin1.png",
+            "Bag_Bin2.png"
+        ]
+    },
+    "Arbitrage_BagStockScan_Bag": {
+        "desc": "背包界面确认",
+        "recognition": "Or",
+        "any_of": ["Setup_Equip_Per"],
+        "next": ["[JumpBack]Arbitrage_BagStockScan_Sort"]
+    },
+    "Arbitrage_BagStockScan_Sort": {
+        "max_hit": 1,
+        "next": ["Arbitrage_BagStockScan_Sort_Enty"]
+    },
+    "Arbitrage_BagStockScan_Sort_Enty": {
+        "desc": "消耗品列表排序菜单",
+        "max_hit": 10,
+        "action": "Click",
+        "target": [
+            1147,
+            30,
+            6,
+            5
+        ],
+        "post_delay": 1500,
+        "next": [
+            "Arbitrage_BagStockScan_Sort_Menu",
+            "Arbitrage_BagStockScan_Sort_Enty"
+        ]
+    },
+    "Arbitrage_BagStockScan_Sort_Menu": {
+        "desc": "确定菜单已打开",
+        "recognition": "OCR",
+        "roi": [
+            885,
+            75,
+            287,
+            264
+        ],
+        "expected": [
+            "优先",
+            "排序",
+            "排序"
+        ],
+        "next": [
+            "Arbitrage_BagStockScan_Sort_Egress",
+            "[JumpBack]Arbitrage_BagStockScan_Sort_Menu_Set",
+            "[JumpBack]Arbitrage_BagStockScan_Sort_Menu_Swipe"
+        ]
+    },
+    "Arbitrage_BagStockScan_Sort_Menu_Swipe": {
+        "max_hit": 10,
+        "action": "Swipe",
+        "begin": [
+            1032,
+            310
+        ],
+        "end": [
+            1032,
+            92
+        ],
+        "end_hold": 250,
+        "post_delay": 1000
+    },
+    "Arbitrage_BagStockScan_Sort_Menu_Set": {
+        "recognition": "OCR",
+        "roi": [
+            885,
+            75,
+            287,
+            264
+        ],
+        "expected": [
+            "料理食材优先",
+            "按料理食材数量从高到低排序"
+        ],
+        "action": "Click",
+        "post_delay": 1000
+    },
+    "Arbitrage_BagStockScan_Sort_Egress": {
+        "recognition": "OCR",
+        "roi": [
+            885,
+            75,
+            287,
+            264
+        ],
+        "expected": ["按料理食材数量从低到高排序"],
+        "action": "Click",
+        "target": [
+            376,
+            138,
+            17,
+            16
+        ],
+        "repeat": 3,
+        "repeat_delay": 150
     }
 }
