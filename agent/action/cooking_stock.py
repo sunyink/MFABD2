@@ -135,20 +135,21 @@ def _match_materials(context: Context, node: str, image, slot_rois: list,
     candidates = [[] for _ in slot_rois]
     for name, template in tuning["templates"].items():
         result = context.run_recognition(node, image, {node: {"template": [template]}})
+        if result is None:
+            raise RuntimeError(f"材料模板识别未能执行: {name}")
+        if not result.hit:
+            continue
+        # 只记命中：一次扫描 60 个模板通常只中 5 个，未命中项对排错没有信息量。
         if recognition_log is not None:
             recognition_log.append({
                 "role": "material_template",
                 "node": node,
                 "candidate_name": canon(name),
                 "template": template,
-                "reco_id": getattr(result, "reco_id", None) if result is not None else None,
-                "hit": bool(result is not None and result.hit),
+                "reco_id": getattr(result, "reco_id", None),
+                "hit": True,
                 "image": "snapshot",
             })
-        if result is None:
-            raise RuntimeError(f"材料模板识别未能执行: {name}")
-        if not result.hit:
-            continue
         for item in result.filtered_results:
             box = item.box
             x, _, width, _ = (box.x, box.y, box.w, box.h) if hasattr(box, "x") else box
@@ -316,6 +317,21 @@ class CookingStockSummary(CustomRecognition):
         return CustomRecognition.AnalyzeResult(box=(0, 0, 0, 0), detail=detail)
 
 
+def _summary_line(record: dict) -> str:
+    """GUI 只收一行业务摘要；逐次识别明细由汇总识别的 details 承担。"""
+    def shown(value):
+        return "?" if value is None else value
+
+    items = " ".join(
+        f"{shown(material.get('name'))}={shown(material.get('stock'))}"
+        f"/{shown(material.get('displayed_required'))}"
+        for material in record.get("materials") or []
+    )
+    head = (f"{shown(record.get('recipe'))} 份数={shown(record.get('selected_count'))} "
+            f"complete={record.get('complete')}")
+    return f"{head} {items}".rstrip()
+
+
 def _emit_summary_detail(context: Context, image, record: dict) -> bool:
     """同一张截图上追加一条汇总识别记录，供 maafw.log 与子识别图交叉复盘。"""
     if image is None or not getattr(image, "size", 0):
@@ -382,7 +398,6 @@ class CookingStockSnapshot(CustomAction):
         record["persisted"] = stored
         if not stored:
             mfaalog.warning("[CookingStock] 本次观察仍保留在进程内，但未能写入库存存档")
-        log = mfaalog.info if record["complete"] else mfaalog.warning
         try:
             emitted = _emit_summary_detail(context, image, record)
         except Exception as exc:
@@ -390,6 +405,10 @@ class CookingStockSnapshot(CustomAction):
             mfaalog.warning(f"[CookingStock] 汇总识别 details 写入异常: {exc}")
         if not emitted and image is not None:
             mfaalog.warning("[CookingStock] 未能生成汇总识别记录；业务存档不受影响")
-        log("[CookingStock] " + json.dumps(record, ensure_ascii=False))
+        if record["complete"]:
+            mfaalog.info("[CookingStock] " + _summary_line(record))
+        else:
+            # 只有失败才把全量 record 打给 GUI；成功时明细去 maafw.log 的汇总识别 details 看。
+            mfaalog.warning("[CookingStock] " + json.dumps(record, ensure_ascii=False))
         # True 仅表示采集尝试已记录；完整性看 complete。允许 pipeline 继续返回菜单。
         return True
