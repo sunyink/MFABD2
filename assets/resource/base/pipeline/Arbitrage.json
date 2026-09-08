@@ -3203,7 +3203,8 @@
         "timeout": 2000,
         "next": [
             "Arbitrage_Cooking_B10",
-            "[JumpBack]Arbitrage_Cooking_Swip_Page2"
+            "[JumpBack]Arbitrage_Cooking_Swip_Page2",
+            "[JumpBack]Arbitrage_Cooking_Menu_Residue"
         ],
         "focus": "Arb.料理检查:[5级]地狱火紫菜包饭"
     },
@@ -3215,7 +3216,8 @@
         "timeout": 2000,
         "next": [
             "Arbitrage_Cooking_B9",
-            "[JumpBack]Arbitrage_Cooking_Swip_Page2"
+            "[JumpBack]Arbitrage_Cooking_Swip_Page2",
+            "[JumpBack]Arbitrage_Cooking_Menu_Residue"
         ],
         "focus": "Arb.料理检查:[5级]透明沙拉"
     },
@@ -3227,7 +3229,8 @@
         "timeout": 2000,
         "next": [
             "Arbitrage_Cooking_B8",
-            "[JumpBack]Arbitrage_Cooking_Swip_Page2"
+            "[JumpBack]Arbitrage_Cooking_Swip_Page2",
+            "[JumpBack]Arbitrage_Cooking_Menu_Residue"
         ],
         "focus": "Arb.料理检查:[5级]闪闪铁板虾"
     },
@@ -3239,7 +3242,8 @@
         "timeout": 2000,
         "next": [
             "Arbitrage_Cooking_B7",
-            "[JumpBack]Arbitrage_Cooking_Swip_Page2"
+            "[JumpBack]Arbitrage_Cooking_Swip_Page2",
+            "[JumpBack]Arbitrage_Cooking_Menu_Residue"
         ],
         "focus": "Arb.料理检查:[5级]煤炭饼干"
     },
@@ -3251,7 +3255,8 @@
         "timeout": 2000,
         "next": [
             "Arbitrage_Cooking_B6",
-            "[JumpBack]Arbitrage_Cooking_Swip_Page2"
+            "[JumpBack]Arbitrage_Cooking_Swip_Page2",
+            "[JumpBack]Arbitrage_Cooking_Menu_Residue"
         ],
         "focus": "Arb.料理检查:[5级]卢戈山参烤串"
     },
@@ -3263,7 +3268,8 @@
         "timeout": 2000,
         "next": [
             "Arbitrage_Cooking_B21",
-            "[JumpBack]Arbitrage_Cooking_Swip_Page2"
+            "[JumpBack]Arbitrage_Cooking_Swip_Page2",
+            "[JumpBack]Arbitrage_Cooking_Menu_Residue"
         ],
         "focus": "Arb.料理检查:[5级]香草牛排"
     },
@@ -3275,7 +3281,8 @@
         "timeout": 2000,
         "next": [
             "Arbitrage_Cooking_B11",
-            "[JumpBack]Arbitrage_Cooking_Swip_Page2"
+            "[JumpBack]Arbitrage_Cooking_Swip_Page2",
+            "[JumpBack]Arbitrage_Cooking_Menu_Residue"
         ],
         "focus": "Arb.料理检查:[5级]洛克菲勒生蚝"
     },
@@ -3287,7 +3294,8 @@
         "timeout": 2000,
         "next": [
             "Arbitrage_Cooking_B14",
-            "[JumpBack]Arbitrage_Cooking_Swip_Page2"
+            "[JumpBack]Arbitrage_Cooking_Swip_Page2",
+            "[JumpBack]Arbitrage_Cooking_Menu_Residue"
         ],
         "focus": "Arb.料理检查:[5级]橄榄油意面"
     },
@@ -3299,7 +3307,8 @@
         "timeout": 2000,
         "next": [
             "Arbitrage_Cooking_B20",
-            "[JumpBack]Arbitrage_Cooking_Swip_Page2"
+            "[JumpBack]Arbitrage_Cooking_Swip_Page2",
+            "[JumpBack]Arbitrage_Cooking_Menu_Residue"
         ],
         "focus": "Arb.料理检查:[5级]街头烤鸡肉串"
     },
@@ -3311,7 +3320,8 @@
         "timeout": 2000,
         "next": [
             "Arbitrage_Cooking_B15",
-            "[JumpBack]Arbitrage_Cooking_Swip_Page2"
+            "[JumpBack]Arbitrage_Cooking_Swip_Page2",
+            "[JumpBack]Arbitrage_Cooking_Menu_Residue"
         ],
         "focus": "Arb.料理检查:[5级]汉堡排便当"
     },
@@ -3323,7 +3333,8 @@
         "timeout": 2000,
         "next": [
             "Arbitrage_Cooking_B12",
-            "[JumpBack]Arbitrage_Cooking_Swip_Page2"
+            "[JumpBack]Arbitrage_Cooking_Swip_Page2",
+            "[JumpBack]Arbitrage_Cooking_Menu_Residue"
         ],
         "focus": "Arb.料理检查:[5级]冰镇甜点"
     },
@@ -3335,7 +3346,8 @@
         "timeout": 2000,
         "next": [
             "Arbitrage_Cooking_B19",
-            "[JumpBack]Arbitrage_Cooking_Swip_Page2"
+            "[JumpBack]Arbitrage_Cooking_Swip_Page2",
+            "[JumpBack]Arbitrage_Cooking_Menu_Residue"
         ],
         "focus": "Arb.料理检查:[5级]香甜马卡龙"
     },
@@ -3347,7 +3359,8 @@
         "timeout": 2000,
         "next": [
             "Arbitrage_Cooking_B17",
-            "[JumpBack]Arbitrage_Cooking_Swip_Page2"
+            "[JumpBack]Arbitrage_Cooking_Swip_Page2",
+            "[JumpBack]Arbitrage_Cooking_Menu_Residue"
         ],
         "focus": "Arb.料理检查:[5级]三明治便当"
     },
@@ -3359,7 +3372,8 @@
         "timeout": 2000,
         "next": [
             "Arbitrage_Cooking_B18",
-            "[JumpBack]Arbitrage_Cooking_Swip_Page2"
+            "[JumpBack]Arbitrage_Cooking_Swip_Page2",
+            "[JumpBack]Arbitrage_Cooking_Menu_Residue"
         ],
         "focus": "Arb.料理检查:[5级]手工蛋糕"
     },
@@ -3371,7 +3385,8 @@
         "timeout": 2000,
         "next": [
             "Arbitrage_Cooking_B16",
-            "[JumpBack]Arbitrage_Cooking_Swip_Page2"
+            "[JumpBack]Arbitrage_Cooking_Swip_Page2",
+            "[JumpBack]Arbitrage_Cooking_Menu_Residue"
         ],
         "focus": "Arb.料理检查:[5级]泰瑞丝派"
     },
@@ -3383,7 +3398,8 @@
         "timeout": 2000,
         "next": [
             "Arbitrage_Cooking_B13",
-            "[JumpBack]Arbitrage_Cooking_Swip_Page2"
+            "[JumpBack]Arbitrage_Cooking_Swip_Page2",
+            "[JumpBack]Arbitrage_Cooking_Menu_Residue"
         ],
         "focus": "Arb.料理检查:[5级]炸猪排盖饭"
     },
@@ -3671,7 +3687,8 @@
         "post_delay": 0,
         "timeout": 2000,
         "next": [
-            "Arbitrage_Cooking_A2"
+            "Arbitrage_Cooking_A2",
+            "[JumpBack]Arbitrage_Cooking_Menu_Residue"
         ],
         "focus": "Arb.料理检查:[3级]蜂蜜黄油杏仁"
     },
@@ -3682,7 +3699,8 @@
         "post_delay": 0,
         "timeout": 2000,
         "next": [
-            "Arbitrage_Cooking_A1"
+            "Arbitrage_Cooking_A1",
+            "[JumpBack]Arbitrage_Cooking_Menu_Residue"
         ],
         "focus": "Arb.料理检查:[1级]烤蜂蜜苹果"
     },
@@ -3693,7 +3711,8 @@
         "post_delay": 0,
         "timeout": 2000,
         "next": [
-            "Arbitrage_Cooking_A7"
+            "Arbitrage_Cooking_A7",
+            "[JumpBack]Arbitrage_Cooking_Menu_Residue"
         ],
         "focus": "Arb.料理检查:[3级]火烤鱼板棒"
     },
@@ -3704,7 +3723,8 @@
         "post_delay": 0,
         "timeout": 2000,
         "next": [
-            "Arbitrage_Cooking_A4"
+            "Arbitrage_Cooking_A4",
+            "[JumpBack]Arbitrage_Cooking_Menu_Residue"
         ],
         "focus": "Arb.料理检查:[3级]鱼子酱蛋包饭"
     },
@@ -3715,7 +3735,8 @@
         "post_delay": 0,
         "timeout": 2000,
         "next": [
-            "Arbitrage_Cooking_A8"
+            "Arbitrage_Cooking_A8",
+            "[JumpBack]Arbitrage_Cooking_Menu_Residue"
         ],
         "focus": "Arb.料理检查:[4级]甜辣鲜虾"
     },
@@ -3726,7 +3747,8 @@
         "post_delay": 0,
         "timeout": 2000,
         "next": [
-            "Arbitrage_Cooking_A3"
+            "Arbitrage_Cooking_A3",
+            "[JumpBack]Arbitrage_Cooking_Menu_Residue"
         ],
         "focus": "Arb.料理检查:[3级]三角美乃滋饭团"
     },
@@ -3737,7 +3759,8 @@
         "post_delay": 0,
         "timeout": 2000,
         "next": [
-            "Arbitrage_Cooking_A9"
+            "Arbitrage_Cooking_A9",
+            "[JumpBack]Arbitrage_Cooking_Menu_Residue"
         ],
         "focus": "Arb.料理检查:[4级]三文鱼芥末寿司"
     },
@@ -3748,7 +3771,8 @@
         "post_delay": 0,
         "timeout": 2000,
         "next": [
-            "Arbitrage_Cooking_A5"
+            "Arbitrage_Cooking_A5",
+            "[JumpBack]Arbitrage_Cooking_Menu_Residue"
         ],
         "focus": "Arb.料理检查:[2级]炸三文鱼便当"
     },
@@ -3759,7 +3783,8 @@
         "post_delay": 0,
         "timeout": 2000,
         "next": [
-            "Arbitrage_Cooking_A10"
+            "Arbitrage_Cooking_A10",
+            "[JumpBack]Arbitrage_Cooking_Menu_Residue"
         ],
         "focus": "Arb.料理检查:[2级]巧克力鸡尾酒"
     },
@@ -4268,6 +4293,21 @@
             "所需材料$"
         ],
         "focus": "Arb.返回料理菜单\n\n页内复位完成"
+    },
+    "Arbitrage_Cooking_Menu_Residue": {
+        "desc": "如果料理入口界面是制作页",
+        "recognition": "OCR",
+        "roi": [
+            867,
+            634,
+            128,
+            46
+        ],
+        "expected": ["料理"],
+        "next": [
+            "Arbitrage_Cooking_Menu_Reset_SubOut",
+            "[JumpBack]Global_BackPageHub_Once"
+        ]
     },
     "Not_Cooking_Menu_Reset_Csm": {
         "recognition": "Custom",
