@@ -1536,25 +1536,19 @@
             "cases": [
                 {
                     "name": "Yes",
-                    "pipeline_override": {}
+                    "pipeline_override": {
+                        "Arbitrage_Cooking_NubMenu_Max": {
+                            "recognition": "DirectHit",
+                            "action": "DoNothing"
+                        },
+                        "Arbitrage_Cooking_ExMax": {
+                            "enabled": false
+                        }
+                    }
                 },
                 {
                     "name": "No",
-                    "pipeline_override": {
-                        "Arbitrage_Cooking_NubMenu_Max": {
-                            "recognition": "OCR",
-                            "roi": [
-                                415,
-                                520,
-                                220,
-                                100
-                            ],
-                            "expected": [
-                                "MAX"
-                            ],
-                            "action": "Click"
-                        }
-                    }
+                    "pipeline_override": {}
                 }
             ]
         },

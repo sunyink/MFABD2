@@ -4310,6 +4310,17 @@
     },
     "Arbitrage_Cooking_NubMenu_Max": {
         "desc": "数量预留,测试阶段上保险不改",
+        "recognition": "OCR",
+        "roi": [
+            415,
+            520,
+            220,
+            100
+        ],
+        "expected": [
+            "MAX"
+        ],
+        "action": "Click",
         "next": [
             "Arbitrage_Cooking_MaterialInsufficient",
             "Arbitrage_Cooking_NubMenu_Doing"
@@ -4389,10 +4400,34 @@
         "recognition": "Or",
         "any_of": ["Arbitrage_Cooking_SubMenu"],
         "next": [
+            "Arbitrage_Cooking_ExMax",
             "Arbitrage_Cooking_MaterialInsufficient",
             "Arbitrage_Cooking_Menu_ReBack",
             "[JumpBack]Global_BackPageHub_Once"
         ]
+    },
+    "Arbitrage_Cooking_ExMax": {
+        "desc": "料理后仍存在白色数量,应该继续制作直到做尽材料",
+        "recognition": "ColorMatch",
+        "roi": [
+            344,
+            598,
+            132,
+            31
+        ],
+        "method": 40,
+        "lower": [
+            0,
+            0,
+            215
+        ],
+        "upper": [
+            180,
+            30,
+            255
+        ],
+        "count": 20,
+        "next": ["Arbitrage_Cooking_NubMenu_Max"]
     },
     "Arbitrage_Cooking_MaterialInsufficient": {
         "desc": "红色数量提示触发短缺采集；读取当前菜全部材料，完整性见记录的 complete，随后返回选菜。",
