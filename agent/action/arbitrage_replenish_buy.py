@@ -112,7 +112,8 @@ def execute_replenish_purchases(context, plan, *, bag_run_id, dry_run=True):
     if type(dry_run) is not bool:
         raise ValueError("dry_run必须为布尔值")
     requests = _requests(plan)
-    report = {"status": "empty", "budget": plan["budget"], "confirmed_spend": 0,
+    report = {"status": "empty", "day": plan["day"], "bag_run_id": bag_run_id,
+              "budget": plan["budget"], "confirmed_spend": 0,
               "remaining_budget": plan["budget"], "purchased": {}, "inventory_after": {}, "results": [],
               "unfilled_uses": [], "shop_observations": [], "pending_requests": deepcopy(requests)}
     if not requests:
