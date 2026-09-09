@@ -6005,5 +6005,56 @@
         "desc": "补买只查当前柜台一页；未找到物品即结束本批，不滑动物品列表。",
         "next": ["Arbitrage_Sell_Item_Exit"],
         "focus": "Arb.补买：当前柜台未找到目标，跳过本批"
+    },
+    "Arbitrage_Replenish_EnsureShop": {
+        "desc": "补买前置：关闭残留子页，已在商店则返回，否则借用原进店导航；Python在局部上下文切断总Hub回边。",
+        "enabled": false,
+        "pre_delay": 0,
+        "post_delay": 0,
+        "timeout": 4000,
+        "next": [
+            "[JumpBack]Arbitrage_Sell_Item_Cancel",
+            "Arbitrage_Replenish_ShopReady",
+            "[JumpBack]Arbitrage_Merchant_Entry",
+            "Arbitrage_Start"
+        ],
+        "on_error": ["Arbitrage_Replenish_ShopFailed"]
+    },
+    "Arbitrage_Replenish_ShopReady": {
+        "desc": "补买进店出口：左侧购买/出售文字及亮色页签同时可见，避免把变暗的子页背景当成列表。",
+        "recognition": "And",
+        "all_of": [
+            "Arbitrage_Merchant_Egress",
+            {
+                "sub_name": "ActiveTab",
+                "recognition": "ColorMatch",
+                "roi": [
+                    118,
+                    94,
+                    36,
+                    138
+                ],
+                "method": 40,
+                "lower": [
+                    0,
+                    0,
+                    188
+                ],
+                "upper": [
+                    30,
+                    2,
+                    255
+                ],
+                "count": 30
+            }
+        ],
+        "pre_delay": 0,
+        "post_delay": 0
+    },
+    "Arbitrage_Replenish_ShopFailed": {
+        "desc": "补买前置未确认商店列表，结束本次调用，由Python停止后续派发。",
+        "pre_delay": 0,
+        "post_delay": 0,
+        "focus": "Arb.补买：未确认进入商店，本轮不派发购买"
     }
 }

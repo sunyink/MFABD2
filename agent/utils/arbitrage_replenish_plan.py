@@ -156,7 +156,7 @@ def build_replenish_plan(entries, quantities, market, data, *, day, budget, sell
         available[name] = value
     result = {"status": "planned", "day": day, "budget": budget, "estimated_spend": 0,
               "budget_remaining": budget, "requests": [], "allocations": [], "skipped": [],
-              "cook_today_candidates": [], "unallocated_inventory": dict(available)}
+              "cook_today_candidates": [], "input_quantities": dict(available), "unallocated_inventory": dict(available)}
     if not isinstance(market, dict) or market.get("day") != day or market.get("complete") is not True:
         result.update(status="unavailable", reason="current_market_incomplete")
         return result

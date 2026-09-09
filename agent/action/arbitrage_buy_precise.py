@@ -61,6 +61,8 @@ class BuyQuantityAdjuster(QuantityAdjuster):
         super().__init__(context, config, {**request, "reserve": 0})
         for key in ("target", "max_unit_price", "budget"):
             _integer(request.get(key), key)
+        if "expected_owned" in request:
+            _integer(request["expected_owned"], "计划时库存")
 
     def state(self, image):
         owned = super().state(image)
@@ -75,8 +77,12 @@ class BuyQuantityAdjuster(QuantityAdjuster):
         owned, available, gold, _ = initial
         if self.request.get("verify_only"):
             return {"status": "observed", "owned": owned, "available": available, "gold": gold}
+        if "expected_owned" in self.request and owned != self.request["expected_owned"]:
+            return {"status": "stale", "owned": owned, "available": available, "gold": gold,
+                    "reason": "实际库存与计划输入不同，未购买"}
         if not self.request["target"] or not self.request["budget"] or not self.request["max_unit_price"]:
-            return {"status": "skipped", "reason": "目标、预算或单价上限为0"}
+            return {"status": "skipped", "reason": "目标、预算或单价上限为0",
+                    "owned": owned, "available": available, "gold": gold}
         self.action("min_node")
         minimum, selected = self.read(full=True)
         if selected != 1 or minimum[:3] != initial[:3]:
@@ -85,7 +91,8 @@ class BuyQuantityAdjuster(QuantityAdjuster):
         target = purchase_limit(self.request["target"], available, unit_price, gold,
                                 self.request["budget"], self.request["max_unit_price"])
         if not target:
-            return {"status": "skipped", "reason": "价格超限、余量不足或预算不足"}
+            return {"status": "skipped", "reason": "价格超限、余量不足或预算不足",
+                    "owned": owned, "available": available, "gold": gold, "unit_price": unit_price}
         # MAX可能还受持有金币限制，实际读上限，不能把背包拥有量用于购买选量。
         self.action("max_node")
         maximum = self.read()
@@ -133,11 +140,13 @@ def buy_overrides(context, request):
     config = dict(context.get_node_object(_QUANTITY).attach)
     config.update(available_node="Agt_BuyQuantity_Available_Ocr", gold_node="Agt_BuyQuantity_Gold_Ocr",
                   cost_node="Agt_BuyQuantity_Cost_Ocr")
+    shop_expected = ("^" + re.escape(_clean(request["shop_name"])) + "$"
+                     if request.get("shop_name") else _cart_expected(request["cartridge"]))
     patch.update({
         "Arbitrage_Sell_HUB": {"anchor": {"Sell_Bypass": ""}},
         "Arbitrage_Sell_Type_Ocr": {"expected": ["购买"], "roi": [66, 80, 140, 78]},
         "Arbitrage_Sell_Type_Clr": {"roi": [118, 94, 36, 59]},
-        "Arbitrage_Sell_PackShopSwich": {"expected": _cart_expected(request["cartridge"])},
+        "Arbitrage_Sell_PackShopSwich": {"expected": shop_expected},
         "Arbitrage_Sell_PackShopSwich_Clr": {"next": [
             "Arbitrage_Sell_Item_ListTraverse", "Arbitrage_PreciseBuy_NotFound"]},
         "Rec_<Arbitrage_Sell_Item_SellMenu>_Ocr_01": {"expected": ["购买"]},
@@ -182,11 +191,15 @@ def run_batch(context, request):
 def execute_buy(context, request):
     if not isinstance(request, dict):
         raise ValueError("补买请求必须为对象")
-    for field in ("item_name", "cartridge"):
-        if not isinstance(request.get(field), str) or not request[field].strip():
-            raise ValueError(f"缺少{field}")
-    if not re.search(r"\d+$", request["cartridge"].strip()):
-        raise ValueError("补买卡带缺少尾号")
+    if not isinstance(request.get("item_name"), str) or not request["item_name"].strip():
+        raise ValueError("缺少item_name")
+    if request.get("shop_name"):
+        if not isinstance(request["shop_name"], str) or not request["shop_name"].strip():
+            raise ValueError("柜台完整名称无效")
+        if request.get("cartridge"):
+            raise ValueError("柜台名与卡带编号不可同时指定")
+    elif not isinstance(request.get("cartridge"), str) or not re.search(r"\d+$", request["cartridge"].strip()):
+        raise ValueError("补买缺少完整柜台名或有效卡带尾号")
     for field in ("target", "max_unit_price", "budget"):
         _integer(request.get(field), field)
     dry_run = request.get("dry_run", True)
@@ -200,7 +213,9 @@ def execute_buy(context, request):
         return {**ready, "status": "prepared" if ready["status"] == "ready" else ready["status"],
                 "actual_quantity": 0, "actual_spent": 0}
     if ready["status"] != "ready" or not attempted:
-        return {**ready, "status": "unknown" if attempted or ready["status"] == "ready" else ready["status"]}
+        unknown = attempted or ready["status"] in ("ready", "unknown")
+        return {**ready, "status": "unknown" if unknown else ready["status"],
+                "actual_quantity": None if unknown else 0, "actual_spent": None if unknown else 0}
     # 再次打开同一物品只读库存；无论结果如何，都不再次提交购买。
     after, _ = run_batch(context, {**request, "verify_only": True, "dry_run": True})
     result = {**ready, "status": "unknown", "actual_quantity": None, "actual_spent": None}
@@ -210,7 +225,8 @@ def execute_buy(context, request):
         if (0 < amount <= ready["selected"] and ready["available"] - after["available"] == amount
                 and spent == amount * ready["unit_price"]):
             result.update(status="confirmed" if amount == request["target"] else "partial",
-                          actual_quantity=amount, actual_spent=spent, remaining_stock=after["available"])
+                          actual_quantity=amount, actual_spent=spent, remaining_stock=after["available"],
+                          owned_after=after["owned"], gold_after=after["gold"])
     return result
 
 
