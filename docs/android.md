@@ -96,6 +96,7 @@ controller 声明，实际运行使用 AndroidNativeController；该版本未按
 - 当前上游只有Stable/Beta更新渠道，Alpha/CI自动发现并不完整。安卓端暂不暴露旧MirrorChyan RID，避免拉取遗留ZIP；Mirror的APK与架构对接需单独验证。
 - 新安装默认使用 GitHub 更新源。此前已经保存 MirrorChyan 选择的测试安装需要在设置中手动切换；不会强行覆盖用户已保存的来源偏好。
 - 单元测试覆盖同日 SHA 逆序、渠道过滤、测试回正式、同标签重建、不完整附件、元数据不匹配及降级拒绝；在 Android CI 中运行 `:app:testReleaseUnitTest` 的 MFABD2 更新测试和更新模块装配测试。真机安装和下载体验仍单独验收。
+- AGP 9 默认只生成 Debug 单元测试，CI 对测试命令显式传入 `-Pandroid.onlyEnableUnitTestForTheTestedBuildType=false` 以生成 Release 测试任务；测试报告作为 `android-update-tests` 附件保存。
 
 ## 当前验收边界
 
