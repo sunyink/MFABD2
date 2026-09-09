@@ -2,11 +2,7 @@
     "Arbitrage_Start": {
         "desc": "总流程启动器。现在设定3个子开关，购买、制作、出售，按次序JB。其中出售部分‘Arbitrage_Buy’多置一个空节点节点引导到单独文件",
         "next": [
-            "[JumpBack]Arbitrage_Cooking_Weekly",
-            "[JumpBack]Arbitrage_Cooking",
-            "[JumpBack]Arbitrage_BagStockScan",
             "Arbitrage_Merchant_Ico",
-            "Arbitrage_Merchant_Menu",
             "Arbitrage_HomePageOldCardMenu_Goin",
             "[JumpBack]Global_ToHomePage"
         ]
@@ -64,9 +60,6 @@
         "anchor": "SandBox_Bypass",
         "post_delay": 1000,
         "next": [
-            "[JumpBack]Arbitrage_Cooking_Weekly",
-            "[JumpBack]Arbitrage_Cooking",
-            "[JumpBack]Arbitrage_BagStockScan",
             "[JumpBack]PVP_PerPetTask",
             "Arbitrage_Merchant_Ico",
             "Arbitrage_Sandplay_SeeMerchant",
@@ -167,7 +160,6 @@
         "post_delay": 5000,
         "focus": "行路中..."
     },
-    "#2商人交互与分支总枢纽": {},
     "Arbitrage_Merchant_Ico": {
         "recognition": "TemplateMatch",
         "roi": [
@@ -180,13 +172,36 @@
             "Merchant_IcoGE.png"
         ],
         "green_mask": true,
+        "next": [
+            "[Anchor]PractiseBargaining_Per",
+            "Arbitrage_Action_Hub"
+        ]
+    },
+    "#2商人交互与分支总枢纽": {},
+    "Arbitrage_Action_Hub": {
+        "next": [
+            "[JumpBack]Arbitrage_SellItem_Preview",
+            "[JumpBack]Arbitrage_BuyItem",
+            "[JumpBack]Arbitrage_Cooking_Weekly",
+            "[JumpBack]Arbitrage_Cooking",
+            "[JumpBack]Arbitrage_BagStockScan",
+            "[JumpBack]Arbitrage_SellItem",
+            "[JumpBack]Arbitrage_Merchant_Close_Ck",
+            "[JumpBack]Global_BackPageHub_Once",
+            "Global_ToSandBox",
+            "Global_ToSandBox_Enter"
+        ]
+    },
+    "Arbitrage_Merchant_Entry": {
+        "recognition": "Or",
+        "any_of": ["Arbitrage_Merchant_Ico"],
         "action": "Click",
         "post_delay": 2000,
         "next": [
             "Arbitrage_Merchant_Dialog",
-            "Arbitrage_Merchant_Ico"
+            "Arbitrage_Merchant_Entry"
         ],
-        "focus": "商店已到位..."
+        "focus": "打开商店..."
     },
     "Arbitrage_Merchant_Dialog": {
         "desc": "右上角天赋药图标,已在对话界面",
@@ -239,7 +254,7 @@
         "action": "Click",
         "post_delay": 500,
         "next": [
-            "Arbitrage_Merchant_Menu",
+            "Arbitrage_Merchant_Egress",
             "Arbitrage_Bargaining_Msgbox_Ck",
             "[JumpBack]Arbitrage_Bargaining_SkipAm"
         ],
@@ -287,7 +302,7 @@
         "count": 40,
         "focus": "天赋神药不足！"
     },
-    "Arbitrage_Merchant_Menu": {
+    "Arbitrage_Merchant_Egress": {
         "recognition": "OCR",
         "roi": [
             110,
@@ -299,24 +314,7 @@
             "购买",
             "出售"
         ],
-        "next": [
-            "[Anchor]PractiseBargaining_Per",
-            "Arbitrage_Action_Hub"
-        ]
-    },
-    "Arbitrage_Action_Hub": {
-        "desc": "商店内动作路由",
-        "timeout": 3000,
-        "next": [
-            "[JumpBack]Arbitrage_SellItem_Preview",
-            "[JumpBack]Arbitrage_BuyItem",
-            "[JumpBack]Arbitrage_Favorit_Buy",
-            "[JumpBack]Arbitrage_SellItem",
-            "[JumpBack]Arbitrage_Merchant_Close_Ck",
-            "[JumpBack]Global_BackPageHub_Once",
-            "Global_ToSandBox",
-            "Global_ToSandBox_Enter"
-        ]
+        "next": ["[Anchor]PractiseBargaining_Per"]
     },
     "Arbitrage_Merchant_Close_Ck": {
         "recognition": "OCR",
@@ -338,6 +336,7 @@
         "enabled": true,
         "max_hit": 1,
         "next": [
+            "[JumpBack]Arbitrage_Merchant_Entry",
             "Arbitrage_Buy_ToSelect",
             "Arbitrage_Buy_SkipSelect"
         ],
@@ -372,7 +371,7 @@
     },
     "Arbitrage_Buy_Select_Str": {
         "recognition": "Or",
-        "any_of": ["Arbitrage_Merchant_Menu"],
+        "any_of": ["Arbitrage_Merchant_Egress"],
         "anchor": "PackSwip_Str",
         "next": [
             "[JumpBack]Arbitrage_Buy_Select_QC1",
@@ -1907,7 +1906,7 @@
     "Arbitrage_Select_Swip": {
         "desc": "商店卡带列表滑动.使用特殊的anchor来实现同层级类JumpBack复用,因为smartswip的跳出是节点链级,Jb会+1级导致失效、循环",
         "recognition": "Or",
-        "any_of": ["Arbitrage_Merchant_Menu"],
+        "any_of": ["Arbitrage_Merchant_Egress"],
         "action": "Custom",
         "custom_action": "SmartAction",
         "custom_action_param": {
@@ -2020,7 +2019,8 @@
         },
         "anchor": {"Arbitrage_Sell_Preview": ""},
         "next": [
-            "Arbitrage_Sell_Type_Ocr"
+            "Arbitrage_Sell_Type_Ocr",
+            "[JumpBack]Arbitrage_Merchant_Entry"
         ],
         "focus": "Arb.M.出售模块启动"
     },
@@ -2030,7 +2030,8 @@
         "max_hit": 1,
         "anchor": {"Arbitrage_Sell_Preview": "Arbitrage_Sell_Preview_All_Prepare"},
         "next": [
-            "Arbitrage_Sell_Type_Ocr"
+            "Arbitrage_Sell_Type_Ocr",
+            "[JumpBack]Arbitrage_Merchant_Entry"
         ],
         "focus": "Arb.M.出售模块启动"
     },
