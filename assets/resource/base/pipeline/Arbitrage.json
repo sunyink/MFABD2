@@ -185,6 +185,7 @@
             "[JumpBack]Arbitrage_Cooking_Weekly",
             "[JumpBack]Arbitrage_Cooking",
             "[JumpBack]Arbitrage_BagStockScan",
+            "[JumpBack]Arbitrage_Cooking_Replenish",
             "[JumpBack]Arbitrage_SellItem",
             "[JumpBack]Arbitrage_Merchant_Close_Ck",
             "[JumpBack]Global_BackPageHub_Once",
@@ -2009,19 +2010,18 @@
     },
     "#4出售侦察与调度": {},
     "Arbitrage_SellItem": {
-        "desc": "商店内出售",
+        "desc": "最终出售：从仓检主页或补做料理页恢复商店，并重置价目表校准计数。",
         "enabled": true,
         "max_hit": 1,
         "action": "Custom",
-        "custom_action": "ClearNodeHitCount",
-        "custom_action_param": {
-            "node_name": "Arbitrage_Sell_PriceList_FirstCalibration"
-        },
+        "custom_action": "ArbitragePrepareFinalSale",
         "anchor": {"Arbitrage_Sell_Preview": ""},
+        "timeout": 4000,
         "next": [
             "Arbitrage_Sell_Type_Ocr",
             "[JumpBack]Arbitrage_Merchant_Entry"
         ],
+        "on_error": ["Arbitrage_Replenish_Stop"],
         "focus": "Arb.M.出售模块启动"
     },
     "Arbitrage_SellItem_Preview": {
@@ -3115,7 +3115,6 @@
         "post_delay": 2000,
         "timeout": 4000,
         "next": [
-            "Arbitrage_Sell_Item_Selling",
             "Arbitrage_Sell_Item_Exit"
         ]
     },
@@ -6056,5 +6055,25 @@
         "pre_delay": 0,
         "post_delay": 0,
         "focus": "Arb.补买：未确认进入商店，本轮不派发购买"
+    },
+    "Arbitrage_Cooking_Replenish": {
+        "desc": "仓检后只执行一轮补买与按需补做；预算null使用当前金币，dry_run只调数不交易。由Python内部调用现有管路，完成退回Hub。",
+        "enabled": true,
+        "max_hit": 1,
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "ArbitrageReplenishController",
+        "custom_action_param": {"budget": null, "dry_run": false},
+        "post_delay": 0,
+        "timeout": 4000,
+        "on_error": ["Arbitrage_Replenish_Stop"],
+        "focus": "Arb.仓检完成，按现有库存安排补买与补做"
+    },
+    "Arbitrage_Replenish_Stop": {
+        "desc": "交易或页面恢复未确认时停止当前套利任务，避免默认退栈后继续出售；不清空其他待执行任务。",
+        "pre_delay": 0,
+        "action": "StopTask",
+        "post_delay": 0,
+        "focus": "Arb.补充阶段或出售准备未确认，本次套利停止"
     }
 }

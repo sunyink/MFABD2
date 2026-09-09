@@ -2,13 +2,15 @@
 
 import json
 import re
+import time
 from uuid import uuid4
 
 from maa.agent.agent_server import AgentServer
 from maa.custom_action import CustomAction
 
-from .arbitrage_sell_quantity import QuantityAdjuster, _clean, _integer, _COUNT
+from .arbitrage_sell_quantity import QuantityAdjuster, parse_quantity, _clean, _integer, _COUNT
 from utils import mfaalog
+from utils.name_i18n import canon
 
 
 _QUANTITY = "Arbitrage_Sell_Item_Quantity"
@@ -71,12 +73,37 @@ class BuyQuantityAdjuster(QuantityAdjuster):
         cost = parse_money(self.texts("cost_node", image), cost=True)
         return owned, available, gold, cost
 
+    def observe(self):
+        """购后只复核实际收据字段；选量、价格或按钮变灰不影响库存差额读取。"""
+        previous = None
+        reason = "购买后库存、店余或金币未稳定"
+        for attempt in range(self.read_attempts):
+            if attempt:
+                time.sleep(self.read_interval)
+            image = self.capture()
+            try:
+                if not self.recognize("menu_node", image).hit:
+                    raise ValueError("购买子页未打开")
+                names = {canon(_clean(text)) for text in self.texts("name_node", image) if text}
+                if names != {self.name}:
+                    raise ValueError(f"购买名称不符: 期望{self.name}，实际{names}")
+                value = (parse_quantity(self.texts("inventory_node", image), inventory=True),
+                         parse_available(self.texts("available_node", image)),
+                         parse_money(self.texts("gold_node", image)))
+                if value == previous:
+                    return {"status": "observed", "owned": value[0], "available": value[1], "gold": value[2]}
+                previous = value
+            except ValueError as exc:
+                reason = str(exc)
+                previous = None
+        raise RuntimeError(reason)
+
     def prepare(self):
         self.check_running()
+        if self.request.get("verify_only"):
+            return self.observe()
         initial, _ = self.read(full=True)
         owned, available, gold, _ = initial
-        if self.request.get("verify_only"):
-            return {"status": "observed", "owned": owned, "available": available, "gold": gold}
         if "expected_owned" in self.request and owned != self.request["expected_owned"]:
             return {"status": "stale", "owned": owned, "available": available, "gold": gold,
                     "reason": "实际库存与计划输入不同，未购买"}

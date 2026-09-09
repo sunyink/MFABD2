@@ -139,6 +139,9 @@ def execute_replenish_purchases(context, plan, *, bag_run_id, dry_run=True):
         if context.tasker.stopping:
             report.update(status="stopped", reason="task_stopping")
             return report
+        if store.market_day() != plan["day"]:
+            report.update(status="stopped", reason="market_day_changed")
+            return report
         try:
             latest = store.get_replenish_inventory(bag_run_id)["quantities"]
             changed = [name for name, value in current.items() if latest.get(name) != value]
@@ -234,5 +237,10 @@ def execute_replenish_purchases(context, plan, *, bag_run_id, dry_run=True):
                 if assigned < use["quantity"]:
                     report["unfilled_uses"].append({"recipe": use["recipe"], "item_name": original["item_name"],
                                                    "quantity": use["quantity"] - assigned})
+        # 跨刷新仍只承认三项差额一致的实际收据；不再按旧日计划派发或触发补做。
+        # 不一致的回读已在上方按未知成交停止并作废，不回退成零成交。
+        if store.market_day() != plan["day"]:
+            report.update(status="stopped", reason="market_day_changed")
+            return report
     report["status"] = "prepared" if dry_run else "completed"
     return report

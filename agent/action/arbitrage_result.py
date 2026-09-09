@@ -445,6 +445,17 @@ class ArbitrageSellController(CustomAction):
         preview_recipe_names = None
         possession_plan = None
         if mode == _MODE_PREVIEW_POSSESS:
+            # 预览入口仍需全量采价，但开局变现与最终出售共用用户的出售开关。
+            try:
+                sell_node = context.get_node_data("Arbitrage_SellItem")
+                if not isinstance(sell_node, dict):
+                    raise ValueError("最终出售节点不可读")
+            except Exception as exc:
+                mfaalog.error(f"[Arbitrage] 无法确认出售开关({exc})，跳过开局变现")
+                return False
+            if not sell_node.get("enabled", True) or sell_node.get("max_hit") == 0:
+                mfaalog.info("[Arbitrage] 出售已关闭，保留全量行情观察，跳过开局变现")
+                return True
             preview_recipe_names = _load_recipe_names()
             try:
                 possession_market = get_market_snapshot()
