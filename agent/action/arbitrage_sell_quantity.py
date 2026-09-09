@@ -152,9 +152,12 @@ class QuantityAdjuster:
         if result is None or not result.success:
             raise RuntimeError(f"数量控件操作失败: {node}")
 
-    def adjust(self, target, maximum):
-        self.action("max_node")
-        current = self.read()
+    def adjust(self, target, maximum, *, max_selected=None):
+        if max_selected is None:
+            self.action("max_node")
+            current = self.read()
+        else:
+            current = max_selected
         if current != maximum:
             raise RuntimeError(f"MAX选量{current}与库存推算上限{maximum}不符")
         if current == target:

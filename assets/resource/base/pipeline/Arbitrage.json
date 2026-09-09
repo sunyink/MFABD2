@@ -5932,5 +5932,78 @@
     },
     "Arbitrage_TargetedSales_Entry": {
         "desc": "精准出售入口"
+    },
+    "Arbitrage_PreciseBuy_Entry": {
+        "desc": "按明确请求复用出售HUB完成单批补买；默认只调数，不购买，未挂入日常流程。",
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "ArbitrageBuyController",
+        "custom_action_param": {
+            "item_name": "",
+            "cartridge": "",
+            "target": 0,
+            "max_unit_price": 0,
+            "budget": 0,
+            "dry_run": true
+        },
+        "post_delay": 0
+    },
+    "Agt_BuyQuantity_Available_Ocr": {
+        "desc": "购买子页的商店剩余可买数量，与背包拥有量分开。",
+        "recognition": "OCR",
+        "roi": [
+            850,
+            459,
+            164,
+            35
+        ]
+    },
+    "Agt_BuyQuantity_Cost_White": {
+        "desc": "购买金额白字过滤，排除灰色划线原价与倍率；来自720p实测。",
+        "recognition": "ColorMatch",
+        "roi": [
+            263,
+            399,
+            376,
+            45
+        ],
+        "method": 40,
+        "lower": [
+            0,
+            0,
+            205
+        ],
+        "upper": [
+            180,
+            45,
+            255
+        ],
+        "count": 1
+    },
+    "Agt_BuyQuantity_Cost_Ocr": {
+        "desc": "当前选量与实际总价白字，MIN后读单价，最终再核总价。",
+        "recognition": "OCR",
+        "roi": [
+            263,
+            399,
+            376,
+            45
+        ],
+        "color_filter": "Agt_BuyQuantity_Cost_White"
+    },
+    "Agt_BuyQuantity_Gold_Ocr": {
+        "desc": "购买页右上金币，位置不同于出售页，不沿用出售金币ROI。",
+        "recognition": "OCR",
+        "roi": [
+            1076,
+            28,
+            121,
+            35
+        ]
+    },
+    "Arbitrage_PreciseBuy_NotFound": {
+        "desc": "补买只查当前柜台一页；未找到物品即结束本批，不滑动物品列表。",
+        "next": ["Arbitrage_Sell_Item_Exit"],
+        "focus": "Arb.补买：当前柜台未找到目标，跳过本批"
     }
 }

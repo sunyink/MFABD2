@@ -12,6 +12,7 @@ from .string_processor import *
 from .gold_verify import *
 from .arbitrage_sell_quantity import *
 from .arbitrage_result import *
+from .arbitrage_buy_precise import *
 from .account_save_checker import *
 from .shop_buy_fav_controller import *
 from .cooking_stock import *
