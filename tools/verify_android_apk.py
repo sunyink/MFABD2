@@ -7,6 +7,29 @@ import zipfile
 from pathlib import Path
 
 
+def verify_options(interface: dict) -> None:
+    """Match the pinned Android UI's explicit option-type requirement.
+
+    MaaFwApp discards options with an omitted/unknown type before resolving
+    references. Merely checking that their names exist in JSON misses this.
+    """
+    options = interface.get("option", {})
+    invalid = [name for name, value in options.items()
+               if value.get("type") not in {"select", "switch", "checkbox", "input"}]
+    if invalid:
+        raise ValueError(f"Android UI cannot parse option types: {invalid}")
+    references = [("global_option", interface.get("global_option", []))]
+    for section in ("task", "resource", "controller"):
+        for item in interface.get(section, []):
+            references.append((f"{section}:{item.get('name')}", item.get("option", [])))
+    for name, option in options.items():
+        for case in option.get("cases", []):
+            references.append((f"option:{name}/{case.get('name')}", case.get("option", [])))
+    missing = [(owner, name) for owner, names in references for name in names if name not in options]
+    if missing:
+        raise ValueError(f"Android option references are missing: {missing}")
+
+
 def verify(path: Path) -> None:
     with zipfile.ZipFile(path) as apk:
         names = set(apk.namelist())
@@ -22,6 +45,7 @@ def verify(path: Path) -> None:
             raise ValueError("Unexpected agent launch descriptor")
         with zipfile.ZipFile(io.BytesIO(apk.read("assets/pi.zip"))) as payload:
             interface = json.loads(payload.read("interface.json"))
+            verify_options(interface)
             if not interface.get("agent"):
                 raise ValueError("PI does not declare its required agent")
             payload.getinfo("agent/main.py")
@@ -40,4 +64,8 @@ def verify(path: Path) -> None:
 
 
 if __name__ == "__main__":
-    verify(Path(sys.argv[1]))
+    if sys.argv[1] == "--interface":
+        verify_options(json.loads(Path(sys.argv[2]).read_text(encoding="utf-8")))
+        print("Android interface option checks passed")
+    else:
+        verify(Path(sys.argv[1]))
