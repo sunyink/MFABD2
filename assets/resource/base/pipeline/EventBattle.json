@@ -68,6 +68,8 @@
         ]
     },
     "Event_Battle_Hub": {
+        "desc": "赛季15战jb1入口。enabled是interface的抓手;有意不加存档闸——本模块的完成态是AP耗尽,而AP会随时间恢复,按日跳过会挡住下午补刷",
+        "enabled": true,
         "max_hit": 1,
         "next": [
             "SeasonEvent_Battle_Start",
@@ -77,6 +79,8 @@
         "focus": "赛季活动-15战模块"
     },
     "Event_Mamono_Hub": {
+        "desc": "赛季魔兽讨伐jb1入口。enabled是interface的抓手;有意不加存档闸——收尾链(Even_MamonoFollowUp_onSubMain)与SeasonEvent_ReMamono_Hub完全共用,打标区分不开是谁做完的",
+        "enabled": true,
         "max_hit": 1,
         "next": [
             "SeasonEvent_Mamono_Start",
@@ -85,8 +89,24 @@
         ]
     },
     "Event_MiniGame_Hub": {
-        "desc": "跑酷小游戏快速刷取.放在最后,会附带回到主页",
+        "desc": "跑酷小游戏快速刷取.放在最后,会附带回到主页。enabled是interface的抓手,判据在Event_MiniGame_Switch。timeout必写——next只剩这一项,闸不命中时不写就会空转到默认20秒才退栈",
+        "enabled": true,
         "max_hit": 1,
+        "timeout": 1,
+        "next": [
+            "Event_MiniGame_Switch"
+        ]
+    },
+    "Event_MiniGame_Switch": {
+        "desc": "战场探索存档闸:本游戏日已刷完则不命中,上级next就此耗尽,退栈换下一个子模块",
+        "recognition": "Custom",
+        "custom_recognition": "CheckCoolDown",
+        "custom_recognition_param": {
+            "card_name": "Event_MiniGame",
+            "cycle_type": "g_daily"
+        },
+        "pre_delay": 0,
+        "post_delay": 0,
         "next": [
             "SeasonEvent_MiniGame_Start",
             "[JumpBack]Global_WaitingForLoading",
@@ -95,7 +115,8 @@
         ]
     },
     "SeasonEvent_ReMamono_Hub": {
-        "desc": "检测回归魔兽,在mini后运行,前者天然地回到了主页面",
+        "desc": "检测回归魔兽,在mini后运行,前者天然地回到了主页面。enabled是interface的抓手;有意不加存档闸——收尾链与Event_Mamono_Hub共用",
+        "enabled": true,
         "max_hit": 1,
         "next": [
             "SeasonEvent_ReMamono_Start",
@@ -1382,9 +1403,24 @@
     "Event_MiniGameBack": {
         "desc": "战场探索-返回",
         "next": [
-            "Global_ToHomePage"
+            "Event_MiniGame_End"
         ],
         "focus": "EM.活动.小游戏模块结束"
+    },
+    "Event_MiniGame_End": {
+        "desc": "战场探索的正常出口,打完标再走公共复位。Event_MiniGame_CLR_Unable那条(按钮灰着)不在这里打标——按钮不可用未必等于今天刷完了,宁可下次重跑",
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "MarkComplete",
+        "custom_action_param": {
+            "card_name": "Event_MiniGame",
+            "cycle_type": "g_daily"
+        },
+        "post_delay": 0,
+        "next": [
+            "Global_ToHomePage"
+        ],
+        "focus": "EM.活动.战场探索完成,已记录"
     },
     "Event_Battle_BattleStatus_Unable": {
         "recognition": "Or",

@@ -1,5 +1,21 @@
 {
     "Equip_HomePage": {
+        "desc": "task入口,判据交给Equip_Daily_Switch。闸不通过时本节点next耗尽,整个task结束。timeout必写——next只剩这一项,不写就会空转到默认20秒才肯退",
+        "timeout": 1,
+        "next": [
+            "Equip_Daily_Switch"
+        ]
+    },
+    "Equip_Daily_Switch": {
+        "desc": "装备日常存档闸:本游戏日已跑完则不命中,整个task直接结束。想强制重跑用选项<装备日常-强制重跑>",
+        "recognition": "Custom",
+        "custom_recognition": "CheckCoolDown",
+        "custom_recognition_param": {
+            "card_name": "Equip_Daily",
+            "cycle_type": "g_daily"
+        },
+        "pre_delay": 0,
+        "post_delay": 0,
         "next": [
             "Equip_Skill_Call",
             "[JumpBack]Global_ToSandBox"
@@ -1082,8 +1098,23 @@
         "all_of": ["Equip_TouchRefining"],
         "post_delay": 3000,
         "next": [
-            "Global_ToHomePage"
+            "Equip_Daily_End"
         ]
+    },
+    "Equip_Daily_End": {
+        "desc": "装备日常唯一的正常出口,打完标再走公共复位。背包满的旁路出口Equip_Backpack_Full_End是异常退出,不在那里打标",
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "MarkComplete",
+        "custom_action_param": {
+            "card_name": "Equip_Daily",
+            "cycle_type": "g_daily"
+        },
+        "post_delay": 0,
+        "next": [
+            "Global_ToHomePage"
+        ],
+        "focus": "EM.装备日常完成,已记录"
     },
     "Equip_Backpack_Full": {
         "desc": "发现背包满了,点击进入背包",
