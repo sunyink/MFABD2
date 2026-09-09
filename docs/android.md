@@ -10,6 +10,8 @@
 默认只上传 Actions 产物。手动传入已有 Release tag 作为 `version_name` 并开启 `publish`，
 才会将 APK、SHA256 文件和构建元数据附加到该 Release；不会创建 Release 或覆盖同名附件。
 主发布流程创建 Release 后调用这一入口，沿用同一个版本标签。旧安卓 ZIP 构建与镜像上传入口已停用。
+发布构建按目标版本单独分组，不被开发分支的新推送取消；同一版本已有发布构建运行时，后续请求等待。
+普通开发构建仍只保留同分支的最新运行。GitHub 默认每组只保留一个等待请求，不保证重复派发的请求全部执行。
 
 - MaaFwApp 固定 commit `f4f6f220e21e3a1b7b0cf5df4bdbe0ec04c668f7`。
 - MaaFramework 原生库与 Python binding 均为 5.12.3。

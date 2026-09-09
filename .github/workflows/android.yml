@@ -28,8 +28,9 @@ permissions:
   contents: read
 
 concurrency:
-  group: android-arm64-${{ github.ref }}
-  cancel-in-progress: true
+  # Release builds are isolated from branch pushes and from other release tags.
+  group: android-arm64-${{ inputs.publish && format('release-{0}', inputs.version_name) || format('build-{0}', github.ref) }}
+  cancel-in-progress: ${{ !inputs.publish }}
 
 env:
   MAAFW_TAG: v5.12.3
