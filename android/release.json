@@ -1,0 +1,7 @@
+{
+    "application_id": "io.github.sunyink.mfabd2",
+    "label": "MFABD2",
+    "key_alias": "mfabd2",
+    "certificate_sha256": "f185103dbb68aa4b41da5850d3d9cd97bcbc0bbf1337ae9e4765d4614f897b0e",
+    "version_code_offset": 0
+}

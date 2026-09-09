@@ -2,6 +2,8 @@
 
 import io
 import json
+import argparse
+import re
 import sys
 import zipfile
 from pathlib import Path
@@ -30,7 +32,20 @@ def verify_options(interface: dict) -> None:
         raise ValueError(f"Android option references are missing: {missing}")
 
 
-def verify(path: Path) -> None:
+def verify_identity(metadata: dict, badging: str, signature: str) -> None:
+    package = re.search(r"^package: name='([^']+)' versionCode='([^']+)' versionName='([^']+)'", badging, re.M)
+    if not package or package.groups() != (
+        metadata["application_id"], str(metadata["version_code"]), metadata["version_name"],
+    ):
+        raise ValueError("APK package/version does not match build metadata")
+    if "application-debuggable" in badging:
+        raise ValueError("Release APK must not be debuggable")
+    certificates = [value.lower() for value in re.findall(r"certificate SHA-256 digest: ([0-9a-fA-F]+)", signature)]
+    if certificates != [metadata["certificate_sha256"]]:
+        raise ValueError("APK signer does not match the pinned certificate")
+
+
+def verify(path: Path, metadata: dict | None = None) -> None:
     with zipfile.ZipFile(path) as apk:
         names = set(apk.namelist())
         for name in ("lib/arm64-v8a/libMaaFramework.so", "lib/arm64-v8a/libMaaAgentServer.so"):
@@ -55,6 +70,11 @@ def verify(path: Path) -> None:
                 for resource in resources
             ):
                 raise ValueError("Android payload contains incompatible resource choices")
+            if any(resource.get("path", [])[-1:] != ["./resource/android_native"] for resource in resources):
+                raise ValueError("Android native overlay is not the last resource layer")
+            payload.getinfo("resource/android_native/pipeline/StartGame.json")
+            if metadata and interface.get("version") != metadata["version_name"]:
+                raise ValueError("Resource and APK display versions differ")
             if not interface.get("agent"):
                 raise ValueError("PI does not declare its required agent")
             payload.getinfo("agent/main.py")
@@ -77,4 +97,15 @@ if __name__ == "__main__":
         verify_options(json.loads(Path(sys.argv[2]).read_text(encoding="utf-8")))
         print("Android interface option checks passed")
     else:
-        verify(Path(sys.argv[1]))
+        parser = argparse.ArgumentParser()
+        parser.add_argument("apk", type=Path)
+        parser.add_argument("--metadata", type=Path)
+        parser.add_argument("--badging", type=Path)
+        parser.add_argument("--signature", type=Path)
+        args = parser.parse_args()
+        metadata = json.loads(args.metadata.read_text(encoding="utf-8")) if args.metadata else None
+        if metadata:
+            if not args.badging or not args.signature:
+                parser.error("metadata requires aapt2 badging and apksigner output")
+            verify_identity(metadata, args.badging.read_text(), args.signature.read_text())
+        verify(args.apk, metadata)

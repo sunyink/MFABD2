@@ -57,6 +57,22 @@ def prepare_interface_for_target(interface, target_os):
     if not resources:
         raise ValueError("Android target has no resource compatible with the Adb controller")
     result["resource"] = resources
+    # Android runs base plus a minimal native-controller overlay, in that order.
+    native_layer = "./resource/android_native"
+    for resource in resources:
+        paths = resource.setdefault("path", [])
+        if native_layer not in paths:
+            paths.append(native_layer)
+        if resource.get("name") == "ADB":
+            resource["label"] = "安卓原生机"
+    # Keep the normal task entries, but omit tasks for other controllers.
+    tasks = result.get("task", [])
+    result["task"] = [task for task in tasks if not task.get("controller") or adb_name in task["controller"]]
+    task_names = {task["name"] for task in result["task"]}
+    for preset in result.get("preset", []):
+        preset["task"] = [task for task in preset.get("task", []) if task.get("name") in task_names]
+    # The existing MirrorChyan Android entry contains the legacy ZIP, not an APK.
+    result.pop("mirrorchyan_rid", None)
     return result
 
 # def install_deps():

@@ -24,6 +24,17 @@ class AndroidInterfaceFilterTest(unittest.TestCase):
         filtered = INSTALL.prepare_interface_for_target(self.interface, "android-arm64")
         self.assertEqual([item["name"] for item in filtered["controller"]], ["Adb"])
         self.assertEqual([item["name"] for item in filtered["resource"]], ["ADB"])
+        self.assertEqual(filtered["resource"][0]["path"], ["./resource/base", "./resource/android_native"])
+        self.assertNotIn("mirrorchyan_rid", filtered)
+        self.assertEqual(filtered["task"], self.interface["task"])
+
+    def test_task_and_preset_references_follow_controller_filter(self):
+        source = deepcopy(self.interface)
+        source["task"].append({"name": "pc-only", "controller": ["PC客户端"]})
+        source["preset"][0]["task"].append({"name": "pc-only"})
+        filtered = INSTALL.prepare_interface_for_target(source, "android")
+        self.assertNotIn("pc-only", [task["name"] for task in filtered["task"]])
+        self.assertNotIn("pc-only", [task["name"] for task in filtered["preset"][0]["task"]])
 
     def test_desktop_targets_are_unfiltered(self):
         filtered = INSTALL.prepare_interface_for_target(self.interface, "win-x64")

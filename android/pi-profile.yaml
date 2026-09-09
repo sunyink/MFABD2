@@ -29,5 +29,6 @@ agent:
         LD_LIBRARY_PATH: "{bundle}/prefix/lib:{bundle}/site-packages/chaquopy/lib:{nativeLibs}"
         MAAFW_BINARY_PATH: "{nativeLibs}"
 app:
-  id: mfabd2.experimental
-  label: MFABD2 安卓实验版
+  id: mfabd2
+  label: "${MFABD2_APP_LABEL:-MFABD2}"
+  icon: ../ReadMe/logo.png
