@@ -1,8 +1,10 @@
 """背包补齐本轮料理未留下有效读数的食材；找图后以详情名称和数量为准。"""
 
 from pathlib import PurePosixPath
+from collections import OrderedDict
 import json
 import time
+from uuid import uuid4
 
 from maa.agent.agent_server import AgentServer
 from maa.context import Context
@@ -24,6 +26,13 @@ _REASON_TEXT = {
     "detail_unreadable": "图标命中，但详情未核实",
     "page_limit": "达到翻页上限，仍未确认",
 }
+
+_BAG_RUNS = OrderedDict()
+
+
+def get_bag_scan_run(task_id):
+    """当前进程本任务最后一次仓检的编号；无本次扫描时不能消费旧存档汇总。"""
+    return _BAG_RUNS.get(task_id)
 
 
 def bag_catalog(context, config) -> dict[str, str]:
@@ -149,11 +158,17 @@ class BagScanner:
 @AgentServer.custom_action("BagStockScan")
 class BagStockScan(CustomAction):
     def run(self, context: Context, argv: CustomAction.RunArg) -> bool:
+        task_id = argv.task_detail.task_id
+        _BAG_RUNS.pop(task_id, None)
         if not sync_from_context(context, where="BagStockScan"):
             return False
+        run_id = uuid4().hex
+        _BAG_RUNS[task_id] = run_id
+        while len(_BAG_RUNS) > 16:
+            _BAG_RUNS.popitem(last=False)
         record = {"observed_at": utc_now(), "complete": False, "read_item_names": [],
                   "absent_item_names": [], "unknown_item_names": [], "reused_item_names": [],
-                  "errors": {}, "pages_scanned": 0}
+                  "errors": {}, "pages_scanned": 0, "task_id": task_id, "run_id": run_id}
         scanner = None
         try:
             raw = argv.custom_action_param

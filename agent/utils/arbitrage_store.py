@@ -296,6 +296,30 @@ def get_inventory_items() -> dict:
         return copy.deepcopy(_inventory(PersistentStore.load())["items"])
 
 
+def get_replenish_inventory(bag_run_id: str) -> dict:
+    """只接受当前仓检尝试的汇总，按项取已确认量；旧存档与未知量不补成0。"""
+    if not isinstance(bag_run_id, str) or not bag_run_id:
+        raise ValueError("缺少当前仓检运行编号")
+    with _LOCK:
+        inventory = _inventory(PersistentStore.load())
+        bag = inventory.get("latest", {}).get("bag", {})
+        if not isinstance(bag, dict) or bag.get("run_id") != bag_run_id:
+            raise ValueError("未取得当前仓检汇总")
+        observed = set()
+        for field in ("read_item_names", "absent_item_names", "reused_item_names"):
+            observed.update(bag.get(field, []))
+        unknown = set(bag.get("unknown_item_names", []))
+        quantities = {}
+        for name in sorted(observed - unknown):
+            fact = inventory["items"].get(name, {})
+            value = fact.get("quantity")
+            if fact.get("quantity_status") == "known" and type(value) is int and value >= 0:
+                quantities[name] = value
+            else:
+                unknown.add(name)
+        return {"bag": copy.deepcopy(bag), "quantities": quantities, "unknown": sorted(unknown)}
+
+
 def save_bag_stock_summary(record: dict) -> bool:
     """背包补查只保存覆盖情况；逐项数量通过统一 inventory_set 入口即时落盘。"""
     with _LOCK:

@@ -1,0 +1,2003 @@
+{
+    "schema_version": 1,
+    "catalog_date": "2026-09-06",
+    "shop_reference_date": "2026-09-04",
+    "tonic_unit_price": 45,
+    "recipes": {
+        "地狱火紫菜包饭": {
+            "level": 5,
+            "ingredients": {
+                "米": 3,
+                "辣椒": 3,
+                "调味海苔": 2,
+                "辣椒素": 2,
+                "地狱火辣酱": 2
+            },
+            "peak_reference": 7868
+        },
+        "透明沙拉": {
+            "level": 5,
+            "ingredients": {
+                "豆子": 3,
+                "洋葱": 2,
+                "甜椒": 3,
+                "橄榄油": 2,
+                "透明蘑菇": 2
+            },
+            "peak_reference": 7724
+        },
+        "闪闪铁板虾": {
+            "level": 5,
+            "ingredients": {
+                "虾": 3,
+                "蘑菇": 3,
+                "番茄": 2,
+                "橄榄油": 2,
+                "闪光粉末": 2
+            },
+            "peak_reference": 7753
+        },
+        "卢戈山参烤串": {
+            "level": 5,
+            "ingredients": {
+                "兽肉": 4,
+                "蘑菇": 3,
+                "甜椒": 3,
+                "甜辣酱": 1,
+                "卢戈山参": 2
+            },
+            "peak_reference": 7533
+        },
+        "煤炭饼干": {
+            "level": 5,
+            "ingredients": {
+                "黄油": 3,
+                "白糖": 2,
+                "小麦": 3,
+                "鸡蛋": 2,
+                "生命木炭": 2
+            },
+            "peak_reference": 7456
+        },
+        "香草牛排": {
+            "level": 5,
+            "ingredients": {
+                "兽肉": 25,
+                "香草": 20,
+                "盐": 20,
+                "黄油": 20,
+                "胡椒": 1
+            },
+            "peak_reference": 4032
+        },
+        "橄榄油意面": {
+            "level": 5,
+            "ingredients": {
+                "小麦": 25,
+                "橄榄油": 15,
+                "虾": 15,
+                "大蒜": 10,
+                "胡椒": 1
+            },
+            "peak_reference": 4416
+        },
+        "洛克菲勒生蚝": {
+            "level": 5,
+            "ingredients": {
+                "生蚝": 8,
+                "大蒜": 5,
+                "香草": 20,
+                "橄榄油": 10,
+                "胡椒": 1
+            },
+            "peak_reference": 4152
+        },
+        "三明治便当": {
+            "level": 5,
+            "ingredients": {
+                "吐司": 20,
+                "鸡蛋": 40,
+                "番茄": 20,
+                "蛋黄酱": 15,
+                "胡椒": 1
+            },
+            "peak_reference": 4656
+        },
+        "街头烤鸡肉串": {
+            "level": 5,
+            "ingredients": {
+                "袋装鸡胸肉": 20,
+                "洋葱": 20,
+                "甜椒": 15,
+                "蘑菇": 15,
+                "胡椒": 1
+            },
+            "peak_reference": 2640
+        },
+        "冰镇甜点": {
+            "level": 5,
+            "ingredients": {
+                "樱桃": 5,
+                "巧克力": 30,
+                "白糖": 30,
+                "肉桂": 1
+            },
+            "peak_reference": 2292
+        },
+        "泰瑞丝派": {
+            "level": 5,
+            "ingredients": {
+                "小麦": 35,
+                "黄油": 20,
+                "白糖": 20,
+                "牛奶": 20,
+                "肉桂": 1
+            },
+            "peak_reference": 2484
+        },
+        "汉堡排便当": {
+            "level": 5,
+            "ingredients": {
+                "兽肉": 20,
+                "洋葱": 20,
+                "米": 15,
+                "胡萝卜": 10,
+                "胡椒": 1
+            },
+            "peak_reference": 1908
+        },
+        "香甜马卡龙": {
+            "level": 5,
+            "ingredients": {
+                "鸡蛋": 25,
+                "白糖": 25,
+                "黄油": 15,
+                "牛奶": 15,
+                "肉桂": 1
+            },
+            "peak_reference": 2328
+        },
+        "手工蛋糕": {
+            "level": 5,
+            "ingredients": {
+                "小麦": 25,
+                "鸡蛋": 20,
+                "白糖": 20,
+                "黄油": 15,
+                "肉桂": 1
+            },
+            "peak_reference": 2064
+        },
+        "炸猪排盖饭": {
+            "level": 5,
+            "ingredients": {
+                "兽肉": 30,
+                "洋葱": 20,
+                "鸡蛋": 15,
+                "米": 15,
+                "胡椒": 1
+            },
+            "peak_reference": 1872
+        },
+        "蜂蜜黄油杏仁": {
+            "level": 3,
+            "ingredients": {
+                "杏仁": 2,
+                "蜂蜜": 2,
+                "黄油": 2
+            },
+            "peak_reference": 912
+        },
+        "火烤鱼板棒": {
+            "level": 3,
+            "ingredients": {
+                "辣椒": 2,
+                "雷瓦汀火腿": 2,
+                "辣椒素": 2
+            },
+            "peak_reference": 729
+        },
+        "鱼子酱蛋包饭": {
+            "level": 3,
+            "ingredients": {
+                "鱼子酱罐头": 2,
+                "鸡蛋": 2,
+                "黄油": 2
+            },
+            "peak_reference": 494
+        },
+        "烤蜂蜜苹果": {
+            "level": 1,
+            "ingredients": {
+                "苹果": 1,
+                "蜂蜜": 1
+            },
+            "peak_reference": 258
+        },
+        "甜辣鲜虾": {
+            "level": 4,
+            "ingredients": {
+                "虾": 3,
+                "小麦": 1,
+                "料酒": 2,
+                "甜辣酱": 2
+            },
+            "peak_reference": 786
+        },
+        "三角美乃滋饭团": {
+            "level": 3,
+            "ingredients": {
+                "米": 4,
+                "调味海苔": 2,
+                "蛋黄酱": 2
+            },
+            "peak_reference": 580
+        },
+        "三文鱼芥末寿司": {
+            "level": 4,
+            "ingredients": {
+                "三文鱼": 3,
+                "芥末": 2,
+                "米": 2,
+                "萝卜缨": 2
+            },
+            "peak_reference": 656
+        },
+        "巧克力鸡尾酒": {
+            "level": 2,
+            "ingredients": {
+                "巧克力": 3,
+                "永恒之爱": 2
+            },
+            "peak_reference": 330
+        },
+        "炸三文鱼便当": {
+            "level": 2,
+            "ingredients": {
+                "三文鱼": 2,
+                "橄榄油": 1,
+                "米": 1
+            },
+            "peak_reference": 241
+        },
+        "鸡肉卷": {
+            "level": 4,
+            "ingredients": {
+                "袋装鸡胸肉": 2,
+                "甜椒": 2,
+                "蛋黄酱": 2,
+                "小麦": 2
+            },
+            "peak_reference": 427
+        },
+        "草药三明治": {
+            "level": 4,
+            "ingredients": {
+                "番茄": 2,
+                "香草": 2,
+                "小麦": 2,
+                "甜辣酱": 2
+            },
+            "peak_reference": 441
+        },
+        "水果冰沙": {
+            "level": 1,
+            "ingredients": {
+                "水果罐头": 1,
+                "白糖": 1
+            },
+            "peak_reference": 151
+        },
+        "哈密瓜雪酪": {
+            "level": 2,
+            "ingredients": {
+                "哈密瓜": 3,
+                "白糖": 2
+            },
+            "peak_reference": 171
+        },
+        "巧克力面包": {
+            "level": 1,
+            "ingredients": {
+                "巧克力": 1,
+                "吐司": 1
+            },
+            "peak_reference": 70
+        },
+        "土豆汤": {
+            "level": 1,
+            "ingredients": {
+                "土豆": 1,
+                "牛奶": 1
+            },
+            "peak_reference": 51
+        },
+        "桑格利亚酒": {
+            "level": 2,
+            "ingredients": {
+                "葡萄": 3,
+                "白糖": 2
+            },
+            "peak_reference": 164
+        },
+        "玉米奶酪": {
+            "level": 3,
+            "ingredients": {
+                "玉米": 2,
+                "奶酪": 1,
+                "料酒": 1
+            },
+            "peak_reference": 302
+        },
+        "炒蘑菇": {
+            "level": 1,
+            "ingredients": {
+                "蘑菇": 1,
+                "胡萝卜": 1
+            },
+            "peak_reference": 50
+        },
+        "蘑菇汤": {
+            "level": 1,
+            "ingredients": {
+                "蘑菇": 1,
+                "小麦": 1
+            },
+            "peak_reference": 33
+        },
+        "藏红花甜茶": {
+            "level": 4,
+            "ingredients": {
+                "苹果": 2,
+                "葡萄": 2,
+                "哈密瓜": 2,
+                "藏红花": 2
+            },
+            "peak_reference": 376
+        },
+        "蔬菜三明治": {
+            "level": 3,
+            "ingredients": {
+                "番茄": 2,
+                "吐司": 2
+            },
+            "peak_reference": 228
+        },
+        "炒土豆": {
+            "level": 4,
+            "ingredients": {
+                "土豆": 2,
+                "洋葱": 1,
+                "胡萝卜": 2,
+                "橄榄油": 2
+            },
+            "peak_reference": 331
+        },
+        "甜椒意式烘蛋": {
+            "level": 3,
+            "ingredients": {
+                "洋葱": 2,
+                "甜椒": 2,
+                "鸡蛋": 1
+            },
+            "peak_reference": 201
+        },
+        "喵拿铁": {
+            "level": 3,
+            "ingredients": {
+                "咖啡豆": 3,
+                "牛奶": 2
+            },
+            "peak_reference": 218
+        },
+        "达雷普黑啤酒": {
+            "level": 2,
+            "ingredients": {
+                "大麦": 2,
+                "啤酒花": 2
+            },
+            "peak_reference": 98
+        },
+        "金枪鱼鸡胸肉三明治": {
+            "level": 3,
+            "ingredients": {
+                "金枪鱼罐头": 2,
+                "袋装鸡胸肉": 2,
+                "吐司": 2
+            },
+            "peak_reference": 177
+        },
+        "豆奶酱意大利面": {
+            "level": 3,
+            "ingredients": {
+                "豆子": 2,
+                "小麦": 1,
+                "橄榄油": 1
+            },
+            "peak_reference": 177
+        },
+        "烤菇串": {
+            "level": 2,
+            "ingredients": {
+                "蘑菇": 2,
+                "兽肉": 2
+            },
+            "peak_reference": 55
+        },
+        "酱炒牛排": {
+            "level": 3,
+            "ingredients": {
+                "兽肉": 4,
+                "西蓝花": 2,
+                "盐": 2
+            },
+            "peak_reference": 148
+        },
+        "流浪美食家烤肉": {
+            "level": 4,
+            "ingredients": {
+                "兽肉": 4,
+                "香草": 2,
+                "土豆": 2,
+                "黄油": 2
+            },
+            "peak_reference": 259
+        },
+        "黑啤酒炖锅": {
+            "level": 3,
+            "ingredients": {
+                "大麦": 2,
+                "啤酒花": 2,
+                "兽肉": 2
+            },
+            "peak_reference": 110
+        },
+        "凯洛养身汤": {
+            "level": 4,
+            "ingredients": {
+                "袋装鸡胸肉": 2,
+                "蘑菇": 2,
+                "盐": 2,
+                "凯洛药材": 2
+            },
+            "peak_reference": 307
+        },
+        "蘑菇烤肉火锅": {
+            "level": 3,
+            "ingredients": {
+                "蘑菇": 2,
+                "兽肉": 4,
+                "胡萝卜": 2
+            },
+            "peak_reference": 124
+        },
+        "三分熟鲜血布丁": {
+            "level": 4,
+            "ingredients": {
+                "兽肉": 4,
+                "奶酪": 3,
+                "小麦": 4,
+                "鸡蛋": 3
+            },
+            "peak_reference": 216
+        }
+    },
+    "materials": {
+        "料酒": {
+            "peak_reference": 120
+        },
+        "芥末": {
+            "peak_reference": 108
+        },
+        "水果罐头": {
+            "peak_reference": 108
+        },
+        "辣椒素": {
+            "peak_reference": 93
+        },
+        "蛋黄酱": {
+            "peak_reference": 90
+        },
+        "橄榄油": {
+            "peak_reference": 60
+        },
+        "调味海苔": {
+            "peak_reference": 66
+        },
+        "杏仁": {
+            "peak_reference": 78
+        },
+        "香草": {
+            "peak_reference": 33
+        },
+        "三文鱼": {
+            "peak_reference": 36
+        },
+        "番茄": {
+            "peak_reference": 30
+        },
+        "咖啡豆": {
+            "peak_reference": 30
+        },
+        "甜辣酱": {
+            "peak_reference": 66
+        },
+        "藏红花": {
+            "peak_reference": 42
+        },
+        "苹果": {
+            "peak_reference": 24
+        },
+        "辣椒": {
+            "peak_reference": 24
+        },
+        "胡萝卜": {
+            "peak_reference": 18
+        },
+        "洋葱": {
+            "peak_reference": 24
+        },
+        "甜椒": {
+            "peak_reference": 24
+        },
+        "奶酪": {
+            "peak_reference": 18
+        },
+        "萝卜缨": {
+            "peak_reference": 30
+        },
+        "鸡蛋": {
+            "peak_reference": 12
+        },
+        "黄油": {
+            "peak_reference": 30
+        },
+        "吐司": {
+            "peak_reference": 36
+        },
+        "小麦": {
+            "peak_reference": 7
+        },
+        "玉米": {
+            "peak_reference": 26
+        },
+        "豆子": {
+            "peak_reference": 20
+        },
+        "米": {
+            "peak_reference": 7
+        },
+        "葡萄": {
+            "peak_reference": 24
+        },
+        "白糖": {
+            "peak_reference": 12
+        },
+        "巧克力": {
+            "peak_reference": 6
+        },
+        "蘑菇": {
+            "peak_reference": 12
+        },
+        "牛奶": {
+            "peak_reference": 18
+        },
+        "袋装鸡胸肉": {
+            "peak_reference": 6
+        },
+        "盐": {
+            "peak_reference": 6
+        },
+        "哈密瓜": {
+            "peak_reference": 24
+        },
+        "大麦": {
+            "peak_reference": 13
+        },
+        "啤酒花": {
+            "peak_reference": 13
+        },
+        "金枪鱼罐头": {
+            "peak_reference": 6
+        },
+        "土豆": {
+            "peak_reference": 6
+        },
+        "生蚝": {
+            "peak_reference": 90
+        },
+        "樱桃": {
+            "peak_reference": 108
+        },
+        "胡椒": {
+            "peak_reference": 36
+        },
+        "肉桂": {
+            "peak_reference": 36
+        },
+        "西蓝花": {
+            "peak_reference": 30
+        },
+        "鱼子酱罐头": {
+            "peak_reference": 72
+        },
+        "大蒜": {
+            "peak_reference": 54
+        },
+        "凯洛药材": {
+            "peak_reference": 84
+        },
+        "虾": {
+            "peak_reference": 39
+        },
+        "姜黄": {
+            "peak_reference": 96
+        },
+        "蜂蜜": {
+            "peak_reference": 60
+        },
+        "雷瓦汀火腿": {
+            "peak_reference": 78
+        },
+        "松露油": {
+            "peak_reference": 90
+        },
+        "兽肉": {
+            "peak_reference": 6
+        },
+        "永恒之爱": {
+            "peak_reference": 102
+        },
+        "卢戈山参": {
+            "peak_reference": 2250
+        },
+        "生命木炭": {
+            "peak_reference": 2250
+        },
+        "闪光粉末": {
+            "peak_reference": 2250
+        },
+        "透明蘑菇": {
+            "peak_reference": 2250
+        },
+        "穿山甲鳞片": {
+            "peak_reference": 2250
+        },
+        "能量蘑菇": {
+            "peak_reference": 2250
+        },
+        "秃鹫羽毛": {
+            "peak_reference": 2250
+        },
+        "魅惑粉末": {
+            "peak_reference": 2250
+        },
+        "黄金罗勒": {
+            "peak_reference": 2250
+        },
+        "能量药水": {
+            "peak_reference": 2250
+        },
+        "灵魂鲜奶油": {
+            "peak_reference": 2250
+        },
+        "维生素B浓缩液": {
+            "peak_reference": 2250
+        },
+        "能量粉末": {
+            "peak_reference": 2250
+        },
+        "地狱火辣酱": {
+            "peak_reference": 2250
+        }
+    },
+    "shops": {
+        "血骑士": {
+            "reference_id": "S1",
+            "items": {
+                "蘑菇": {
+                    "price_reference": 27,
+                    "daily_limit_reference": 400
+                },
+                "胡萝卜": {
+                    "price_reference": 36,
+                    "daily_limit_reference": 400
+                },
+                "小麦": {
+                    "price_reference": 15,
+                    "daily_limit_reference": 400
+                },
+                "米": {
+                    "price_reference": 17,
+                    "daily_limit_reference": 400
+                },
+                "甜辣酱": {
+                    "price_reference": 135,
+                    "daily_limit_reference": 100
+                },
+                "甜椒": {
+                    "price_reference": 114,
+                    "daily_limit_reference": 100
+                },
+                "樱桃": {
+                    "price_reference": 300,
+                    "daily_limit_reference": 100
+                }
+            }
+        },
+        "苍蓝魔女": {
+            "reference_id": "S2",
+            "items": {
+                "土豆": {
+                    "price_reference": 23,
+                    "daily_limit_reference": 400
+                },
+                "大麦": {
+                    "price_reference": 30,
+                    "daily_limit_reference": 400
+                },
+                "黄油": {
+                    "price_reference": 60,
+                    "daily_limit_reference": 400
+                },
+                "啤酒花": {
+                    "price_reference": 32,
+                    "daily_limit_reference": 400
+                },
+                "牛奶": {
+                    "price_reference": 42,
+                    "daily_limit_reference": 400
+                },
+                "白糖": {
+                    "price_reference": 24,
+                    "daily_limit_reference": 400
+                },
+                "小麦": {
+                    "price_reference": 15,
+                    "daily_limit_reference": 400
+                },
+                "鸡蛋": {
+                    "price_reference": 24,
+                    "daily_limit_reference": 400
+                }
+            }
+        },
+        "迷雾神射手": {
+            "reference_id": "S3",
+            "items": {
+                "苹果": {
+                    "price_reference": 53,
+                    "daily_limit_reference": 400
+                },
+                "葡萄": {
+                    "price_reference": 53,
+                    "daily_limit_reference": 400
+                },
+                "虾": {
+                    "price_reference": 165,
+                    "daily_limit_reference": 100
+                },
+                "蜂蜜": {
+                    "price_reference": 360,
+                    "daily_limit_reference": 100
+                },
+                "白糖": {
+                    "price_reference": 24,
+                    "daily_limit_reference": 400
+                },
+                "香草": {
+                    "price_reference": 129,
+                    "daily_limit_reference": 100
+                },
+                "蘑菇": {
+                    "price_reference": 54,
+                    "daily_limit_reference": 400
+                },
+                "土豆": {
+                    "price_reference": 45,
+                    "daily_limit_reference": 400
+                },
+                "番茄": {
+                    "price_reference": 123,
+                    "daily_limit_reference": 100
+                },
+                "黄油": {
+                    "price_reference": 60,
+                    "daily_limit_reference": 400
+                },
+                "橄榄油": {
+                    "price_reference": 240,
+                    "daily_limit_reference": 100
+                }
+            }
+        },
+        "眼镜与猫": {
+            "reference_id": "S4",
+            "items": {
+                "咖啡豆": {
+                    "price_reference": 63,
+                    "daily_limit_reference": 400
+                },
+                "三文鱼": {
+                    "price_reference": 83,
+                    "daily_limit_reference": 100
+                },
+                "番茄": {
+                    "price_reference": 123,
+                    "daily_limit_reference": 100
+                },
+                "豆子": {
+                    "price_reference": 87,
+                    "daily_limit_reference": 100
+                },
+                "牛奶": {
+                    "price_reference": 42,
+                    "daily_limit_reference": 400
+                },
+                "橄榄油": {
+                    "price_reference": 240,
+                    "daily_limit_reference": 100
+                },
+                "香草": {
+                    "price_reference": 65,
+                    "daily_limit_reference": 400
+                },
+                "洋葱": {
+                    "price_reference": 114,
+                    "daily_limit_reference": 100
+                },
+                "米": {
+                    "price_reference": 17,
+                    "daily_limit_reference": 400
+                },
+                "小麦": {
+                    "price_reference": 15,
+                    "daily_limit_reference": 400
+                },
+                "甜椒": {
+                    "price_reference": 114,
+                    "daily_limit_reference": 100
+                },
+                "甜辣酱": {
+                    "price_reference": 270,
+                    "daily_limit_reference": 100
+                },
+                "凯洛药材": {
+                    "price_reference": 264,
+                    "daily_limit_reference": 100
+                }
+            }
+        },
+        "沙漠之花": {
+            "reference_id": "S5",
+            "items": {
+                "哈密瓜": {
+                    "price_reference": 56,
+                    "daily_limit_reference": 400
+                },
+                "苹果": {
+                    "price_reference": 105,
+                    "daily_limit_reference": 100
+                },
+                "白糖": {
+                    "price_reference": 24,
+                    "daily_limit_reference": 400
+                },
+                "葡萄": {
+                    "price_reference": 105,
+                    "daily_limit_reference": 100
+                },
+                "香草": {
+                    "price_reference": 129,
+                    "daily_limit_reference": 100
+                },
+                "盐": {
+                    "price_reference": 18,
+                    "daily_limit_reference": 400
+                },
+                "藏红花": {
+                    "price_reference": 75,
+                    "daily_limit_reference": 100
+                },
+                "姜黄": {
+                    "price_reference": 336,
+                    "daily_limit_reference": 100
+                }
+            }
+        },
+        "异教塔": {
+            "reference_id": "S6",
+            "items": {
+                "洋葱": {
+                    "price_reference": 57,
+                    "daily_limit_reference": 400
+                },
+                "米": {
+                    "price_reference": 17,
+                    "daily_limit_reference": 400
+                },
+                "甜椒": {
+                    "price_reference": 57,
+                    "daily_limit_reference": 400
+                },
+                "奶酪": {
+                    "price_reference": 36,
+                    "daily_limit_reference": 400
+                },
+                "香草": {
+                    "price_reference": 129,
+                    "daily_limit_reference": 100
+                },
+                "鸡蛋": {
+                    "price_reference": 24,
+                    "daily_limit_reference": 400
+                },
+                "小麦": {
+                    "price_reference": 15,
+                    "daily_limit_reference": 400
+                },
+                "橄榄油": {
+                    "price_reference": 240,
+                    "daily_limit_reference": 100
+                },
+                "藏红花": {
+                    "price_reference": 150,
+                    "daily_limit_reference": 100
+                }
+            }
+        },
+        "愤怒天使": {
+            "reference_id": "S7",
+            "items": {
+                "三文鱼": {
+                    "price_reference": 83,
+                    "daily_limit_reference": 100
+                },
+                "小麦": {
+                    "price_reference": 15,
+                    "daily_limit_reference": 400
+                },
+                "番茄": {
+                    "price_reference": 62,
+                    "daily_limit_reference": 400
+                },
+                "芥末": {
+                    "price_reference": 210,
+                    "daily_limit_reference": 100
+                },
+                "吐司": {
+                    "price_reference": 162,
+                    "daily_limit_reference": 100
+                },
+                "米": {
+                    "price_reference": 17,
+                    "daily_limit_reference": 400
+                },
+                "奶酪": {
+                    "price_reference": 36,
+                    "daily_limit_reference": 400
+                },
+                "萝卜缨": {
+                    "price_reference": 60,
+                    "daily_limit_reference": 400
+                },
+                "雷瓦汀火腿": {
+                    "price_reference": 480,
+                    "daily_limit_reference": 100
+                }
+            }
+        },
+        "血之狂想曲": {
+            "reference_id": "S8",
+            "items": {
+                "玉米": {
+                    "price_reference": 59,
+                    "daily_limit_reference": 400
+                },
+                "豆子": {
+                    "price_reference": 44,
+                    "daily_limit_reference": 400
+                },
+                "土豆": {
+                    "price_reference": 45,
+                    "daily_limit_reference": 400
+                },
+                "三文鱼": {
+                    "price_reference": 165,
+                    "daily_limit_reference": 100
+                },
+                "奶酪": {
+                    "price_reference": 36,
+                    "daily_limit_reference": 400
+                },
+                "小麦": {
+                    "price_reference": 15,
+                    "daily_limit_reference": 400
+                },
+                "洋葱": {
+                    "price_reference": 114,
+                    "daily_limit_reference": 100
+                },
+                "料酒": {
+                    "price_reference": 225,
+                    "daily_limit_reference": 100
+                },
+                "橄榄油": {
+                    "price_reference": 240,
+                    "daily_limit_reference": 100
+                },
+                "胡萝卜": {
+                    "price_reference": 72,
+                    "daily_limit_reference": 400
+                },
+                "甜椒": {
+                    "price_reference": 114,
+                    "daily_limit_reference": 400
+                },
+                "萝卜缨": {
+                    "price_reference": 120,
+                    "daily_limit_reference": 400
+                },
+                "大蒜": {
+                    "price_reference": 180,
+                    "daily_limit_reference": 100
+                }
+            }
+        },
+        "铁假面": {
+            "reference_id": "S9",
+            "items": {
+                "虾": {
+                    "price_reference": 165,
+                    "daily_limit_reference": 100
+                },
+                "土豆": {
+                    "price_reference": 45,
+                    "daily_limit_reference": 400
+                },
+                "西蓝花": {
+                    "price_reference": 120,
+                    "daily_limit_reference": 400
+                },
+                "小麦": {
+                    "price_reference": 30,
+                    "daily_limit_reference": 400
+                },
+                "胡萝卜": {
+                    "price_reference": 72,
+                    "daily_limit_reference": 400
+                },
+                "盐": {
+                    "price_reference": 36,
+                    "daily_limit_reference": 400
+                },
+                "料酒": {
+                    "price_reference": 450,
+                    "daily_limit_reference": 100
+                },
+                "甜辣酱": {
+                    "price_reference": 270,
+                    "daily_limit_reference": 100
+                }
+            }
+        },
+        "霍尔蒙克斯": {
+            "reference_id": "S10",
+            "items": {
+                "杏仁": {
+                    "price_reference": 150,
+                    "daily_limit_reference": 100
+                },
+                "袋装鸡胸肉": {
+                    "price_reference": 30,
+                    "daily_limit_reference": 400
+                },
+                "葡萄": {
+                    "price_reference": 105,
+                    "daily_limit_reference": 100
+                },
+                "蜂蜜": {
+                    "price_reference": 720,
+                    "daily_limit_reference": 100
+                },
+                "蘑菇": {
+                    "price_reference": 54,
+                    "daily_limit_reference": 400
+                },
+                "香草": {
+                    "price_reference": 129,
+                    "daily_limit_reference": 100
+                },
+                "黄油": {
+                    "price_reference": 60,
+                    "daily_limit_reference": 400
+                },
+                "盐": {
+                    "price_reference": 18,
+                    "daily_limit_reference": 400
+                },
+                "凯洛药材": {
+                    "price_reference": 264,
+                    "daily_limit_reference": 100
+                },
+                "白糖": {
+                    "price_reference": 24,
+                    "daily_limit_reference": 400
+                },
+                "肉桂": {
+                    "price_reference": 125,
+                    "daily_limit_reference": 50
+                }
+            }
+        },
+        "虚假游戏": {
+            "reference_id": "S11",
+            "items": {
+                "洋葱": {
+                    "price_reference": 38,
+                    "daily_limit_reference": 400
+                },
+                "米": {
+                    "price_reference": 11,
+                    "daily_limit_reference": 400
+                },
+                "甜椒": {
+                    "price_reference": 38,
+                    "daily_limit_reference": 400
+                },
+                "奶酪": {
+                    "price_reference": 24,
+                    "daily_limit_reference": 400
+                },
+                "香草": {
+                    "price_reference": 43,
+                    "daily_limit_reference": 100
+                },
+                "鸡蛋": {
+                    "price_reference": 16,
+                    "daily_limit_reference": 400
+                },
+                "小麦": {
+                    "price_reference": 10,
+                    "daily_limit_reference": 400
+                },
+                "橄榄油": {
+                    "price_reference": 80,
+                    "daily_limit_reference": 100
+                },
+                "藏红花": {
+                    "price_reference": 150,
+                    "daily_limit_reference": 100
+                },
+                "樱桃": {
+                    "price_reference": 300,
+                    "daily_limit_reference": 100
+                }
+            }
+        },
+        "黑羽毛": {
+            "reference_id": "S12",
+            "items": {
+                "咖啡豆": {
+                    "price_reference": 63,
+                    "daily_limit_reference": 400
+                },
+                "三文鱼": {
+                    "price_reference": 83,
+                    "daily_limit_reference": 100
+                },
+                "番茄": {
+                    "price_reference": 123,
+                    "daily_limit_reference": 100
+                },
+                "豆子": {
+                    "price_reference": 87,
+                    "daily_limit_reference": 100
+                },
+                "牛奶": {
+                    "price_reference": 42,
+                    "daily_limit_reference": 400
+                },
+                "橄榄油": {
+                    "price_reference": 240,
+                    "daily_limit_reference": 100
+                },
+                "香草": {
+                    "price_reference": 65,
+                    "daily_limit_reference": 400
+                },
+                "洋葱": {
+                    "price_reference": 114,
+                    "daily_limit_reference": 100
+                },
+                "米": {
+                    "price_reference": 17,
+                    "daily_limit_reference": 400
+                },
+                "小麦": {
+                    "price_reference": 15,
+                    "daily_limit_reference": 400
+                },
+                "甜椒": {
+                    "price_reference": 114,
+                    "daily_limit_reference": 100
+                },
+                "甜辣酱": {
+                    "price_reference": 270,
+                    "daily_limit_reference": 100
+                },
+                "凯洛药材": {
+                    "price_reference": 264,
+                    "daily_limit_reference": 100
+                },
+                "大蒜": {
+                    "price_reference": 180,
+                    "daily_limit_reference": 100
+                },
+                "胡椒": {
+                    "price_reference": 125,
+                    "daily_limit_reference": 250
+                }
+            }
+        },
+        "雪之歌": {
+            "reference_id": "S13",
+            "items": {
+                "苹果": {
+                    "price_reference": 53,
+                    "daily_limit_reference": 400
+                },
+                "葡萄": {
+                    "price_reference": 53,
+                    "daily_limit_reference": 400
+                },
+                "虾": {
+                    "price_reference": 165,
+                    "daily_limit_reference": 100
+                },
+                "蜂蜜": {
+                    "price_reference": 360,
+                    "daily_limit_reference": 100
+                },
+                "白糖": {
+                    "price_reference": 24,
+                    "daily_limit_reference": 400
+                },
+                "香草": {
+                    "price_reference": 129,
+                    "daily_limit_reference": 100
+                },
+                "蘑菇": {
+                    "price_reference": 54,
+                    "daily_limit_reference": 400
+                },
+                "土豆": {
+                    "price_reference": 45,
+                    "daily_limit_reference": 400
+                },
+                "番茄": {
+                    "price_reference": 123,
+                    "daily_limit_reference": 100
+                },
+                "黄油": {
+                    "price_reference": 60,
+                    "daily_limit_reference": 400
+                },
+                "橄榄油": {
+                    "price_reference": 240,
+                    "daily_limit_reference": 100
+                }
+            }
+        },
+        "神圣审判": {
+            "reference_id": "S14",
+            "items": {
+                "杏仁": {
+                    "price_reference": 150,
+                    "daily_limit_reference": 100
+                },
+                "袋装鸡胸肉": {
+                    "price_reference": 30,
+                    "daily_limit_reference": 400
+                },
+                "葡萄": {
+                    "price_reference": 105,
+                    "daily_limit_reference": 100
+                },
+                "蜂蜜": {
+                    "price_reference": 720,
+                    "daily_limit_reference": 100
+                },
+                "蘑菇": {
+                    "price_reference": 54,
+                    "daily_limit_reference": 400
+                },
+                "香草": {
+                    "price_reference": 129,
+                    "daily_limit_reference": 100
+                },
+                "黄油": {
+                    "price_reference": 60,
+                    "daily_limit_reference": 400
+                },
+                "盐": {
+                    "price_reference": 18,
+                    "daily_limit_reference": 400
+                },
+                "凯洛药材": {
+                    "price_reference": 264,
+                    "daily_limit_reference": 100
+                },
+                "白糖": {
+                    "price_reference": 24,
+                    "daily_limit_reference": 400
+                },
+                "生蚝": {
+                    "price_reference": 250,
+                    "daily_limit_reference": 100
+                }
+            }
+        },
+        "复仇的誓言": {
+            "reference_id": "S15",
+            "items": {
+                "蘑菇": {
+                    "price_reference": 54,
+                    "daily_limit_reference": 400
+                },
+                "胡萝卜": {
+                    "price_reference": 24,
+                    "daily_limit_reference": 200
+                },
+                "苹果": {
+                    "price_reference": 35,
+                    "daily_limit_reference": 50
+                },
+                "香草": {
+                    "price_reference": 43,
+                    "daily_limit_reference": 200
+                },
+                "洋葱": {
+                    "price_reference": 38,
+                    "daily_limit_reference": 50
+                },
+                "番茄": {
+                    "price_reference": 41,
+                    "daily_limit_reference": 200
+                },
+                "芥末": {
+                    "price_reference": 140,
+                    "daily_limit_reference": 50
+                },
+                "甜椒": {
+                    "price_reference": 114,
+                    "daily_limit_reference": 100
+                },
+                "甜辣酱": {
+                    "price_reference": 270,
+                    "daily_limit_reference": 100
+                }
+            }
+        },
+        "三国同盟": {
+            "reference_id": "S16",
+            "items": {
+                "虾": {
+                    "price_reference": 165,
+                    "daily_limit_reference": 100
+                },
+                "三文鱼": {
+                    "price_reference": 55,
+                    "daily_limit_reference": 50
+                },
+                "盐": {
+                    "price_reference": 12,
+                    "daily_limit_reference": 200
+                },
+                "料酒": {
+                    "price_reference": 150,
+                    "daily_limit_reference": 50
+                },
+                "奶酪": {
+                    "price_reference": 24,
+                    "daily_limit_reference": 400
+                },
+                "咖啡豆": {
+                    "price_reference": 42,
+                    "daily_limit_reference": 200
+                },
+                "藏红花": {
+                    "price_reference": 150,
+                    "daily_limit_reference": 100
+                },
+                "白糖": {
+                    "price_reference": 24,
+                    "daily_limit_reference": 400
+                },
+                "姜黄": {
+                    "price_reference": 336,
+                    "daily_limit_reference": 100
+                },
+                "生蚝": {
+                    "price_reference": 250,
+                    "daily_limit_reference": 100
+                }
+            }
+        },
+        "试炼之路": {
+            "reference_id": "S17",
+            "items": {
+                "杏仁": {
+                    "price_reference": 150,
+                    "daily_limit_reference": 100
+                },
+                "豆子": {
+                    "price_reference": 87,
+                    "daily_limit_reference": 100
+                },
+                "啤酒花": {
+                    "price_reference": 32,
+                    "daily_limit_reference": 400
+                },
+                "盐": {
+                    "price_reference": 12,
+                    "daily_limit_reference": 200
+                },
+                "白糖": {
+                    "price_reference": 24,
+                    "daily_limit_reference": 400
+                },
+                "小麦": {
+                    "price_reference": 15,
+                    "daily_limit_reference": 400
+                },
+                "米": {
+                    "price_reference": 17,
+                    "daily_limit_reference": 400
+                },
+                "凯洛药材": {
+                    "price_reference": 264,
+                    "daily_limit_reference": 100
+                }
+            }
+        },
+        "救赎": {
+            "reference_id": "S18",
+            "items": {
+                "玉米": {
+                    "price_reference": 59,
+                    "daily_limit_reference": 400
+                },
+                "土豆": {
+                    "price_reference": 45,
+                    "daily_limit_reference": 400
+                },
+                "苹果": {
+                    "price_reference": 35,
+                    "daily_limit_reference": 50
+                },
+                "鸡蛋": {
+                    "price_reference": 16,
+                    "daily_limit_reference": 400
+                },
+                "小麦": {
+                    "price_reference": 15,
+                    "daily_limit_reference": 400
+                },
+                "米": {
+                    "price_reference": 17,
+                    "daily_limit_reference": 400
+                },
+                "大麦": {
+                    "price_reference": 30,
+                    "daily_limit_reference": 400
+                },
+                "牛奶": {
+                    "price_reference": 42,
+                    "daily_limit_reference": 400
+                },
+                "吐司": {
+                    "price_reference": 162,
+                    "daily_limit_reference": 100
+                }
+            }
+        },
+        "被遗忘的战争": {
+            "reference_id": "S19",
+            "items": {
+                "盐": {
+                    "price_reference": 12,
+                    "daily_limit_reference": 200
+                },
+                "咖啡豆": {
+                    "price_reference": 42,
+                    "daily_limit_reference": 200
+                },
+                "藏红花": {
+                    "price_reference": 150,
+                    "daily_limit_reference": 100
+                },
+                "黄油": {
+                    "price_reference": 60,
+                    "daily_limit_reference": 400
+                },
+                "白糖": {
+                    "price_reference": 24,
+                    "daily_limit_reference": 400
+                },
+                "奶酪": {
+                    "price_reference": 24,
+                    "daily_limit_reference": 200
+                },
+                "香草": {
+                    "price_reference": 43,
+                    "daily_limit_reference": 50
+                },
+                "葡萄": {
+                    "price_reference": 105,
+                    "daily_limit_reference": 100
+                }
+            }
+        },
+        "杰登之门": {
+            "reference_id": "R1",
+            "items": {
+                "巧克力": {
+                    "price_reference": 8,
+                    "daily_limit_reference": 400
+                },
+                "金枪鱼罐头": {
+                    "price_reference": 15,
+                    "daily_limit_reference": 400
+                },
+                "吐司": {
+                    "price_reference": 81,
+                    "daily_limit_reference": 100
+                },
+                "袋装鸡胸肉": {
+                    "price_reference": 30,
+                    "daily_limit_reference": 400
+                },
+                "牛奶": {
+                    "price_reference": 42,
+                    "daily_limit_reference": 400
+                },
+                "黄油": {
+                    "price_reference": 60,
+                    "daily_limit_reference": 400
+                },
+                "鸡蛋": {
+                    "price_reference": 24,
+                    "daily_limit_reference": 400
+                }
+            }
+        },
+        "火晶片": {
+            "reference_id": "R2",
+            "items": {
+                "水果罐头": {
+                    "price_reference": 165,
+                    "daily_limit_reference": 100
+                },
+                "辣椒": {
+                    "price_reference": 54,
+                    "daily_limit_reference": 400
+                },
+                "白糖": {
+                    "price_reference": 24,
+                    "daily_limit_reference": 400
+                },
+                "雷瓦汀火腿": {
+                    "price_reference": 480,
+                    "daily_limit_reference": 100
+                },
+                "巧克力": {
+                    "price_reference": 15,
+                    "daily_limit_reference": 400
+                },
+                "辣椒素": {
+                    "price_reference": 162,
+                    "daily_limit_reference": 100
+                },
+                "牛奶": {
+                    "price_reference": 42,
+                    "daily_limit_reference": 400
+                }
+            }
+        },
+        "美丽无望": {
+            "reference_id": "R3",
+            "items": {
+                "巧克力": {
+                    "price_reference": 15,
+                    "daily_limit_reference": 400
+                },
+                "鱼子酱罐头": {
+                    "price_reference": 225,
+                    "daily_limit_reference": 100
+                },
+                "土豆": {
+                    "price_reference": 45,
+                    "daily_limit_reference": 400
+                },
+                "白糖": {
+                    "price_reference": 24,
+                    "daily_limit_reference": 400
+                },
+                "牛奶": {
+                    "price_reference": 42,
+                    "daily_limit_reference": 400
+                },
+                "鸡蛋": {
+                    "price_reference": 24,
+                    "daily_limit_reference": 400
+                },
+                "黄油": {
+                    "price_reference": 60,
+                    "daily_limit_reference": 400
+                },
+                "盐": {
+                    "price_reference": 18,
+                    "daily_limit_reference": 400
+                },
+                "奶酪": {
+                    "price_reference": 36,
+                    "daily_limit_reference": 400
+                },
+                "松露油": {
+                    "price_reference": 540,
+                    "daily_limit_reference": 100
+                }
+            }
+        },
+        "大逃脱": {
+            "reference_id": "R4",
+            "items": {
+                "米": {
+                    "price_reference": 11,
+                    "daily_limit_reference": 400
+                },
+                "袋装鸡胸肉": {
+                    "price_reference": 10,
+                    "daily_limit_reference": 400
+                },
+                "调味海苔": {
+                    "price_reference": 100,
+                    "daily_limit_reference": 100
+                },
+                "甜椒": {
+                    "price_reference": 38,
+                    "daily_limit_reference": 100
+                },
+                "辣椒": {
+                    "price_reference": 36,
+                    "daily_limit_reference": 100
+                },
+                "蛋黄酱": {
+                    "price_reference": 120,
+                    "daily_limit_reference": 100
+                },
+                "小麦": {
+                    "price_reference": 10,
+                    "daily_limit_reference": 400
+                },
+                "辣椒素": {
+                    "price_reference": 128,
+                    "daily_limit_reference": 100
+                }
+            }
+        },
+        "鲁的迷宫": {
+            "reference_id": "R5",
+            "items": {
+                "苹果": {
+                    "price_reference": 53,
+                    "daily_limit_reference": 400
+                },
+                "葡萄": {
+                    "price_reference": 53,
+                    "daily_limit_reference": 400
+                },
+                "虾": {
+                    "price_reference": 165,
+                    "daily_limit_reference": 100
+                },
+                "蜂蜜": {
+                    "price_reference": 360,
+                    "daily_limit_reference": 100
+                },
+                "白糖": {
+                    "price_reference": 24,
+                    "daily_limit_reference": 400
+                },
+                "香草": {
+                    "price_reference": 129,
+                    "daily_limit_reference": 100
+                },
+                "蘑菇": {
+                    "price_reference": 54,
+                    "daily_limit_reference": 400
+                },
+                "土豆": {
+                    "price_reference": 45,
+                    "daily_limit_reference": 400
+                },
+                "番茄": {
+                    "price_reference": 123,
+                    "daily_limit_reference": 100
+                },
+                "黄油": {
+                    "price_reference": 60,
+                    "daily_limit_reference": 400
+                },
+                "橄榄油": {
+                    "price_reference": 240,
+                    "daily_limit_reference": 100
+                }
+            }
+        },
+        "御剑传": {
+            "reference_id": "R6",
+            "items": {
+                "苹果": {
+                    "price_reference": 53,
+                    "daily_limit_reference": 400
+                },
+                "葡萄": {
+                    "price_reference": 53,
+                    "daily_limit_reference": 400
+                },
+                "虾": {
+                    "price_reference": 165,
+                    "daily_limit_reference": 100
+                },
+                "蜂蜜": {
+                    "price_reference": 360,
+                    "daily_limit_reference": 100
+                },
+                "白糖": {
+                    "price_reference": 24,
+                    "daily_limit_reference": 400
+                },
+                "香草": {
+                    "price_reference": 129,
+                    "daily_limit_reference": 100
+                },
+                "蘑菇": {
+                    "price_reference": 54,
+                    "daily_limit_reference": 400
+                },
+                "土豆": {
+                    "price_reference": 45,
+                    "daily_limit_reference": 400
+                },
+                "番茄": {
+                    "price_reference": 123,
+                    "daily_limit_reference": 100
+                },
+                "黄油": {
+                    "price_reference": 60,
+                    "daily_limit_reference": 400
+                },
+                "橄榄油": {
+                    "price_reference": 240,
+                    "daily_limit_reference": 100
+                }
+            }
+        },
+        "合约之战": {
+            "reference_id": "R7",
+            "items": {
+                "巧克力": {
+                    "price_reference": 8,
+                    "daily_limit_reference": 400
+                },
+                "金枪鱼罐头": {
+                    "price_reference": 15,
+                    "daily_limit_reference": 400
+                },
+                "吐司": {
+                    "price_reference": 81,
+                    "daily_limit_reference": 100
+                },
+                "袋装鸡胸肉": {
+                    "price_reference": 30,
+                    "daily_limit_reference": 400
+                },
+                "牛奶": {
+                    "price_reference": 42,
+                    "daily_limit_reference": 400
+                },
+                "黄油": {
+                    "price_reference": 60,
+                    "daily_limit_reference": 400
+                },
+                "鸡蛋": {
+                    "price_reference": 24,
+                    "daily_limit_reference": 400
+                }
+            }
+        },
+        "夏日骑士": {
+            "reference_id": "E1",
+            "items": {
+                "巧克力": {
+                    "price_reference": 8,
+                    "daily_limit_reference": 400
+                },
+                "金枪鱼罐头": {
+                    "price_reference": 15,
+                    "daily_limit_reference": 400
+                },
+                "吐司": {
+                    "price_reference": 81,
+                    "daily_limit_reference": 100
+                },
+                "袋装鸡胸肉": {
+                    "price_reference": 30,
+                    "daily_limit_reference": 400
+                },
+                "牛奶": {
+                    "price_reference": 42,
+                    "daily_limit_reference": 400
+                },
+                "黄油": {
+                    "price_reference": 60,
+                    "daily_limit_reference": 400
+                },
+                "鸡蛋": {
+                    "price_reference": 24,
+                    "daily_limit_reference": 400
+                }
+            }
+        },
+        "恶梦之冬": {
+            "reference_id": "E2",
+            "items": {
+                "水果罐头": {
+                    "price_reference": 165,
+                    "daily_limit_reference": 100
+                },
+                "辣椒": {
+                    "price_reference": 54,
+                    "daily_limit_reference": 400
+                },
+                "白糖": {
+                    "price_reference": 24,
+                    "daily_limit_reference": 400
+                },
+                "雷瓦汀火腿": {
+                    "price_reference": 480,
+                    "daily_limit_reference": 100
+                },
+                "巧克力": {
+                    "price_reference": 15,
+                    "daily_limit_reference": 400
+                },
+                "辣椒素": {
+                    "price_reference": 162,
+                    "daily_limit_reference": 100
+                },
+                "牛奶": {
+                    "price_reference": 42,
+                    "daily_limit_reference": 400
+                }
+            }
+        },
+        "海滨天使": {
+            "reference_id": "E3",
+            "items": {
+                "巧克力": {
+                    "price_reference": 15,
+                    "daily_limit_reference": 400
+                },
+                "鱼子酱罐头": {
+                    "price_reference": 225,
+                    "daily_limit_reference": 100
+                },
+                "土豆": {
+                    "price_reference": 45,
+                    "daily_limit_reference": 400
+                },
+                "白糖": {
+                    "price_reference": 24,
+                    "daily_limit_reference": 400
+                },
+                "牛奶": {
+                    "price_reference": 42,
+                    "daily_limit_reference": 400
+                },
+                "鸡蛋": {
+                    "price_reference": 24,
+                    "daily_limit_reference": 400
+                },
+                "黄油": {
+                    "price_reference": 60,
+                    "daily_limit_reference": 400
+                },
+                "盐": {
+                    "price_reference": 18,
+                    "daily_limit_reference": 400
+                },
+                "奶酪": {
+                    "price_reference": 36,
+                    "daily_limit_reference": 400
+                },
+                "松露油": {
+                    "price_reference": 540,
+                    "daily_limit_reference": 100
+                }
+            }
+        },
+        "记忆边缘": {
+            "reference_id": "E5",
+            "items": {
+                "水果罐头": {
+                    "price_reference": 165,
+                    "daily_limit_reference": 100
+                },
+                "辣椒": {
+                    "price_reference": 54,
+                    "daily_limit_reference": 400
+                },
+                "白糖": {
+                    "price_reference": 24,
+                    "daily_limit_reference": 400
+                },
+                "雷瓦汀火腿": {
+                    "price_reference": 480,
+                    "daily_limit_reference": 100
+                },
+                "巧克力": {
+                    "price_reference": 15,
+                    "daily_limit_reference": 400
+                },
+                "辣椒素": {
+                    "price_reference": 162,
+                    "daily_limit_reference": 100
+                },
+                "牛奶": {
+                    "price_reference": 42,
+                    "daily_limit_reference": 400
+                }
+            }
+        },
+        "戏水女王": {
+            "reference_id": "E7",
+            "items": {
+                "巧克力": {
+                    "price_reference": 15,
+                    "daily_limit_reference": 400
+                },
+                "咖啡豆": {
+                    "price_reference": 63,
+                    "daily_limit_reference": 400
+                },
+                "水果罐头": {
+                    "price_reference": 165,
+                    "daily_limit_reference": 100
+                },
+                "吐司": {
+                    "price_reference": 81,
+                    "daily_limit_reference": 100
+                },
+                "袋装鸡胸肉": {
+                    "price_reference": 30,
+                    "daily_limit_reference": 400
+                },
+                "牛奶": {
+                    "price_reference": 42,
+                    "daily_limit_reference": 400
+                },
+                "金枪鱼罐头": {
+                    "price_reference": 15,
+                    "daily_limit_reference": 400
+                },
+                "鱼子酱罐头": {
+                    "price_reference": 225,
+                    "daily_limit_reference": 100
+                }
+            }
+        }
+    }
+}
