@@ -12,7 +12,9 @@ from .arbitrage_replenish_buy import ensure_shop, execute_replenish_purchases
 from .arbitrage_replenish_cook import execute_replenish_cooking
 from .arbitrage_result import ArbitrageSellController
 from .bag_stock import get_bag_scan_run
+from .shop_buy_fav_controller import ShopBuyFavController, DATA_NODE
 from utils import arbitrage_store as store, mfaalog
+from utils.name_i18n import canon
 from utils.account_sync import sync_from_context
 from utils.arbitrage_recipe_catalog import discover_recipe_entries
 from utils.arbitrage_replenish_data import load_replenish_data
@@ -54,6 +56,31 @@ def _gold(context):
     return values[0]
 
 
+def _supplemental_supply(context, data):
+    """常规收藏表负责的柜台商品不再安排补买；配置排除不代表实测售罄。"""
+    node = context.get_node_object(DATA_NODE)
+    attach = getattr(node, "attach", None)
+    if not isinstance(attach, dict):
+        raise ValueError("常规购买表不可读，不能确定补买范围")
+    regular = {}
+    parser = ShopBuyFavController()
+    for key, raw in attach.items():
+        if key == "ocr_exclude":
+            continue
+        if not isinstance(key, str) or ":" not in key or not isinstance(raw, str):
+            raise ValueError(f"常规购买表格式无效: {key}")
+        shop = canon(key.split(":", 1)[1].strip())
+        regular.setdefault(shop, set()).update(parser._parse_item_list(raw))
+    filtered = deepcopy(data)
+    excluded = []
+    for shop_name, shop in filtered["shops"].items():
+        for name in list(shop["items"]):
+            if canon(name) in regular.get(canon(shop_name), set()):
+                del shop["items"][name]
+                excluded.append({"shop_name": shop_name, "item_name": name})
+    return filtered, excluded
+
+
 def run_replenishment(context, task_id, config):
     """return_ok供外层Custom决定是否进入专用StopTask；内部不调用自身。"""
     report = {"status": "skipped", "return_ok": True, "task_id": task_id}
@@ -83,12 +110,14 @@ def run_replenishment(context, task_id, config):
         return {**report, "reason": "今日完整行情不可用"}
     entries = discover_recipe_entries(context)
     data = load_replenish_data()
+    supply, excluded = _supplemental_supply(context, data)
+    report["regular_purchase_exclusions"] = excluded
     sell_names = (ArbitrageSellController._load_whitelist(context)
                   if _enabled(context, "Arbitrage_SellItem") else set())
     # 仅用有限供给总额筛是否有需求；有请求后才进店，以实读金币重算正式预算。
     ceiling = sum(item["price_reference"] * min(item["daily_limit_reference"], 99999)
-                  for shop in data["shops"].values() for item in shop["items"].values())
-    plan = build_replenish_plan(entries, inventory, market, data, day=day,
+                  for shop in supply["shops"].values() for item in shop["items"].values())
+    plan = build_replenish_plan(entries, inventory, market, supply, day=day,
                                 budget=ceiling if budget is None else budget, sell_names=sell_names)
     report.update(day=day, bag_run_id=bag_run_id, plan=plan)
     if not plan["requests"]:
@@ -98,7 +127,7 @@ def run_replenishment(context, task_id, config):
     if store.market_day() != day:
         return {**report, "reason": "日期已刷新，旧日计划取消"}
     inventory = store.get_replenish_inventory(bag_run_id)["quantities"]
-    plan = build_replenish_plan(entries, inventory, market, data, day=day,
+    plan = build_replenish_plan(entries, inventory, market, supply, day=day,
                                 budget=available_gold if budget is None else min(budget, available_gold),
                                 sell_names=sell_names)
     report["plan"] = plan

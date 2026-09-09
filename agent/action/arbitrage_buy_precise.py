@@ -164,6 +164,7 @@ class ArbitrageBuyQuantity(CustomAction):
 def buy_overrides(context, request):
     from .arbitrage_result import _sell_item_override, _cart_expected
     patch = _sell_item_override(context, request["item_name"])
+    patch["Arbitrage_Sell_Item_ListTraverse"]["max_hit"] = 2
     config = dict(context.get_node_object(_QUANTITY).attach)
     config.update(available_node="Agt_BuyQuantity_Available_Ocr", gold_node="Agt_BuyQuantity_Gold_Ocr",
                   cost_node="Agt_BuyQuantity_Cost_Ocr")
@@ -195,7 +196,8 @@ def run_batch(context, request):
     # 调用局部上下文：购买词、色核、旁支和数量动作不会改写后续出售流程。
     local = context.clone()
     batch = {**request, "request_id": uuid4().hex}
-    for node in ("Arbitrage_Sell_Item_Cancel", "Arbitrage_Sell_Item_Exit_ResetSwip"):
+    for node in ("Arbitrage_Sell_Item_Cancel", "Arbitrage_Sell_Item_Exit_ResetSwip",
+                 "Arbitrage_Sell_Item_ListTraverse"):
         if not local.clear_hit_count(node):
             raise RuntimeError(f"无法清除本批计数: {node}")
     try:
@@ -212,6 +214,17 @@ def run_batch(context, request):
     if "Arbitrage_PreciseBuy_NotFound" in names:
         return {"status": "not_found"}, False
     attempted = any(node.name == "Arbitrage_Sell_Item_Selling" and node.action is not None for node in detail.nodes)
+    if result is None and not attempted and "Arbitrage_Sell_Item_Click" in names:
+        if "Arbitrage_Sell_Item_SellMenu" not in names:
+            # 仅凭不能打开不能声称售罄；购买后走到这里仍由execute_buy判为未知收据。
+            image = local.tasker.controller.post_screencap().wait().get()
+            if image is None or not image.size:
+                raise RuntimeError("补买退出截图失败")
+            visible = local.run_recognition("Arbitrage_Replenish_ShopReady", image)
+            if visible is None or not visible.hit:
+                raise RuntimeError("补买未打开子页，且未确认返回商店列表")
+            mfaalog.warning(f"[PreciseBuy] [{request['item_name']}] 名称存在但购买子页未打开，本批跳过")
+            return {"status": "skipped", "reason": "item_menu_unavailable"}, False
     return result or {"status": "unknown"}, attempted
 
 
