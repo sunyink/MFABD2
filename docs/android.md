@@ -25,6 +25,11 @@ UI 原版从自身 git 历史生成 versionCode；本工作流在临时上游 ch
 
 ## Agent 与存档
 
+`agent/main.py` 在启动时生成一份不可变的 `RuntimeConfig`，统一决定运行模式、是否接管
+Python 环境、内核库目录和存档策略，再把存档策略传给 `PersistentStore`。
+平台/宿主判断集中在 `agent/utils/runtime_environment.py`；账号切换只换文件名，不重新探测环境。
+独立使用存档模块的调用者也只在首次访问时解析并保留策略。
+
 Android 不运行项目的桌面 venv 创建或安装步骤。宿主必须提供绝对的原生库目录，
 包含 `libMaaFramework.so` 和 `libMaaAgentServer.so`；错误路径会在注册前报错。
 
@@ -44,11 +49,27 @@ Android 不运行项目的桌面 venv 创建或安装步骤。宿主必须提供
 
 ```sh
 python tools/verify_android_runtime.py
+python tools/verify_android_resources.py
 python agent/recognition/test_rdd_hsv_rescue.py
 python tools/verify_android_apk.py path/to/app-debug.apk
 ```
 
-前两项验证宿主接口和 Python 行为；不能替代真机上的 agent 连接、权限、日志、图像处理和升级测试。
+前三项验证宿主接口、资源筛选和 Python 行为；不能替代真机上的 agent 连接、权限、日志、图像处理和升级测试。
+
+## 资源列表
+
+MaaFwApp 的“服务器”列表对应 PI 的 `resource`。其固定版本在配置层采用第一条 `Adb`
+controller 声明，实际运行使用 AndroidNativeController；该版本未按 `resource.controller`
+筛选列表。安装脚本在生成 Android interface 时应用这些限制，仅保留可用的控制器和资源。
+当前项目产物中只保留 `Adb` / `ADB`。桌面源码 interface 和桌面安装产物继续包含各平台声明。
+
+## 当前版号与发布阶段
+
+- 显示版本：`android-dev.<GITHUB_RUN_NUMBER>.<GITHUB_RUN_ATTEMPT>`。
+- 系统内部 `versionCode`：`GITHUB_RUN_NUMBER * 100 + GITHUB_RUN_ATTEMPT`，例如第2次构建首次运行是201。
+- 资源 interface.version 和 APK versionName 使用相同显示版本；versionCode 变化也触发 UI 资源重新解包。
+- 这套序号用于当前实验工作流。正式发布应让显示版本跟随项目发布tag，内部versionCode采用独立、持续递增的编号；切换工作流或重建编号来源时不能归零。
+- GitHub Release 可以直接提供 `.apk` 和 `.sha256`。当前项目主发布工作流仅收集ZIP，安卓实验工作流仅上传Actions产物；正式APK发布与稳定签名尚未接入。
 
 ## 上游依据
 

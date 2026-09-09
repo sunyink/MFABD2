@@ -1,4 +1,5 @@
 from pathlib import Path
+from copy import deepcopy
 import shutil
 import sys
 import re
@@ -28,6 +29,35 @@ version = len(sys.argv) > 1 and sys.argv[1] or "v0.0.1"
 target_os = len(sys.argv) > 2 and sys.argv[2] or "win"
 # 确保这里能接收到 CI 传进来的版本号，默认为 0.0.0
 maa_ver = len(sys.argv) > 3 and sys.argv[3] or "0.0.0"
+
+
+def prepare_interface_for_target(interface, target_os):
+    """Return a target-specific interface copy without mutating the source object."""
+    result = deepcopy(interface)
+    if not str(target_os).lower().startswith("android"):
+        return result
+
+    controllers = result.get("controller") or []
+    adb = next(
+        (item for item in controllers if item.get("type") == "Adb"),
+        None,
+    )
+    if adb is None:
+        raise ValueError("Android target requires a controller with type=Adb")
+    adb_name = adb.get("name")
+    if not adb_name:
+        raise ValueError("Android Adb controller requires a name")
+    result["controller"] = [adb]
+
+    resources = []
+    for resource in result.get("resource") or []:
+        allowed = resource.get("controller")
+        if not allowed or adb_name in allowed:
+            resources.append(resource)
+    if not resources:
+        raise ValueError("Android target has no resource compatible with the Adb controller")
+    result["resource"] = resources
+    return result
 
 # def install_deps():
 #     if not (working_dir / "deps" / "bin").exists():
@@ -64,6 +94,8 @@ def install_resource():
 
     with open(install_path / "interface.json", "r", encoding="utf-8") as f:
         interface = jsonc.load(f)
+
+    interface = prepare_interface_for_target(interface, target_os)
     
     # 1. 更新根版本字段（保持 CI 原始格式）
     interface["version"] = version

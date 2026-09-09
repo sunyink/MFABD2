@@ -1,13 +1,12 @@
 import json
 import os
 import shutil
-import platform
 import re
 import time
 from datetime import datetime
 from pathlib import Path
 from . import mfaalog as logger
-from .runtime_environment import persistent_data_dir
+from .runtime_environment import StoragePolicy, resolve_storage_policy
 import tempfile
 
 # 读存档时遇到 OSError(占用/权限)的退避重试。多是瞬时的:另一个实例正在写、
@@ -30,6 +29,7 @@ class PersistentStore:
     
     # 状态与路径变量
     _initialized = False
+    _storage_policy: StoragePolicy | None = None
     _mode = None
     _current_account_id = "0"  # 默认 0 号存档，接收到的原始 ID
     _sanitized_account_id = "0" # 清洗后的安全 ID，与实际文件名对应
@@ -43,6 +43,13 @@ class PersistentStore:
     CONFIG_DIR = None
     FILE_PATH = None
     BACKUP_PATH = None
+
+    @classmethod
+    def configure_storage(cls, policy: StoragePolicy) -> None:
+        """The entrypoint supplies its resolved policy before the first load."""
+        if cls._initialized and policy != cls._storage_policy:
+            raise RuntimeError("Configure storage before loading a save")
+        cls._storage_policy = policy
 
     @classmethod
     def switch_account(cls, account_id):
@@ -69,7 +76,7 @@ class PersistentStore:
 
     @classmethod
     def _init_paths(cls):
-        """核心：环境探测与动态路径分配"""
+        """根据启动策略挂载当前账号路径。"""
         if cls._initialized:
             return
 
@@ -93,42 +100,34 @@ class PersistentStore:
         # 获取项目根目录
         base_dir = Path(__file__).resolve().parent.parent.parent
 
-        # Android data is owned by the host, independently of replaceable resources.
-        # An explicit directory failing to open must never fall back to another save.
-        data_dir = persistent_data_dir(base_dir)
-        if data_dir is not None:
-            data_dir.mkdir(parents=True, exist_ok=True)
-            with tempfile.TemporaryFile(dir=data_dir) as probe:
-                probe.write(b"test")
-                probe.flush()
-                os.fsync(probe.fileno())
-            cls.CONFIG_DIR = data_dir
-            cls.FILE_PATH = data_dir / cls.FILE_NAME
-            cls.BACKUP_PATH = data_dir / cls.BAK_NAME
-            cls._mode = 'host'
-            cls._initialized = True
-            logger.info(f"[Py] 存档挂载完成 | 账号ID: {cls._sanitized_account_id} | 宿主目录: {cls.FILE_PATH}")
-            return
-        
-        # 2. 检查绿色模式触发条件 (根目录下存在任意存档或备份文件)
-        # 💡 [修复] 只要根目录下有任何 agent_save_data 开头的 json，就统一认定为绿色便携模式
+        # Standalone callers resolve once; normal startup injects this policy.
+        # Account switching keeps the policy and only changes filenames.
+        if cls._storage_policy is None:
+            cls._storage_policy = resolve_storage_policy(base_dir)
+        policy = cls._storage_policy
+        portable_root = policy.portable_root
         has_portable_archive = (
-            any(base_dir.glob("agent_save_data*.json"))
-            or any(base_dir.glob("agent_save_data*.json.bak"))
+            portable_root is not None and (
+                any(portable_root.glob("agent_save_data*.json"))
+                or any(portable_root.glob("agent_save_data*.json.bak"))
+            )
         )
         
         if has_portable_archive:
-            cls._set_portable_mode(base_dir)
+            cls._set_portable_mode(portable_root)
         else:
-            # 3. 尝试进入全局模式 (并进行权限测试)
-            if not cls._try_set_global_mode():
+            try:
+                cls._set_directory(policy.directory, 'global' if portable_root is not None else 'host')
+            except OSError:
+                if portable_root is None:
+                    raise  # Explicit directories must not fall back to another save.
                 logger.warning("[Py] ⚠️ 全局目录读写测试失败，自动降级为【绿色便携模式】。")
-                cls._set_portable_mode(base_dir)
+                cls._set_portable_mode(portable_root)
                 
         cls._initialized = True
         
         # 状态汇报 (使用清洗后的 _sanitized_account_id)
-        mode_str = "系统全局模式" if cls._mode == 'global' else "绿色便携模式"
+        mode_str = {'global': '系统全局模式', 'portable': '绿色便携模式', 'host': '宿主指定模式'}[cls._mode]
         logger.info(f"[Py] 💾 存档挂载完成 | 账号ID: {cls._sanitized_account_id} | 模式: {mode_str}")
         logger.info(f"[Py] 📂 存档路径: {cls.FILE_PATH}")
 
@@ -141,33 +140,17 @@ class PersistentStore:
         cls.BACKUP_PATH = cls.CONFIG_DIR / cls.BAK_NAME
 
     @classmethod
-    def _try_set_global_mode(cls) -> bool:
-        """尝试设定全局模式，并测试读写权限"""
-        system = platform.system()
-        if system == "Windows":
-            sys_dir = os.getenv("APPDATA") or os.path.expanduser("~")
-        elif system == "Darwin":
-            sys_dir = os.path.expanduser("~/Library/Application Support")
-        else:
-            sys_dir = os.getenv("XDG_CONFIG_HOME") or os.path.expanduser("~/.config")
-            
-        config_dir = Path(sys_dir) / cls.APP_NAME
-        
-        try:
-            config_dir.mkdir(parents=True, exist_ok=True)
-            test_file = config_dir / ".rw_test.tmp"
-            with open(test_file, 'w', encoding='utf-8') as f:
-                f.write("test")
-            test_file.unlink()
-            
-            cls._mode = 'global'
-            cls.CONFIG_DIR = config_dir
-            cls.FILE_PATH = cls.CONFIG_DIR / cls.FILE_NAME
-            cls.BACKUP_PATH = cls.CONFIG_DIR / cls.BAK_NAME
-            return True
-        except Exception as e:
-            logger.error(f"[Py] ❌ 系统目录访问异常: {e}")
-            return False
+    def _set_directory(cls, directory: Path, mode: str) -> None:
+        """Mount a preselected directory. Platform selection belongs to startup."""
+        directory.mkdir(parents=True, exist_ok=True)
+        with tempfile.TemporaryFile(dir=directory) as probe:
+            probe.write(b"test")
+            probe.flush()
+            os.fsync(probe.fileno())
+        cls._mode = mode
+        cls.CONFIG_DIR = directory
+        cls.FILE_PATH = directory / cls.FILE_NAME
+        cls.BACKUP_PATH = directory / cls.BAK_NAME
 
     @classmethod
     def load(cls) -> dict:

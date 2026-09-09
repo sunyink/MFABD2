@@ -24,9 +24,14 @@ class AndroidRuntimeTests(unittest.TestCase):
         self.root = Path(temporary.name).resolve()
         self.enterContext(patch.dict(os.environ, {}, clear=True))
         self.enterContext(patch.object(runtime.platform, "system", return_value="Linux"))
-        self.store = type("IsolatedStore", (PersistentStore,), {"_initialized": False})
+        self.store = type("IsolatedStore", (PersistentStore,), {"_initialized": False, "_storage_policy": None})
         for method in ("info", "warning", "error"):
             self.enterContext(patch(f"utils.persistent_store.logger.{method}"))
+
+    def android_config(self):
+        if "MFA_ANDROID_OUTPUT_BRIDGED" not in os.environ:
+            os.environ["PI_CLIENT_NAME"] = "MaaFwApp"
+        return runtime.RuntimeConfig.detect(self.root / "pi")
 
     def libraries(self):
         path = self.root / "native"
@@ -37,12 +42,15 @@ class AndroidRuntimeTests(unittest.TestCase):
 
     def test_host_marks_android_even_when_python_reports_linux(self):
         os.environ["PI_CLIENT_NAME"] = "MaaFwApp"
-        self.assertTrue(runtime.is_android())
+        os.environ["MAAFW_BINARY_PATH"] = str(self.libraries())
+        self.assertEqual(self.android_config().mode, "android")
 
     def test_native_path_is_preserved(self):
         native = self.libraries()
         os.environ["MAAFW_BINARY_PATH"] = str(native)
-        self.assertEqual(runtime.android_library_dir(), native)
+        config = self.android_config()
+        config.prepare()
+        self.assertEqual(config.library_dir, native)
         self.assertEqual(os.environ["MAAFW_BINARY_PATH"], str(native))
 
     def test_android_bootstrap_skips_desktop_venv_with_requirements_present(self):
@@ -56,16 +64,21 @@ class AndroidRuntimeTests(unittest.TestCase):
         )}
         modules["maa.agent.agent_server"].AgentServer = object
         modules["maa.toolkit"].Toolkit = object
-        with patch.dict(sys.modules, modules), patch("utils.venv_ops.ensure_venv") as venv:
+        os.environ["MFABD2_DATA_DIR"] = str(self.root / "save")
+        with patch.dict(sys.modules, modules), patch("utils.venv_ops.ensure_venv") as venv, patch.object(PersistentStore, "configure_storage") as configure:
             namespace = runpy.run_path(str(ROOT / "agent" / "main.py"), run_name="bootstrap_test")
         venv.assert_not_called()
-        self.assertEqual(namespace["current_mode"], "android")
+        self.assertEqual(namespace["runtime"].mode, "android")
+        configure.assert_called_once_with(namespace["runtime"].storage)
         self.assertEqual(os.environ["MAAFW_BINARY_PATH"], str(native))
 
     def test_mfaa_native_alias(self):
         native = self.libraries()
         os.environ["MAA_LIBRARY_DIR"] = str(native)
-        self.assertEqual(runtime.android_library_dir(), native)
+        os.environ["MFA_ANDROID_OUTPUT_BRIDGED"] = "1"
+        config = self.android_config()
+        config.prepare()
+        self.assertEqual(config.library_dir, native)
         self.assertEqual(os.environ["MAAFW_BINARY_PATH"], str(native))
 
     def test_missing_agent_library_fails_before_registration(self):
@@ -73,24 +86,91 @@ class AndroidRuntimeTests(unittest.TestCase):
         (native / "libMaaAgentServer.so").unlink()
         os.environ["MAAFW_BINARY_PATH"] = str(native)
         with self.assertRaisesRegex(RuntimeError, "libMaaAgentServer"):
-            runtime.android_library_dir()
+            self.android_config().prepare()
 
     def test_missing_native_path_does_not_guess_desktop_runtimes(self):
         with self.assertRaisesRegex(RuntimeError, "host must provide"):
-            runtime.android_library_dir()
+            self.android_config().prepare()
 
     def test_maafwapp_data_is_outside_replaceable_pi(self):
         os.environ["PI_CLIENT_NAME"] = "MaaFwApp"
-        self.assertEqual(runtime.persistent_data_dir(self.root / "pi"), self.root / "mfabd2-save")
+        self.assertEqual(runtime.resolve_storage_policy(self.root / "pi"), runtime.StoragePolicy(self.root / "mfabd2-save"))
         with self.assertRaisesRegex(RuntimeError, "Unknown Android host"):
-            runtime.persistent_data_dir(self.root / "unexpected-layout")
+            runtime.resolve_storage_policy(self.root / "unexpected-layout")
 
     def test_mfaa_data_uses_preserved_config(self):
         os.environ["MFA_ANDROID_OUTPUT_BRIDGED"] = "1"
-        self.assertEqual(runtime.persistent_data_dir(self.root), self.root / "config" / "MFABD2")
+        self.assertEqual(runtime.resolve_storage_policy(self.root), runtime.StoragePolicy(self.root / "config" / "MFABD2"))
 
     def test_desktop_still_uses_legacy_path_selection(self):
-        self.assertIsNone(runtime.persistent_data_dir(self.root))
+        self.assertEqual(runtime.resolve_storage_policy(self.root).portable_root, self.root)
+
+    def test_desktop_release_library_locations(self):
+        for system, arch, rid in (
+            ("Windows", "AMD64", "win-x64"),
+            ("Windows", "ARM64", "win-arm64"),
+            ("Linux", "x86_64", "linux-x64"),
+            ("Linux", "aarch64", "linux-arm64"),
+            ("Darwin", "x86_64", "osx-x64"),
+            ("Darwin", "arm64", "osx-arm64"),
+        ):
+            with self.subTest(rid=rid), patch.object(runtime.platform, "system", return_value=system), patch.object(runtime.platform, "machine", return_value=arch):
+                config = runtime.RuntimeConfig.detect(self.root)
+                self.assertEqual(config.library_dir, self.root / "runtimes" / rid / "native")
+                self.assertFalse(config.manage_venv)
+                self.assertFalse(config.strict_storage)
+                self.assertEqual(config.prepend_library_to_path, system == "Windows")
+
+    def test_development_environment_policy(self):
+        (self.root / "requirements.txt").touch()
+        config = runtime.RuntimeConfig.detect(self.root)
+        self.assertTrue(config.manage_venv)
+        self.assertIsNone(config.library_dir)
+        with patch("utils.venv_ops.ensure_venv") as venv:
+            config.prepare()
+        venv.assert_called_once_with(self.root)
+        disabled = runtime.RuntimeConfig.detect(self.root, enable_venv_auto_check=False)
+        self.assertFalse(disabled.manage_venv)
+        with patch.object(runtime.platform, "system", return_value="Windows"), patch.object(sys, "executable", str(self.root / "python" / "python.exe")):
+            embedded = runtime.RuntimeConfig.detect(self.root)
+        self.assertFalse(embedded.manage_venv)
+
+    def test_desktop_save_locations(self):
+        os.environ["APPDATA"] = str(self.root / "roaming")
+        os.environ["XDG_CONFIG_HOME"] = str(self.root / "xdg")
+        self.assertEqual(runtime.resolve_storage_policy(self.root, system="windows").directory, self.root / "roaming" / "MFABD2")
+        self.assertEqual(runtime.resolve_storage_policy(self.root, system="linux").directory, self.root / "xdg" / "MFABD2")
+        with patch.object(runtime.os.path, "expanduser", return_value=str(self.root / "application-support")):
+            self.assertEqual(runtime.resolve_storage_policy(self.root, system="darwin").directory, self.root / "application-support" / "MFABD2")
+
+    def test_desktop_portable_backup_takes_precedence(self):
+        portable = self.root / "portable"
+        portable.mkdir()
+        (portable / "agent_save_data.json.bak").write_text('{"keep":42}', encoding="utf-8")
+        self.store.configure_storage(runtime.StoragePolicy(self.root / "global", portable))
+        self.assertEqual(self.store.get("keep"), 42)
+        self.assertEqual(self.store.FILE_PATH.parent, portable)
+        self.assertFalse((self.root / "global").exists())
+
+    def test_only_desktop_policy_allows_portable_fallback(self):
+        blocked = self.root / "blocked"
+        blocked.touch()
+        portable = self.root / "portable"
+        portable.mkdir()
+        self.store.configure_storage(runtime.StoragePolicy(blocked, portable))
+        self.store.set("keep", 42)
+        self.assertEqual(self.store.get("keep"), 42)
+        self.assertEqual(self.store.FILE_PATH.parent, portable)
+
+    def test_account_switch_does_not_redetect_environment(self):
+        original = self.root / "first"
+        os.environ["MFABD2_DATA_DIR"] = str(original)
+        self.store.set("keep", 1)
+        os.environ["MFABD2_DATA_DIR"] = str(self.root / "other")
+        self.store.switch_account("second")
+        self.store.set("keep", 2)
+        self.assertEqual(self.store.FILE_PATH.parent, original)
+        self.assertFalse((self.root / "other").exists())
 
     def test_relative_override_is_rejected(self):
         os.environ["MFABD2_DATA_DIR"] = "relative/save"

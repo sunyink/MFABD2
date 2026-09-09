@@ -46,6 +46,15 @@ def verify(path: Path) -> None:
         with zipfile.ZipFile(io.BytesIO(apk.read("assets/pi.zip"))) as payload:
             interface = json.loads(payload.read("interface.json"))
             verify_options(interface)
+            controllers = interface.get("controller", [])
+            if len(controllers) != 1 or controllers[0].get("type") != "Adb":
+                raise ValueError("Android payload must expose only its Adb controller declaration")
+            resources = interface.get("resource", [])
+            if not resources or any(
+                resource.get("controller") and controllers[0]["name"] not in resource["controller"]
+                for resource in resources
+            ):
+                raise ValueError("Android payload contains incompatible resource choices")
             if not interface.get("agent"):
                 raise ValueError("PI does not declare its required agent")
             payload.getinfo("agent/main.py")
