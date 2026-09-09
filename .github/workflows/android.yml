@@ -141,20 +141,16 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.ANDROID_SIGNING_PASSWORD }}
           KEY_PASSWORD: ${{ secrets.ANDROID_SIGNING_PASSWORD }}
           KEY_ALIAS: ${{ steps.metadata.outputs.key_alias }}
-        run: ./gradlew :app:assembleRelease --stacktrace
+        run: |
+          ./gradlew :app:testReleaseUnitTest --tests 'com.aliothmoon.maafw.update.Mfabd2*Test' --tests 'com.aliothmoon.maafw.di.UpdateModuleTest' --stacktrace
+          ./gradlew :app:assembleRelease --stacktrace
       - name: Verify APK contents
-        env:
-          APK_NAME: ${{ steps.metadata.outputs.apk_name }}
         run: |
           apk="android-upstream/app/build/outputs/apk/release/app-release.apk"
           "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs "$apk" > android-build/signature.txt
           "$ANDROID_HOME/build-tools/36.0.0/aapt2" dump badging "$apk" > android-build/badging.txt
           python tools/verify_android_apk.py "$apk" --metadata android-build/build-metadata.json --badging android-build/badging.txt --signature android-build/signature.txt
-          mkdir -p android-build/artifacts
-          cp "$apk" "android-build/artifacts/$APK_NAME"
-          cp android-build/build-metadata.json "android-build/artifacts/$APK_NAME.json"
-          cd android-build/artifacts
-          sha256sum "$APK_NAME" > "$APK_NAME.sha256"
+          python tools/android_build.py artifacts --apk "$apk"
       - name: Remove temporary signing file
         if: always()
         run: rm -f "$RUNNER_TEMP/mfabd2-release.p12"

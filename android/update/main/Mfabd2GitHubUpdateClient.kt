@@ -1,0 +1,82 @@
+package com.aliothmoon.maafw.update
+
+import com.aliothmoon.maafw.BuildConfig
+import com.aliothmoon.maafw.i18n.uiTextFromFramework
+import com.aliothmoon.maafw.util.HttpClientHelper
+import com.aliothmoon.maafw.util.parseJsonObject
+import com.aliothmoon.maafw.util.readBody
+import timber.log.Timber
+import kotlin.coroutines.cancellation.CancellationException
+
+/** MFABD2 uses one Android build sequence across all project release channels. */
+internal class Mfabd2GitHubUpdateClient(
+    private val api: GitHubReleasesApi,
+    private val helper: HttpClientHelper,
+    private val currentCode: Int = BuildConfig.VERSION_CODE,
+    private val applicationId: String = BuildConfig.APPLICATION_ID,
+) : UpdateSourceClient {
+    override val source = UpdateSource.GITHUB
+
+    private data class Verified(val candidate: Mfabd2ReleasePolicy.Candidate, val digest: String)
+
+    private suspend fun latest(repository: String?, channel: UpdateChannel, abi: AndroidAbi): UpdateSourceOutcome<Verified> {
+        val repo = api.parseRepository(repository)
+            ?: return UpdateSourceOutcome.Failed(UpdateCheckFailure.MISSING_CONFIGURATION)
+        val releases = when (val result = api.releases(repo)) {
+            is UpdateSourceOutcome.Failed -> return result
+            is UpdateSourceOutcome.Ok -> result.value
+        }
+        val candidate = Mfabd2ReleasePolicy.latest(releases, channel, abi)
+            ?: return UpdateSourceOutcome.Failed(UpdateCheckFailure.NO_MATCHING_ASSET)
+        val response = helper.get(candidate.metadata.downloadUrl)
+        val status = response.code
+        val body = response.readBody()
+        if (status !in 200..299) return UpdateSourceOutcome.Failed(
+            if (status == 403 || status == 429) UpdateCheckFailure.RATE_LIMITED else UpdateCheckFailure.HTTP,
+        )
+        val metadata = parseJsonObject(body)
+            ?: return UpdateSourceOutcome.Failed(UpdateCheckFailure.INVALID_RESPONSE)
+        val digest = Mfabd2ReleasePolicy.digest(candidate, metadata, applicationId)
+            ?: return UpdateSourceOutcome.Failed(UpdateCheckFailure.INVALID_RESPONSE)
+        return UpdateSourceOutcome.Ok(Verified(candidate, digest))
+    }
+
+    override suspend fun check(request: UpdateCheckRequest): UpdateCheckResult = try {
+        when (val result = latest(request.githubRepository, request.channel, request.abi)) {
+            is UpdateSourceOutcome.Failed -> UpdateCheckResult.SourceFailed(source, result.reason, result.detail)
+            is UpdateSourceOutcome.Ok -> {
+                val candidate = result.value.candidate
+                val release = candidate.release
+                if (candidate.code <= currentCode) UpdateCheckResult.UpToDate(source, release.tag)
+                else UpdateCheckResult.UpdateAvailable(
+                    source, UpdateInfo(release.tag, release.htmlUrl, release.body),
+                )
+            }
+        }
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        Timber.tag("UpdateCheck").w(e, "MFABD2 GitHub check failed")
+        UpdateCheckResult.SourceFailed(source, UpdateCheckFailure.NETWORK)
+    }
+
+    override suspend fun resolve(request: UpdateResolveRequest): UpdateResolveResult = try {
+        when (val result = latest(request.githubRepository, request.channel, request.abi)) {
+            is UpdateSourceOutcome.Failed -> UpdateResolveResult.Failed(source, result.reason, result.detail)
+            is UpdateSourceOutcome.Ok -> {
+                val candidate = result.value.candidate
+                if (candidate.code <= currentCode) UpdateResolveResult.Failed(
+                    source, UpdateCheckFailure.VERSION_INVALID,
+                    uiTextFromFramework("所选构建不比当前安装版本新。安装更早的构建需要卸载重装。"),
+                ) else UpdateResolveResult.Resolved(
+                    ResolvedUpdate(source, candidate.release.tag, candidate.apk.downloadUrl, result.value.digest),
+                )
+            }
+        }
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        Timber.tag("UpdateResolve").w(e, "MFABD2 GitHub resolve failed")
+        UpdateResolveResult.Failed(source, UpdateCheckFailure.NETWORK)
+    }
+}

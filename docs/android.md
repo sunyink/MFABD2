@@ -25,13 +25,15 @@
 产物复用项目的注释剥离脚本，再由 MaaFramework 检查剥离后的资源；源码保留注释。
 UI 原版从自身 git 历史生成 versionCode；本工作流在临时上游 checkout 中改为 CI 运行序号，
 以便资源代码变化时也能触发手机端重新解包。
+`android/update/` 独立保存本项目的数字版本更新策略及测试，构建时复制到固定上游并替换更新客户端注册。
+不修改上游通用版本比较器；上游源码变化导致接入位置不匹配时停止构建。
 
 构建使用仓库密文 `ANDROID_SIGNING_KEYSTORE_B64` 和 `ANDROID_SIGNING_PASSWORD`，别名为 `mfabd2`。
 签名前检查证书指纹，打包后检查实际 APK 签名、包名、版号与不可调试标志；密文缺失或不匹配则停止。
 密钥及密码不得提交到代码仓库、作为构建产物上传或重新生成替代。签名文件只在 runner 临时目录存在。
 
 旧包 `com.aliothmoon.maafw.mfabd2.experimental` 使用临时 debug 签名，新正式身份会与旧包并存。
-目前没有跨包名自动迁移存档；卸载旧包前需要另行导出保存数据。稳定身份的覆盖升级仍须真机验证。
+早期实验包只用于开发测试，不提供跨包名自动迁移。稳定身份的覆盖升级仍须真机验证。
 
 ## Agent 与存档
 
@@ -84,15 +86,21 @@ controller 声明，实际运行使用 AndroidNativeController；该版本未按
 
 - 显示版本：有显式项目版本时原样保留，包括 `v4.3.19-beta.260909.abcdef`。普通开发构建沿用项目现有规则生成 `vX.Y.Z-ci.YYMMDD.sha`，提交末行的alpha/beta标记也按现行规则处理。
 - 系统内部 `versionCode`：`version_code_offset + GITHUB_RUN_NUMBER * 100 + GITHUB_RUN_ATTEMPT`。限制attempt为1至99、整体不超过2100000000，与SemVer、日期或SHA无关。
+- 正式、Beta、Alpha、CI 共用这一序列，不给渠道分配数字区间。新运行的编号大于之前所有运行的编号；同一次运行的重跑只增加末两位。重跑旧运行仍占旧编号区间，并不成为最新构建；需要将旧源码重新发行时，手动新建一次工作流运行，不使用旧运行的 Re-run。
 - 资源 interface.version 和 APK versionName 使用相同显示版本；versionCode 变化也触发 UI 资源重新解包。
 - 所有入口都派发到同一个android.yml，使用该工作流自己的run_number；不改成继承另一个工作流编号的workflow_call。迁移/重建工作流时需调整offset，确保不会归零或倒退。
-- Android支持将SemVer用作versionName，安装程序比较的是整数versionCode。上游UI另外比较版本字符串；同日beta的SHA仍按文字排序，这项内置更新判断尚未解决，不能把签名升级校验当成其替代。
+- APK 文件名为 `MFABD2-<项目版本>-android-arm64-vc<versionCode>.apk`，旁边附带 `.apk.json` 和 `.apk.sha256`。JSON 包含 `schema_version: 1`、`version_code`、`version_name`、包名、证书指纹、APK 文件名及 `apk_sha256`；这三份附件由同一构建生成，实际 APK 的版号及签名通过校验后才输出。
+- GitHub 更新先按现有 Stable/Beta 选择过滤，再从附件名选出最大的数字编号；只比较本机 `BuildConfig.VERSION_CODE`，不按显示版号或 SHA 排序。仅对最终候选读取一份 JSON，核对其编号、包名、证书指纹、标签、文件名和摘要，避免逐个下载所有历史版本的 JSON。下载时重新执行同一策略，并拒绝相同或更小的编号。
+- 缺少 APK/JSON/SHA256 任一附件、旧命名的占位包不会作为更新候选。元数据损坏或身份不符明确报错，不回落到字符串比较；GitHub 提供的 APK 摘要与 JSON 不一致时也拒绝下载。
+- 例如先发布测试构建 `601`，再发布正式构建 `701`，可直接覆盖回正式；反向安装 `601` 属于降级，需要重装。同一个标签重建可以有不同编号，安装和更新依然按数字判断。显示版本继续沿用项目原文。
 - 当前上游只有Stable/Beta更新渠道，Alpha/CI自动发现并不完整。安卓端暂不暴露旧MirrorChyan RID，避免拉取遗留ZIP；Mirror的APK与架构对接需单独验证。
+- 新安装默认使用 GitHub 更新源。此前已经保存 MirrorChyan 选择的测试安装需要在设置中手动切换；不会强行覆盖用户已保存的来源偏好。
+- 单元测试覆盖同日 SHA 逆序、渠道过滤、测试回正式、同标签重建、不完整附件、元数据不匹配及降级拒绝；在 Android CI 中运行 `:app:testReleaseUnitTest` 的 MFABD2 更新测试和更新模块装配测试。真机安装和下载体验仍单独验收。
 
 ## 当前验收边界
 
 真机已确认资源列表、任务选项及部分agent回调。截图整体偏暗的上游问题仍影响颜色匹配，暂不调整公共颜色阈值。
-原生启动覆盖、首个固定签名包、完整任务、旧试验存档迁移和覆盖升级保留存档仍需要实机验收。
+固定签名 APK 已通过 CI 的身份及结构检查；原生启动覆盖、完整任务、数字版本内置更新和覆盖升级保留存档仍需要实机验收。旧实验包迁移不在开发范围内。
 应用图标沿用已入库的 `ReadMe/logo.png`（180×180），后续可提供更高分辨率的品牌图标。
 
 ## 上游依据
