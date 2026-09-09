@@ -1,0 +1,33 @@
+# Paths are relative to this profile. Only ARM64 physical devices are targeted.
+assets: ../install
+include:
+  - interface.json
+  - resource/**
+  - agent/**
+  - python/**
+  - data/**
+  - locales/**
+  - tasks/**
+  - README.md
+  - LICENSE*
+exclude:
+  - "**/*.mpe.json"
+  - "**/test_*.py"
+agent:
+  sourceDir: ../android-build/agent-dist
+  abi:
+    - arm64-v8a
+  runtimes:
+    - location: bundle
+      executable: bin/python3
+      args:
+        - -u
+        - agent/main.py
+      env:
+        PYTHONHOME: "{bundle}/prefix"
+        PYTHONPATH: "{bundle}/site-packages/pure.zip:{bundle}/site-packages"
+        LD_LIBRARY_PATH: "{bundle}/prefix/lib:{bundle}/site-packages/chaquopy/lib:{nativeLibs}"
+        MAAFW_BINARY_PATH: "{nativeLibs}"
+app:
+  id: mfabd2.experimental
+  label: MFABD2 安卓实验版

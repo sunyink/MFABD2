@@ -490,3 +490,5 @@ prettier.config.mjs
 **/.maaowm
 **/__mod_extras__.json
 config.json
+/android-upstream/
+/android-build/

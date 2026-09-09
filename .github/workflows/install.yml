@@ -4,8 +4,8 @@ on:
   push:
     tags:
       - "v*"
-    branches:
-      - "**"
+    branches-ignore:
+      - "feat/android-native"
     paths:
       - ".github/workflows/install.yml"
       - "assets/**"

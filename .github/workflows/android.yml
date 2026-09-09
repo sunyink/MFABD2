@@ -1,0 +1,113 @@
+name: Android ARM64 experimental
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feat/android-native
+    paths:
+      - .github/workflows/android.yml
+      - android/**
+      - agent/**
+      - assets/**
+      - install.py
+      - configure.py
+      - tools/verify_android*.py
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-arm64-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  MAAFW_TAG: v5.12.3
+  AGENT_CORE_TAG: 3.13.15-maafw5.12.3
+  PYTHONUTF8: "1"
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - name: Checkout pinned Android UI
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          repository: Aliothmoon/MaaFwApp
+          ref: f4f6f220e21e3a1b7b0cf5df4bdbe0ec04c668f7
+          path: android-upstream
+      - name: Restore pinned OCR assets
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          repository: sunyink/MFABD2-Assets
+          ref: df9c78afd7089ff925b014f01ae650fa72f859a2
+          path: android-build/assets
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.11"
+      - name: Verify agent and prepare resources
+        run: |
+          python -m pip install "MaaFw==5.12.3" "numpy==2.3.2" "Pillow==11.0.0" "json-with-comments==1.3.0"
+          python tools/verify_android_runtime.py
+          python agent/recognition/test_rdd_hsv_rescue.py
+          PYTHONPATH=agent python -c "import action, recognition, fishing_agent"
+          mkdir -p assets/MaaCommonAssets
+          cp -a android-build/assets/MaaCommonAssets/. assets/MaaCommonAssets/
+          python install.py "android-dev.${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}" android 5.12.3
+          python check_resource.py install
+      - name: Assemble Android Python dependencies
+        working-directory: android-upstream
+        run: |
+          python scripts/build_agent_bundle.py \
+            --out "$GITHUB_WORKSPACE/android-build/agent-dist" \
+            --abi arm64-v8a --core-tag "$AGENT_CORE_TAG" \
+            --requirements "$GITHUB_WORKSPACE/android/requirements.txt" \
+            --extra-index-url https://chaquo.com/pypi-13.1/
+          python scripts/setup_maa_framework.py --tag "$MAAFW_TAG" --abi arm64-v8a
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: android-actions/setup-android@v3
+      - name: Install Android build tools
+        run: sdkmanager "platforms;android-37" "build-tools;36.0.0" "cmake;3.22.1"
+      - name: Configure experimental package
+        run: |
+          echo "build.debugAbi=arm64-v8a" >> android-upstream/local.properties
+          python - <<'PY'
+          import os
+          from pathlib import Path
+          path = Path("android-upstream/build-logic/convention/src/main/kotlin/com/aliothmoon/maafw/gradle/GitVersion.kt")
+          source = path.read_text()
+          marker = "internal fun Project.gitVersionCode(): Int {"
+          if source.count(marker) != 1:
+              raise SystemExit("Pinned UI versionCode hook changed")
+          # Resource updates must change versionCode too: MaaFwApp uses it to re-extract pi.
+          code = int(os.environ["GITHUB_RUN_NUMBER"]) * 100 + int(os.environ["GITHUB_RUN_ATTEMPT"])
+          if not 1 <= code <= 2100000000:
+              raise SystemExit("Android versionCode is out of range")
+          start = source.index(marker)
+          end = source.index("\n}\n", start) + len("\n}\n")
+          path.write_text(source[:start] + marker + f"\n    return {code}\n}}\n" + source[end:])
+          PY
+      - name: Build ARM64 debug APK
+        working-directory: android-upstream
+        env:
+          PI_PROFILE: ${{ github.workspace }}/android/pi-profile.yaml
+          BUILD_VERSION_NAME: android-dev.${{ github.run_number }}.${{ github.run_attempt }}
+        run: ./gradlew :app:assembleDebug --stacktrace
+      - name: Verify APK contents
+        run: |
+          python tools/verify_android_apk.py android-upstream/app/build/outputs/apk/debug/app-debug.apk
+          mkdir -p android-build/artifacts
+          name="MFABD2-android-dev.${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}-arm64.apk"
+          cp android-upstream/app/build/outputs/apk/debug/app-debug.apk "android-build/artifacts/$name"
+          cd android-build/artifacts
+          sha256sum "$name" > "$name.sha256"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: MFABD2-android-arm64-experimental
+          path: android-build/artifacts/
+          if-no-files-found: error

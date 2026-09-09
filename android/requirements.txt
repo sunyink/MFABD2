@@ -1,0 +1,10 @@
+# MaaAgentCoreAndroid 3.13.15-maafw5.12.3 supplies these three packages.
+maafw==5.12.3
+numpy==2.3.2
+StrEnum==0.4.15
+# Android wheels; do not reuse the desktop numpy<2 constraint.
+json-with-comments==1.3.0
+requests==2.34.2
+pytz==2026.3.post1
+loguru==0.7.3
+Pillow==11.0.0

@@ -35,15 +35,18 @@ if deps_path.exists():
 
 from utils import mfaalog # 日志
 from utils import venv_ops # 虚拟化
+from utils.runtime_environment import is_android, android_library_dir
 
 # 环境治理逻辑 (虚拟化 + 模式判断)
 # -----------------------------
 def get_env_mode():
     """
     判断当前运行模式
-    返回: 'dev' (开发/源码) 或 'release' (发布)
-    判据: requirements.txt 是否存在
+    返回: 'android' (宿主管理) / 'dev' (开发/源码) / 'release' (发布)
+    Android 由宿主提供解释器，不运行桌面虚拟环境管理。
     """
+    if is_android():
+        return 'android'
     req_file = project_root / "requirements.txt"
     if req_file.exists():
         return 'dev'
@@ -93,7 +96,10 @@ elif system_name == 'darwin':
 # 2. 拼接 Native 库路径
 dll_path = project_root / "runtimes" / rid / "native"
 
-if current_mode == 'release':
+if current_mode == 'android':
+    dll_path = android_library_dir()
+    mfaalog.info(f"Android 模式: 使用宿主内核库 -> {dll_path}")
+elif current_mode == 'release':
     # 【发布模式】：必须手动指定 DLL 路径
     # 因为发布包里没有 pip 安装库，只有 runtimes 文件夹里的裸 DLL
     dll_path = project_root / "runtimes" / rid / "native"
@@ -148,6 +154,8 @@ def main():
         mfaalog.info("✅ [Agent] 存档/备份系统已就绪（存档号将在首个任务运行时确定）")
     except Exception as e:
         mfaalog.error(f"⚠️ 存档系统预热异常: {e}")
+        if current_mode == 'android':
+            raise  # 安卓目录错误必须阻止启动，不能继续运行后看似保存成功。
 
     # 1. 初始化 Toolkit (借鉴 B 项目)
     # AgentServer 模式下仅 set_log_dir 生效，其余被忽略（上游已知行为）

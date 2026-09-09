@@ -7,6 +7,8 @@ import time
 from datetime import datetime
 from pathlib import Path
 from . import mfaalog as logger
+from .runtime_environment import persistent_data_dir
+import tempfile
 
 # 读存档时遇到 OSError(占用/权限)的退避重试。多是瞬时的:另一个实例正在写、
 # 杀毒软件正在扫。区别于 JSON 解析失败 —— 那才是数据真的坏了。
@@ -90,6 +92,23 @@ class PersistentStore:
 
         # 获取项目根目录
         base_dir = Path(__file__).resolve().parent.parent.parent
+
+        # Android data is owned by the host, independently of replaceable resources.
+        # An explicit directory failing to open must never fall back to another save.
+        data_dir = persistent_data_dir(base_dir)
+        if data_dir is not None:
+            data_dir.mkdir(parents=True, exist_ok=True)
+            with tempfile.TemporaryFile(dir=data_dir) as probe:
+                probe.write(b"test")
+                probe.flush()
+                os.fsync(probe.fileno())
+            cls.CONFIG_DIR = data_dir
+            cls.FILE_PATH = data_dir / cls.FILE_NAME
+            cls.BACKUP_PATH = data_dir / cls.BAK_NAME
+            cls._mode = 'host'
+            cls._initialized = True
+            logger.info(f"[Py] 存档挂载完成 | 账号ID: {cls._sanitized_account_id} | 宿主目录: {cls.FILE_PATH}")
+            return
         
         # 2. 检查绿色模式触发条件 (根目录下存在任意存档或备份文件)
         # 💡 [修复] 只要根目录下有任何 agent_save_data 开头的 json，就统一认定为绿色便携模式

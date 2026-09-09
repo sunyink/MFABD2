@@ -23,6 +23,9 @@ Python Agent 提供自定义识别/动作，MFAAvalonia 提供 GUI。
 
 运行模式由 `requirements.txt` 是否存在自动判定：
 
+- **Android**：优先识别安卓宿主，跳过桌面虚拟环境管理并保留宿主提供的原生库路径。
+  Android 实验构建与存档目录说明见 `docs/android.md`。
+
 - **dev**（有 `requirements.txt`）：`main.py` 会自动接管虚拟环境（`utils/venv_ops.py`），
   且**不注入** DLL 路径，用 pip 安装的 MaaFw 自带 DLL。
 - **release**（无）：强制把 `runtimes/<rid>/native` 注入 `MAAFW_BINARY_PATH`。
