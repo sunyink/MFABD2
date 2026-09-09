@@ -1594,13 +1594,6 @@
                         },
                         "Arbitrage_Sell_Item_NumberSafety_OFF": {
                             "enabled": false
-                        },
-                        "Arbitrage_Sell_Item_Selling": {
-                            "next": [
-                                "Arbitrage_Sell_Item_Selling",
-                                "Arbitrage_Sell_End",
-                                "[JumpBack]Arbitrage_PackList_ResetSwip"
-                            ]
                         }
                     }
                 },

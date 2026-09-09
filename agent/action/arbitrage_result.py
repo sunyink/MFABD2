@@ -26,6 +26,9 @@ _COL_NAME = "Arbitrage_Sell_Col_Name"
 _COL_AMOUNT = "Arbitrage_Sell_Col_Amount"
 _COL_PRICE = "Arbitrage_Sell_Col_Price"
 _COL_CART = "Arbitrage_Sell_Col_Cart"
+_SELL_ITEM_LIST = "Arbitrage_Sell_Item_ListTraverse"
+_SELL_ITEM_OCR = "Agt_<Sell_Item>_Ocr"
+_SELL_ITEM_TEMPLATE = "Agt_<Sell_Item>_Tmp"
 
 # ==========================================
 # 子行断界(2026-07-24,#Q2)：价目表每个商品占两行
@@ -49,6 +52,31 @@ SCORE_MIN = 0.6      # 卡带选中组组分低于此=低置信,打WRN(实录错
 # 链条内部走到哪一步、卖了几件;链内测点贴着出售动作,还能覆盖连续出售的多件累计。
 # run_task 的返回值靠不住这件事没变:它只表示链条"正常结束",选卡带找不到目标、SmartSwipe
 # 判触底 JumpOut 时同样成功(07-22实录:桑格利亚酒一件没卖仍报成功),所以成败仍以金币为准。
+
+
+def _sell_item_override(context: Context, item_name: str) -> dict:
+    """每次派发同时更新OCR和模板；无模板时父Or只走OCR，不沿用上一件的图。"""
+    result = {
+        _SELL_ITEM_OCR: {"expected": item_name},
+        _SELL_ITEM_LIST: {"any_of": [_SELL_ITEM_OCR]},
+    }
+    try:
+        node = context.get_node_object(_SELL_ITEM_TEMPLATE)
+        attach = getattr(node, "attach", None) or {}
+        templates = attach.get("templates", {})
+        matched = [value for key, value in templates.items() if canon(key) == canon(item_name)]
+        if len(matched) != 1:
+            return result
+        paths = matched[0]
+        paths = [paths] if isinstance(paths, str) else paths
+        if (not isinstance(paths, list) or not paths
+                or any(not isinstance(path, str) or not path.strip() for path in paths)):
+            raise ValueError("模板配置必须是非空路径或路径列表")
+        result[_SELL_ITEM_TEMPLATE] = {"template": list(paths)}
+        result[_SELL_ITEM_LIST]["any_of"].append(_SELL_ITEM_TEMPLATE)
+    except Exception as exc:
+        mfaalog.warning(f"[Arbitrage] [{item_name}] 出售模板配置不可用，仅使用OCR: {exc}")
+    return result
 
 
 def _task_ok(detail) -> bool:
@@ -582,14 +610,8 @@ class ArbitrageSellController(CustomAction):
                 cart_pat = _cart_expected(cand)
                 if cart_pat != cand:
                     mfaalog.info(f"[Arbitrage]   ↳ 卡带匹配用容错式: {cart_pat}")
-                override_cfg = {
-                    "Arbitrage_Sell_PackShopSwich": {
-                        "expected": cart_pat
-                    },
-                    "Arbitrage_Sell_Item_ListTraverse": {
-                        "expected": item_name
-                    }
-                }
+                override_cfg = _sell_item_override(context, item_name)
+                override_cfg["Arbitrage_Sell_PackShopSwich"] = {"expected": cart_pat}
                 current_rate = target.get("current_rate")
                 if (isinstance(current_rate, int) and not isinstance(current_rate, bool)
                         and 0 < current_rate < 1000):

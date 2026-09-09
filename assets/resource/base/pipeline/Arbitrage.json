@@ -2608,10 +2608,23 @@
         ],
         "count": 100,
         "next": [
+            "[JumpBack]Arbitrage_ItemList_Sorting_Entry",
             "[Anchor]Sell_Bypass",
             "Arbitrage_Sell_Item_ListTraverse",
-            "Arbitrage_ItemList_Sorting_Type_Not"
+            "Arbitrage_Sell_Item_ListTraverse_End",
+            "[JumpBack]Arbitrage_ItemList_Swip"
         ]
+    },
+    "Arbitrage_ItemList_Sorting_Entry": {
+        "desc": "当前账号每日检查一次出售列表排序方式，任务内最多一次；排序确认成功后打标。",
+        "max_hit": 1,
+        "recognition": "Custom",
+        "custom_recognition": "CheckCoolDown",
+        "custom_recognition_param": {
+            "card_name": "Arbitrage_ItemList_Sorting",
+            "cycle_type": "g_daily"
+        },
+        "next": ["Arbitrage_ItemList_Sorting_Type_Not"]
     },
     "Arbitrage_ItemList_Sorting_Type_Not": {
         "desc": "商店内,排序类型错误,切换(删除价格排序图像,因为除了价格图标,%图标但升序也是不对的)",
@@ -2673,7 +2686,7 @@
         "focus": "溢价排序-模式选中确认"
     },
     "Arbitrage_ItemList_Sorting_Reverse": {
-        "desc": "确认商品列表第一个是最高价",
+        "desc": "确认从高到低排序已选中后，写入当前账号的每日排序完成标记。",
         "recognition": "And",
         "all_of": [
             {
@@ -2690,9 +2703,14 @@
             },
             "Sub_SieveExpand_Yew_Clr"
         ],
+        "action": "Custom",
+        "custom_action": "MarkComplete",
+        "custom_action_param": {
+            "card_name": "Arbitrage_ItemList_Sorting",
+            "cycle_type": "g_daily"
+        },
         "next": [
-            "[JumpBack]Arbitrage_ItemList_Sorting_Remove",
-            "Arbitrage_Sell_Item_ListTraverse"
+            "[JumpBack]Arbitrage_ItemList_Sorting_Remove"
         ],
         "focus": "Arb.排序结果可以确认"
     },
@@ -2706,8 +2724,8 @@
         ]
     },
     "Arbitrage_ItemList_Swip": {
-        "desc": "商店卡带列表滑动(感觉做好排序的话,用不到滑动,停用、先保留[2026-7-22错误]上游入口永不进入,业务错误,不用修,准备删除",
-        "enabled": false,
+        "desc": "出售物品列表下滑；每轮最多命中15次，每次连续3次画面不变则返回失败。",
+        "max_hit": 15,
         "recognition": "OCR",
         "roi": [
             110,
@@ -2720,45 +2738,53 @@
             "出售"
         ],
         "action": "Custom",
-        "custom_action": "SmartSwipe",
+        "custom_action": "SmartAction",
         "custom_action_param": {
-            "proxy_node": "Custom_Proxy_Swipe",
-            "focus": "Arb.sell.物品列表滑动",
-            "action": "Swipe",
+            "proxy_node": "Agt_Proxy_Blank",
+            "proxy_override": {
+                "action": "Swipe",
+                "begin": [
+                    894,
+                    580
+                ],
+                "end": [
+                    894,
+                    40
+                ],
+                "duration": 800,
+                "end_hold": 800,
+                "post_delay": 1000
+            },
             "detect_roi": [
-                404,
-                102,
-                63,
-                161
+                384,
+                128,
+                85,
+                276
             ],
-            "begin": [
-                894,
-                580
-            ],
-            "end": [
-                894,
-                40
-            ],
-            "duration": 800,
-            "end_hold": 800,
             "settle_delay": 500,
-            "retry_times": 2,
+            "on_changed": "next",
+            "on_unchanged": "loop",
+            "loop_limit": 3,
+            "loop_exhausted": "error",
             "threshold": 3.0
         },
         "post_wait_freezes": 1000,
         "timeout": 1,
-        "next": [
-            "Arbitrage_ItemList_Swip"
-        ],
-        "on_error": [
-            "Arbitrage_Sell_Item_ListTraverse",
-            "Global_Null_Exception",
-            "Global_Null_Panic"
-        ],
-        "focus": "滑动商店卡带表"
+        "focus": "滑动出售物品列表"
     },
     "Arbitrage_Sell_Item_ListTraverse": {
-        "desc": "需要[custom]传入特征词.点击目标出售物品 。注意，这里的replace是和py处理一致的。",
+        "desc": "出售物品双入口；Python向子OCR传名称、向子模板传路径，无对应模板时仅使用OCR。",
+        "recognition": "Or",
+        "any_of": [
+            "Agt_<Sell_Item>_Ocr",
+            "Agt_<Sell_Item>_Tmp"
+        ],
+        "next": [
+            "Arbitrage_Sell_Gold_Snapshot"
+        ]
+    },
+    "Agt_<Sell_Item>_Ocr": {
+        "desc": "出售物品OCR入口",
         "recognition": "OCR",
         "roi": [
             392,
@@ -2774,9 +2800,91 @@
                 " ",
                 ""
             ]
+        ]
+    },
+    "Agt_<Sell_Item>_Tmp": {
+        "desc": "出售物品模板入口；Python从attach.templates按物品名选图，每次派发覆盖template。",
+        "recognition": "TemplateMatch",
+        "roi": [
+            392,
+            94,
+            733,
+            540
         ],
-        "next": [
-            "Arbitrage_Sell_Gold_Snapshot"
+        "template": ["UI_loading_black.png"],
+        "attach": {
+            "templates": {
+                "三文鱼": "Shop/SellList/食材_三文鱼.png",
+                "兽肉": "Shop/SellList/食材_兽肉.png",
+                "凯洛药材": "Shop/SellList/食材_凯洛药材.png",
+                "吐司": "Shop/SellList/食材_吐司.png",
+                "咖啡豆": "Shop/SellList/食材_咖啡豆.png",
+                "哈密瓜": "Shop/SellList/食材_哈密瓜.png",
+                "啤酒花": "Shop/SellList/食材_啤酒花.png",
+                "土豆": "Shop/SellList/食材_土豆.png",
+                "地狱火辣酱": "Shop/SellList/食材_地狱火辣酱.png",
+                "大麦": "Shop/SellList/食材_大麦.png",
+                "奶酪": "Shop/SellList/食材_奶酪.png",
+                "姜黄": "Shop/SellList/食材_姜黄.png",
+                "小麦": "Shop/SellList/食材_小麦.png",
+                "巧克力": "Shop/SellList/食材_巧克力.png",
+                "料酒": "Shop/SellList/食材_料酒.png",
+                "杏仁": "Shop/SellList/食材_杏仁.png",
+                "松露油": "Shop/SellList/食材_松露油.png",
+                "橄榄油": "Shop/SellList/食材_橄榄油.png",
+                "水果罐头": "Shop/SellList/食材_水果罐头.png",
+                "永恒之爱": "Shop/SellList/食材_永恒之爱.png",
+                "洋葱": "Shop/SellList/食材_洋葱.png",
+                "牛奶": "Shop/SellList/食材_牛奶.png",
+                "玉米": "Shop/SellList/食材_玉米.png",
+                "甜椒": "Shop/SellList/食材_甜椒.png",
+                "甜辣酱": "Shop/SellList/食材_甜辣酱.png",
+                "番茄": "Shop/SellList/食材_番茄.png",
+                "白糖": "Shop/SellList/食材_白糖.png",
+                "盐": "Shop/SellList/食材_盐.png",
+                "秃鹫羽毛": "Shop/SellList/食材_秃鹫羽毛.png",
+                "米": "Shop/SellList/食材_米.png",
+                "胡椒": "Shop/SellList/食材_胡椒.png",
+                "胡萝卜": "Shop/SellList/食材_胡萝卜.png",
+                "能量粉末": "Shop/SellList/食材_能量粉末.png",
+                "芥末": "Shop/SellList/食材_芥末.png",
+                "苹果": "Shop/SellList/食材_苹果.png",
+                "萝卜缨": "Shop/SellList/食材_萝卜缨.png",
+                "葡萄": "Shop/SellList/食材_葡萄.png",
+                "藏红花": "Shop/SellList/食材_藏红花.png",
+                "蘑菇": "Shop/SellList/食材_蘑菇.png",
+                "虾": "Shop/SellList/食材_虾.png",
+                "蛋黄酱": "Shop/SellList/食材_蛋黄酱.png",
+                "蜂蜜": "Shop/SellList/食材_蜂蜜.png",
+                "袋装鸡胸肉": "Shop/SellList/食材_袋装鸡胸肉.png",
+                "调味海苔": "Shop/SellList/食材_调味海苔.png",
+                "豆子": "Shop/SellList/食材_豆子.png",
+                "辣椒": "Shop/SellList/食材_辣椒.png",
+                "辣椒素": "Shop/SellList/食材_辣椒素.png",
+                "透明蘑菇": "Shop/SellList/食材_透明蘑菇.png",
+                "金枪鱼罐头": "Shop/SellList/食材_金枪鱼罐头.png",
+                "闪光粉末": "Shop/SellList/食材_闪光粉末.png",
+                "雷瓦汀火腿": "Shop/SellList/食材_雷瓦汀火腿.png",
+                "香草": "Shop/SellList/食材_香草.png",
+                "鱼子酱罐头": "Shop/SellList/食材_鱼子酱罐头.png",
+                "鸡蛋": "Shop/SellList/食材_鸡蛋.png",
+                "黄油": "Shop/SellList/食材_黄油.png",
+                "黄金罗勒": "Shop/SellList/食材_黄金罗勒.png"
+            }
+        }
+    },
+    "Arbitrage_Sell_Item_ListTraverse_End": {
+        "desc": "列表关注项类已结束",
+        "recognition": "OCR",
+        "roi": [
+            384,
+            96,
+            186,
+            552
+        ],
+        "expected": [
+            "圣石",
+            "装备材料"
         ]
     },
     "Arbitrage_Sell_Gold_Snapshot": {
@@ -2874,6 +2982,7 @@
         ]
     },
     "Arbitrage_Sell_Item_Selling": {
+        "desc": "本次确认出售后复位退出；后续批次由Python主控重新派发，不在pipeline内重复出售。",
         "recognition": "OCR",
         "roi": [
             810,
@@ -2888,8 +2997,6 @@
         "post_delay": 2000,
         "timeout": 4000,
         "next": [
-            "Arbitrage_Sell_Item_Selling",
-            "Arbitrage_Sell_Item_ListTraverse",
             "Arbitrage_Sell_End",
             "[JumpBack]Arbitrage_PackList_ResetSwip"
         ]
@@ -5656,5 +5763,8 @@
             "Shop/BagList/成长材料_史莱姆1.png"
         ],
         "threshold": 0.9
+    },
+    "Arbitrage_TargetedSales_Entry": {
+        "desc": "精准出售入口"
     }
 }
