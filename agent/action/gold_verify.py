@@ -9,8 +9,9 @@
 改为链内埋两个动作节点：
 
 - **A `GoldSnapshot`** —— 挂在「物品已被 OCR 确认存在」之后、点击之前，记基准值。
-  靠 `[JumpBack]` + `max_hit: 1` 保证整个 `run_task` 内只跑一次，所以连续出售
-  （`Item_Selling → ListTraverse` 那条回边）第二件起不会覆盖基准。
+  节点正常串行执行，Python 在本轮已有基准或结论时保留首次读数，连续出售回边
+  不会覆盖基准。主控每次派发前用 `clear_verdict()` 开启新一轮；不能用跨
+  `run_task` 共用的 `max_hit` 计数代替这个边界。
 - **B `GoldVerdict`** —— 挂在 `Arbitrage_Sell_End`（复位态确认）上，取终值算差额。
 
 两者只**测量**，不判"卖成没卖成" —— 判据归主控，它才知道还有没有别的候选要试。
@@ -136,7 +137,7 @@ def _read_gold(context: Context, node: str = _GOLD_NODE_DEFAULT) -> Optional[int
 # 主控侧接口
 # ==========================================
 def clear_verdict() -> None:
-    """发包前清槽。不清的话，链条这轮没走到 B 时会读到上一轮的残留结论。"""
+    """每次派发前重置测量轮次：清基准和结论，允许本轮 A 记录首次读数。"""
     global _BASELINE, _VERDICT
     _BASELINE = None
     _VERDICT = None
@@ -163,8 +164,13 @@ class GoldSnapshot(CustomAction):
 
     def run(self, context: Context, argv: CustomAction.RunArg) -> bool:
         global _BASELINE
+        # None读数也算尝试过，不能在成交之后补读并冒充售前金币。
+        # B已消费基准但结论尚未被主控取走时，也不开始另一轮测量。
+        if _BASELINE is not None or _VERDICT is not None:
+            mfaalog.debug("[Gold] ↺ 本轮已有基准或结论，保留首次读数")
+            return True
         gold = _read_gold(context, _node_of(argv))
-        _BASELINE = {"gold": gold}        # 无条件覆盖，不做新鲜度判断
+        _BASELINE = {"gold": gold}
         mfaalog.info(
             f"[Gold] 📌 基准 {gold:,}" if gold is not None else "[Gold] 📌 基准读数不可用"
         )

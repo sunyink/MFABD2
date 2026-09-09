@@ -2776,20 +2776,19 @@
             ]
         ],
         "next": [
-            "[JumpBack]Arbitrage_Sell_Gold_Snapshot",
-            "Arbitrage_Sell_Item_Click"
+            "Arbitrage_Sell_Gold_Snapshot"
         ]
     },
     "Arbitrage_Sell_Gold_Snapshot": {
-        "desc": "金币检测点A",
-        "max_hit": 1,
+        "desc": "金币检测点A；串行放行，Python每次派发只记录首次基准。勿加max_hit，其计数跨run_task共享。",
         "pre_delay": 0,
         "action": "Custom",
         "custom_action": "GoldSnapshot",
         "custom_action_param": {
             "node": "Arbitrage_Sell_GoldRead"
         },
-        "post_delay": 0
+        "post_delay": 0,
+        "next": ["Arbitrage_Sell_Item_Click"]
     },
     "Arbitrage_Sell_Item_Click": {
         "action": "Click",
