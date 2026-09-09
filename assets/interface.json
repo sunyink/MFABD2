@@ -1474,7 +1474,6 @@
                     "name": "Yes",
                     "pipeline_override": {},
                     "option": [
-                        "抛售行为保险",
                         "待出售的物品"
                     ]
                 },
@@ -1576,35 +1575,6 @@
                         },
                         "Arbitrage_Cooking_Weekly": {
                             "enabled": false
-                        }
-                    }
-                }
-            ]
-        },
-        "抛售行为保险": {
-            "type": "switch",
-            "description": "开：每次仅出售1件，用于首次验证目标物品识别是否准确。<br>确认无误后关闭，改为每次出售MAX数量。",
-            "default_case": "No",
-            "cases": [
-                {
-                    "name": "Yes",
-                    "pipeline_override": {
-                        "Arbitrage_Sell_Item_NumberSafety_ON": {
-                            "enabled": true
-                        },
-                        "Arbitrage_Sell_Item_NumberSafety_OFF": {
-                            "enabled": false
-                        }
-                    }
-                },
-                {
-                    "name": "No",
-                    "pipeline_override": {
-                        "Arbitrage_Sell_Item_NumberSafety_ON": {
-                            "enabled": false
-                        },
-                        "Arbitrage_Sell_Item_NumberSafety_OFF": {
-                            "enabled": true
                         }
                     }
                 }

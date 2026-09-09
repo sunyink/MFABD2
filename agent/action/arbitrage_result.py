@@ -2,6 +2,7 @@ import json
 import re
 from datetime import datetime, timezone
 from pathlib import Path
+from uuid import uuid4
 from maa.custom_action import CustomAction
 from maa.context import Context
 from maa.agent.agent_server import AgentServer
@@ -14,7 +15,7 @@ from utils.arbitrage_store import (
     save_possession_snapshot,
 )
 from utils.name_i18n import canon
-from action import gold_verify
+from action import gold_verify, arbitrage_sell_quantity
 
 # ==========================================
 # 三列各自窄 roi OCR(#Q2.5,2026-07-24)：名/价/卡带在各自节点的 roi 内分别识别。
@@ -29,6 +30,7 @@ _COL_CART = "Arbitrage_Sell_Col_Cart"
 _SELL_ITEM_LIST = "Arbitrage_Sell_Item_ListTraverse"
 _SELL_ITEM_OCR = "Agt_<Sell_Item>_Ocr"
 _SELL_ITEM_TEMPLATE = "Agt_<Sell_Item>_Tmp"
+_SELL_QUANTITY = "Arbitrage_Sell_Item_Quantity"
 
 # ==========================================
 # 子行断界(2026-07-24,#Q2)：价目表每个商品占两行
@@ -520,6 +522,13 @@ class ArbitrageSellController(CustomAction):
                 return True
             mfaalog.info(f"[Arbitrage] 📋 期望售卖清单 ({len(whitelist_set)}项): {', '.join(whitelist_set)}")
 
+        # 材料三档配置尚未挂接，不能把缺失的保留量当作0继续出售。
+        recipe_names = preview_recipe_names if preview_recipe_names is not None else _load_recipe_names()
+        excluded = whitelist_set - recipe_names
+        if excluded:
+            mfaalog.info(f"[Arbitrage] 材料保留配置待接入，本轮仅处理料理；跳过: {', '.join(sorted(excluded))}")
+        whitelist_set &= recipe_names
+
         targets_to_sell = [
             {
                 "name": item["name"],
@@ -612,6 +621,11 @@ class ArbitrageSellController(CustomAction):
                     mfaalog.info(f"[Arbitrage]   ↳ 卡带匹配用容错式: {cart_pat}")
                 override_cfg = _sell_item_override(context, item_name)
                 override_cfg["Arbitrage_Sell_PackShopSwich"] = {"expected": cart_pat}
+                request_id = uuid4().hex
+                override_cfg[_SELL_QUANTITY] = {"custom_action_param": {
+                    "request_id": request_id, "item_name": item_name, "reserve": 0, "target": None,
+                }}
+                override_cfg["Arbitrage_Sell_HUB"] = {"anchor": {"Sell_Bypass": ""}}
                 current_rate = target.get("current_rate")
                 if (isinstance(current_rate, int) and not isinstance(current_rate, bool)
                         and 0 < current_rate < 1000):
@@ -620,13 +634,32 @@ class ArbitrageSellController(CustomAction):
                     override_cfg["Arbitrage_Sell_Item_Price_MaxCheck"] = {
                         "expected": f"{current_rate}%"
                     }
+                else:
+                    mfaalog.warning(f"[Arbitrage] [{item_name}] 本轮溢价率未知，跳过本项")
+                    break
+
+                for node in ("Arbitrage_ItemList_Swip", "Arbitrage_Sell_Item_Cancel",
+                             "Arbitrage_Sell_Item_Exit_ResetSwip"):
+                    if not context.clear_hit_count(node):
+                        mfaalog.error(f"[Arbitrage] 无法重置本批节点计数: {node}")
+                        return False
 
                 # 发包前清槽:不清的话,本轮链条若没走到 B(中途断了),会读到上一轮的残留结论。
                 gold_verify.clear_verdict()
 
                 # 拉起 JSON 端的出售链，并阻塞等待它执行完毕
                 # 起点设为进入出售菜单的识别节点
-                sell_result = context.run_task("Arbitrage_Sell_HUB", pipeline_override=override_cfg)
+                quantity_result = None
+                try:
+                    sell_result = context.run_task("Arbitrage_Sell_HUB", pipeline_override=override_cfg)
+                finally:
+                    quantity_result = arbitrage_sell_quantity.take_result(request_id)
+
+                if sell_result is not None and any(
+                    node.name == "Arbitrage_Sell_Item_Exit_Failed" for node in sell_result.nodes
+                ):
+                    mfaalog.error("[Arbitrage] 出售子页未能复位，停止后续派发")
+                    return False
 
                 # 金币由链内 A/B 测量(见 gold_verify 的时序契约),这里只取结论。
                 # None = B 压根没执行;delta is None = B 跑了但两端读数缺一个。
@@ -636,8 +669,14 @@ class ArbitrageSellController(CustomAction):
                 delta = this_round.get("delta") if this_round else None
                 if delta is not None and delta > 0:
                     break            # 已售出,毙掉后续候选,少跑一个柜台
-                # delta == 0(确凿没卖出) 与 delta is None(无法判断) 都按"这个候选不行"处理,
-                # 接着试下一个卡带候选 —— 但绝不拿同一套参数重跑,那只会复现同样的结果。
+                # 金币测量暂沿用现有判据；已准备出售的一批不因金币未知而重复派发。
+                attempted = sell_result is not None and any(
+                    node.name == "Arbitrage_Sell_Item_Selling" and node.action is not None
+                    for node in sell_result.nodes
+                )
+                if attempted or (quantity_result and quantity_result.get("status") == "ready"):
+                    mfaalog.warning(f"[Arbitrage] [{item_name}] 本批已准备或尝试出售，结果未确认，不再尝试备用卡带")
+                    break
 
             delta = verdict.get("delta") if verdict else None
             before = verdict.get("before") if verdict else None
@@ -687,8 +726,8 @@ class ArbitrageSellController(CustomAction):
         else:
             mfaalog.info(f"[Arbitrage] ➖ 本轮 {len(targets_to_sell)} 项待售,一项都未及处理(多半是收到停止指令)。")
         if sold_ok and mode == _MODE_PREVIEW_POSSESS:
-            # 金币上涨只能证明“卖出过”，不能证明卖光：界面保险选项可能只卖 1 个。
-            # 因售出数量也没有可靠读数，只作废旧数量，交给后续库存扫描重新校准。
+            # 已核对的选量不等于实际成交量；金币上涨也不能证明卖光（单批上限99999）。
+            # 暂只作废旧数量，后续用库存差核对实际成交再更新。
             try:
                 stored = invalidate_inventory_quantities(
                     sold_ok,
