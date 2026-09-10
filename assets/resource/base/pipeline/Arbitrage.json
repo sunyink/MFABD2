@@ -1857,8 +1857,14 @@
         },
         "next": [
             "[JumpBack]Arbitrage_Favorit_Buy_Again",
-            "Arbitrage_Favorit_Buy_SubMenu"
+            "Arbitrage_Favorit_Buy_GlodSet"
         ]
+    },
+    "Arbitrage_Favorit_Buy_GlodSet": {
+        "action": "Custom",
+        "custom_action": "GoldSnapshot",
+        "custom_action_param": {"node": "Agt_BuyQuantity_Gold_Ocr"},
+        "next": ["Arbitrage_Favorit_Buy_SubMenu"]
     },
     "Arbitrage_Favorit_Buy_Again": {
         "max_hit": 5,
@@ -1868,6 +1874,7 @@
         "post_delay": 2000
     },
     "Arbitrage_Favorit_Buy_SubMenu": {
+        "max_hit": 4,
         "recognition": "OCR",
         "roi": [
             557,
@@ -1878,6 +1885,17 @@
         "expected": [
             "购买全部收藏"
         ],
+        "action": "Click",
+        "post_wait_freezes": {
+            "target": [
+                617,
+                258,
+                46,
+                44
+            ],
+            "time": 300,
+            "timeout": 10000
+        },
         "next": [
             "Arbitrage_Favorit_Buy_SubMenu_BuyAction"
         ]
@@ -1901,51 +1919,34 @@
                 46,
                 44
             ],
-            "time": 300,
+            "time": 3000,
             "timeout": 10000
         },
         "post_delay": 5000,
         "next": [
             "Arbitrage_Favorit_Buy_SubMenu_BuyAction",
-            "Arbitrage_Favorit_Buy_SubMenu_Closure",
-            "Arbitrage_Buy_Select_End"
+            "Arbitrage_Favorit_Buy_GlodConfirm",
+            "Arbitrage_Favorit_Buy_SubMenu",
+            "Arbitrage_Favorit_Buy_WRN"
         ],
         "on_error": [
             "Global_Null_Exception"
         ]
     },
-    "Arbitrage_Favorit_Buy_SubMenu_Closure": {
-        "recognition": "And",
-        "all_of": [
-            {
-                "sub_name": "OCR",
-                "recognition": "OCR",
-                "roi": [
-                    390,
-                    87,
-                    727,
-                    540
-                ],
-                "expected": "售馨"
-            },
-            {
-                "recognition": "ColorMatch",
-                "roi": "OCR",
-                "method": 40,
-                "lower": [
-                    0,
-                    207,
-                    121
-                ],
-                "upper": [
-                    10,
-                    233,
-                    255
-                ],
-                "count": 10
-            }
-        ],
+    "Arbitrage_Favorit_Buy_GlodConfirm": {
+        "recognition": "Custom",
+        "custom_recognition": "GoldVerdict",
+        "custom_recognition_param": {
+            "node": "Agt_BuyQuantity_Gold_Ocr",
+            "direction": "decrease"
+        },
+        "action": "Custom",
+        "custom_action": "GoldClear",
         "next": ["Arbitrage_Buy_Select_End"]
+    },
+    "Arbitrage_Favorit_Buy_WRN": {
+        "next": ["Arbitrage_Buy_End"],
+        "focus": "[WRN]常规购买不能验证"
     },
     "Arbitrage_ShopOut": {
         "desc": "[复用.末端]从商店退出去",
