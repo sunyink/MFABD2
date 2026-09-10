@@ -1762,7 +1762,6 @@
     },
     "Arbitrage_Buy_Select_QE5": {
         "desc": "ocr避嫌错字.常驻商店未开放,预留入口",
-        "enabled": false,
         "max_hit": 3,
         "recognition": "OCR",
         "roi": [
@@ -2148,7 +2147,15 @@
             "价目表"
         ],
         "action": "Click",
-        "post_delay": 2000,
+        "post_wait_freezes": {
+            "time": 800,
+            "target": [
+                426,
+                224,
+                447,
+                243
+            ]
+        },
         "next": [
             "Arbitrage_Sell_PriceList_Enter",
             "Arbitrage_Sell_PriceList"
@@ -3437,6 +3444,7 @@
         "next": [
             "Setup_SetSkill_Per",
             "Arbitrage_Cooking_SetupToSkill",
+            "[JumpBack]Arbitrage_ShopOut",
             "[JumpBack]Global_BackPageHub_Once"
         ]
     },
@@ -4730,7 +4738,7 @@
         "next": [
             "Arbitrage_Cooking_Doing_Starus",
             "Arbitrage_Cooking_NubMenu_Doing",
-            "Arbitrage_Cooking_Doing_OCR"
+            "Arbitrage_Cooking_Doing_Tmp"
         ]
     },
     "Arbitrage_Cooking_Doing_Starus": {
@@ -5543,6 +5551,7 @@
             "Arbitrage_BagStockScan_Bag",
             "Arbitrage_BagStockScan_Entry_Main",
             "Arbitrage_BagStockScan_Entry_Sand",
+            "[JumpBack]Arbitrage_ShopOut",
             "[JumpBack]Global_ToHomePage"
         ]
     },
