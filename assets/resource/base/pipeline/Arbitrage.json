@@ -4758,19 +4758,19 @@
         ],
         "focus": "Arb.料理制作动画中..."
     },
-    "Arbitrage_Cooking_Doing_OCR": {
-        "recognition": "OCR",
+    "Arbitrage_Cooking_Doing_Tmp": {
+        "recognition": "TemplateMatch",
         "roi": [
-            545,
-            357,
-            183,
-            85
+            571,
+            252,
+            138,
+            138
         ],
-        "expected": "制作中",
+        "template": ["UI_cooking_midico.png"],
         "post_delay": 1000,
         "next": [
             "Arbitrage_Cooking_Doing_Starus",
-            "Arbitrage_Cooking_Doing_OCR"
+            "Arbitrage_Cooking_Doing_Tmp"
         ],
         "on_error": [
             "Arbitrage_Cooking_Doing_ReBack",
