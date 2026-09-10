@@ -1514,6 +1514,7 @@
                     "name": "Yes",
                     "pipeline_override": {},
                     "option": [
+                        "料理稀有材料保护",
                         "料理制作保险",
                         "料理制作周期（每次|每周）"
                     ]
@@ -1524,6 +1525,25 @@
                         "Arbitrage_Cooking": {
                             "enabled": false
                         }
+                    }
+                }
+            ]
+        },
+        "料理稀有材料保护": {
+            "type": "switch",
+            "description": "建议开启。制作前检查已解锁的高位料理，跳过与其争抢稀有材料的低位料理，保留材料供高位料理制作；同级料理仍按顺序制作。可能减少当日收益。",
+            "default_case": "Yes",
+            "cases": [
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "Arbitrage_Cooking_MateProtec": {"enabled": true}
+                    }
+                },
+                {
+                    "name": "No",
+                    "pipeline_override": {
+                        "Arbitrage_Cooking_MateProtec": {"enabled": false}
                     }
                 }
             ]

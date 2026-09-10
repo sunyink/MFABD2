@@ -3490,6 +3490,7 @@
         "timeout": 1,
         "next": [
             "[JumpBack]Arbitrage_Cooking_Err_At_Sandbox",
+            "[JumpBack]Arbitrage_Cooking_MateProtec",
             "[JumpBack]Arbitrage_Cooking_B10_Entry",
             "[JumpBack]Arbitrage_Cooking_B9_Entry",
             "[JumpBack]Arbitrage_Cooking_B8_Entry",
@@ -3509,6 +3510,134 @@
             "[JumpBack]Arbitrage_Cooking_Page1"
         ],
         "focus": "Arb.料理界面-确认"
+    },
+    "Arbitrage_Cooking_MateProtec": {
+        "desc": "制作前检查已解锁的高位配方，临时禁用争抢稀有材料的低位配方；先检查当前页，再按第一页特征翻到五星页继续检查。",
+        "enabled": true,
+        "max_hit": 1,
+        "timeout": 3000,
+        "next": [
+            "[JumpBack]Arbitrage_Cooking_MateProtec_B17",
+            "[JumpBack]Arbitrage_Cooking_MateProtec_B14",
+            "[JumpBack]Arbitrage_Cooking_MateProtec_B10",
+            "[JumpBack]Arbitrage_Cooking_MateProtec_A2",
+            "[JumpBack]Arbitrage_Cooking_Swip_Page2"
+        ]
+    },
+    "Arbitrage_Cooking_MateProtec_B17": {
+        "desc": "美乃滋.三明治便当5,禁三角饭团",
+        "max_hit": 1,
+        "recognition": "TemplateMatch",
+        "roi": [
+            592,
+            103,
+            596,
+            598
+        ],
+        "template": [
+            "Shop/RecipeList/料理_三明治便当.png"
+        ],
+        "green_mask": true,
+        "action": "Custom",
+        "custom_action": "PatchPipeline",
+        "custom_action_param": {
+            "target": ["Arbitrage_Cooking_A3_Entry"],
+            "patch": {"enabled": false}
+        }
+    },
+    "Arbitrage_Cooking_MateProtec_B14": {
+        "desc": "橄榄油：透明沙拉、闪闪铁板虾、生蚝或意面已解锁时，禁用炸三文鱼便当。",
+        "max_hit": 1,
+        "recognition": "Or",
+        "any_of": [
+            {
+                "recognition": "TemplateMatch",
+                "roi": [
+                    592,
+                    103,
+                    596,
+                    598
+                ],
+                "template": [
+                    "Shop/RecipeList/料理_洛克菲勒生蚝.png"
+                ],
+                "green_mask": true
+            },
+            {"recognition": "TemplateMatch", "roi": [
+                    592,
+                    103,
+                    596,
+                    598
+                ], "template": [
+                    "Shop/RecipeList/料理_橄榄油意面.png"
+                ], "green_mask": true},
+            {
+                "recognition": "TemplateMatch",
+                "roi": [
+                    592,
+                    103,
+                    596,
+                    598
+                ],
+                "template": ["Shop/RecipeList/料理_透明沙拉.png"],
+                "green_mask": true
+            },
+            {
+                "recognition": "TemplateMatch",
+                "roi": [
+                    592,
+                    103,
+                    596,
+                    598
+                ],
+                "template": ["Shop/RecipeList/料理_闪闪铁板虾.png"],
+                "green_mask": true
+            }
+        ],
+        "action": "Custom",
+        "custom_action": "PatchPipeline",
+        "custom_action_param": {
+            "target": ["Arbitrage_Cooking_A5_Entry"],
+            "patch": {"enabled": false}
+        }
+    },
+    "Arbitrage_Cooking_MateProtec_B10": {
+        "desc": "辣椒素：地狱火紫菜包饭已解锁时，禁用火烤鱼板棒。",
+        "max_hit": 1,
+        "recognition": "TemplateMatch",
+        "roi": [
+            592,
+            103,
+            596,
+            598
+        ],
+        "template": ["Shop/RecipeList/料理_地狱火紫菜包饭.png"],
+        "green_mask": true,
+        "action": "Custom",
+        "custom_action": "PatchPipeline",
+        "custom_action_param": {
+            "target": ["Arbitrage_Cooking_A7_Entry"],
+            "patch": {"enabled": false}
+        }
+    },
+    "Arbitrage_Cooking_MateProtec_A2": {
+        "desc": "蜂蜜：蜂蜜黄油杏仁已解锁时，禁用烤蜂蜜苹果。",
+        "max_hit": 1,
+        "recognition": "TemplateMatch",
+        "roi": [
+            592,
+            103,
+            596,
+            598
+        ],
+        "template": ["Shop/RecipeList/料理_蜂蜜黄油杏仁.png"],
+        "green_mask": true,
+        "action": "Custom",
+        "custom_action": "PatchPipeline",
+        "custom_action_param": {
+            "target": ["Arbitrage_Cooking_A1_Entry"],
+            "patch": {"enabled": false}
+        }
     },
     "Arbitrage_Cooking_Swip_Page2": {
         "desc": "翻到第二页（五星料理）。ROI是第二行料理",
