@@ -337,14 +337,57 @@
         "enabled": true,
         "max_hit": 1,
         "next": [
-            "[JumpBack]Arbitrage_Merchant_Entry",
-            "Arbitrage_Buy_ToSelect",
-            "Arbitrage_Buy_SkipSelect"
+            "Arbitrage_Buy_Button",
+            "[JumpBack]Arbitrage_Buy_Button_Chg",
+            "[JumpBack]Arbitrage_Merchant_Entry"
         ],
         "focus": "Arb.M.购入模块启动"
     },
+    "Arbitrage_Buy_Button": {
+        "desc": "验证类型-购买",
+        "recognition": "ColorMatch",
+        "roi": [
+            118,
+            96,
+            37,
+            60
+        ],
+        "method": 40,
+        "lower": [
+            0,
+            0,
+            188
+        ],
+        "upper": [
+            30,
+            2,
+            255
+        ],
+        "count": 30,
+        "next": [
+            "[JumpBack]Arbitrage_Buy_ToSelect",
+            "Arbitrage_Buy_SkipSelect"
+        ]
+    },
+    "Arbitrage_Buy_Button_Chg": {
+        "max_hit": 20,
+        "recognition": "OCR",
+        "roi": [
+            110,
+            92,
+            51,
+            149
+        ],
+        "expected": [
+            "购买"
+        ],
+        "pre_delay": 500,
+        "action": "Click",
+        "post_delay": 1000
+    },
     "Arbitrage_Buy_ToSelect": {
         "desc": "重扫收藏物品",
+        "max_hit": 1,
         "recognition": "Custom",
         "custom_recognition": "CheckCoolDown",
         "custom_recognition_param": {
@@ -1780,6 +1823,7 @@
         "desc": "购买已进行,卡带已复位",
         "recognition": "Or",
         "any_of": ["Arbitrage_PackList_ResetEnter"],
+        "next": ["Arbitrage_ShopOut"],
         "focus": "Arb.B.购买模块结束"
     },
     "Arbitrage_Favorit_Buy": {
@@ -1903,6 +1947,17 @@
             }
         ],
         "next": ["Arbitrage_Buy_Select_End"]
+    },
+    "Arbitrage_ShopOut": {
+        "desc": "[复用.末端]从商店退出去",
+        "recognition": "Or",
+        "any_of": ["Arbitrage_ItemList_Swip"],
+        "next": [
+            "[JumpBack]Arbitrage_Merchant_Close_Ck",
+            "[JumpBack]Global_BackPageHub_Once",
+            "[JumpBack]Global_WaitingForLoading",
+            "Global_ToSandBox_Enter"
+        ]
     },
     "Arbitrage_Select_Swip": {
         "desc": "商店卡带列表滑动.使用特殊的anchor来实现同层级类JumpBack复用,因为smartswip的跳出是节点链级,Jb会+1级导致失效、循环",
@@ -2272,6 +2327,8 @@
         "custom_action_param": {
             "mode": "sell"
         },
+        "timeout": 3000,
+        "next": ["Arbitrage_ShopOut"],
         "focus": "出售模块启动",
         "attach": {
             "default": "烤蜂蜜苹果,蜂蜜黄油杏仁,三角美乃滋饭团,鱼子酱蛋包饭,炸三文鱼便当,桑格利亚酒",
@@ -2327,7 +2384,9 @@
         },
         "anchor": {"Arbitrage_Sell_Preview": ""},
         "post_delay": 0,
-        "rate_limit": 0
+        "timeout": 3000,
+        "rate_limit": 0,
+        "next": ["Arbitrage_ShopOut"]
     },
     "Arbitrage_Sell_Col_Name": {
         "desc": "数据节点:出售解析·商品名列带(py首跑查询roi后缓存,不入流程;x/w即列带范围,#380)",
@@ -2724,7 +2783,7 @@
         ]
     },
     "Arbitrage_ItemList_Swip": {
-        "desc": "出售物品列表下滑；每轮最多命中15次，每次连续3次画面不变则返回失败。",
+        "desc": "正在商店中.出售物品列表下滑；每轮最多命中15次，每次连续3次画面不变则返回失败。",
         "max_hit": 15,
         "recognition": "OCR",
         "roi": [
