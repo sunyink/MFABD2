@@ -6178,7 +6178,7 @@
         "count": 1
     },
     "Agt_BuyQuantity_Cost_Ocr": {
-        "desc": "当前选量与实际总价白字，MIN后读单价，最终再核总价。",
+        "desc": "白字过滤后整行识别数量与实际总价，以个/個分隔；跳过文字检测，MIN读单价，最终核总价。",
         "recognition": "OCR",
         "roi": [
             263,
@@ -6186,7 +6186,15 @@
             376,
             45
         ],
+        "only_rec": true,
         "color_filter": "Agt_BuyQuantity_Cost_White"
+    },
+    "Agt_BuyConfirm_Click": {
+        "desc": "购买确认内部动作，只点击本帧完整购买按钮的识别框；等待和最多3次复检由Python负责。",
+        "pre_delay": 0,
+        "action": "Click",
+        "target": true,
+        "post_delay": 0
     },
     "Agt_BuyQuantity_Gold_Ocr": {
         "desc": "购买页右上金币，位置不同于出售页，不沿用出售金币ROI。",

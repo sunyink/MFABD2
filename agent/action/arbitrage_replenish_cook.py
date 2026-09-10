@@ -64,7 +64,7 @@ def _active(node):
     return node.get("enabled", True) and node.get("max_hit", _UNLIMITED) != 0
 
 
-def execute_replenish_cooking(context, purchases, market, data, *, bag_run_id, sell_names):
+def execute_replenish_cooking(context, purchases, market, data, *, bag_run_id, sell_names, callback_task_id):
     """P5入口。started=True且returned=False时，调用者不得盲目回Hub继续出售。
 
     completed只表示目标队列已遍历且返回料理菜单，不声称已做出指定份数。
@@ -72,6 +72,8 @@ def execute_replenish_cooking(context, purchases, market, data, *, bag_run_id, s
     """
     report = {"status": "skipped", "started": False, "returned": None, "targets": [], "visited": [],
               "selected": [], "observations": []}
+    if type(callback_task_id) is not int or callback_task_id <= 0:
+        return {**report, "status": "stopped", "reason": "invalid_callback_task_id"}
     if (not isinstance(purchases, dict) or purchases.get("bag_run_id") != bag_run_id
             or purchases.get("day") != store.market_day() or purchases.get("status") != "completed"):
         return {**report, "reason": "purchase_context_mismatch"}
@@ -113,7 +115,15 @@ def execute_replenish_cooking(context, purchases, market, data, *, bag_run_id, s
     mfaalog.info("[ReplenishCook] 本轮补做：" + "、".join(report["targets"]))
     report.update(status="incomplete", started=True, returned=False)
     try:
-        detail = local.run_task(_START, overrides)
+        # Agent callbacks keep the outer task id; run_task returns a different child id.
+        # Exclude observations already recorded by the first cooking pass in this task.
+        previous_observations = get_cooking_stock(callback_task_id)
+        report["observation_task_id"] = callback_task_id
+        try:
+            detail = local.run_task(_START, overrides)
+        finally:
+            report["observations"] = [row for row in get_cooking_stock(callback_task_id)
+                                      if row not in previous_observations]
         if detail is not None:
             report["task_id"] = detail.task_id
             nodes = [node for node in detail.nodes if node.completed]
@@ -121,7 +131,6 @@ def execute_replenish_cooking(context, purchases, market, data, *, bag_run_id, s
             report["visited"] = [entry.name for entry in selection.recipes if entry.entry in names]
             selected = {node.name for node in nodes if node.action is not None and node.action.success}
             report["selected"] = [entry.name for entry in selection.recipes if selected.intersection(entry.selectors)]
-            report["observations"] = get_cooking_stock(detail.task_id)
             report["queue_completed"] = bool(detail.status.succeeded and len(report["visited"]) == len(selection.recipes))
         if context.tasker.stopping:
             return {**report, "status": "stopped", "reason": "task_stopping"}

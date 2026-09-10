@@ -138,7 +138,7 @@ def run_replenishment(context, task_id, config):
     if dry_run:
         return {**report, "status": "prepared", "reason": "只调数已结束，未购买或补做"}
     cooked = execute_replenish_cooking(context, bought, store.get_market_snapshot(day), data,
-                                       bag_run_id=bag_run_id, sell_names=sell_names)
+                                       bag_run_id=bag_run_id, sell_names=sell_names, callback_task_id=task_id)
     report["cooking"] = cooked
     if cooked["status"] == "stopped" or (cooked.get("started") and not cooked.get("returned")):
         return {**report, "status": "stopped", "return_ok": False, "reason": "补做收尾未确认"}
