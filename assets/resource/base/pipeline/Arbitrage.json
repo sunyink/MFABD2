@@ -370,6 +370,7 @@
         ]
     },
     "Arbitrage_Buy_Button_Chg": {
+        "desc": "点一下商店购买",
         "max_hit": 20,
         "recognition": "OCR",
         "roi": [
@@ -2065,17 +2066,14 @@
     },
     "#4出售侦察与调度": {},
     "Arbitrage_SellItem": {
-        "desc": "最终出售：从仓检主页或补做料理页恢复商店，并重置价目表校准计数。",
+        "desc": "最终出售：恢复商店后直接复用今日完整行情存档，子窗口实时核对库存。",
         "enabled": true,
         "max_hit": 1,
         "action": "Custom",
         "custom_action": "ArbitragePrepareFinalSale",
         "anchor": {"Arbitrage_Sell_Preview": ""},
         "timeout": 4000,
-        "next": [
-            "Arbitrage_Sell_Type_Ocr",
-            "[JumpBack]Arbitrage_Merchant_Entry"
-        ],
+        "next": ["Arbitrage_ShopSell_Active"],
         "on_error": ["Arbitrage_Replenish_Stop"],
         "focus": "Arb.M.出售模块启动"
     },
@@ -2092,16 +2090,8 @@
     },
     "Arbitrage_Sell_Type_Ocr": {
         "desc": "类型确认为-出售",
-        "recognition": "OCR",
-        "roi": [
-            66,
-            159,
-            140,
-            123
-        ],
-        "expected": [
-            "出售"
-        ],
+        "recognition": "Or",
+        "any_of": ["Arbitrage_Sell_Item_ListReset_Sell_Chg"],
         "action": "Click",
         "post_delay": 2000,
         "next": [
@@ -2337,6 +2327,7 @@
         },
         "timeout": 3000,
         "next": ["Arbitrage_ShopOut"],
+        "on_error": ["Arbitrage_Replenish_Stop"],
         "focus": "出售模块启动",
         "attach": {
             "default": "烤蜂蜜苹果,蜂蜜黄油杏仁,三角美乃滋饭团,鱼子酱蛋包饭,炸三文鱼便当,桑格利亚酒",
@@ -3030,7 +3021,7 @@
         "expected": "120%"
     },
     "Arbitrage_Sell_Item_Quantity": {
-        "desc": "统一核对名称、库存、价格与单批选量；参数缺失或不满足条件时取消，不放行默认MAX。",
+        "desc": "统一核对名称、库存、价格、单批选量及白字整行报价；出售点击由后续 Selling 节点执行。",
         "pre_delay": 0,
         "action": "Custom",
         "custom_action": "ArbitrageSellQuantity",
@@ -3041,8 +3032,12 @@
         },
         "post_delay": 0,
         "timeout": 4000,
-        "next": ["Arbitrage_Sell_Item_Selling"],
-        "on_error": ["Arbitrage_Sell_Item_Exit"],
+        "next": [
+            "Arbitrage_Sell_Item_Selling"
+        ],
+        "on_error": [
+            "Arbitrage_Sell_Item_Exit"
+        ],
         "attach": {
             "menu_node": "Arbitrage_Sell_Item_SellMenu",
             "name_node": "Agt_SellQuantity_Name_Ocr",
@@ -3063,7 +3058,8 @@
             "timeout_seconds": 90,
             "max_adjustments": 80,
             "read_attempts": 3,
-            "read_interval_ms": 150
+            "read_interval_ms": 150,
+            "quote_node": "Agt_BuyQuantity_Cost_Ocr"
         }
     },
     "Agt_SellQuantity_Name_Ocr": {
@@ -3167,7 +3163,7 @@
         "post_delay": 200
     },
     "Arbitrage_Sell_Item_Selling": {
-        "desc": "本次确认出售后复位退出；后续批次由Python主控重新派发，不在pipeline内重复出售。",
+        "desc": "只点击本批出售；窗口状态监测可接在本节点之后，金额确认和一次补试由后继链处理。",
         "recognition": "OCR",
         "roi": [
             810,
@@ -3176,13 +3172,34 @@
             102
         ],
         "expected": [
-            "出售"
+            "出售$"
         ],
         "action": "Click",
-        "post_delay": 2000,
+        "post_wait_freezes": {
+            "time": 2500,
+            "target": [
+                785,
+                363,
+                251,
+                201
+            ]
+        },
         "timeout": 4000,
         "next": [
-            "Arbitrage_Sell_Item_Exit"
+            "Arbitrage_Sell_Item_Sold",
+            "Arbitrage_Sell_Item_Selling"
+        ]
+    },
+    "Arbitrage_Sell_Item_Sold": {
+        "desc": "确认售买子菜单消失",
+        "recognition": "Or",
+        "any_of": ["Arbitrage_Sell_Item_SellMenu"],
+        "inverse": true,
+        "next": [
+            "Arbitrage_Sell_Item_AfterClick"
+        ],
+        "on_error": [
+            "Arbitrage_Sell_Item_BatchExit"
         ]
     },
     "Arbitrage_Sell_Item_Exit": {
@@ -6156,7 +6173,7 @@
         ]
     },
     "Agt_BuyQuantity_Cost_White": {
-        "desc": "购买金额白字过滤，排除灰色划线原价与倍率；来自720p实测。",
+        "desc": "买卖共用金额白字过滤，排除灰色划线原价与倍率；来自720p实测。",
         "recognition": "ColorMatch",
         "roi": [
             263,
@@ -6178,7 +6195,7 @@
         "count": 1
     },
     "Agt_BuyQuantity_Cost_Ocr": {
-        "desc": "白字过滤后整行识别数量与实际总价，以个/個分隔；跳过文字检测，MIN读单价，最终核总价。",
+        "desc": "买卖共用白字整行数量与实际总价，以个/個分隔；关闭文字检测，正则接受可选末尾加号。",
         "recognition": "OCR",
         "roi": [
             263,
@@ -6281,5 +6298,432 @@
         "action": "StopTask",
         "post_delay": 0,
         "focus": "Arb.补充阶段或出售准备未确认，本次套利停止"
+    },
+    "Arbitrage_Sell_Item_AfterClick": {
+        "desc": "出售点击后的检测入口；金额命中正常放行，否则进入一次柜台内补试。",
+        "pre_delay": 0,
+        "post_delay": 0,
+        "next": [
+            "Arbitrage_Sell_Item_AmountConfirmed",
+            "Arbitrage_Sell_Item_AmountMismatch"
+        ]
+    },
+    "Arbitrage_Sell_Item_AmountConfirmed": {
+        "desc": "本批金币差额等于白字报价；记录同一次识别证据，不重新截图追认。",
+        "recognition": "Custom",
+        "custom_recognition": "GoldVerdict",
+        "custom_recognition_param": {
+            "direction": "increase",
+            "expected_delta": 0
+        },
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "ArbitrageSaleConfirmed",
+        "custom_action_param": {},
+        "post_delay": 0,
+        "timeout": 4000,
+        "next": [
+            "Arbitrage_Sell_Item_BatchExit"
+        ]
+    },
+    "Arbitrage_Sell_Item_AmountMismatch": {
+        "desc": "金额未通过；登记一次补试后切购买→出售回顶。第二次失败回调并退出，不再重卖。",
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "ArbitrageSaleMismatch",
+        "custom_action_param": {},
+        "post_delay": 0,
+        "timeout": 4000,
+        "next": [
+            "Arbitrage_Sell_Item_ListReset"
+        ],
+        "on_error": [
+            "Arbitrage_Sell_Item_BatchExit"
+        ]
+    },
+    "Agt_SellList_Ready": {
+        "desc": "仅识别商店出售列表；亮色页签排除弹窗变暗背景。",
+        "recognition": "And",
+        "all_of": [
+            "Arbitrage_Merchant_Egress",
+            "Arbitrage_Sell_Type_Clr"
+        ],
+        "pre_delay": 0,
+        "post_delay": 0
+    },
+    "Agt_SellList_BuyTab": {
+        "desc": "仅识别左侧购买页签，不进入任何购买动作链。",
+        "recognition": "OCR",
+        "roi": [
+            66,
+            80,
+            140,
+            78
+        ],
+        "expected": "^\\s*[购購][买買]\\s*$",
+        "pre_delay": 0,
+        "post_delay": 0
+    },
+    "Agt_SellList_BuyReady": {
+        "desc": "仅确认左侧购买页签已选中；沿用购买侧亮色范围。",
+        "recognition": "ColorMatch",
+        "roi": [
+            118,
+            94,
+            36,
+            59
+        ],
+        "method": 40,
+        "lower": [
+            0,
+            0,
+            188
+        ],
+        "upper": [
+            30,
+            2,
+            255
+        ],
+        "count": 30,
+        "pre_delay": 0,
+        "post_delay": 0
+    },
+    "Arbitrage_Sell_Item_Resume": {
+        "desc": "同物品续批：当前屏可见则直接重开，否则切页签回顶搜索。",
+        "recognition": "Or",
+        "any_of": [
+            "Agt_SellList_Ready"
+        ],
+        "pre_delay": 0,
+        "post_delay": 0,
+        "timeout": 4000,
+        "next": [
+            "Arbitrage_Sell_Item_ListTraverse",
+            "Arbitrage_Sell_Item_ListReset"
+        ],
+        "on_error": [
+            "Arbitrage_Sell_Item_BatchExit"
+        ]
+    },
+    "Arbitrage_Sell_Item_ListReset": {
+        "desc": "当前柜台回顶：关闭残留子窗口，切购买再切出售；卡带保持不变。",
+        "pre_delay": 0,
+        "post_delay": 0,
+        "timeout": 4000,
+        "next": [
+            "Arbitrage_Sell_Item_ListReset_Buy",
+            "[JumpBack]Arbitrage_Sell_Item_Cancel",
+            "[JumpBack]Arbitrage_Buy_Button_Chg"
+        ],
+        "on_error": [
+            "Arbitrage_Sell_Item_BatchExit"
+        ]
+    },
+    "Arbitrage_Sell_Item_ListReset_Buy": {
+        "desc": "购买图标确认亮色-已切换",
+        "recognition": "Or",
+        "any_of": [
+            "Arbitrage_Buy_Button"
+        ],
+        "next": [
+            "Arbitrage_Sell_Item_ListReset_Sell",
+            "[JumpBack]Arbitrage_Sell_Item_ListReset_Sell_Chg"
+        ],
+        "on_error": [
+            "Arbitrage_Sell_Item_BatchExit"
+        ]
+    },
+    "Arbitrage_Sell_Item_ListReset_Sell": {
+        "desc": "点击出售页签；用户确认此切换保持卡带并将物品列表置顶。",
+        "recognition": "Or",
+        "any_of": ["Arbitrage_Sell_Type_Clr"],
+        "next": [
+            "Arbitrage_Sell_Item_Search"
+        ],
+        "on_error": [
+            "Arbitrage_Sell_Item_BatchExit"
+        ]
+    },
+    "Arbitrage_Sell_Item_ListReset_Sell_Chg": {
+        "desc": "类型确认为-出售",
+        "recognition": "OCR",
+        "roi": [
+            66,
+            159,
+            140,
+            123
+        ],
+        "expected": [
+            "出售"
+        ],
+        "action": "Click",
+        "post_delay": 2000
+    },
+    "Arbitrage_Sell_Item_Search": {
+        "desc": "从已回顶的列表查找；同屏先找目标后判末端，滑动失败或疑似命中详情失败不判零。",
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "ArbitrageSaleSearch",
+        "custom_action_param": {},
+        "post_delay": 0,
+        "timeout": 4000,
+        "next": [
+            "Arbitrage_Sell_Item_ListTraverse"
+        ],
+        "on_error": [
+            "Arbitrage_Sell_Item_BatchExit"
+        ],
+        "attach": {
+            "max_pages": 16
+        }
+    },
+    "Arbitrage_Sell_Item_BatchExit": {
+        "desc": "只关闭残留子窗口并确认出售列表，保留当前卡带和物品位置交回主控。",
+        "pre_delay": 0,
+        "post_delay": 0,
+        "timeout": 4000,
+        "next": [
+            "[JumpBack]Arbitrage_Sell_Item_Cancel",
+            "Arbitrage_Sell_Item_BatchEnd"
+        ],
+        "on_error": [
+            "Arbitrage_Sell_Item_BatchExitFailed"
+        ]
+    },
+    "Arbitrage_Sell_Item_BatchEnd": {
+        "desc": "本批已回到当前柜台出售列表；主控另判成交及下一批。",
+        "recognition": "Or",
+        "any_of": [
+            "Agt_SellList_Ready"
+        ],
+        "pre_delay": 0,
+        "post_delay": 0
+    },
+    "Arbitrage_Sell_Item_BatchExitFailed": {
+        "desc": "当前柜台出售列表未恢复，停止后续派发。",
+        "pre_delay": 0,
+        "post_delay": 0,
+        "focus": "[Arb.Sell] 出售窗口或页签未恢复，本轮结束。"
+    },
+    "Agt_Arbitrage_MaterialSale_Mode": {
+        "desc": "材料出售模式配置，仅供最终出售读取，不参与流程识别。",
+        "enabled": false,
+        "attach": {
+            "mode": "off"
+        }
+    },
+    "Agt_Arbitrage_MaterialSale_Auto": {
+        "desc": "自动保留天数配置；仅换算日保留值，不改变手动设置。",
+        "enabled": false,
+        "attach": {
+            "days": 7
+        }
+    },
+    "Agt_Arbitrage_MaterialSale_Manual": {
+        "desc": "手动材料保留数量；-1表示无限保留，仅限制出售。",
+        "enabled": false,
+        "attach": {
+            "三文鱼": 2205,
+            "兽肉": 10850,
+            "凯洛药材": 0,
+            "卢戈山参": -1,
+            "吐司": 840,
+            "咖啡豆": 0,
+            "哈密瓜": 0,
+            "啤酒花": 0,
+            "土豆": 0,
+            "地狱火辣酱": -1,
+            "大蒜": 1365,
+            "大麦": 0,
+            "奶酪": 0,
+            "姜黄": -1,
+            "小麦": 5775,
+            "巧克力": 12600,
+            "料酒": 700,
+            "杏仁": 2100,
+            "松露油": -1,
+            "樱桃": 1400,
+            "橄榄油": 8400,
+            "水果罐头": 0,
+            "永恒之爱": -1,
+            "洋葱": 10780,
+            "灵魂鲜奶油": -1,
+            "牛奶": 1050,
+            "玉米": 0,
+            "甜椒": 14385,
+            "甜辣酱": 2100,
+            "生命木炭": -1,
+            "生蚝": 1400,
+            "番茄": 3640,
+            "白糖": 12950,
+            "盐": 4200,
+            "秃鹫羽毛": -1,
+            "穿山甲鳞片": -1,
+            "米": 5705,
+            "维生素B浓缩液": -1,
+            "肉桂": 350,
+            "胡椒": 875,
+            "胡萝卜": -1,
+            "能量粉末": -1,
+            "能量药水": -1,
+            "能量蘑菇": -1,
+            "芥末": 1050,
+            "苹果": 700,
+            "萝卜缨": 1050,
+            "葡萄": 0,
+            "藏红花": 0,
+            "蘑菇": 14385,
+            "虾": 5985,
+            "蛋黄酱": 700,
+            "蜂蜜": 2800,
+            "袋装鸡胸肉": 7980,
+            "西蓝花": 0,
+            "调味海苔": 2870,
+            "豆子": 4200,
+            "辣椒": 4200,
+            "辣椒素": 2800,
+            "透明蘑菇": -1,
+            "金枪鱼罐头": 0,
+            "闪光粉末": -1,
+            "雷瓦汀火腿": -1,
+            "香草": 7700,
+            "魅惑粉末": -1,
+            "鱼子酱罐头": 2100,
+            "鸡蛋": 8330,
+            "黄油": 13650,
+            "黄金罗勒": -1
+        }
+    },
+    "Agt_Arbitrage_MaterialSale_Data": {
+        "desc": "材料出售静态日保留表与直卖资格；-1在天数换算后仍为-1。",
+        "enabled": false,
+        "attach": {
+            "schema_version": 1,
+            "daily_reserve": {
+                "三文鱼": 315,
+                "兽肉": 1550,
+                "凯洛药材": 0,
+                "卢戈山参": -1,
+                "吐司": 120,
+                "咖啡豆": 0,
+                "哈密瓜": 0,
+                "啤酒花": 0,
+                "土豆": 0,
+                "地狱火辣酱": -1,
+                "大蒜": 195,
+                "大麦": 0,
+                "奶酪": 0,
+                "姜黄": -1,
+                "小麦": 825,
+                "巧克力": 1800,
+                "料酒": 100,
+                "杏仁": 300,
+                "松露油": -1,
+                "樱桃": 200,
+                "橄榄油": 1200,
+                "水果罐头": 0,
+                "永恒之爱": -1,
+                "洋葱": 1540,
+                "灵魂鲜奶油": -1,
+                "牛奶": 150,
+                "玉米": 0,
+                "甜椒": 2055,
+                "甜辣酱": 300,
+                "生命木炭": -1,
+                "生蚝": 200,
+                "番茄": 520,
+                "白糖": 1850,
+                "盐": 600,
+                "秃鹫羽毛": -1,
+                "穿山甲鳞片": -1,
+                "米": 815,
+                "维生素B浓缩液": -1,
+                "肉桂": 50,
+                "胡椒": 125,
+                "胡萝卜": -1,
+                "能量粉末": -1,
+                "能量药水": -1,
+                "能量蘑菇": -1,
+                "芥末": 150,
+                "苹果": 100,
+                "萝卜缨": 150,
+                "葡萄": 0,
+                "藏红花": 0,
+                "蘑菇": 2055,
+                "虾": 855,
+                "蛋黄酱": 100,
+                "蜂蜜": 400,
+                "袋装鸡胸肉": 1140,
+                "西蓝花": 0,
+                "调味海苔": 410,
+                "豆子": 600,
+                "辣椒": 600,
+                "辣椒素": 400,
+                "透明蘑菇": -1,
+                "金枪鱼罐头": 0,
+                "闪光粉末": -1,
+                "雷瓦汀火腿": -1,
+                "香草": 1100,
+                "魅惑粉末": -1,
+                "鱼子酱罐头": 300,
+                "鸡蛋": 1190,
+                "黄油": 1950,
+                "黄金罗勒": -1
+            },
+            "sale_eligible": [
+                "三文鱼",
+                "兽肉",
+                "凯洛药材",
+                "吐司",
+                "咖啡豆",
+                "哈密瓜",
+                "啤酒花",
+                "土豆",
+                "大蒜",
+                "大麦",
+                "奶酪",
+                "小麦",
+                "巧克力",
+                "料酒",
+                "杏仁",
+                "樱桃",
+                "橄榄油",
+                "水果罐头",
+                "洋葱",
+                "牛奶",
+                "玉米",
+                "甜椒",
+                "甜辣酱",
+                "生蚝",
+                "番茄",
+                "白糖",
+                "盐",
+                "米",
+                "肉桂",
+                "胡椒",
+                "胡萝卜",
+                "芥末",
+                "苹果",
+                "萝卜缨",
+                "葡萄",
+                "藏红花",
+                "蘑菇",
+                "虾",
+                "蛋黄酱",
+                "蜂蜜",
+                "袋装鸡胸肉",
+                "西蓝花",
+                "调味海苔",
+                "豆子",
+                "辣椒",
+                "辣椒素",
+                "金枪鱼罐头",
+                "雷瓦汀火腿",
+                "香草",
+                "鱼子酱罐头",
+                "鸡蛋",
+                "黄油"
+            ]
+        }
     }
 }

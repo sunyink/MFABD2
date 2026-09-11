@@ -210,6 +210,11 @@ def take_verdict() -> Optional[dict]:
     return verdict
 
 
+def get_baseline() -> Optional[int]:
+    """只读本批金币基准，供需要精确报价确认的出售入口检查。"""
+    return _BASELINE.get("gold") if _BASELINE is not None else None
+
+
 # ==========================================
 # 链内测量点
 # ==========================================
@@ -253,6 +258,11 @@ class GoldVerdictRecognition(CustomRecognition):
             direction = params.get("direction")
             if direction not in ("decrease", "increase"):
                 raise ValueError("direction 必须为 decrease 或 increase")
+            expected = params.get("expected_delta")
+            if "expected_delta" in params and (
+                    type(expected) is not int or expected == 0
+                    or (expected > 0) != (direction == "increase")):
+                raise ValueError("expected_delta 必须是与 direction 同方向的非零整数")
             node = params.get("node", _GOLD_NODE_DEFAULT)
             if not isinstance(node, str) or not node.strip():
                 raise ValueError("node 必须为非空识别节点名")
@@ -266,6 +276,8 @@ class GoldVerdictRecognition(CustomRecognition):
             if after is None:
                 return None
             delta = after - before
+            if expected is not None and delta != expected:
+                return None
             if (direction == "decrease" and delta < 0) or (direction == "increase" and delta > 0):
                 return CustomRecognition.AnalyzeResult(
                     box=(0, 0, 1, 1),

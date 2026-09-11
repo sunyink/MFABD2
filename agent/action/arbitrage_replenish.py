@@ -175,8 +175,6 @@ class ArbitragePrepareFinalSale(CustomAction):
         try:
             # 仓检留在主页、补做留在料理菜单；由出售自己恢复页面，空补买计划无需进店。
             ensure_shop(context)
-            if not context.clear_hit_count("Arbitrage_Sell_PriceList_FirstCalibration"):
-                raise RuntimeError("最终出售价目表校准计数未能重置")
             return True
         except Exception as exc:
             mfaalog.warning(f"[Replenish] 最终出售准备失败，本任务停止：{exc}")

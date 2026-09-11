@@ -11,6 +11,7 @@ from .string_processor import *
 # recognition.counter)用绝对导入引它。
 from .gold_verify import *
 from .arbitrage_sell_quantity import *
+from .arbitrage_sell_batch import *
 from .arbitrage_result import *
 from .arbitrage_buy_precise import *
 from .account_save_checker import *
