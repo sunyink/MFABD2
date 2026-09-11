@@ -1044,10 +1044,56 @@ jobs:
             (cd "$dir" && zip -r "../release_assets/$zip_name" .)
           done
 
+      - name: Build and collect signed Android APK
+        timeout-minutes: 75
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ needs.meta.outputs.tag }}
+          SOURCE_REF: ${{ github.ref_name }}
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          # Keep android.yml's own build counter; wait for this exact dispatched run.
+          run_id=$(gh api --method POST "repos/$GITHUB_REPOSITORY/actions/workflows/android.yml/dispatches" \
+            -H "X-GitHub-Api-Version: 2026-03-10" \
+            -f ref="$SOURCE_REF" -f "inputs[version_name]=$RELEASE_TAG" \
+            -F 'inputs[release_build]=true' -f "inputs[source_sha]=$SOURCE_SHA" \
+            --jq '.workflow_run_id')
+          [[ "$run_id" =~ ^[0-9]+$ ]] || { echo "Missing Android workflow run ID"; exit 1; }
+          echo "Android build: https://github.com/$GITHUB_REPOSITORY/actions/runs/$run_id" >> "$GITHUB_STEP_SUMMARY"
+          gh run watch "$run_id" --repo "$GITHUB_REPOSITORY" --exit-status --interval 30
+          gh run download "$run_id" --repo "$GITHUB_REPOSITORY" \
+            --name MFABD2-android-arm64 --dir android-release
+          python3 - <<'PY'
+          import hashlib, json, os, shutil
+          from pathlib import Path
+          root = Path("android-release")
+          apks = list(root.glob("*.apk"))
+          if len(apks) != 1:
+              raise SystemExit("Expected exactly one Android APK")
+          apk = apks[0]
+          metadata = json.loads(apk.with_suffix(".apk.json").read_text())
+          if (metadata["source_sha"] != os.environ["SOURCE_SHA"]
+                  or metadata["version_name"] != os.environ["RELEASE_TAG"]
+                  or metadata["apk_name"] != apk.name
+                  or apk.name != f'MFABD2-{os.environ["RELEASE_TAG"]}-android-arm64-vc{metadata["version_code"]}.apk'):
+              raise SystemExit("Android artifact does not match this release")
+          digest = hashlib.sha256(apk.read_bytes()).hexdigest()
+          checksum = apk.with_suffix(".apk.sha256")
+          if metadata["apk_sha256"] != digest or checksum.read_text().strip() != f"{digest}  {apk.name}":
+              raise SystemExit("Android artifact checksum mismatch")
+          for path in (apk, apk.with_suffix(".apk.json"), checksum):
+              shutil.copy2(path, Path("artifacts/release_assets") / path.name)
+          PY
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@718ea10b132b3b2eba29c1007bb80653f286566b # v3.0.1
         with:
-          files: artifacts/release_assets/*.zip
+          files: |
+            artifacts/release_assets/*.zip
+            artifacts/release_assets/*.apk
+            artifacts/release_assets/*.apk.json
+            artifacts/release_assets/*.apk.sha256
+          fail_on_unmatched_files: true
           tag_name: ${{ needs.meta.outputs.tag }}
           name: "MFABD2 ${{ needs.meta.outputs.tag }}"
           target_commitish: ${{ github.sha }}
@@ -1058,14 +1104,6 @@ jobs:
           prerelease: ${{ contains(needs.meta.outputs.tag, '-beta') || contains(needs.meta.outputs.tag, '-alpha') || (contains(needs.meta.outputs.tag, '-ci') && !(github.event_name == 'workflow_dispatch' && github.event.inputs.ci_as_stable == 'true')) }}
         env: # 添加环境变量以支持高限额API调用
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Trigger signed Android APK for the same release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_TAG: ${{ needs.meta.outputs.tag }}
-        run: |
-          gh workflow run android.yml --repo "$GITHUB_REPOSITORY" --ref "$RELEASE_TAG" \
-            -f version_name="$RELEASE_TAG" -f publish=true
 
       - name: Trigger MirrorChyanUploading
         if: github.repository_owner == 'sunyink' && ((needs.meta.outputs.is_tag_push == 'true') || contains(needs.meta.outputs.tag, '-beta') || contains(needs.meta.outputs.tag, '-alpha'))
@@ -1079,12 +1117,13 @@ jobs:
           gh workflow run --repo $GITHUB_REPOSITORY --ref ${{ github.ref }} mirrorchyan_release_note.yml -f tag=$tag
 
   notify:
-    needs: [meta, install]
+    needs: [meta, install, release]
     # fork 没有上游通知密文；构建可继续，但不要让预期中的空密文把运行标红。
     if: >-
       always() &&
       github.repository == 'sunyink/MFABD2' &&
       needs.install.result == 'success' &&
+      needs.release.result == 'success' &&
       (github.event_name == 'workflow_dispatch' || needs.meta.outputs.version_type != 'ci')
     runs-on: ubuntu-latest
     steps:

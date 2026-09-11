@@ -92,11 +92,14 @@
 
 <details>
 <summary>⚡ 五分钟快速上手（新用户看这里）</summary>
-1. 下载对应平台解压 → 2. MuMu 设置 1920×1080 → 3. 游戏切简体中文 → 4. 启动 UI 运行
+
+- **Windows**：下载对应平台解压 → MuMu 设置 1920×1080 → 游戏切简体中文 → 启动 UI 运行。
+- **安卓手机**：从[发布页](https://github.com/sunyink/MFABD2/releases)下载 `MFABD2-<版本>-android-arm64-vc<安装编号>.apk`，直接安装，无需解压或模拟器。需要 Android 9 及以上的 ARM64（64 位 ARM 处理器）手机，通过 Shizuku（为应用提供系统操作授权的工具）或 root（系统最高权限）授权，游戏语言设为简体中文。安装与运行说明见 [安卓使用指引](docs/android.md)。
+
 </details>
 <br>
 
-UI 内可直接获取更新推送、下载，由[![Mirror酱](https://img.shields.io/badge/Mirror%E9%85%B1-高速下载-%239af3f6?logo=countingworkspro&logoColor=4f46e5)](https://mirrorchyan.com/zh/projects?rid=MFABD2)提供支持。
+桌面版 UI 内可直接获取更新推送、下载，由[![Mirror酱](https://img.shields.io/badge/Mirror%E9%85%B1-高速下载-%239af3f6?logo=countingworkspro&logoColor=4f46e5)](https://mirrorchyan.com/zh/projects?rid=MFABD2)提供支持。安卓 APK 当前使用 GitHub 更新源。
 
 > 通道版本差距约为几次 Bug/新功能/等验证 的轮回。
 

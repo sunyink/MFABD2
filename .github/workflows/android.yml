@@ -11,6 +11,14 @@ on:
         description: "将签名 APK 附加到上述已存在的 Release（不会创建 Release）"
         type: boolean
         default: false
+      release_build:
+        description: "供主发布流程使用：保留构建并等待取回 APK，不直接上传 Release"
+        type: boolean
+        default: false
+      source_sha:
+        description: "主发布流程锁定的资源提交（release_build 必填）"
+        type: string
+        default: ""
   push:
     branches:
       - feat/android-native
@@ -29,8 +37,8 @@ permissions:
 
 concurrency:
   # Release builds are isolated from branch pushes and from other release tags.
-  group: android-arm64-${{ inputs.publish && format('release-{0}', inputs.version_name) || format('build-{0}', github.ref) }}
-  cancel-in-progress: ${{ !inputs.publish }}
+  group: android-arm64-${{ (inputs.publish || inputs.release_build) && format('release-{0}', inputs.version_name) || format('build-{0}', github.ref) }}
+  cancel-in-progress: ${{ !(inputs.publish || inputs.release_build) }}
 
 env:
   MAAFW_TAG: v5.12.3
@@ -46,7 +54,7 @@ jobs:
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
         with:
-          ref: ${{ inputs.publish && inputs.version_name || github.sha }}
+          ref: ${{ inputs.publish && inputs.version_name || (inputs.release_build && inputs.source_sha) || github.sha }}
           fetch-depth: 0
       - name: Checkout pinned Android UI
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
@@ -68,10 +76,18 @@ jobs:
         env:
           REQUESTED_VERSION: ${{ inputs.version_name }}
           PUBLISH_REQUEST: ${{ inputs.publish }}
+          RELEASE_BUILD: ${{ inputs.release_build }}
+          SOURCE_SHA: ${{ inputs.source_sha }}
         run: |
-          if [[ "$PUBLISH_REQUEST" == "true" && -z "$REQUESTED_VERSION" ]]; then
+          if [[ ( "$PUBLISH_REQUEST" == "true" || "$RELEASE_BUILD" == "true" ) && -z "$REQUESTED_VERSION" ]]; then
             echo "Release tag is required for publication"
             exit 1
+          fi
+          if [[ "$RELEASE_BUILD" == "true" ]]; then
+            if [[ "$PUBLISH_REQUEST" == "true" || ! "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ || "$(git rev-parse HEAD)" != "$SOURCE_SHA" ]]; then
+              echo "Release collection requires an exact source SHA and publish=false"
+              exit 1
+            fi
           fi
           python tools/android_build.py metadata --version "$REQUESTED_VERSION"
       - name: Verify agent and prepare resources
