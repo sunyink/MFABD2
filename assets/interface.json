@@ -1474,7 +1474,8 @@
                     "name": "Yes",
                     "pipeline_override": {},
                     "option": [
-                        "待出售的物品"
+                        "待出售的物品",
+                        "材料出售模式"
                     ]
                 },
                 {
@@ -1794,6 +1795,566 @@
                     "custom_recognition_param": {
                         "tag": "SRef",
                         "max": "{连续精炼次数}"
+                    }
+                }
+            }
+        },
+        "材料出售模式": {
+            "type": "select",
+            "default_case": "关闭",
+            "description": "仅在最终出售阶段处理达到月度最高价的材料。<br>关闭：不出售材料；自动：按天数保留；手动：逐项指定数量。<br>保留量只限制材料出售，不限制料理制作。",
+            "cases": [
+                {
+                    "name": "关闭",
+                    "pipeline_override": {
+                        "Agt_Arbitrage_MaterialSale_Mode": {
+                            "attach": {
+                                "mode": "off"
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "自动",
+                    "pipeline_override": {
+                        "Agt_Arbitrage_MaterialSale_Mode": {
+                            "attach": {
+                                "mode": "auto"
+                            }
+                        }
+                    },
+                    "option": [
+                        "材料自动保留天数"
+                    ]
+                },
+                {
+                    "name": "手动",
+                    "pipeline_override": {
+                        "Agt_Arbitrage_MaterialSale_Mode": {
+                            "attach": {
+                                "mode": "manual"
+                            }
+                        }
+                    },
+                    "option": [
+                        "材料手动保留数量"
+                    ]
+                }
+            ]
+        },
+        "材料自动保留天数": {
+            "type": "input",
+            "description": "按参考日用量保留指定天数。0 天表示不保留有限数量；无限保留的材料仍保留全部。",
+            "inputs": [
+                {
+                    "name": "保留天数",
+                    "pipeline_type": "int",
+                    "default": "7",
+                    "verify": "^[0-9]+$",
+                    "pattern_msg": "请输入非负整数天数。"
+                }
+            ],
+            "pipeline_override": {
+                "Agt_Arbitrage_MaterialSale_Auto": {
+                    "attach": {
+                        "days": "{保留天数}"
+                    }
+                }
+            }
+        },
+        "材料手动保留数量": {
+            "type": "input",
+            "description": "各材料的出售保留量，初始值按 7 天参考用量设置。<br>0：不保留数量；-1：无限保留。未列出的材料不参与直卖。<br>切换到自动模式不会改写这里的数值。",
+            "inputs": [
+                {
+                    "name": "三文鱼",
+                    "label": "三文鱼",
+                    "pipeline_type": "int",
+                    "default": "2205",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "兽肉",
+                    "label": "兽肉",
+                    "pipeline_type": "int",
+                    "default": "10850",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "凯洛药材",
+                    "label": "凯洛药材",
+                    "pipeline_type": "int",
+                    "default": "0",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "吐司",
+                    "label": "吐司",
+                    "pipeline_type": "int",
+                    "default": "840",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "咖啡豆",
+                    "label": "咖啡豆",
+                    "pipeline_type": "int",
+                    "default": "0",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "哈密瓜",
+                    "label": "哈密瓜",
+                    "pipeline_type": "int",
+                    "default": "0",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "啤酒花",
+                    "label": "啤酒花",
+                    "pipeline_type": "int",
+                    "default": "0",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "土豆",
+                    "label": "土豆",
+                    "pipeline_type": "int",
+                    "default": "0",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "大蒜",
+                    "label": "大蒜",
+                    "pipeline_type": "int",
+                    "default": "1365",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "大麦",
+                    "label": "大麦",
+                    "pipeline_type": "int",
+                    "default": "0",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "奶酪",
+                    "label": "奶酪",
+                    "pipeline_type": "int",
+                    "default": "0",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "小麦",
+                    "label": "小麦",
+                    "pipeline_type": "int",
+                    "default": "5775",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "巧克力",
+                    "label": "巧克力",
+                    "pipeline_type": "int",
+                    "default": "12600",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "料酒",
+                    "label": "料酒",
+                    "pipeline_type": "int",
+                    "default": "700",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "杏仁",
+                    "label": "杏仁",
+                    "pipeline_type": "int",
+                    "default": "2100",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "樱桃",
+                    "label": "樱桃",
+                    "pipeline_type": "int",
+                    "default": "1400",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "橄榄油",
+                    "label": "橄榄油",
+                    "pipeline_type": "int",
+                    "default": "8400",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "水果罐头",
+                    "label": "水果罐头",
+                    "pipeline_type": "int",
+                    "default": "0",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "洋葱",
+                    "label": "洋葱",
+                    "pipeline_type": "int",
+                    "default": "10780",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "牛奶",
+                    "label": "牛奶",
+                    "pipeline_type": "int",
+                    "default": "1050",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "玉米",
+                    "label": "玉米",
+                    "pipeline_type": "int",
+                    "default": "0",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "甜椒",
+                    "label": "甜椒",
+                    "pipeline_type": "int",
+                    "default": "14385",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "甜辣酱",
+                    "label": "甜辣酱",
+                    "pipeline_type": "int",
+                    "default": "2100",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "生蚝",
+                    "label": "生蚝",
+                    "pipeline_type": "int",
+                    "default": "1400",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "番茄",
+                    "label": "番茄",
+                    "pipeline_type": "int",
+                    "default": "3640",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "白糖",
+                    "label": "白糖",
+                    "pipeline_type": "int",
+                    "default": "12950",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "盐",
+                    "label": "盐",
+                    "pipeline_type": "int",
+                    "default": "4200",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "米",
+                    "label": "米",
+                    "pipeline_type": "int",
+                    "default": "5705",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "肉桂",
+                    "label": "肉桂",
+                    "pipeline_type": "int",
+                    "default": "350",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "胡椒",
+                    "label": "胡椒",
+                    "pipeline_type": "int",
+                    "default": "875",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "胡萝卜",
+                    "label": "胡萝卜",
+                    "pipeline_type": "int",
+                    "default": "-1",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "芥末",
+                    "label": "芥末",
+                    "pipeline_type": "int",
+                    "default": "1050",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "苹果",
+                    "label": "苹果",
+                    "pipeline_type": "int",
+                    "default": "700",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "萝卜缨",
+                    "label": "萝卜缨",
+                    "pipeline_type": "int",
+                    "default": "1050",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "葡萄",
+                    "label": "葡萄",
+                    "pipeline_type": "int",
+                    "default": "0",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "藏红花",
+                    "label": "藏红花",
+                    "pipeline_type": "int",
+                    "default": "0",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "蘑菇",
+                    "label": "蘑菇",
+                    "pipeline_type": "int",
+                    "default": "14385",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "虾",
+                    "label": "虾",
+                    "pipeline_type": "int",
+                    "default": "5985",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "蛋黄酱",
+                    "label": "蛋黄酱",
+                    "pipeline_type": "int",
+                    "default": "700",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "蜂蜜",
+                    "label": "蜂蜜",
+                    "pipeline_type": "int",
+                    "default": "2800",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "袋装鸡胸肉",
+                    "label": "袋装鸡胸肉",
+                    "pipeline_type": "int",
+                    "default": "7980",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "西蓝花",
+                    "label": "西蓝花",
+                    "pipeline_type": "int",
+                    "default": "0",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "调味海苔",
+                    "label": "调味海苔",
+                    "pipeline_type": "int",
+                    "default": "2870",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "豆子",
+                    "label": "豆子",
+                    "pipeline_type": "int",
+                    "default": "4200",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "辣椒",
+                    "label": "辣椒",
+                    "pipeline_type": "int",
+                    "default": "4200",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "辣椒素",
+                    "label": "辣椒素",
+                    "pipeline_type": "int",
+                    "default": "2800",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "金枪鱼罐头",
+                    "label": "金枪鱼罐头",
+                    "pipeline_type": "int",
+                    "default": "0",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "雷瓦汀火腿",
+                    "label": "雷瓦汀火腿",
+                    "pipeline_type": "int",
+                    "default": "-1",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "香草",
+                    "label": "香草",
+                    "pipeline_type": "int",
+                    "default": "7700",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "鱼子酱罐头",
+                    "label": "鱼子酱罐头",
+                    "pipeline_type": "int",
+                    "default": "2100",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "鸡蛋",
+                    "label": "鸡蛋",
+                    "pipeline_type": "int",
+                    "default": "8330",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "黄油",
+                    "label": "黄油",
+                    "pipeline_type": "int",
+                    "default": "13650",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                }
+            ],
+            "pipeline_override": {
+                "Agt_Arbitrage_MaterialSale_Manual": {
+                    "attach": {
+                        "三文鱼": "{三文鱼}",
+                        "兽肉": "{兽肉}",
+                        "凯洛药材": "{凯洛药材}",
+                        "卢戈山参": -1,
+                        "吐司": "{吐司}",
+                        "咖啡豆": "{咖啡豆}",
+                        "哈密瓜": "{哈密瓜}",
+                        "啤酒花": "{啤酒花}",
+                        "土豆": "{土豆}",
+                        "地狱火辣酱": -1,
+                        "大蒜": "{大蒜}",
+                        "大麦": "{大麦}",
+                        "奶酪": "{奶酪}",
+                        "姜黄": -1,
+                        "小麦": "{小麦}",
+                        "巧克力": "{巧克力}",
+                        "料酒": "{料酒}",
+                        "杏仁": "{杏仁}",
+                        "松露油": -1,
+                        "樱桃": "{樱桃}",
+                        "橄榄油": "{橄榄油}",
+                        "水果罐头": "{水果罐头}",
+                        "永恒之爱": -1,
+                        "洋葱": "{洋葱}",
+                        "灵魂鲜奶油": -1,
+                        "牛奶": "{牛奶}",
+                        "玉米": "{玉米}",
+                        "甜椒": "{甜椒}",
+                        "甜辣酱": "{甜辣酱}",
+                        "生命木炭": -1,
+                        "生蚝": "{生蚝}",
+                        "番茄": "{番茄}",
+                        "白糖": "{白糖}",
+                        "盐": "{盐}",
+                        "秃鹫羽毛": -1,
+                        "穿山甲鳞片": -1,
+                        "米": "{米}",
+                        "维生素B浓缩液": -1,
+                        "肉桂": "{肉桂}",
+                        "胡椒": "{胡椒}",
+                        "胡萝卜": "{胡萝卜}",
+                        "能量粉末": -1,
+                        "能量药水": -1,
+                        "能量蘑菇": -1,
+                        "芥末": "{芥末}",
+                        "苹果": "{苹果}",
+                        "萝卜缨": "{萝卜缨}",
+                        "葡萄": "{葡萄}",
+                        "藏红花": "{藏红花}",
+                        "蘑菇": "{蘑菇}",
+                        "虾": "{虾}",
+                        "蛋黄酱": "{蛋黄酱}",
+                        "蜂蜜": "{蜂蜜}",
+                        "袋装鸡胸肉": "{袋装鸡胸肉}",
+                        "西蓝花": "{西蓝花}",
+                        "调味海苔": "{调味海苔}",
+                        "豆子": "{豆子}",
+                        "辣椒": "{辣椒}",
+                        "辣椒素": "{辣椒素}",
+                        "透明蘑菇": -1,
+                        "金枪鱼罐头": "{金枪鱼罐头}",
+                        "闪光粉末": -1,
+                        "雷瓦汀火腿": "{雷瓦汀火腿}",
+                        "香草": "{香草}",
+                        "魅惑粉末": -1,
+                        "鱼子酱罐头": "{鱼子酱罐头}",
+                        "鸡蛋": "{鸡蛋}",
+                        "黄油": "{黄油}",
+                        "黄金罗勒": -1
                     }
                 }
             }
