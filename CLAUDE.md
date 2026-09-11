@@ -14,7 +14,7 @@ Python Agent 提供自定义识别/动作，MFAAvalonia 提供 GUI。
 | `assets/MaaCommonAssets/` | **submodule**，不要直接改 |
 | `agent/` | Python Agent：`action/` `recognition/` `utils/` |
 | `scripts/` | 版本分析、changelog 生成、公告注入 |
-| `tools/` | 一次性维护脚本（目前只有 `migrate_pipeline_manager.py`） |
+| `tools/` | 维护脚本：`migrate_pipeline_manager.py`、`tidy_mpe_config.py` |
 
 ## 运行
 

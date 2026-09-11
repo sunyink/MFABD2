@@ -954,7 +954,16 @@ jobs:
           echo "$EOF" >> $GITHUB_OUTPUT
 
   release:
-    if: (needs.meta.outputs.is_tag_push == 'true') || contains(needs.meta.outputs.tag, '-beta') || contains(needs.meta.outputs.tag, '-alpha') || (github.event_name == 'workflow_dispatch' && contains(needs.meta.outputs.tag, '-ci'))
+    # fork 可以完整构建和上传 Actions artifact，但发布只能发生在上游仓库。
+    # 保留 [deploy-alpha] / [deploy-beta] 以及临时分支发版语义，只把仓库边界锁住。
+    if: >-
+      github.repository == 'sunyink/MFABD2' &&
+      (
+        needs.meta.outputs.is_tag_push == 'true' ||
+        contains(needs.meta.outputs.tag, '-beta') ||
+        contains(needs.meta.outputs.tag, '-alpha') ||
+        (github.event_name == 'workflow_dispatch' && contains(needs.meta.outputs.tag, '-ci'))
+      )
     needs: [meta, install, changelog]
     runs-on: ubuntu-latest
     permissions:
@@ -1071,7 +1080,12 @@ jobs:
 
   notify:
     needs: [meta, install]
-    if: always() && needs.install.result == 'success' && (github.event_name == 'workflow_dispatch' || needs.meta.outputs.version_type != 'ci')
+    # fork 没有上游通知密文；构建可继续，但不要让预期中的空密文把运行标红。
+    if: >-
+      always() &&
+      github.repository == 'sunyink/MFABD2' &&
+      needs.install.result == 'success' &&
+      (github.event_name == 'workflow_dispatch' || needs.meta.outputs.version_type != 'ci')
     runs-on: ubuntu-latest
     steps:
       - name: Extract commit info
