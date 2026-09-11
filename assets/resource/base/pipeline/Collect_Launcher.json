@@ -105,7 +105,6 @@
         },
         "pre_delay": 0,
         "post_delay": 0,
-        "rate_limit": 0,
         "focus": "全类已有完成标签,停止任务"
     },
     "Collect_BlackList_User": {

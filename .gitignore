@@ -481,7 +481,10 @@ prettier.config.mjs
 .DS_Store
 **/.DS_Store
 
+# 本地 AI 助手配置与技能（不提交）
 .claude/*
+.codex/
+.agents/skills/
 
 # MaaOWM
 # 状态/备份目录。新版落在 maaowm/.state/ (由 maaowm/.gitignore 忽略),
