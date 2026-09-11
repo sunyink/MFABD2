@@ -1,0 +1,22 @@
+{
+    "StartGame_Check_App_Alive": {
+        "desc": "安卓原生机直接进入控制器启动，不执行 ADB 的窗口焦点 Shell 探针。",
+        "pre_delay": 0,
+        "action": "DoNothing",
+        "post_delay": 0,
+        "rate_limit": 0,
+        "next": [
+            "StartGame_RunApp"
+        ],
+        "on_error": [],
+        "focus": null
+    },
+    "StartGame_RunApp": {
+        "desc": "安卓原生控制器启动游戏；保留 base 的加载识别链，失败交给公共兜底，不执行 ADB Shell。",
+        "action": "StartApp",
+        "on_error": [
+            "Global_Null_Exception",
+            "Global_Null_Panic"
+        ]
+    }
+}

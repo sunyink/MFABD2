@@ -1,0 +1,14 @@
+{
+    "application_id": "io.github.sunyink.mfabd2",
+    "label": "MFABD2",
+    "key_alias": "mfabd2",
+    "certificate_sha256": "f185103dbb68aa4b41da5850d3d9cd97bcbc0bbf1337ae9e4765d4614f897b0e",
+    "ci_key_alias": "mfabd2ci",
+    "ci_certificate_sha256": "6fcc05f2b5acec3fe06f19c35e6c51103f8ed476ca0fa356f012c0cf08cfc1b8",
+    "version_code_offset": 0,
+    "python_requirements": {
+        "numpy": "==2.3.2",
+        "Pillow": "==11.0.0",
+        "StrEnum": "==0.4.15"
+    }
+}

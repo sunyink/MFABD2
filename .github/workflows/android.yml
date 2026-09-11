@@ -1,0 +1,289 @@
+name: Android ARM64
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_name:
+        description: "项目版本或已有 Release tag；留空按项目规则生成 CI 版号"
+        type: string
+        default: ""
+      publish:
+        description: "将签名 APK 附加到上述已存在的 Release（不会创建 Release）"
+        type: boolean
+        default: false
+      release_build:
+        description: "供主发布流程使用：保留构建并等待取回 APK，不直接上传 Release"
+        type: boolean
+        default: false
+      identity:
+        description: "构建身份：release 用项目签名密钥与正式包名；ci 用独立身份，可与正式包共存"
+        type: choice
+        options:
+          - ci
+          - release
+        default: ci
+      source_sha:
+        description: "主发布流程锁定的资源提交（release_build 必填）"
+        type: string
+        default: ""
+  push:
+    branches:
+      - main
+    # 这里只列**影响安卓构建链本身**的路径，不含 agent/** 与 assets/**。
+    # 那两处的改动由 install.yml 那条链先验（Check Resources + 剥离注释后的加载校验），
+    # 安卓侧只是把它们打包进去；而每跑一次这个工作流是 9 分钟 + 128MB 产物，
+    # 挂在高频目录上等于给日常改 pipeline 收一笔固定税。
+    # 安卓真正的脆弱点是上游 pin、Google 的 SDK 索引、AGP/Gradle——都在下面这几项里。
+    paths:
+      - .github/workflows/android.yml
+      - android/**
+      - install.py
+      - configure.py
+      - scripts/verify_android*.py
+      - scripts/android_build.py
+      - scripts/detect_maa_version.py
+      - requirements.txt
+
+permissions:
+  contents: read
+
+concurrency:
+  # Release builds are isolated from branch pushes and from other release tags.
+  group: android-arm64-${{ (inputs.publish || inputs.release_build) && format('release-{0}', inputs.version_name) || format('build-{0}', github.ref) }}
+  cancel-in-progress: ${{ !(inputs.publish || inputs.release_build) }}
+
+env:
+  # 框架版本不在这里钉。它由 scripts/detect_maa_version.py 从根 requirements.txt
+  # 钉住的那份 MFAAvalonia 二进制里读出来，与 install.yml 同源，安卓不可能与桌面分叉。
+  PYTHONUTF8: "1"
+  STRIP_COMMENTS: "true"
+
+jobs:
+  apk:
+    if: github.repository == 'sunyink/MFABD2'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          ref: ${{ inputs.publish && inputs.version_name || (inputs.release_build && inputs.source_sha) || github.sha }}
+          fetch-depth: 0
+      - name: Checkout pinned Android UI
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          repository: Aliothmoon/MaaFwApp
+          ref: f4f6f220e21e3a1b7b0cf5df4bdbe0ec04c668f7
+          path: android-upstream
+      - name: Restore pinned OCR assets
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          repository: sunyink/MFABD2-Assets
+          ref: df9c78afd7089ff925b014f01ae650fa72f859a2
+          path: android-build/assets
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.11"
+      # 与 install.yml 的 meta job 走同一个脚本、同一份 requirements.txt：
+      # 内核版本是从 MFAAvalonia 的二进制里问出来的，不是任何地方写下的常量。
+      - name: Parse pinned configuration
+        id: parse_config
+        run: python3 scripts/detect_maa_version.py parse
+      - name: Download MFAAvalonia for detection
+        uses: robinraju/release-downloader@28fc21f50d76778e7023361aa1f863e717d3d56f # v1
+        with:
+          repository: MaaXYZ/MFAAvalonia
+          latest: false
+          tag: ${{ steps.parse_config.outputs.mfaa_tag }}
+          fileName: "MFAAvalonia-*-linux-x64*"
+          out-file-path: "temp_detect"
+          extract: true
+      - name: Download override core for detection
+        if: steps.parse_config.outputs.mfa_core_tag != ''
+        uses: robinraju/release-downloader@28fc21f50d76778e7023361aa1f863e717d3d56f # v1
+        with:
+          repository: MaaXYZ/MaaFramework
+          latest: false
+          tag: ${{ steps.parse_config.outputs.mfa_core_tag }}
+          fileName: "MAA-linux-x86_64-*"
+          out-file-path: "core_src"
+          extract: true
+      - name: Detect MaaFramework version
+        id: core
+        run: python3 scripts/detect_maa_version.py detect --assets temp_detect --override core_src
+      # agent core（形如 3.13.15-maafw5.12.3：CPython 版本 + 框架版本）由上游自己钉死在
+      # build_agent_bundle.py 的 CORE_TAG 里 —— 它的 Kotlin 侧与那个组合是一起验过的。
+      # 这一步只读那个常量并校验桌面内核是否跟得上，对不上就停，不替上游挑版本。
+      - name: Resolve Android agent core
+        id: agent_core
+        run: |
+          python3 scripts/detect_maa_version.py agent-core-tag \
+            --maafw "${{ steps.core.outputs.version }}" --upstream android-upstream
+      - name: Resolve project version and Android identity
+        id: metadata
+        env:
+          REQUESTED_VERSION: ${{ inputs.version_name }}
+          PUBLISH_REQUEST: ${{ inputs.publish }}
+          RELEASE_BUILD: ${{ inputs.release_build }}
+          SOURCE_SHA: ${{ inputs.source_sha }}
+          IDENTITY: ${{ inputs.identity || 'ci' }}
+        run: |
+          if [[ ( "$PUBLISH_REQUEST" == "true" || "$RELEASE_BUILD" == "true" ) && -z "$REQUESTED_VERSION" ]]; then
+            echo "Release tag is required for publication"
+            exit 1
+          fi
+          if [[ "$RELEASE_BUILD" == "true" ]]; then
+            if [[ "$PUBLISH_REQUEST" == "true" || ! "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ || "$(git rev-parse HEAD)" != "$SOURCE_SHA" ]]; then
+              echo "Release collection requires an exact source SHA and publish=false"
+              exit 1
+            fi
+          fi
+          # 只有会进 Release 的构建才消耗安装编号序列；其余固定为 1，
+          # 好让反复的验证构建互相覆盖，而不是每次都要先卸载。
+          published=()
+          if [[ "$PUBLISH_REQUEST" == "true" || "$RELEASE_BUILD" == "true" ]]; then
+            published=(--published)
+          fi
+          python scripts/android_build.py metadata --version "$REQUESTED_VERSION" \
+            --identity "$IDENTITY" "${published[@]}"
+      # 这里起，框架版本一律取 agent_core 的输出而非桌面探测值：APK 里的 Python 侧
+      # maafw 是 agent core 自带的（上游会丢弃我们钉的版本），原生库与校验期望值
+      # 必须跟它一致，否则就是"wheel 是新的、.so 是旧的"。
+      - name: Verify agent and prepare resources
+        env:
+          PROJECT_VERSION: ${{ steps.metadata.outputs.version_name }}
+          MAAFW_VERSION: ${{ steps.agent_core.outputs.maafw_version }}
+          # 桌面值只喂给测试：它断言两边没漂到不同的次版本线上。
+          MFABD2_DESKTOP_MAAFW: ${{ steps.core.outputs.version }}
+        run: |
+          python -m pip install "MaaFw==$MAAFW_VERSION" "numpy==2.3.2" "Pillow==11.0.0" "json-with-comments==1.3.0"
+          python scripts/verify_android_runtime.py
+          python scripts/verify_android_interface_filter.py
+          python scripts/verify_android_build.py
+          python scripts/verify_android_overlay.py
+          python scripts/verify_android_apk.py --interface assets/interface.json
+          python agent/recognition/test_rdd_hsv_rescue.py
+          PYTHONPATH=agent python -c "import action, recognition, fishing_agent"
+          mkdir -p assets/MaaCommonAssets
+          cp -a android-build/assets/MaaCommonAssets/. assets/MaaCommonAssets/
+          python install.py "$PROJECT_VERSION" android "$MAAFW_VERSION"
+          python scripts/android_build.py requirements --maafw "$MAAFW_VERSION" \
+            --output android-build/requirements.txt
+          if [ "$STRIP_COMMENTS" = "true" ]; then
+            python scripts/strip_build_comments.py install
+          fi
+          python check_resource.py install
+      - name: Assemble Android Python dependencies
+        working-directory: android-upstream
+        env:
+          AGENT_CORE_TAG: ${{ steps.agent_core.outputs.agent_core_tag }}
+          MAAFW_TAG: ${{ steps.agent_core.outputs.maafw_tag }}
+        run: |
+          python scripts/build_agent_bundle.py \
+            --out "$GITHUB_WORKSPACE/android-build/agent-dist" \
+            --abi arm64-v8a --core-tag "$AGENT_CORE_TAG" \
+            --requirements "$GITHUB_WORKSPACE/android-build/requirements.txt" \
+            --extra-index-url https://chaquo.com/pypi-13.1/
+          python scripts/setup_maa_framework.py --tag "$MAAFW_TAG" --abi arm64-v8a
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: android-actions/setup-android@v3
+      - name: Install Android build tools
+        # ⚠️ 是 android-37.0，不是 android-37。API 37 起 Google 的平台包只发带 minor 的
+        # 形式（37.0 / 37.1 / 37.2），裸的 `platforms;android-37` 在仓库索引里不存在，
+        # 装它会 "Failed to find package" 并让这一步退出 1。36 及以前两种形式都有，
+        # 所以"包名就是 API 级别"这条经验在这里不成立——别再把 .0 当成笔误删掉。
+        # compileSdk 跟着上游 AndroidCommon.kt 的 COMPILE_SDK 走，minor 未设即 .0。
+        run: sdkmanager "platforms;android-37.0" "build-tools;36.0.0" "cmake;3.22.1"
+      # 两套身份两把钥匙：release 用项目签名密钥，ci 用一把独立的、无保密价值的钥匙。
+      # 期望指纹与别名都从 build-metadata.json 读 —— 那份已经按身份写好了期望值，
+      # 所以这里不需要知道"当前是哪种身份该比对什么"，校验一条都不少。
+      - name: Prepare signed ARM64 release
+        env:
+          RELEASE_KEYSTORE_B64: ${{ secrets.ANDROID_SIGNING_KEYSTORE_B64 }}
+          RELEASE_PASSWORD: ${{ secrets.ANDROID_SIGNING_PASSWORD }}
+          CI_KEYSTORE_B64: ${{ secrets.ANDROID_CI_KEYSTORE_B64 }}
+          CI_PASSWORD: ${{ secrets.ANDROID_CI_PASSWORD }}
+        run: |
+          python scripts/android_build.py prepare
+          python - <<'PY'
+          import base64, hashlib, json, os, subprocess
+          from pathlib import Path
+          metadata = json.loads(Path("android-build/build-metadata.json").read_text())
+          prefix = "RELEASE" if metadata["identity"] == "release" else "CI"
+          encoded, password = os.environ.get(f"{prefix}_KEYSTORE_B64"), os.environ.get(f"{prefix}_PASSWORD")
+          if not encoded or not password:
+              raise SystemExit(f"Configure the ANDROID_{prefix}_* repository secrets first")
+          path = Path(os.environ["RUNNER_TEMP"]) / "mfabd2-signing.p12"
+          # 先去掉空白再解码：GNU base64 默认每 76 字符折行，而 secret 允许多行值，
+          # 直接喂给 validate=True 会因为换行不在 base64 字母表里而报一个不指向根因的错。
+          path.write_bytes(base64.b64decode("".join(encoded.split()), validate=True))
+          path.chmod(0o600)
+          cert = subprocess.run(["keytool", "-exportcert", "-keystore", str(path),
+                                 "-storepass:env", "SIGNING_PASSWORD", "-alias", metadata["key_alias"]],
+                                check=True, capture_output=True,
+                                env={**os.environ, "SIGNING_PASSWORD": password}).stdout
+          if hashlib.sha256(cert).hexdigest() != metadata["certificate_sha256"]:
+              raise SystemExit(f"Signing certificate does not match the {metadata['identity']} identity")
+          with open(os.environ["GITHUB_ENV"], "a") as output:
+              output.write(f"KEYSTORE_PATH={path}\n")
+          PY
+      - name: Build signed ARM64 APK
+        working-directory: android-upstream
+        env:
+          PI_PROFILE: ${{ github.workspace }}/android/pi-profile.yaml
+          BUILD_VERSION_NAME: ${{ steps.metadata.outputs.version_name }}
+          MFABD2_APP_LABEL: ${{ steps.metadata.outputs.label }}
+          # 与上一步选的是同一把钥匙：identity 缺省（push 触发）即 ci。
+          KEYSTORE_PASSWORD: ${{ inputs.identity == 'release' && secrets.ANDROID_SIGNING_PASSWORD || secrets.ANDROID_CI_PASSWORD }}
+          KEY_PASSWORD: ${{ inputs.identity == 'release' && secrets.ANDROID_SIGNING_PASSWORD || secrets.ANDROID_CI_PASSWORD }}
+          KEY_ALIAS: ${{ steps.metadata.outputs.key_alias }}
+        run: |
+          # AGP 9 defaults to generating unit tests only for the debug build type.
+          ./gradlew -Pandroid.onlyEnableUnitTestForTheTestedBuildType=false :app:testReleaseUnitTest --tests 'com.aliothmoon.maafw.update.Mfabd2*Test' --tests 'com.aliothmoon.maafw.di.UpdateModuleTest' --stacktrace
+          ./gradlew :app:assembleRelease --stacktrace
+      - name: Verify APK contents
+        run: |
+          apk="android-upstream/app/build/outputs/apk/release/app-release.apk"
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs "$apk" > android-build/signature.txt
+          "$ANDROID_HOME/build-tools/36.0.0/aapt2" dump badging "$apk" > android-build/badging.txt
+          python scripts/verify_android_apk.py "$apk" --metadata android-build/build-metadata.json \
+            --badging android-build/badging.txt --signature android-build/signature.txt \
+            --maafw "${{ steps.agent_core.outputs.maafw_version }}"
+          python scripts/android_build.py artifacts --apk "$apk"
+      - name: Remove temporary signing file
+        if: always()
+        run: rm -f "$RUNNER_TEMP/mfabd2-signing.p12"
+      - name: Upload update test results
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: android-update-tests
+          path: android-upstream/app/build/test-results/testReleaseUnitTest/*.xml
+          if-no-files-found: ignore
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: MFABD2-android-arm64
+          path: android-build/artifacts/
+          if-no-files-found: error
+
+  publish:
+    needs: apk
+    if: github.event_name == 'workflow_dispatch' && inputs.publish && github.repository == 'sunyink/MFABD2'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: MFABD2-android-arm64
+          path: artifacts
+      - name: Attach APK to the existing project release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ inputs.version_name }}
+        run: |
+          gh release view "$RELEASE_TAG" --repo "$GH_REPO"
+          gh release upload "$RELEASE_TAG" artifacts/*.apk artifacts/*.sha256 artifacts/*.json --repo "$GH_REPO"
