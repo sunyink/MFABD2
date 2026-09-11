@@ -59,6 +59,13 @@ class AndroidInterfaceFilterTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             INSTALL.prepare_interface_for_target(source, "android")
 
+    def test_resource_without_a_base_layer_fails(self):
+        """An overlay-only resource loads fine and then has almost no nodes."""
+        for resource in ({"name": "x"}, {"name": "x", "path": []}):
+            source = {"controller": [{"name": "A", "type": "Adb"}], "resource": [resource]}
+            with self.assertRaises(ValueError):
+                INSTALL.prepare_interface_for_target(source, "android")
+
 
 if __name__ == "__main__":
     unittest.main()

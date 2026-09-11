@@ -1,6 +1,6 @@
 """Host-contract and save-data regression checks; never touches real user saves.
 
-Run: python tools/verify_android_runtime.py
+Run: python scripts/verify_android_runtime.py
 These tests simulate host environments, not an Android device or native callback.
 """
 

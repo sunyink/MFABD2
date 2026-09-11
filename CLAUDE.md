@@ -13,8 +13,14 @@ Python Agent 提供自定义识别/动作，MFAAvalonia 提供 GUI。
 | `assets/resource/Announcement/` | 软件内公告 Markdown |
 | `assets/MaaCommonAssets/` | **submodule**，不要直接改 |
 | `agent/` | Python Agent：`action/` `recognition/` `utils/` |
-| `scripts/` | 版本分析、changelog 生成、公告注入 |
-| `tools/` | 维护脚本：`migrate_pipeline_manager.py`、`tidy_mpe_config.py` |
+| `android/` | Android 构建配置：打包 profile、发布身份、更新策略 Kotlin 源 |
+| `scripts/` | **CI 调用的脚本**：版本分析、changelog 生成、公告注入、安卓构建与验证 |
+| `tools/` | **人工维护脚本**（CI 不调用）：`migrate_pipeline_manager.py`、`tidy_mpe_config.py` |
+
+`scripts/` 与 `tools/` 的分界是「谁来调用」：CI 里出现的一律放 `scripts/`。
+`scripts/verify_android_*.py` 与 `scripts/android_build.py` 需要 **Python 3.11+**
+（用了 `hashlib.file_digest` 与 `TestCase.enterContext`），本地用 3.10 跑会直接报
+AttributeError——不是测试失败。
 
 ## 运行
 
@@ -33,14 +39,24 @@ Python Agent 提供自定义识别/动作，MFAAvalonia 提供 GUI。
 改 `venv_ops.py` 里的 MaaFw 版本时，要与 `agent/` 代码所依赖的版本手动对齐——
 两者不一致会出现「代码是新的、DLL 是旧的」。
 
+**CI 里的 MaaFw 版本不写在任何地方**：`scripts/detect_maa_version.py` 下载
+`requirements.txt` 钉住的那个 MFAAvalonia，用 ctypes 调它自带 `libMaaFramework.so`
+的 `MaaVersion()` 读出来，桌面与安卓共用这一个来源。想换内核版本就改
+`# MFAA_TAG=`（或急救用的 `# MFA_CORE_TAG=`），别去各工作流里找常量改。
+
 当前版本锚点（写文档/排查时以实际文件为准，别照抄这里的数字）：
 
 | 锚点 | 位置 | 现值 |
 | --- | --- | --- |
-| MaaFw（内核 + pip） | `agent/utils/venv_ops.py` 的 `DEV_MAAFW_VERSION` | `5.11.1` |
+| MaaFw（dev 模式 pip） | `agent/utils/venv_ops.py` 的 `DEV_MAAFW_VERSION` | `5.12.2` |
 | MaaFw 兼容区间 | 同上 `FALLBACK_MAAFW_SPEC` | `>=5.11,<6.1` |
-| MFAAvalonia | `requirements.txt` 的 `MFAA_TAG` | `v2.14.0-beta.2` |
-| Python | 同上 `PREFERRED_PYTHON_VERSION` | `3.10` |
+| MaaFw（CI 与产物） | 探测自 MFAAvalonia，不是常量 | 随 `MFAA_TAG` 走 |
+| MFAAvalonia | `requirements.txt` 的 `# MFAA_TAG=` | `v2.15.2` |
+| Python（桌面 dev） | `venv_ops.py` 的 `PREFERRED_PYTHON_VERSION` | `3.10` |
+| Python（安卓产物） | `android/release.json` 决定的 agent core tag 前半段 | `3.13.15` |
+
+⚠️ **同一份 `agent/` 代码要同时跑在桌面的 3.10 和安卓的 3.13 上**，别用只在其中一边
+存在的语法或标准库 API。（`scripts/` 下的构建脚本不受此限，它们只在 CI 的 3.11 上跑。）
 
 运行时日志在 `debug/maafw.log`，开头三行会打印实际内核版本——**排查前先对一眼**，
 `debug/maa.log` 是旧命名的历史档（停在 v5.9.2），别拿它推当前行为。

@@ -8,18 +8,21 @@ import kotlin.coroutines.cancellation.CancellationException
 
 class Mfabd2GitHubUpdateClientTest {
     private val tag = "v4.4.0"
-    private val name = "MFABD2-$tag-android-arm64-vc701.apk"
-    private val release = """[{"tag_name":"$tag","assets":[
-        {"name":"$name","browser_download_url":"https://example.com/$name"},
-        {"name":"$name.json","browser_download_url":"https://example.com/$name.json"},
-        {"name":"$name.sha256","browser_download_url":"https://example.com/$name.sha256"}
-    ]}]"""
-    private val manifest = """{
+    private val name = "MFABD2-$tag-android-arm64.apk"
+    private fun assets(of: String) = """{"tag_name":"$of","assets":[
+        {"name":"${apk(of)}","browser_download_url":"https://example.com/${apk(of)}"},
+        {"name":"${apk(of)}.json","browser_download_url":"https://example.com/${apk(of)}.json"},
+        {"name":"${apk(of)}.sha256","browser_download_url":"https://example.com/${apk(of)}.sha256"}
+    ]}"""
+    private fun apk(of: String) = "MFABD2-$of-android-arm64.apk"
+    private val release = "[${assets(tag)}]"
+    private fun manifestOf(of: String, code: Int, hash: String = "a".repeat(64)) = """{
         "schema_version":1,"application_id":"io.github.sunyink.mfabd2",
         "certificate_sha256":"${Mfabd2ReleasePolicy.CERTIFICATE_SHA256}",
-        "version_name":"$tag","version_code":701,"apk_name":"$name",
-        "apk_sha256":"${"a".repeat(64)}"
+        "version_name":"$of","version_code":$code,"apk_name":"${apk(of)}",
+        "apk_sha256":"$hash"
     }"""
+    private val manifest = manifestOf(tag, 701)
     private fun client(gateway: RecordingHttpClientHelper, code: Int = 601) =
         Mfabd2GitHubUpdateClient(GitHubReleasesApi(gateway.mock), gateway.mock, code, "io.github.sunyink.mfabd2")
     private fun check() = UpdateCheckRequest(UpdateSource.GITHUB, "v99.0.0-beta.260909.fffffff",
@@ -57,12 +60,42 @@ class Mfabd2GitHubUpdateClientTest {
 
     @Test
     fun invalidManifestIsAnErrorNotASemverFallback() = runBlocking {
-        for (body in listOf("not-json", manifest.replace("\"version_code\":701", "\"version_code\":901"))) {
+        for (body in listOf("not-json",
+                            manifest.replace("io.github.sunyink.mfabd2", "com.aliothmoon.maafw"),
+                            manifest.replace("\"version_code\":701", "\"version_code\":0"))) {
             assertEquals(UpdateCheckFailure.INVALID_RESPONSE,
                 (client(gateway(body)).check(check()) as UpdateCheckResult.SourceFailed).reason)
             assertEquals(UpdateCheckFailure.INVALID_RESPONSE,
                 (client(gateway(body)).resolve(resolve()) as UpdateResolveResult.Failed).reason)
         }
+    }
+
+    @Test
+    fun theHighestSequenceWinsEvenWhenItIsNotTheNewestRelease() = runBlocking {
+        // Release order is chronological; install order is not. A rebuild published
+        // earlier can still carry the larger sequence, so every candidate is read.
+        val older = "v4.3.0"
+        val gateway = RecordingHttpClientHelper(
+            FakeHttpResponse(200, "[${assets(tag)},${assets(older)}]"),
+            FakeHttpResponse(200, manifestOf(tag, 701)),
+            FakeHttpResponse(200, manifestOf(older, 901, "b".repeat(64))),
+        )
+        val result = client(gateway).resolve(resolve()) as UpdateResolveResult.Resolved
+        assertEquals(ResolvedUpdate(UpdateSource.GITHUB, older, "https://example.com/${apk(older)}",
+            "sha256:" + "b".repeat(64)), result.update)
+        assertEquals(3, gateway.requests.size)
+    }
+
+    @Test
+    fun oneUnreadableSidecarDoesNotHideAUsableOne() = runBlocking {
+        val older = "v4.3.0"
+        val gateway = RecordingHttpClientHelper(
+            FakeHttpResponse(200, "[${assets(tag)},${assets(older)}]"),
+            FakeHttpResponse(500, ""),
+            FakeHttpResponse(200, manifestOf(older, 901, "b".repeat(64))),
+        )
+        val result = client(gateway).check(check()) as UpdateCheckResult.UpdateAvailable
+        assertEquals(older, result.info.version)
     }
 
     @Test

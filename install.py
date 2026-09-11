@@ -60,7 +60,11 @@ def prepare_interface_for_target(interface, target_os):
     # Android runs base plus a minimal native-controller overlay, in that order.
     native_layer = "./resource/android_native"
     for resource in resources:
-        paths = resource.setdefault("path", [])
+        # setdefault would happily build a resource whose only layer is the overlay —
+        # a pack with no base under it loads, and then silently lacks every node.
+        paths = resource.get("path")
+        if not paths:
+            raise ValueError(f"Android resource {resource.get('name')!r} has no base layer to overlay")
         if native_layer not in paths:
             paths.append(native_layer)
         if resource.get("name") == "ADB":
