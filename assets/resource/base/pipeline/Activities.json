@@ -116,7 +116,8 @@
             "Activities_Roulette",
             "Activities_Roulette_Pay_CkIn",
             "Activities_FreeClothing",
-            "Activities_GetAll"
+            "Activities_GetAll",
+            "Activities_PaidDiamonds"
         ],
         "on_error": [
             "Activities_Slip"
@@ -450,6 +451,53 @@
         "next": [
             "Activities_FreeClothing_Ty2_Ck",
             "Activities_Index"
+        ]
+    },
+    "Activities_PaidDiamonds": {
+        "desc": "付费钻抽红票",
+        "max_hit": 10,
+        "recognition": "OCR",
+        "roi": [
+            719,
+            515,
+            92,
+            44
+        ],
+        "expected": ["免费1次"],
+        "action": "Click",
+        "target_offset": [
+            0,
+            -50,
+            0,
+            0
+        ],
+        "post_delay": 2000,
+        "next": [
+            "Activities_PaidDiamonds_Sub",
+            "Activities_PaidDiamonds"
+        ],
+        "focus": "满月付费钻石兑换所活动 v0609"
+    },
+    "Activities_PaidDiamonds_Sub": {
+        "recognition": "OCR",
+        "roi": [
+            630,
+            358,
+            201,
+            136
+        ],
+        "expected": [
+            "购买"
+        ],
+        "action": "Click",
+        "post_delay": 2000,
+        "next": [
+            "Activities_GetAllRe",
+            "Activities_PaidDiamonds_Sub"
+        ],
+        "on_error": [
+            "Activities_Index",
+            "Global_Null"
         ]
     },
     "Activities_ResultBack": {
