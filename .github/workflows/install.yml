@@ -939,7 +939,9 @@ jobs:
 
       - name: Build and collect signed Android APK
         id: android
-        timeout-minutes: 75
+        # 安卓那边的作业上限是 60 分钟，但作业超时不计排队时间——这一步却要把排队也等掉。
+        # 给足 60 分钟构建 + 60 分钟排队余量：这里先超时的话，安卓那边还在跑，产物白丢。
+        timeout-minutes: 120
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TAG: ${{ needs.meta.outputs.tag }}
@@ -954,10 +956,14 @@ jobs:
           if [ "$VERSION_TYPE" = "ci" ]; then identity=ci; else identity=release; fi
           export EXPECTED_IDENTITY="$identity"   # 下面的 heredoc 只看得到导出的变量
           # Keep android.yml's own build counter; wait for this exact dispatched run.
-          # The API version is load-bearing: 2026-03-10 answers 200 with workflow_run_id,
-          # while 2022-11-28 answers 204 with no body and leaves nothing for --jq to read.
+          # Two things are load-bearing here, and both are required to get a run ID back:
+          #   - the 2026-03-10 API version, which is what knows the parameter at all;
+          #   - return_run_details=true, without which the endpoint keeps answering
+          #     204 with no body and leaves nothing for --jq to read.
+          # (gh defaults it to true only for `gh workflow run`, not for raw `gh api`.)
           run_id=$(gh api --method POST "repos/$GITHUB_REPOSITORY/actions/workflows/android.yml/dispatches" \
             -H "X-GitHub-Api-Version: 2026-03-10" \
+            -F return_run_details=true \
             -f ref="$SOURCE_REF" -f "inputs[version_name]=$RELEASE_TAG" \
             -F 'inputs[release_build]=true' -f "inputs[source_sha]=$SOURCE_SHA" \
             -f "inputs[identity]=$identity" \

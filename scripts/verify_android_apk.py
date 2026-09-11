@@ -111,9 +111,9 @@ def verify(path: Path, metadata: dict | None = None, maafw: str | None = None) -
 
 
 if __name__ == "__main__":
-    # Slice, not index: a bare invocation must reach argparse's usage message
-    # rather than dying on IndexError.
-    if sys.argv[1:2] == ["--interface"]:
+    # Slices, not indexes: a bare invocation — or a `--interface` with no path —
+    # must reach argparse's usage message rather than dying on IndexError.
+    if sys.argv[1:2] == ["--interface"] and len(sys.argv) >= 3:
         verify_options(json.loads(Path(sys.argv[2]).read_text(encoding="utf-8")))
         print("Android interface option checks passed")
     else:

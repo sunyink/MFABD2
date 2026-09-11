@@ -23,10 +23,12 @@ APK 文件名为 `MFABD2-<项目版本>-android-arm64.apk`，与桌面 ZIP 同�
   `requirements.txt` 钉住的 MFAAvalonia，用 ctypes 调其 `libMaaFramework.so` 的
   `MaaVersion()` 读出版本，与 `install.yml` 的 meta job 同源，桌面与安卓不可能分叉。
   原生库 tag、pip 版本、`install.py` 参数、APK 校验期望值全部由这一个值派生。
-- Android agent core 的 tag 形如 `<CPython 版本>-maafw<框架版本>`，前半段跟着上游自己的
-  发布节奏走、推不出来，由同一脚本的 `agent-core-tag` 子命令按框架版本查出。查不到即停止
-  构建——安卓不能使用与桌面不同版本的框架，这意味着**安卓可用的框架版本受限于
-  MaaAgentCoreAndroid 的发布进度**。当前该 core 提供 CPython 3.13.15 与 NumPy 2.3.2。
+- Android agent core 的 tag 形如 `<CPython 版本>-maafw<框架版本>`，**由上游自己钉死**在
+  `MaaFwApp/scripts/build_agent_bundle.py` 的 `CORE_TAG` 常量里——它的 Kotlin 侧与 core 里
+  那份 CPython/框架是一起验过的组合。`agent-core-tag` 子命令只读那个常量并校验桌面内核是否
+  跟得上，对不上就停，不替上游挑版本。这意味着**安卓的框架版本由 MaaFwApp 的 pin 决定**，
+  桌面要么用 `MFA_CORE_TAG` 跟上去，要么换一个匹配的 MaaFwApp commit。当前上游钉的是
+  `3.13.15-maafw5.12.3`，提供 CPython 3.13.15 与 NumPy 2.3.2。
 - 打进 APK 的 pip 清单由 `android_build.py requirements` 从根 `requirements.txt` 生成，
   仓库里不再有第二份手写清单。只有平台逼迫的三项在 `android/release.json` 的
   `python_requirements` 里覆盖：numpy 与 Pillow 带 C 扩展，必须落在 Chaquopy 实际发布了

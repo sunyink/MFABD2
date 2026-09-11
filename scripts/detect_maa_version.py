@@ -7,17 +7,13 @@ Both install.yml and android.yml call this script.
 
 import argparse
 import ctypes
-import json
 import os
 import re
 import subprocess
 import sys
-import urllib.error
-import urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-AGENT_CORE_REPO = "Aliothmoon/MaaAgentCoreAndroid"
 
 # The `#` must be immediately followed by the key: requirements.txt also carries a
 # `例: # MFA_CORE_TAG=v5.12.2` documentation line that must never be picked up.
@@ -27,6 +23,8 @@ TAG_PATTERNS = {
 }
 # Upstream tags look like `3.13.15-maafw5.12.3` — CPython version, then ours.
 AGENT_CORE_PATTERN = re.compile(r"^(\d+)\.(\d+)\.(\d+)-maafw(.+)$")
+# MaaFwApp pins its agent core as a module constant in the bundle builder.
+CORE_TAG_PATTERN = re.compile(r"""^CORE_TAG\s*=\s*["']([^"']+)["']""", re.MULTILINE)
 
 
 def emit(**values: str) -> None:
@@ -103,32 +101,32 @@ def read_version(library: Path) -> str:
     return raw.decode("utf-8").strip()
 
 
-def github_releases(repo: str) -> list[dict]:
-    request = urllib.request.Request(
-        f"https://api.github.com/repos/{repo}/releases?per_page=100",
-        headers={"Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28"},
-    )
-    if token := (os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN")):
-        request.add_header("Authorization", f"Bearer {token}")
-    with urllib.request.urlopen(request, timeout=30) as response:
-        return json.load(response)
+def agent_core_tag(maafw: str, upstream: Path) -> str:
+    """读上游钉住的 agent core，并校验桌面内核跟得上——不替上游挑版本。
 
-
-def agent_core_tag(maafw: str) -> str:
-    """Only the framework half of the tag is ours; the CPython half must be looked up."""
-    matches = []
-    for release in github_releases(AGENT_CORE_REPO):
-        if release.get("draft"):
-            continue
-        match = AGENT_CORE_PATTERN.match(release.get("tag_name", ""))
-        if match and match.group(4) == maafw:
-            matches.append((tuple(int(match.group(i)) for i in (1, 2, 3)), release["tag_name"]))
-    if not matches:
+    MaaFwApp 的 Kotlin 侧、agent core 里的 CPython、以及 core 内嵌的框架是
+    一个一起验过的组合。在这里另选一个"版本号看着对"的 tag，等于绕过上游的验证；
+    所以这里只读它自己写下的常量，两边对不上就停，由人去调 requirements.txt
+    或换 MaaFwApp 的 pin。
+    """
+    source = upstream / "scripts" / "build_agent_bundle.py"
+    if not source.is_file():
+        raise ValueError(f"找不到 {source}，确认 MaaFwApp 已 checkout 到 {upstream}")
+    found = CORE_TAG_PATTERN.search(source.read_text(encoding="utf-8"))
+    if not found:
+        raise ValueError(f"{source} 里读不到 CORE_TAG 常量——上游换了写法，这里要跟着改")
+    tag = found.group(1)
+    match = AGENT_CORE_PATTERN.match(tag)
+    if not match:
+        raise ValueError(f"上游的 CORE_TAG={tag} 不是 <CPython版本>-maafw<框架版本> 格式")
+    if (pinned := match.group(4)) != maafw:
         raise ValueError(
-            f"{AGENT_CORE_REPO} 尚未发布匹配 MaaFramework {maafw} 的 agent core。"
-            "安卓不能使用与桌面不同版本的框架，构建到此为止。"
+            f"框架版本对不上：上游 MaaFwApp 钉的 agent core 是 {tag}（框架 {pinned}），"
+            f"而 requirements.txt 钉住的桌面内核是 {maafw}。安卓与桌面不能用不同版本的框架。"
+            f"两条出路：把 requirements.txt 的 MFA_CORE_TAG 设成 v{pinned}，"
+            f"或换一个 CORE_TAG 为 {maafw} 的 MaaFwApp commit。"
         )
-    return max(matches)[1]
+    return tag
 
 
 def main() -> int:
@@ -138,8 +136,9 @@ def main() -> int:
     detect = commands.add_parser("detect", help="从 MFAAvalonia 的二进制里读出内核版本")
     detect.add_argument("--assets", type=Path, required=True, help="解压后的 MFAAvalonia 目录")
     detect.add_argument("--override", type=Path, help="急救内核源目录，存在时先原地覆盖")
-    core = commands.add_parser("agent-core-tag", help="查与该内核版本匹配的安卓 agent core")
+    core = commands.add_parser("agent-core-tag", help="读上游钉住的 agent core 并校验版本一致")
     core.add_argument("--maafw", required=True)
+    core.add_argument("--upstream", type=Path, default=ROOT / "android-upstream", help="MaaFwApp 的 checkout 目录")
     args = parser.parse_args()
 
     try:
@@ -157,8 +156,8 @@ def main() -> int:
             version = raw[1:] if raw.startswith("v") else raw
             emit(version=version, tag=f"v{version}")
         else:
-            emit(agent_core_tag=agent_core_tag(args.maafw))
-    except (ValueError, OSError, subprocess.CalledProcessError, urllib.error.URLError) as error:
+            emit(agent_core_tag=agent_core_tag(args.maafw, args.upstream))
+    except (ValueError, OSError, subprocess.CalledProcessError) as error:
         print(f"::error::{error}")
         return 1
     return 0

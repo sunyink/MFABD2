@@ -12,10 +12,18 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 UPSTREAM = Path(os.environ.get("MFABD2_ANDROID_UPSTREAM", ROOT / "android-upstream"))
-SPEC = importlib.util.spec_from_file_location("android_build", ROOT / "scripts" / "android_build.py")
-android_build = importlib.util.module_from_spec(SPEC)
-assert SPEC.loader is not None
-SPEC.loader.exec_module(android_build)
+
+
+def _load(name: str):
+    spec = importlib.util.spec_from_file_location(name, ROOT / "scripts" / f"{name}.py")
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+android_build = _load("android_build")
+detect_maa_version = _load("detect_maa_version")
 
 
 class AndroidBuildChecks(unittest.TestCase):
@@ -185,6 +193,54 @@ class AndroidBuildChecks(unittest.TestCase):
             policy = upstream / "app/src/main/java/com/aliothmoon/maafw/update/Mfabd2ReleasePolicy.kt"
             self.assertIn('CERTIFICATE_SHA256 = "' + "a" * 64 + '"', policy.read_text())
             self.assertTrue((upstream / "app/src/test/java/com/aliothmoon/maafw/update/Mfabd2GitHubUpdateClientTest.kt").is_file())
+
+
+class FrameworkVersionChecks(unittest.TestCase):
+    """The framework version is one value project-wide; these guard the seams."""
+
+    @staticmethod
+    def _upstream(work: str, core_tag: str) -> Path:
+        upstream = Path(work) / "MaaFwApp"
+        (upstream / "scripts").mkdir(parents=True)
+        (upstream / "scripts" / "build_agent_bundle.py").write_text(
+            f'CORE_REPO = "Aliothmoon/MaaAgentCoreAndroid"\nCORE_TAG = "{core_tag}"\nCORE_PY = "3.13.15"\n',
+            encoding="utf-8",
+        )
+        return upstream
+
+    def test_matching_version_yields_the_tag_upstream_pinned(self):
+        with tempfile.TemporaryDirectory() as work:
+            upstream = self._upstream(work, "3.13.15-maafw5.12.3")
+            self.assertEqual(detect_maa_version.agent_core_tag("5.12.3", upstream), "3.13.15-maafw5.12.3")
+
+    def test_version_drift_names_both_sides_and_the_way_out(self):
+        with tempfile.TemporaryDirectory() as work:
+            upstream = self._upstream(work, "3.13.15-maafw5.12.3")
+            with self.assertRaises(ValueError) as raised:
+                detect_maa_version.agent_core_tag("5.12.2", upstream)
+            message = str(raised.exception)
+            for fragment in ("5.12.3", "5.12.2", "MFA_CORE_TAG"):
+                self.assertIn(fragment, message)
+
+    def test_missing_or_reshaped_upstream_stops_the_build(self):
+        with tempfile.TemporaryDirectory() as work:
+            with self.assertRaises(ValueError):
+                detect_maa_version.agent_core_tag("5.12.3", Path(work) / "absent")
+            # Upstream renaming or restructuring the constant must fail loudly here
+            # rather than silently build against whatever the default happens to be.
+            upstream = self._upstream(work, "5.12.3")
+            with self.assertRaises(ValueError):
+                detect_maa_version.agent_core_tag("5.12.3", upstream)
+
+    def test_requirements_anchor_matches_the_pinned_upstream(self):
+        """The real anti-drift assertion: desktop's pin and Android's must agree."""
+        if not (UPSTREAM / "scripts" / "build_agent_bundle.py").is_file():
+            self.skipTest(f"{UPSTREAM} not checked out")
+        tags = detect_maa_version.parse_tags(ROOT / "requirements.txt")
+        override = tags["mfa_core_tag"]
+        if not override:
+            self.skipTest("no MFA_CORE_TAG override; the desktop version is only known in CI")
+        detect_maa_version.agent_core_tag(override.lstrip("v"), UPSTREAM)
 
 
 if __name__ == "__main__":

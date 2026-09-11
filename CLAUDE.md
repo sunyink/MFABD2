@@ -48,12 +48,19 @@ AttributeError——不是测试失败。
 
 | 锚点 | 位置 | 现值 |
 | --- | --- | --- |
-| MaaFw（dev 模式 pip） | `agent/utils/venv_ops.py` 的 `DEV_MAAFW_VERSION` | `5.12.2` |
+| MaaFw（dev 模式 pip） | `agent/utils/venv_ops.py` 的 `DEV_MAAFW_VERSION` | `5.12.3` |
 | MaaFw 兼容区间 | 同上 `FALLBACK_MAAFW_SPEC` | `>=5.11,<6.1` |
-| MaaFw（CI 与产物） | 探测自 MFAAvalonia，不是常量 | 随 `MFAA_TAG` 走 |
-| MFAAvalonia | `requirements.txt` 的 `# MFAA_TAG=` | `v2.15.2` |
+| MaaFw（CI 与产物） | 探测自 MFAAvalonia，不是常量 | 随 `MFAA_TAG` / `MFA_CORE_TAG` 走 |
+| MFAAvalonia | `requirements.txt` 的 `# MFAA_TAG=` | `v2.15.2`（自带内核 5.12.2） |
+| 急救内核覆盖 | `requirements.txt` 的 `# MFA_CORE_TAG=` | `v5.12.3` |
+| 安卓 agent core | **上游** `MaaFwApp/scripts/build_agent_bundle.py` 的 `CORE_TAG` | `3.13.15-maafw5.12.3` |
 | Python（桌面 dev） | `venv_ops.py` 的 `PREFERRED_PYTHON_VERSION` | `3.10` |
-| Python（安卓产物） | `android/release.json` 决定的 agent core tag 前半段 | `3.13.15` |
+| Python（安卓产物） | 上游 `CORE_TAG` 的前半段 | `3.13.15` |
+
+⚠️ **安卓的框架版本是上游钉的，不是我们挑的。** MaaFwApp 的 Kotlin 侧与 agent core 里那份
+CPython/框架是一起验过的组合，所以 `detect_maa_version.py agent-core-tag` 只读上游那个常量
+并校验桌面跟不跟得上，对不上就停。当前 MFAAvalonia v2.15.2 自带 5.12.2、上游要 5.12.3，
+交汇点靠 `MFA_CORE_TAG` 把桌面拉上去——**换 MaaFwApp 的 pin 时要连这行一起重估**。
 
 ⚠️ **同一份 `agent/` 代码要同时跑在桌面的 3.10 和安卓的 3.13 上**，别用只在其中一边
 存在的语法或标准库 API。（`scripts/` 下的构建脚本不受此限，它们只在 CI 的 3.11 上跑。）

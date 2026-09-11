@@ -107,13 +107,14 @@ jobs:
       - name: Detect MaaFramework version
         id: core
         run: python3 scripts/detect_maa_version.py detect --assets temp_detect --override core_src
-      # 上游 tag 形如 3.13.15-maafw5.12.3：前半段是 CPython 版本，跟着上游自己的节奏走，
-      # 推不出来只能查。查不到就停 —— 安卓不能用与桌面不同版本的框架。
+      # agent core（形如 3.13.15-maafw5.12.3：CPython 版本 + 框架版本）由上游自己钉死在
+      # build_agent_bundle.py 的 CORE_TAG 里 —— 它的 Kotlin 侧与那个组合是一起验过的。
+      # 这一步只读那个常量并校验桌面内核是否跟得上，对不上就停，不替上游挑版本。
       - name: Resolve Android agent core
         id: agent_core
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: python3 scripts/detect_maa_version.py agent-core-tag --maafw "${{ steps.core.outputs.version }}"
+        run: |
+          python3 scripts/detect_maa_version.py agent-core-tag \
+            --maafw "${{ steps.core.outputs.version }}" --upstream android-upstream
       - name: Resolve project version and Android identity
         id: metadata
         env:
@@ -181,7 +182,9 @@ jobs:
           java-version: "17"
       - uses: android-actions/setup-android@v3
       - name: Install Android build tools
-        run: sdkmanager "platforms;android-37.0" "build-tools;36.0.0" "cmake;3.22.1"
+        # 平台包用 API 级别标识，没有小数位（带 .0 的是 build-tools 的写法）。
+        # 版本跟着上游 AndroidCommon.kt 的 COMPILE_SDK 走。
+        run: sdkmanager "platforms;android-37" "build-tools;36.0.0" "cmake;3.22.1"
       # 两套身份两把钥匙：release 用项目签名密钥，ci 用一把独立的、无保密价值的钥匙。
       # 期望指纹与别名都从 build-metadata.json 读 —— 那份已经按身份写好了期望值，
       # 所以这里不需要知道"当前是哪种身份该比对什么"，校验一条都不少。
@@ -202,7 +205,9 @@ jobs:
           if not encoded or not password:
               raise SystemExit(f"Configure the ANDROID_{prefix}_* repository secrets first")
           path = Path(os.environ["RUNNER_TEMP"]) / "mfabd2-signing.p12"
-          path.write_bytes(base64.b64decode(encoded, validate=True))
+          # 先去掉空白再解码：GNU base64 默认每 76 字符折行，而 secret 允许多行值，
+          # 直接喂给 validate=True 会因为换行不在 base64 字母表里而报一个不指向根因的错。
+          path.write_bytes(base64.b64decode("".join(encoded.split()), validate=True))
           path.chmod(0o600)
           cert = subprocess.run(["keytool", "-exportcert", "-keystore", str(path),
                                  "-storepass:env", "SIGNING_PASSWORD", "-alias", metadata["key_alias"]],
