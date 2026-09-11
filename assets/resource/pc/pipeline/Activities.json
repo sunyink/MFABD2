@@ -177,6 +177,25 @@
             "Sub_Ocr_Enable_Clr"
         ]
     },
+    "Activities_PaidDiamonds": {
+        "roi": [
+            695,
+            478,
+            93,
+            45
+        ],
+        "expected": [
+            "免费1次",
+            "1次免費",
+            "免費1次"
+        ]
+    },
+    "Activities_PaidDiamonds_Sub": {
+        "expected": [
+            "购买",
+            "購買"
+        ]
+    },
     "Activities_ResultBack": {
         "desc": "抽卡/活动结果页返回。|[PC覆盖] OCR'活动':base roi[313,139,334,441]→720[148,8,95,45];target返回箭头base[120,35]→(15,20)。",
         "target": [
@@ -189,6 +208,14 @@
     "Activities_Slip": {
         "desc": "下滑左侧活动列表寻找活动。|[PC覆盖] OCR'活动'确认仍在活动页:base roi[165,12,347,606]→720[140,8,230,560];Swipe在左侧列表列上滑:base begin/end[210,300]->[210,100]→720 begin(260,400)->end(260,133)。实机验证swipe生效(fast duration1500;slow3000曾被当长按无效),滚出宾果/活动任务/拼图等下半屏活动。|[2026-07-10行为修订] base自环next无滑动预算,PC终止词失效当晚连滑53次(00:40起实录)|[2026-08-23验尸] 上游bfde3d5(08-15)把base迁到SmartAction的proxy_override参数形,本PC覆盖仍是旧SmartSwipe形(顶层begin/end+retry_times+Custom_Proxy_Swipe);custom_action_param整字段替换→proxy_override被抹,代理节点无坐标,MaaFw在全屏框内随机取点滑(maafw实录begin[611,554]/[761,7]),diff=0.00即判到底.本次重写为新形:坐标入proxy_override(代理换Agt_Proxy_Blank并补post_delay1000),retry_times1→unchanged_streak2(=1+n忠实迁移,base为3).08-15起PC活动页首屏以下奖励被静默跳过(02:28三次diff=0.00实录).",
         "custom_action_param": {
+            "detect_roi": [
+                218,
+                188,
+                129,
+                53
+            ],
+            "on_changed": "next",
+            "on_unchanged": "error",
             "proxy_node": "Agt_Proxy_Blank",
             "proxy_override": {
                 "action": "Swipe",
@@ -196,24 +223,16 @@
                     260,
                     400
                 ],
+                "duration": 1000,
                 "end": [
                     260,
                     133
                 ],
-                "duration": 1000,
                 "end_hold": 1000,
                 "post_delay": 1000
             },
-            "detect_roi": [
-                218,
-                188,
-                129,
-                53
-            ],
-            "threshold": 2.0,
-            "settle_delay": 1000,
-            "on_changed": "next",
-            "on_unchanged": "error",
+            "settle_delay": 2000,
+            "threshold": 3.0,
             "unchanged_streak": 2
         }
     },
