@@ -2659,8 +2659,7 @@
         ]
     },
     "Arbitrage_Sell_Gold_Snapshot": {
-        "desc": "金币检测点A",
-        "max_hit": 1,
+        "desc": "金币检测点A。【勿加回 max_hit】MaaFw 的命中计数按整个任务计、跨 run_task 不重置,而主控是每件商品各调一次 run_task,加了会导致第2件起 A 永不执行→差额恒 None→已售出被误报未售出。'每轮只记一次'的保证已移入 gold_verify.py(已有基准就不覆盖),由主控 clear_verdict() 逐件重置",
         "pre_delay": 0,
         "action": "Custom",
         "custom_action": "GoldSnapshot",
