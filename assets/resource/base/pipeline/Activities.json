@@ -543,11 +543,11 @@
                 145,
                 52
             ],
-            "threshold": 2.0,
-            "settle_delay": 1000,
+            "threshold": 3.0,
+            "settle_delay": 1500,
             "on_changed": "next",
             "on_unchanged": "error",
-            "unchanged_streak": 3
+            "unchanged_streak": 2
         },
         "next": [
             "Activities_FindActive",
