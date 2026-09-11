@@ -11,12 +11,12 @@ from maa.custom_action import CustomAction
 from .arbitrage_sell_quantity import QuantityAdjuster, parse_quantity, _clean, _integer, _COUNT
 from utils import mfaalog
 from utils.name_i18n import canon
+from utils.arbitrage_quote import parse_money, parse_quote as parse_cost
 
 
 _QUANTITY = "Arbitrage_Sell_Item_Quantity"
 _EXIT = "Arbitrage_Sell_Item_Exit"
 _RESULTS = {}
-_MONEY = r"(?:0|[1-9][0-9]*|[1-9][0-9]{0,2}(?:[,.][0-9]{3})+)"
 _BUY_BUTTON = r"^\s*[购購][买買]\s*$"
 _CONFIRM = "Arbitrage_Sell_Item_Selling"
 
@@ -24,35 +24,6 @@ _CONFIRM = "Arbitrage_Sell_Item_Selling"
 def take_buy_result(request_id):
     """按调用者提供的request_id领取结果；选量/报价不等于实际买入/支出。"""
     return _RESULTS.pop(request_id, None)
-
-
-def parse_money(texts, cost=False):
-    values = set()
-    for raw in texts:
-        text = _clean(raw)
-        if cost:
-            text = re.sub(r"^(?:" + _COUNT + r")?[个個]", "", text)
-        if re.fullmatch(_MONEY, text):
-            values.add(int(text.replace(",", "").replace(".", "")))
-    if len(values) != 1:
-        raise ValueError(f"金额没有唯一完整读数: {texts!r}")
-    return values.pop()
-
-
-def parse_cost(items):
-    """Read one filtered only_rec line as quantity + unit + actual cost."""
-    texts = [item.get("text", "") if isinstance(item, dict) else getattr(item, "text", "")
-             for item in items]
-    if len(texts) != 1:
-        raise ValueError(f"购买金额应为单条整行识别结果: {texts!r}")
-    # The existing ROI also contains the white '+' control to the right of the cost.
-    match = re.fullmatch(r"(" + _COUNT + r")[个個](" + _MONEY + r")\+?", _clean(texts[0]))
-    if match is None:
-        raise ValueError(f"购买金额整行格式不符（数量+个+金额）: {texts!r}")
-    quantity = int(match[1].replace(",", ""))
-    if quantity < 1:
-        raise ValueError("购买选量必须大于0")
-    return quantity, parse_money([match[2]])
 
 
 def parse_available(texts):
