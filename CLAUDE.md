@@ -13,8 +13,14 @@ Python Agent 提供自定义识别/动作，MFAAvalonia 提供 GUI。
 | `assets/resource/Announcement/` | 软件内公告 Markdown |
 | `assets/MaaCommonAssets/` | **submodule**，不要直接改 |
 | `agent/` | Python Agent：`action/` `recognition/` `utils/` |
-| `scripts/` | 版本分析、changelog 生成、公告注入 |
-| `tools/` | 维护脚本：`migrate_pipeline_manager.py`、`tidy_mpe_config.py` |
+| `android/` | Android 构建配置：打包 profile、发布身份、更新策略 Kotlin 源 |
+| `scripts/` | **CI 调用的脚本**：版本分析、changelog 生成、公告注入、安卓构建与验证 |
+| `tools/` | **人工维护脚本**（CI 不调用）：`migrate_pipeline_manager.py`、`tidy_mpe_config.py` |
+
+`scripts/` 与 `tools/` 的分界是「谁来调用」：CI 里出现的一律放 `scripts/`。
+`scripts/verify_android_*.py` 与 `scripts/android_build.py` 需要 **Python 3.11+**
+（用了 `hashlib.file_digest` 与 `TestCase.enterContext`），本地用 3.10 跑会直接报
+AttributeError——不是测试失败。
 
 ## 运行
 
@@ -23,6 +29,9 @@ Python Agent 提供自定义识别/动作，MFAAvalonia 提供 GUI。
 
 运行模式由 `requirements.txt` 是否存在自动判定：
 
+- **Android**：优先识别安卓宿主，跳过桌面虚拟环境管理并保留宿主提供的原生库路径。
+  Android 实验构建与存档目录说明见 `docs/android.md`。
+
 - **dev**（有 `requirements.txt`）：`main.py` 会自动接管虚拟环境（`utils/venv_ops.py`），
   且**不注入** DLL 路径，用 pip 安装的 MaaFw 自带 DLL。
 - **release**（无）：强制把 `runtimes/<rid>/native` 注入 `MAAFW_BINARY_PATH`。
@@ -30,14 +39,32 @@ Python Agent 提供自定义识别/动作，MFAAvalonia 提供 GUI。
 改 `venv_ops.py` 里的 MaaFw 版本时，要与 `agent/` 代码所依赖的版本手动对齐——
 两者不一致会出现「代码是新的、DLL 是旧的」。
 
+**CI 里的 MaaFw 版本不写在任何地方**：`scripts/detect_maa_version.py` 下载
+`requirements.txt` 钉住的那个 MFAAvalonia，用 ctypes 调它自带 `libMaaFramework.so`
+的 `MaaVersion()` 读出来，桌面与安卓共用这一个来源。想换内核版本就改
+`# MFAA_TAG=`（或急救用的 `# MFA_CORE_TAG=`），别去各工作流里找常量改。
+
 当前版本锚点（写文档/排查时以实际文件为准，别照抄这里的数字）：
 
 | 锚点 | 位置 | 现值 |
 | --- | --- | --- |
-| MaaFw（内核 + pip） | `agent/utils/venv_ops.py` 的 `DEV_MAAFW_VERSION` | `5.11.1` |
+| MaaFw（桌面 dev 模式 pip） | `agent/utils/venv_ops.py` 的 `DEV_MAAFW_VERSION` | `5.12.2` |
 | MaaFw 兼容区间 | 同上 `FALLBACK_MAAFW_SPEC` | `>=5.11,<6.1` |
-| MFAAvalonia | `requirements.txt` 的 `MFAA_TAG` | `v2.14.0-beta.2` |
-| Python | 同上 `PREFERRED_PYTHON_VERSION` | `3.10` |
+| MaaFw（桌面 CI 与产物） | 探测自 MFAAvalonia，不是常量 | 随 `MFAA_TAG` 走，当前 `5.12.2` |
+| MFAAvalonia | `requirements.txt` 的 `# MFAA_TAG=` | `v2.15.2` |
+| 急救内核覆盖 | `requirements.txt` 的 `# MFA_CORE_TAG=` | 留空（不覆盖） |
+| MaaFw（**安卓**产物） | **上游** `MaaFwApp/scripts/build_agent_bundle.py` 的 `CORE_TAG` | `5.12.3` |
+| 安卓 agent core | 同上 | `3.13.15-maafw5.12.3` |
+| Python（桌面 dev） | `venv_ops.py` 的 `PREFERRED_PYTHON_VERSION` | `3.10` |
+| Python（安卓产物） | 上游 `CORE_TAG` 的前半段 | `3.13.15` |
+
+⚠️ **安卓与桌面的框架版本当前差一个补丁号，这是有意接受的。** 桌面跟着 `MFAA_TAG` 浮动，
+安卓由上游 MaaFwApp 的 pin 决定——上游会丢弃我们钉的 maafw 版本、一律用 agent core 自带的，
+所以安卓侧的原生库与校验期望值必须一起跟上游走，否则 APK 内部就是「wheel 是新的、.so 是旧的」。
+`detect_maa_version.py agent-core-tag` 容忍补丁号之差（打 warning），**差到次版本就停**。
+
+⚠️ **同一份 `agent/` 代码要同时跑在桌面的 3.10 和安卓的 3.13 上**，别用只在其中一边
+存在的语法或标准库 API。（`scripts/` 下的构建脚本不受此限，它们只在 CI 的 3.11 上跑。）
 
 运行时日志在 `debug/maafw.log`，开头三行会打印实际内核版本——**排查前先对一眼**，
 `debug/maa.log` 是旧命名的历史档（停在 v5.9.2），别拿它推当前行为。

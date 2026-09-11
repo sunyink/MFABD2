@@ -1,0 +1,8 @@
+{
+    "target": "../assets/resource/android_native",
+    "base_layers": [
+        "../assets/resource/base"
+    ],
+    "output_format": "v1",
+    "compact_node_refs": true
+}

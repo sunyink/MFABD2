@@ -11,7 +11,10 @@ from . import mfaalog  # 日志工具
 # [配置区] 环境与依赖设定
 # =========================================================
 # MAAFW的py库版本需要手动指定,与C++库版号一致。
-DEV_MAAFW_VERSION = "5.12.2" 
+# 这是全仓唯一还靠手写的框架版号：CI 侧一律从 MFAAvalonia 二进制探测（见
+# scripts/detect_maa_version.py），dev 环境没有那份二进制可探，只能手工对齐到
+# requirements.txt 里 MFAA_TAG 那个版本自带的内核版本。
+DEV_MAAFW_VERSION = "5.12.2"
 # 精确安装失败时的回退范围。更新上方版本时，请务必同步更新此处！
 FALLBACK_MAAFW_SPEC = ">=5.11,<6.1"
 VENV_NAME = ".venv"
