@@ -19,16 +19,17 @@ APK 文件名为 `MFABD2-<项目版本>-android-arm64.apk`，与桌面 ZIP 同�
 普通开发构建仍只保留同分支的最新运行。GitHub 默认每组只保留一个等待请求，不保证重复派发的请求全部执行。
 
 - MaaFwApp 固定 commit `f4f6f220e21e3a1b7b0cf5df4bdbe0ec04c668f7`。
-- **MaaFramework 版本不在安卓侧指定**：`scripts/detect_maa_version.py` 下载根
-  `requirements.txt` 钉住的 MFAAvalonia，用 ctypes 调其 `libMaaFramework.so` 的
-  `MaaVersion()` 读出版本，与 `install.yml` 的 meta job 同源，桌面与安卓不可能分叉。
-  原生库 tag、pip 版本、`install.py` 参数、APK 校验期望值全部由这一个值派生。
+- **MaaFramework 版本没有一处是手写的。** 桌面那个由 `scripts/detect_maa_version.py` 下载根
+  `requirements.txt` 钉住的 MFAAvalonia、用 ctypes 调其 `libMaaFramework.so` 的 `MaaVersion()`
+  读出，与 `install.yml` 的 meta job 同源；安卓那个由上游 MaaFwApp 的 `CORE_TAG` 决定。
+  **两者当前差一个补丁号（桌面 5.12.2、安卓 5.12.3），这是有意接受的。**
+  安卓侧的原生库 tag、pip 版本、`install.py` 参数、APK 校验期望值全部由**上游那个值**派生——
+  上游会丢弃我们钉的 maafw 而用 agent core 自带的，跟着桌面走会让 APK 内部自相矛盾。
+  桌面探测值在安卓这边只做一件事：喂给一致性校验。差一个次版本即停止构建。
 - Android agent core 的 tag 形如 `<CPython 版本>-maafw<框架版本>`，**由上游自己钉死**在
   `MaaFwApp/scripts/build_agent_bundle.py` 的 `CORE_TAG` 常量里——它的 Kotlin 侧与 core 里
-  那份 CPython/框架是一起验过的组合。`agent-core-tag` 子命令只读那个常量并校验桌面内核是否
-  跟得上，对不上就停，不替上游挑版本。这意味着**安卓的框架版本由 MaaFwApp 的 pin 决定**，
-  桌面要么用 `MFA_CORE_TAG` 跟上去，要么换一个匹配的 MaaFwApp commit。当前上游钉的是
-  `3.13.15-maafw5.12.3`，提供 CPython 3.13.15 与 NumPy 2.3.2。
+  那份 CPython/框架是一起验过的组合。`agent-core-tag` 子命令只读那个常量，不替上游挑版本。
+  当前上游钉的是 `3.13.15-maafw5.12.3`，提供 CPython 3.13.15 与 NumPy 2.3.2。
 - 打进 APK 的 pip 清单由 `android_build.py requirements` 从根 `requirements.txt` 生成，
   仓库里不再有第二份手写清单。只有平台逼迫的三项在 `android/release.json` 的
   `python_requirements` 里覆盖：numpy 与 Pillow 带 C 扩展，必须落在 Chaquopy 实际发布了

@@ -48,19 +48,20 @@ AttributeError——不是测试失败。
 
 | 锚点 | 位置 | 现值 |
 | --- | --- | --- |
-| MaaFw（dev 模式 pip） | `agent/utils/venv_ops.py` 的 `DEV_MAAFW_VERSION` | `5.12.3` |
+| MaaFw（桌面 dev 模式 pip） | `agent/utils/venv_ops.py` 的 `DEV_MAAFW_VERSION` | `5.12.2` |
 | MaaFw 兼容区间 | 同上 `FALLBACK_MAAFW_SPEC` | `>=5.11,<6.1` |
-| MaaFw（CI 与产物） | 探测自 MFAAvalonia，不是常量 | 随 `MFAA_TAG` / `MFA_CORE_TAG` 走 |
-| MFAAvalonia | `requirements.txt` 的 `# MFAA_TAG=` | `v2.15.2`（自带内核 5.12.2） |
-| 急救内核覆盖 | `requirements.txt` 的 `# MFA_CORE_TAG=` | `v5.12.3` |
-| 安卓 agent core | **上游** `MaaFwApp/scripts/build_agent_bundle.py` 的 `CORE_TAG` | `3.13.15-maafw5.12.3` |
+| MaaFw（桌面 CI 与产物） | 探测自 MFAAvalonia，不是常量 | 随 `MFAA_TAG` 走，当前 `5.12.2` |
+| MFAAvalonia | `requirements.txt` 的 `# MFAA_TAG=` | `v2.15.2` |
+| 急救内核覆盖 | `requirements.txt` 的 `# MFA_CORE_TAG=` | 留空（不覆盖） |
+| MaaFw（**安卓**产物） | **上游** `MaaFwApp/scripts/build_agent_bundle.py` 的 `CORE_TAG` | `5.12.3` |
+| 安卓 agent core | 同上 | `3.13.15-maafw5.12.3` |
 | Python（桌面 dev） | `venv_ops.py` 的 `PREFERRED_PYTHON_VERSION` | `3.10` |
 | Python（安卓产物） | 上游 `CORE_TAG` 的前半段 | `3.13.15` |
 
-⚠️ **安卓的框架版本是上游钉的，不是我们挑的。** MaaFwApp 的 Kotlin 侧与 agent core 里那份
-CPython/框架是一起验过的组合，所以 `detect_maa_version.py agent-core-tag` 只读上游那个常量
-并校验桌面跟不跟得上，对不上就停。当前 MFAAvalonia v2.15.2 自带 5.12.2、上游要 5.12.3，
-交汇点靠 `MFA_CORE_TAG` 把桌面拉上去——**换 MaaFwApp 的 pin 时要连这行一起重估**。
+⚠️ **安卓与桌面的框架版本当前差一个补丁号，这是有意接受的。** 桌面跟着 `MFAA_TAG` 浮动，
+安卓由上游 MaaFwApp 的 pin 决定——上游会丢弃我们钉的 maafw 版本、一律用 agent core 自带的，
+所以安卓侧的原生库与校验期望值必须一起跟上游走，否则 APK 内部就是「wheel 是新的、.so 是旧的」。
+`detect_maa_version.py agent-core-tag` 容忍补丁号之差（打 warning），**差到次版本就停**。
 
 ⚠️ **同一份 `agent/` 代码要同时跑在桌面的 3.10 和安卓的 3.13 上**，别用只在其中一边
 存在的语法或标准库 API。（`scripts/` 下的构建脚本不受此限，它们只在 CI 的 3.11 上跑。）

@@ -1,7 +1,9 @@
 """Small regression checks for the Android release metadata helper."""
 
+import contextlib
 import importlib.util
 import hashlib
+import io
 import json
 import os
 import shutil
@@ -208,19 +210,32 @@ class FrameworkVersionChecks(unittest.TestCase):
         )
         return upstream
 
-    def test_matching_version_yields_the_tag_upstream_pinned(self):
+    def test_android_gets_the_version_upstream_pinned_not_the_desktop_one(self):
+        """Both return values matter: the tag builds, the version is what the APK ships."""
         with tempfile.TemporaryDirectory() as work:
             upstream = self._upstream(work, "3.13.15-maafw5.12.3")
-            self.assertEqual(detect_maa_version.agent_core_tag("5.12.3", upstream), "3.13.15-maafw5.12.3")
+            self.assertEqual(detect_maa_version.agent_core_tag("5.12.3", upstream),
+                             ("3.13.15-maafw5.12.3", "5.12.3"))
 
-    def test_version_drift_names_both_sides_and_the_way_out(self):
+    def test_patch_drift_is_tolerated_and_reported(self):
         with tempfile.TemporaryDirectory() as work:
             upstream = self._upstream(work, "3.13.15-maafw5.12.3")
+            with contextlib.redirect_stdout(io.StringIO()) as captured:
+                tag, version = detect_maa_version.agent_core_tag("5.12.2", upstream)
+            # The build proceeds on Android's own version, and says so out loud.
+            self.assertEqual((tag, version), ("3.13.15-maafw5.12.3", "5.12.3"))
+            noted = captured.getvalue()
+            self.assertIn("::warning::", noted)
+            for fragment in ("5.12.3", "5.12.2"):
+                self.assertIn(fragment, noted)
+
+    def test_minor_drift_is_a_fork_and_stops_the_build(self):
+        with tempfile.TemporaryDirectory() as work:
+            upstream = self._upstream(work, "3.13.15-maafw5.13.0")
             with self.assertRaises(ValueError) as raised:
                 detect_maa_version.agent_core_tag("5.12.2", upstream)
-            message = str(raised.exception)
-            for fragment in ("5.12.3", "5.12.2", "MFA_CORE_TAG"):
-                self.assertIn(fragment, message)
+            for fragment in ("5.13.0", "5.12.2"):
+                self.assertIn(fragment, str(raised.exception))
 
     def test_missing_or_reshaped_upstream_stops_the_build(self):
         with tempfile.TemporaryDirectory() as work:
@@ -232,15 +247,15 @@ class FrameworkVersionChecks(unittest.TestCase):
             with self.assertRaises(ValueError):
                 detect_maa_version.agent_core_tag("5.12.3", upstream)
 
-    def test_requirements_anchor_matches_the_pinned_upstream(self):
-        """The real anti-drift assertion: desktop's pin and Android's must agree."""
+    def test_pinned_upstream_stays_within_one_patch_of_the_desktop_line(self):
+        """Guards the accepted gap: the real checkout must not have drifted a minor away."""
         if not (UPSTREAM / "scripts" / "build_agent_bundle.py").is_file():
             self.skipTest(f"{UPSTREAM} not checked out")
-        tags = detect_maa_version.parse_tags(ROOT / "requirements.txt")
-        override = tags["mfa_core_tag"]
-        if not override:
-            self.skipTest("no MFA_CORE_TAG override; the desktop version is only known in CI")
-        detect_maa_version.agent_core_tag(override.lstrip("v"), UPSTREAM)
+        desktop = os.environ.get("MFABD2_DESKTOP_MAAFW")
+        if not desktop:
+            # Only CI knows it — it comes out of the MFAAvalonia binary, not a constant.
+            self.skipTest("set MFABD2_DESKTOP_MAAFW to the detected desktop version")
+        detect_maa_version.agent_core_tag(desktop, UPSTREAM)
 
 
 if __name__ == "__main__":

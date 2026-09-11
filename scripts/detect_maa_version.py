@@ -25,6 +25,12 @@ TAG_PATTERNS = {
 AGENT_CORE_PATTERN = re.compile(r"^(\d+)\.(\d+)\.(\d+)-maafw(.+)$")
 # MaaFwApp pins its agent core as a module constant in the bundle builder.
 CORE_TAG_PATTERN = re.compile(r"""^CORE_TAG\s*=\s*["']([^"']+)["']""", re.MULTILINE)
+RELEASE_LINE = re.compile(r"^(\d+)\.(\d+)\.")
+
+
+def warn(message: str) -> None:
+    """Surfaces in the Actions log as an annotation; plain text everywhere else."""
+    print(f"::warning::{message}")
 
 
 def emit(**values: str) -> None:
@@ -101,13 +107,23 @@ def read_version(library: Path) -> str:
     return raw.decode("utf-8").strip()
 
 
-def agent_core_tag(maafw: str, upstream: Path) -> str:
-    """读上游钉住的 agent core，并校验桌面内核跟得上——不替上游挑版本。
+def release_line(version: str) -> tuple[str, str]:
+    """`5.12.3` → `('5', '12')`. A differing patch is tolerable; a differing minor is not."""
+    if match := RELEASE_LINE.match(version):
+        return match.group(1), match.group(2)
+    raise ValueError(f"版本号 {version} 解析不出主次版本")
 
-    MaaFwApp 的 Kotlin 侧、agent core 里的 CPython、以及 core 内嵌的框架是
-    一个一起验过的组合。在这里另选一个"版本号看着对"的 tag，等于绕过上游的验证；
-    所以这里只读它自己写下的常量，两边对不上就停，由人去调 requirements.txt
-    或换 MaaFwApp 的 pin。
+
+def agent_core_tag(maafw: str, upstream: Path) -> tuple[str, str]:
+    """读上游钉住的 agent core，返回 (tag, 该 core 内嵌的框架版本)。
+
+    MaaFwApp 的 Kotlin 侧、agent core 里的 CPython、以及 core 内嵌的框架是一个
+    一起验过的组合，我们不替它挑版本，只读它自己写下的常量。**安卓侧的框架版本
+    因此由上游决定，可能与桌面差一个补丁号**——APK 内部必须自洽（上游会丢弃
+    core 已自带的 maafw，所以 Python 侧版本无论如何都是 core 那个），跨平台的
+    补丁差异才是那个已知可接受的口子。
+
+    差一个 minor 或 major 就不再是"口子"而是分叉，直接停。
     """
     source = upstream / "scripts" / "build_agent_bundle.py"
     if not source.is_file():
@@ -119,14 +135,20 @@ def agent_core_tag(maafw: str, upstream: Path) -> str:
     match = AGENT_CORE_PATTERN.match(tag)
     if not match:
         raise ValueError(f"上游的 CORE_TAG={tag} 不是 <CPython版本>-maafw<框架版本> 格式")
-    if (pinned := match.group(4)) != maafw:
-        raise ValueError(
-            f"框架版本对不上：上游 MaaFwApp 钉的 agent core 是 {tag}（框架 {pinned}），"
-            f"而 requirements.txt 钉住的桌面内核是 {maafw}。安卓与桌面不能用不同版本的框架。"
-            f"两条出路：把 requirements.txt 的 MFA_CORE_TAG 设成 v{pinned}，"
-            f"或换一个 CORE_TAG 为 {maafw} 的 MaaFwApp commit。"
+    pinned = match.group(4)
+    if pinned != maafw:
+        if release_line(pinned) != release_line(maafw):
+            raise ValueError(
+                f"框架版本分叉：上游 MaaFwApp 钉的 agent core 是 {tag}（框架 {pinned}），"
+                f"而 requirements.txt 钉住的桌面内核是 {maafw}，两者不在同一个次版本线上。"
+                f"补丁号之差可以接受，次版本之差不行。要么换一个 MaaFwApp commit，"
+                f"要么调 requirements.txt 的 MFAA_TAG / MFA_CORE_TAG。"
+            )
+        warn(
+            f"安卓用 {pinned}、桌面用 {maafw}，差一个补丁号。这是已知且接受的："
+            f"安卓侧版本由上游 MaaFwApp 的 pin 决定，见 requirements.txt 的说明。"
         )
-    return tag
+    return tag, pinned
 
 
 def main() -> int:
@@ -156,7 +178,9 @@ def main() -> int:
             version = raw[1:] if raw.startswith("v") else raw
             emit(version=version, tag=f"v{version}")
         else:
-            emit(agent_core_tag=agent_core_tag(args.maafw, args.upstream))
+            # 安卓侧的构建一律用 maafw_version，不用桌面探测值——APK 内部必须自洽。
+            tag, version = agent_core_tag(args.maafw, args.upstream)
+            emit(agent_core_tag=tag, maafw_version=version, maafw_tag=f"v{version}")
     except (ValueError, OSError, subprocess.CalledProcessError) as error:
         print(f"::error::{error}")
         return 1
