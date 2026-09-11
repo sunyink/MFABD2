@@ -4,8 +4,10 @@ on:
   push:
     tags:
       - "v*"
-    branches-ignore:
-      - "feat/android-native"
+    # `branches` 不能省。push 事件下只写 tags 而不写 branches 时，GitHub 只认 tag 推送，
+    # 分支推送一概不触发——省掉这三行等于把所有分支的构建静默关掉。
+    branches:
+      - "**"
     paths:
       - ".github/workflows/install.yml"
       - "assets/**"

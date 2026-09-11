@@ -28,12 +28,15 @@ on:
         default: ""
   push:
     branches:
-      - feat/android-native
+      - main
+    # 这里只列**影响安卓构建链本身**的路径，不含 agent/** 与 assets/**。
+    # 那两处的改动由 install.yml 那条链先验（Check Resources + 剥离注释后的加载校验），
+    # 安卓侧只是把它们打包进去；而每跑一次这个工作流是 9 分钟 + 128MB 产物，
+    # 挂在高频目录上等于给日常改 pipeline 收一笔固定税。
+    # 安卓真正的脆弱点是上游 pin、Google 的 SDK 索引、AGP/Gradle——都在下面这几项里。
     paths:
       - .github/workflows/android.yml
       - android/**
-      - agent/**
-      - assets/**
       - install.py
       - configure.py
       - scripts/verify_android*.py
