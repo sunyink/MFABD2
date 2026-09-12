@@ -49,7 +49,5 @@
 
 
 ---target: beta---
-> 已发现并尝试修正红点识别问题，欢迎积极反馈，尽早实现稳定。
-
 > Mac系统现可使用专有控制器 playcover 与其配套资源。相关配置方法见 [PlayCover 适配指南](https://github.com/sunyink/MFABD2/blob/develop/docs/zh_cn/PlayCover%E9%80%82%E9%85%8D%E6%8C%87%E5%8D%97.md)。由[@KoujiMinamoto](https://github.com/KoujiMinamoto)强力支援。
 ---end---

@@ -4,12 +4,16 @@ on:
   push:
     tags:
       - "v*"
+    # `branches` 不能省。push 事件下只写 tags 而不写 branches 时，GitHub 只认 tag 推送，
+    # 分支推送一概不触发——省掉这三行等于把所有分支的构建静默关掉。
     branches:
       - "**"
     paths:
       - ".github/workflows/install.yml"
       - "assets/**"
       - "**.py"
+      # 内核版本是从这里钉住的 MFAAvalonia 里探测出来的，改它等于换内核。
+      - "requirements.txt"
   pull_request:
     branches:
       - "**"
@@ -17,6 +21,7 @@ on:
       - ".github/workflows/install.yml"
       - "assets/**"
       - "**.py"
+      - "requirements.txt"
   workflow_dispatch:
     inputs:
       deploy_beta:
@@ -126,31 +131,11 @@ jobs:
           echo "version_type=$version_type" | tee -a $GITHUB_OUTPUT
 
         # 2. 下载资源 (用于探测)
+      # 解析与探测都走 scripts/detect_maa_version.py —— android.yml 用的是同一个脚本，
+      # 两边不可能读出不同的内核版本。急救覆盖留空即不覆盖，不报错。
       - name: Parse Configuration
         id: parse_config
-        run: |
-          python3 -c "
-          import re, os, sys
-          req_file = 'requirements.txt'
-          mfaa_tag = ''
-          mfa_core_tag = ''
-          if os.path.exists(req_file):
-              with open(req_file, 'r', encoding='utf-8') as f:
-                  for line in f:
-                      s = line.strip()
-                      m = re.match(r'^#\s*MFAA_TAG=(v[\w\.\-]+)', s)
-                      if m: mfaa_tag = m.group(1)
-                      # 急救覆盖：允许留空 (留空即不覆盖，不报错)
-                      m2 = re.match(r'^#\s*MFA_CORE_TAG=(v[\w\.\-]+)', s)
-                      if m2: mfa_core_tag = m2.group(1)
-          if not mfaa_tag:
-              print('::error::未找到 # MFAA_TAG 配置'); sys.exit(1)
-          print(f'✅ 目标资源版本: {mfaa_tag}')
-          print(f'🔧 MFA 内核覆盖: {mfa_core_tag or \"（未启用）\"}')
-          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
-              f.write(f'mfaa_tag={mfaa_tag}\n')
-              f.write(f'mfa_core_tag={mfa_core_tag}\n')
-          "
+        run: python3 scripts/detect_maa_version.py parse
 
       # [修改] 下载资源 (改用 steps.parse_config.outputs.mfaa_tag)
       - name: Download MFAA for Detection
@@ -175,68 +160,13 @@ jobs:
           out-file-path: "core_src"
           extract: true
 
-      # 3. 探测内核版本
+      # 3. 探测内核版本。脚本自己定位 .so、必要时先原地覆盖急救内核（覆盖后路径不变、
+      #    字节已是覆盖版，探测到的即"最终会随包发出的版本"），并按需带上
+      #    LD_LIBRARY_PATH 重启自己 —— glibc 只在进程启动时读那个变量。
+      #    core_src 不存在时 --override 自动忽略。输出 version（裸）与 tag（带 v）两种形态。
       - name: Detect Core Version
         id: detect_maa
-        run: |
-          # 1. 使用 find 查找文件的【绝对路径】(加上 $(pwd))
-          SO_FILE=$(find "$(pwd)/temp_detect" -name "libMaaFramework.so" | head -n 1)
-
-          if [ -z "$SO_FILE" ]; then
-            echo "::error::根本找不到 libMaaFramework.so 文件！"
-            exit 1
-          fi
-
-          # [急救] 若指定了覆盖内核：把 Core 的 bin/* 原地覆盖到 MFAA 内核所在目录，
-          # 覆盖后 SO_FILE 路径不变、字节已是覆盖版 → 探测到的即“最终会随包发出的版本”。
-          if [ -d "$(pwd)/core_src" ]; then
-            echo "🚑 检测到覆盖内核，执行原地覆盖后再探测版本"
-            chmod +x ./scripts/overlay_core.sh
-            ./scripts/overlay_core.sh "$(pwd)/core_src" "$(pwd)/temp_detect"
-          fi
-
-          SO_DIR=$(dirname "$SO_FILE")
-          echo "📍 定位到库文件: $SO_FILE"
-          echo "🔧 库目录: $SO_DIR"
-
-          # 2. 【关键】设置 LD_LIBRARY_PATH 为绝对路径
-          # 这告诉 Linux："加载库的时候，去这个目录里找依赖！"
-          export LD_LIBRARY_PATH="$SO_DIR:$LD_LIBRARY_PATH"
-
-          # 3. 【调试神器】运行 ldd
-          # 如果后面 Python 报错，看这部分日志就知道缺哪个库了
-          echo "=== 🕵️‍♂️ 依赖检查 (ldd) ==="
-          ldd "$SO_FILE" || true
-          echo "========================="
-
-          # 4. 生成探测脚本
-          cat << 'EOF' > detect.py
-          import sys, ctypes, os
-
-          # 从环境变量获取刚才找到的绝对路径
-          so_path = os.environ.get("TARGET_SO_PATH")
-          print(f"🐍 Python loading: {so_path}")
-
-          try:
-              # mode=ctypes.RTLD_GLOBAL 有时能解决跨库符号依赖问题
-              lib = ctypes.CDLL(so_path, mode=ctypes.RTLD_GLOBAL)
-              
-              lib.MaaVersion.restype = ctypes.c_char_p
-              ver = lib.MaaVersion().decode('utf-8')
-              
-              print(f"✅ Detected Core: {ver}")
-              
-              with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
-                  f.write(f"version={ver}\n")
-                  
-          except Exception as e:
-              print(f"::error::加载失败: {e}")
-              sys.exit(1)
-          EOF
-
-          # 5. 运行脚本 (传入路径变量)
-          export TARGET_SO_PATH="$SO_FILE"
-          python3 detect.py
+        run: python3 scripts/detect_maa_version.py detect --assets temp_detect --override core_src
     outputs:
       tag: ${{ steps.set_tag.outputs.tag }}
       is_tag_push: ${{ steps.set_tag.outputs.is_tag_push }}
@@ -324,7 +254,6 @@ jobs:
             py_arch: "amd64"         # Python 官网文件名后缀
             pip_plat: "win_amd64"    # pip 平台标签
             numpy_req: "numpy<2"
-            is_android: false
 
           # -------------------------------------------------------------------
           # 🪟 Windows (ARM64) - 使用 Python 3.11 (原生支持更好)
@@ -340,7 +269,6 @@ jobs:
             py_arch: "arm64"
             pip_plat: "win_arm64"
             numpy_req: "numpy>=2" # winarm64 没有<2的预编译包.
-            is_android: false
 
           # -------------------------------------------------------------------
           # 🍎 macOS (x64)
@@ -351,7 +279,6 @@ jobs:
             mfa_os: "osx"
             mfa_arch: "x64"
             numpy_req: "numpy<2"
-            is_android: false
             standalone_url: "https://github.com/indygreg/python-build-standalone/releases/download/20240107/cpython-3.10.13+20240107-x86_64-apple-darwin-install_only.tar.gz"
             standalone_sha256: "47da6831e269ad6af603f59bbd4767636c5749bd70a24363c9cf003c32c8ecfc"
 
@@ -364,7 +291,6 @@ jobs:
             mfa_os: "osx"
             mfa_arch: "arm64"
             numpy_req: "numpy<2"
-            is_android: false
             standalone_url: "https://github.com/indygreg/python-build-standalone/releases/download/20240107/cpython-3.10.13+20240107-aarch64-apple-darwin-install_only.tar.gz"
             standalone_sha256: "4d19a0509c274f360a5c250d71a2af7263ebaf898ecdb71427f3532cbc6b2cf7"
 
@@ -377,7 +303,6 @@ jobs:
             mfa_os: "linux"
             mfa_arch: "x64"
             numpy_req: "numpy<2"
-            is_android: false
 
           # -------------------------------------------------------------------
           # 🐧 Linux (ARM64)
@@ -388,15 +313,6 @@ jobs:
             mfa_os: "linux"
             mfa_arch: "arm64"
             numpy_req: "numpy<2"
-            is_android: false
-
-          # -------------------------------------------------------------------
-          # 🤖 Android (ARM64) - 特殊逻辑
-          # -------------------------------------------------------------------
-          - os: android
-            arch: aarch64
-            runner: ubuntu-latest
-            is_android: true
 
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
@@ -428,9 +344,8 @@ jobs:
       # 📦 资源下载 (根据 Matrix 变量动态处理)
       # ----------------------------------------------------------------
 
-      # [桌面端] 下载 MFAAvalonia
+      # 下载 MFAAvalonia
       - name: Download MFAAvalonia
-        if: matrix.is_android == false
         uses: robinraju/release-downloader@28fc21f50d76778e7023361aa1f863e717d3d56f # v1
         with:
           repository: MaaXYZ/MFAAvalonia
@@ -439,20 +354,6 @@ jobs:
           # 直接使用 Matrix 里的变量，无需复杂判断
           fileName: "MFAAvalonia-*-${{ matrix.mfa_os }}-${{ matrix.mfa_arch }}*"
           out-file-path: "MFA"
-          extract: true
-
-      # [安卓端] 下载 MaaFramework Core
-      - name: Download MaaFramework (Android)
-        if: matrix.is_android == true
-        uses: robinraju/release-downloader@28fc21f50d76778e7023361aa1f863e717d3d56f # v1
-        with:
-          repository: MaaXYZ/MaaFramework
-          latest: false
-          # 急救时优先用覆盖 tag（保证与桌面/pip 同版本）；否则沿用探测到的 MAA_VERSION
-          tag: ${{ env.MFA_CORE_TAG != '' && env.MFA_CORE_TAG || env.MAA_VERSION }}
-          # Android 文件名格式通常是 MAA-android-arm64-xxxx
-          fileName: "MAA-android-${{ matrix.arch }}*"
-          out-file-path: "AndroidCore"
           extract: true
 
       - name: Restore Assets (Clone from Resource Repo)
@@ -684,35 +585,22 @@ jobs:
           # install.py 需要处理好路径分隔符
           python ./install.py ${{ needs.meta.outputs.tag }} ${{ matrix.os }} ${{ env.MAA_VERSION }}
 
-          # 2. [桌面端逻辑] 合并 MFAAvalonia
-          if [[ "${{ matrix.is_android }}" == "false" ]]; then
-            if [ -d "MFA" ]; then
-              mkdir -p install
-              # 这里的 cleanup 移到专门的步骤里做，防止 bash 前没删干净
+          # 2. 合并 MFAAvalonia
+          if [ -d "MFA" ]; then
+            mkdir -p install
+            # 这里的 cleanup 移到专门的步骤里做，防止 bash 前没删干净
 
-              # 为了稳健，先在源目录删一次
-              find MFA -name "*.zip" -delete 2>/dev/null || true
-              find MFA -name "*.tar.gz" -delete 2>/dev/null || true
-              
-              # 使用 bash 覆盖
-              cp -rf MFA/* install/
-            fi
+            # 为了稳健，先在源目录删一次
+            find MFA -name "*.zip" -delete 2>/dev/null || true
+            find MFA -name "*.tar.gz" -delete 2>/dev/null || true
 
-          # 3. [安卓逻辑] 合并 MaaFramework Core
-          else
-            echo "🤖 处理 Android 内核合并..."
-            if [ -d "AndroidCore" ]; then
-              cp -r AndroidCore/* install/
-              echo "✅ Android 内核已合并"
-            else
-              echo "❌ 未找到 AndroidCore 目录"
-              exit 1
-            fi
+            # 使用 bash 覆盖
+            cp -rf MFA/* install/
           fi
 
       # [急救] 桌面端：下载指定版本内核（仅作拷贝源）
       - name: Download Override Core (Desktop)
-        if: matrix.is_android == false && env.MFA_CORE_TAG != ''
+        if: env.MFA_CORE_TAG != ''
         uses: robinraju/release-downloader@28fc21f50d76778e7023361aa1f863e717d3d56f # v1
         with:
           repository: MaaXYZ/MaaFramework
@@ -725,7 +613,7 @@ jobs:
 
       # [急救] 桌面端：原地覆盖 MFAA 自带内核 + 校验覆盖后版本
       - name: Overlay & Verify Override Core (Desktop)
-        if: matrix.is_android == false && env.MFA_CORE_TAG != ''
+        if: env.MFA_CORE_TAG != ''
         shell: bash
         run: |
           set -e
@@ -765,7 +653,7 @@ jobs:
         run: |
           echo "🧹 Cleaning up zip/tar.gz files..."
           rm -f *.zip *.tar.gz
-          rm -rf MFA AndroidCore OverrideCore
+          rm -rf MFA OverrideCore
           # 清理 install 目录里可能被拷进去的压缩包
           find install -name "*.zip" ! -name "python*.zip" -delete 2>/dev/null || true
           find install -name "*.tar.gz" -delete 2>/dev/null || true
@@ -773,7 +661,6 @@ jobs:
 
       # [核心修复 2] 原版逻辑：利用 Python 脚本清理不匹配的 Runtimes
       - name: Prune Runtimes (Architecture Slimming)
-        if: matrix.is_android == false
         shell: bash
         run: |
           python3 -c "
@@ -899,9 +786,66 @@ jobs:
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: MFABD2-${{ needs.meta.outputs.tag }}-${{ matrix.os }}-${{ matrix.is_android && 'arm64' || matrix.arch }}
+          name: MFABD2-${{ needs.meta.outputs.tag }}-${{ matrix.os }}-${{ matrix.arch }}
           path: "install"
           include-hidden-files: true
+  android:
+    name: Build Android APK
+    # 只为发版构建 APK；与桌面 install 一样，先通过资源检查再并行启动。
+    # 普通 push 和 fork 跳过此 job，release 会随 needs 一起跳过。
+    if: >-
+      github.repository == 'sunyink/MFABD2' &&
+      (
+        needs.meta.outputs.is_tag_push == 'true' ||
+        contains(needs.meta.outputs.tag, '-beta') ||
+        contains(needs.meta.outputs.tag, '-alpha') ||
+        (github.event_name == 'workflow_dispatch' && contains(needs.meta.outputs.tag, '-ci'))
+      )
+    needs: [meta, resource_check]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write
+    outputs:
+      run_id: ${{ steps.build.outputs.run_id }}
+      identity: ${{ steps.build.outputs.identity }}
+    steps:
+      - name: Build signed Android APK
+        id: build
+        # 安卓那边的作业上限是 60 分钟，但作业超时不计排队时间——这一步却要把排队也等掉。
+        # 给足 60 分钟构建 + 60 分钟排队余量：这里先超时的话，安卓那边还在跑，产物白丢。
+        timeout-minutes: 120
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ needs.meta.outputs.tag }}
+          SOURCE_REF: ${{ github.ref_name }}
+          SOURCE_SHA: ${{ github.sha }}
+          VERSION_TYPE: ${{ needs.meta.outputs.version_type }}
+        run: |
+          # CI 通道发的是测试身份（独立包名、独立签名，可与正式包共存）；
+          # 正式 / beta / alpha 一律用项目签名密钥与正式包名。
+          # 用 if 而不是 `[ ] && x=y`：后者在条件为假时退出码为 1，
+          # 而 Actions 的默认 shell 带 -e，会把整个步骤判成失败。
+          if [ "$VERSION_TYPE" = "ci" ]; then identity=ci; else identity=release; fi
+          # Keep android.yml's own build counter; wait for this exact dispatched run.
+          # Two things are load-bearing here, and both are required to get a run ID back:
+          #   - the 2026-03-10 API version, which is what knows the parameter at all;
+          #   - return_run_details=true, without which the endpoint keeps answering
+          #     204 with no body and leaves nothing for --jq to read.
+          # (gh defaults it to true only for `gh workflow run`, not for raw `gh api`.)
+          run_id=$(gh api --method POST "repos/$GITHUB_REPOSITORY/actions/workflows/android.yml/dispatches" \
+            -H "X-GitHub-Api-Version: 2026-03-10" \
+            -F return_run_details=true \
+            -f ref="$SOURCE_REF" -f "inputs[version_name]=$RELEASE_TAG" \
+            -F 'inputs[release_build]=true' -f "inputs[source_sha]=$SOURCE_SHA" \
+            -f "inputs[identity]=$identity" \
+            --jq '.workflow_run_id')
+          [[ "$run_id" =~ ^[0-9]+$ ]] || { echo "Missing Android workflow run ID"; exit 1; }
+          echo "Android build: https://github.com/$GITHUB_REPOSITORY/actions/runs/$run_id" >> "$GITHUB_STEP_SUMMARY"
+          gh run watch "$run_id" --repo "$GITHUB_REPOSITORY" --exit-status --interval 30
+          echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+          echo "identity=$identity" >> "$GITHUB_OUTPUT"
+
   changelog:
     name: Generate changelog
     runs-on: ubuntu-latest
@@ -954,17 +898,9 @@ jobs:
           echo "$EOF" >> $GITHUB_OUTPUT
 
   release:
-    # fork 可以完整构建和上传 Actions artifact，但发布只能发生在上游仓库。
-    # 保留 [deploy-alpha] / [deploy-beta] 以及临时分支发版语义，只把仓库边界锁住。
-    if: >-
-      github.repository == 'sunyink/MFABD2' &&
-      (
-        needs.meta.outputs.is_tag_push == 'true' ||
-        contains(needs.meta.outputs.tag, '-beta') ||
-        contains(needs.meta.outputs.tag, '-alpha') ||
-        (github.event_name == 'workflow_dispatch' && contains(needs.meta.outputs.tag, '-ci'))
-      )
-    needs: [meta, install, changelog]
+    # 发版条件集中在 android；桌面、安卓和更新日志全部成功后才汇总发布。
+    # 任一依赖失败、取消或跳过时，沿用 needs 默认行为停止发布。
+    needs: [meta, install, android, changelog]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -1000,7 +936,7 @@ jobs:
               b"\xca\xfe\xba\xbe", b"\xbe\xba\xfe\xca",   # FAT_MAGIC / FAT_CIGAM
               b"\xca\xfe\xba\xbf", b"\xbf\xba\xfe\xca",   # FAT_MAGIC_64 / FAT_CIGAM_64
           }
-          UNIX_PKG = ("-macos-", "-linux-", "-android-")
+          UNIX_PKG = ("-macos-", "-linux-")
 
           pkgs = [p for p in sorted(Path("artifacts").iterdir())
                   if p.is_dir() and any(k in p.name for k in UNIX_PKG)]
@@ -1025,7 +961,7 @@ jobs:
               total += n
 
           if not pkgs:
-              print("::warning::未找到 macos/linux/android 产物目录，跳过执行位恢复")
+              print("::warning::未找到 macos/linux 产物目录，跳过执行位恢复")
           elif total == 0:
               # 一个都没命中说明产物布局变了，别让它静默通过——这正是上次翻车的方式
               raise SystemExit("::error::unix 产物无一文件被赋予执行位，打包布局可能已变更")
@@ -1052,15 +988,66 @@ jobs:
             (cd "$dir" && zip -r "../release_assets/$zip_name" .)
           done
 
+      - name: Collect and verify signed Android APK
+        id: android
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ANDROID_RUN_ID: ${{ needs.android.outputs.run_id }}
+          EXPECTED_IDENTITY: ${{ needs.android.outputs.identity }}
+          RELEASE_TAG: ${{ needs.meta.outputs.tag }}
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          gh run download "$ANDROID_RUN_ID" --repo "$GITHUB_REPOSITORY" \
+            --name MFABD2-android-arm64 --dir android-release
+          python3 - <<'PY'
+          import hashlib, json, os, shutil
+          from pathlib import Path
+          root = Path("android-release")
+          apks = list(root.glob("*.apk"))
+          if len(apks) != 1:
+              raise SystemExit("Expected exactly one Android APK")
+          apk = apks[0]
+          metadata = json.loads(apk.with_suffix(".apk.json").read_text())
+          # 名字与桌面 zip 同构；安装编号只在 sidecar JSON 里。CI 通道多一个 -ci 段。
+          suffix = "-ci" if metadata["identity"] == "ci" else ""
+          expected = f'MFABD2-{os.environ["RELEASE_TAG"]}-android-arm64{suffix}.apk'
+          if (metadata["source_sha"] != os.environ["SOURCE_SHA"]
+                  or metadata["version_name"] != os.environ["RELEASE_TAG"]
+                  or metadata["apk_name"] != apk.name
+                  or metadata["identity"] != os.environ["EXPECTED_IDENTITY"]
+                  or apk.name != expected):
+              raise SystemExit("Android artifact does not match this release")
+          digest = hashlib.sha256(apk.read_bytes()).hexdigest()
+          checksum = apk.with_suffix(".apk.sha256")
+          if metadata["apk_sha256"] != digest or checksum.read_text().strip() != f"{digest}  {apk.name}":
+              raise SystemExit("Android artifact checksum mismatch")
+          for path in (apk, apk.with_suffix(".apk.json"), checksum):
+              shutil.copy2(path, Path("artifacts/release_assets") / path.name)
+          # 安装编号不在文件名里，所以在发布说明里给人留一行；程序仍读 .apk.json。
+          if output := os.environ.get("GITHUB_OUTPUT"):
+              with open(output, "a", encoding="utf-8") as stream:
+                  stream.write(f"version_code={metadata['version_code']}\n")
+                  stream.write(f"apk_name={apk.name}\n")
+          PY
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@718ea10b132b3b2eba29c1007bb80653f286566b # v3.0.1
         with:
-          files: artifacts/release_assets/*.zip
+          files: |
+            artifacts/release_assets/*.zip
+            artifacts/release_assets/*.apk
+            artifacts/release_assets/*.apk.json
+            artifacts/release_assets/*.apk.sha256
+          fail_on_unmatched_files: true
           tag_name: ${{ needs.meta.outputs.tag }}
           name: "MFABD2 ${{ needs.meta.outputs.tag }}"
           target_commitish: ${{ github.sha }}
           body: |
             ${{ contains(needs.changelog.outputs.release_body, '## ') && needs.changelog.outputs.release_body || '### 无显著变更' }}
+
+            ---
+            安卓：`${{ steps.android.outputs.apk_name }}`，安装编号 `${{ steps.android.outputs.version_code }}`。
+            覆盖升级按这个数字判断新旧，与上面的显示版本无关；编号只增不减，装回更小的编号需要卸载重装。
 
           draft: false
           prerelease: ${{ contains(needs.meta.outputs.tag, '-beta') || contains(needs.meta.outputs.tag, '-alpha') || (contains(needs.meta.outputs.tag, '-ci') && !(github.event_name == 'workflow_dispatch' && github.event.inputs.ci_as_stable == 'true')) }}
@@ -1079,12 +1066,13 @@ jobs:
           gh workflow run --repo $GITHUB_REPOSITORY --ref ${{ github.ref }} mirrorchyan_release_note.yml -f tag=$tag
 
   notify:
-    needs: [meta, install]
+    needs: [meta, install, release]
     # fork 没有上游通知密文；构建可继续，但不要让预期中的空密文把运行标红。
     if: >-
       always() &&
       github.repository == 'sunyink/MFABD2' &&
       needs.install.result == 'success' &&
+      needs.release.result == 'success' &&
       (github.event_name == 'workflow_dispatch' || needs.meta.outputs.version_type != 'ci')
     runs-on: ubuntu-latest
     steps:

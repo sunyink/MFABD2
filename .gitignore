@@ -495,3 +495,5 @@ prettier.config.mjs
 # 不存在节点的断链资源包。MaaOWM V0.7.12 已取消该兜底 (新建节点写回原 json),
 # 若再出现此文件, 应当入库而不是忽略。
 config.json
+/android-upstream/
+/android-build/
