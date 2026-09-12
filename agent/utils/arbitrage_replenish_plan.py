@@ -21,25 +21,20 @@ def _name(value):
 
 
 def _market_prices(market):
-    prices, peaks, conflicts = {}, set(), set()
+    prices, conflicts = {}, set()
     observations = {}
     for item in market.get("items", []):
         name = _name(item.get("name"))
         price = item.get("peak_price")
-        evidence = (price, item.get("current_price"), item.get("is_max_price"))
-        if name in observations and observations[name] != evidence:
+        if name in observations and observations[name] != price:
             conflicts.add(name)
-        observations[name] = evidence
+        observations[name] = price
         if type(price) is not int or price <= 0:
             continue
         prices[name] = price
-        # 即时补做只接受实际金额证据，不从日期或120%推断今天达到峰值。
-        if item.get("is_max_price") is True and type(item.get("current_price")) is int and item["current_price"] == price:
-            peaks.add(name)
     for name in conflicts:
         prices.pop(name, None)
-        peaks.discard(name)
-    return prices, peaks
+    return prices
 
 
 def _offers(data, observations, day):
@@ -140,7 +135,8 @@ def build_replenish_plan(entries, quantities, market, data, *, day, budget, sell
     quantities必须来自本次有效库存读口。商店无本轮观察时只生成参考报价候选，
     执行层仍需复核价格/余量；max_unit_price锁定本次计算使用的报价，不共享利润
     余量给多个柜台涨价。返回的unallocated_inventory是模型预留余额，不能写回存档。
-    cook_today_candidates是本轮预定补做名单；采购结束按顺序尝试，缺料由制作链跳过。
+    cook_today_candidates是本轮预定补做名单，不要求今天出售；成品留待峰值日出售。
+    采购结束按顺序尝试，缺料由制作链跳过。
     """
     date.fromisoformat(day)
     _integer(budget, "补买预算")
@@ -160,7 +156,7 @@ def build_replenish_plan(entries, quantities, market, data, *, day, budget, sell
     if not isinstance(market, dict) or market.get("day") != day or market.get("complete") is not True:
         result.update(status="unavailable", reason="current_market_incomplete")
         return result
-    prices, today_peak = _market_prices(market)
+    prices = _market_prices(market)
     offers, result["offer_issues"] = _offers(data, shop_observations, day)
     tonic_price = _integer(data["tonic_unit_price"], "神药参考单价", 1)
     requests = {}
@@ -175,6 +171,9 @@ def build_replenish_plan(entries, quantities, market, data, *, day, budget, sell
         if name in seen:
             raise ValueError(f"重复的可执行菜谱: {name}")
         seen.add(name)
+        if name not in sell_names:
+            skip("recipe_sale_not_permitted")
+            continue
         source = data["recipes"].get(name)
         if source is None:
             skip("recipe_data_missing")
@@ -229,8 +228,7 @@ def build_replenish_plan(entries, quantities, market, data, *, day, budget, sell
             available[ingredient] -= count
         result["budget_remaining"] -= candidate["estimated_purchase_cost"]
         result["allocations"].append({"recipe": name, "entry": entry.entry, "kind": "replenish", **candidate})
-        if name in today_peak and name in sell_names:
-            result["cook_today_candidates"].append(name)
+        result["cook_today_candidates"].append(name)
     result["requests"] = list(requests.values())
     result["estimated_spend"] = budget - result["budget_remaining"]
     result["unallocated_inventory"] = available

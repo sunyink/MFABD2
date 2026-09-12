@@ -5290,6 +5290,16 @@
         ],
         "focus": "Arb.料理菜单已返回"
     },
+    "Arbitrage_Cooking_Replenish_End": {
+        "desc": "补做专用出口：确认已返回选菜页，不写周常完成标记；名单是否已遍历由补做主控核对。",
+        "recognition": "Or",
+        "any_of": ["Arbitrage_Cooking_Menu_ReBack"],
+        "pre_delay": 0,
+        "action": "DoNothing",
+        "post_delay": 0,
+        "next": [],
+        "focus": "Arb.补做已返回选菜页"
+    },
     "Arbitrage_Cooking_ERREND": {
         "desc": "料理最后运行的第一页跳出,补个lib打标",
         "action": "Custom",

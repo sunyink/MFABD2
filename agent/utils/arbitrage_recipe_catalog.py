@@ -1,7 +1,7 @@
 """从运行时料理队列发现菜谱，并生成补做所需的局部禁用与清计数清单。
 
 只读取协议字段，不执行节点或修改上下文。get_node_data返回的整节点不能
-直接回灌；本模块只输出自行构造的enabled覆盖，保留原识别和辅助流程。
+直接回灌；只构造局部enabled和菜单路线覆盖，保留目标入口的找菜、滑动与恢复流程。
 """
 
 from collections import Counter
@@ -12,6 +12,8 @@ from .name_i18n import canon
 
 
 COOKING_HUBS = ("Arbitrage_Cooking_MenuEnter", "Arbitrage_Cooking_Page1")
+REPLENISH_END = "Arbitrage_Cooking_Replenish_End"
+_PROTECTION = "Arbitrage_Cooking_MateProtec"
 _SUBMENU = "Arbitrage_Cooking_SubMenu"
 _UNLIMITED = 2 ** 32 - 1
 
@@ -198,3 +200,35 @@ def build_replenish_selection(entries, target_names):
         skipped[name] = "未在运行时料理队列中发现"
     resets = tuple(dict.fromkeys(node for recipe in selected for node in recipe.clear_hit_nodes))
     return ReplenishSelection(selected, override, resets, skipped)
+
+
+def build_replenish_routes(context, selection):
+    """只精简菜单派发，不覆盖目标Entry内部的滑动、识别或恢复链。"""
+    reader = _Reader(context)
+    selected = {recipe.entry for recipe in selection.recipes}
+    first, page = COOKING_HUBS
+    page_targets = selected.intersection(reader.links(page))
+    overrides = {_PROTECTION: {"enabled": False}}
+    for hub in (COOKING_HUBS if page_targets else (first,)):
+        reader.links(hub)  # 校验引用结构，拒绝未解析的动态锚点。
+        route = []
+        for link in reader.node(hub).get("next", []):
+            name = link["name"]
+            if name in (page, _PROTECTION, REPLENISH_END):
+                continue
+            if name.startswith("Arbitrage_Cooking_") and name.endswith("_Entry"):
+                if name in selected:
+                    route.append("[JumpBack]" + name)
+            else:
+                # 原样保留菜单辅助节点的回跳属性；不回灌get_node_data的整节点。
+                route.append(("[JumpBack]" if link.get("jump_back") else "") + name)
+        route.append(page if hub == first and page_targets else REPLENISH_END)
+        overrides[hub] = {"next": route}
+        # 补做不能从常规错误出口写入周常完成标记。
+        errors = reader.node(hub).get("on_error", [])
+        overrides[hub]["on_error"] = [
+            ("[JumpBack]" if link.get("jump_back") else "")
+            + (REPLENISH_END if link["name"] == "Arbitrage_Cooking_ERREND" else link["name"])
+            for link in errors
+        ]
+    return overrides

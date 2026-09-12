@@ -3,13 +3,13 @@
 from .cooking_stock import get_cooking_stock
 from utils.account_sync import sync_from_context
 from utils import arbitrage_store as store, mfaalog
-from utils.arbitrage_recipe_catalog import discover_recipe_entries, build_replenish_selection
+from utils.arbitrage_recipe_catalog import (
+    REPLENISH_END, discover_recipe_entries, build_replenish_selection, build_replenish_routes,
+)
 from utils.name_i18n import canon
 
 
 _START = "Arbitrage_Cooking_MenuPatch"
-_PAGE = "Arbitrage_Cooking_Page1"
-_END = "Arbitrage_Cooking_ERREND"
 _MENU = "Arbitrage_Cooking_Menu_Reset_SubOut"
 _UNLIMITED = 2 ** 32 - 1
 
@@ -66,11 +66,11 @@ def execute_replenish_cooking(context, planned_names, *, day, bag_run_id, callba
             return {**report, "status": "skipped", "reason": "cooking_entry_disabled"}
         local = context.clone()
         overrides = dict(selection.pipeline_override)
-        # 保留终点的流转语义，仅取消常规每周标记；外层配置不受影响。
-        overrides[_END] = {"action": "DoNothing"}
+        overrides.update(build_replenish_routes(context, selection))
         resets = list(selection.clear_hit_nodes)
-        # 五星目标也会经过第一页收尾；不能只清目标菜谱自身的祖先。
-        for node_name in (_START, _PAGE):
+        # 菜谱祖先清单只包含实际需要的菜单；仅五星目标不再经过第一页。
+        # clone隔离节点覆盖但共享命中计数，只在启动前清理一次。
+        for node_name in (_START,):
             node = context.get_node_data(node_name)
             if isinstance(node, dict) and _active(node) and 0 < node.get("max_hit", _UNLIMITED) < _UNLIMITED:
                 resets.append(node_name)
@@ -98,7 +98,8 @@ def execute_replenish_cooking(context, planned_names, *, day, bag_run_id, callba
             report["visited"] = [entry.name for entry in selection.recipes if entry.entry in names]
             selected = {node.name for node in nodes if node.action is not None and node.action.success}
             report["selected"] = [entry.name for entry in selection.recipes if selected.intersection(entry.selectors)]
-            report["queue_completed"] = bool(detail.status.succeeded and len(report["visited"]) == len(selection.recipes))
+            report["queue_completed"] = bool(detail.status.succeeded and REPLENISH_END in names
+                                              and len(report["visited"]) == len(selection.recipes))
         if context.tasker.stopping:
             return {**report, "status": "stopped", "reason": "task_stopping"}
         image = local.tasker.controller.post_screencap().wait().get()
