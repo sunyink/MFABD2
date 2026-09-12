@@ -789,6 +789,63 @@ jobs:
           name: MFABD2-${{ needs.meta.outputs.tag }}-${{ matrix.os }}-${{ matrix.arch }}
           path: "install"
           include-hidden-files: true
+  android:
+    name: Build Android APK
+    # 只为发版构建 APK；与桌面 install 一样，先通过资源检查再并行启动。
+    # 普通 push 和 fork 跳过此 job，release 会随 needs 一起跳过。
+    if: >-
+      github.repository == 'sunyink/MFABD2' &&
+      (
+        needs.meta.outputs.is_tag_push == 'true' ||
+        contains(needs.meta.outputs.tag, '-beta') ||
+        contains(needs.meta.outputs.tag, '-alpha') ||
+        (github.event_name == 'workflow_dispatch' && contains(needs.meta.outputs.tag, '-ci'))
+      )
+    needs: [meta, resource_check]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write
+    outputs:
+      run_id: ${{ steps.build.outputs.run_id }}
+      identity: ${{ steps.build.outputs.identity }}
+    steps:
+      - name: Build signed Android APK
+        id: build
+        # 安卓那边的作业上限是 60 分钟，但作业超时不计排队时间——这一步却要把排队也等掉。
+        # 给足 60 分钟构建 + 60 分钟排队余量：这里先超时的话，安卓那边还在跑，产物白丢。
+        timeout-minutes: 120
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ needs.meta.outputs.tag }}
+          SOURCE_REF: ${{ github.ref_name }}
+          SOURCE_SHA: ${{ github.sha }}
+          VERSION_TYPE: ${{ needs.meta.outputs.version_type }}
+        run: |
+          # CI 通道发的是测试身份（独立包名、独立签名，可与正式包共存）；
+          # 正式 / beta / alpha 一律用项目签名密钥与正式包名。
+          # 用 if 而不是 `[ ] && x=y`：后者在条件为假时退出码为 1，
+          # 而 Actions 的默认 shell 带 -e，会把整个步骤判成失败。
+          if [ "$VERSION_TYPE" = "ci" ]; then identity=ci; else identity=release; fi
+          # Keep android.yml's own build counter; wait for this exact dispatched run.
+          # Two things are load-bearing here, and both are required to get a run ID back:
+          #   - the 2026-03-10 API version, which is what knows the parameter at all;
+          #   - return_run_details=true, without which the endpoint keeps answering
+          #     204 with no body and leaves nothing for --jq to read.
+          # (gh defaults it to true only for `gh workflow run`, not for raw `gh api`.)
+          run_id=$(gh api --method POST "repos/$GITHUB_REPOSITORY/actions/workflows/android.yml/dispatches" \
+            -H "X-GitHub-Api-Version: 2026-03-10" \
+            -F return_run_details=true \
+            -f ref="$SOURCE_REF" -f "inputs[version_name]=$RELEASE_TAG" \
+            -F 'inputs[release_build]=true' -f "inputs[source_sha]=$SOURCE_SHA" \
+            -f "inputs[identity]=$identity" \
+            --jq '.workflow_run_id')
+          [[ "$run_id" =~ ^[0-9]+$ ]] || { echo "Missing Android workflow run ID"; exit 1; }
+          echo "Android build: https://github.com/$GITHUB_REPOSITORY/actions/runs/$run_id" >> "$GITHUB_STEP_SUMMARY"
+          gh run watch "$run_id" --repo "$GITHUB_REPOSITORY" --exit-status --interval 30
+          echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+          echo "identity=$identity" >> "$GITHUB_OUTPUT"
+
   changelog:
     name: Generate changelog
     runs-on: ubuntu-latest
@@ -841,17 +898,9 @@ jobs:
           echo "$EOF" >> $GITHUB_OUTPUT
 
   release:
-    # fork 可以完整构建和上传 Actions artifact，但发布只能发生在上游仓库。
-    # 保留 [deploy-alpha] / [deploy-beta] 以及临时分支发版语义，只把仓库边界锁住。
-    if: >-
-      github.repository == 'sunyink/MFABD2' &&
-      (
-        needs.meta.outputs.is_tag_push == 'true' ||
-        contains(needs.meta.outputs.tag, '-beta') ||
-        contains(needs.meta.outputs.tag, '-alpha') ||
-        (github.event_name == 'workflow_dispatch' && contains(needs.meta.outputs.tag, '-ci'))
-      )
-    needs: [meta, install, changelog]
+    # 发版条件集中在 android；桌面、安卓和更新日志全部成功后才汇总发布。
+    # 任一依赖失败、取消或跳过时，沿用 needs 默认行为停止发布。
+    needs: [meta, install, android, changelog]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -939,41 +988,16 @@ jobs:
             (cd "$dir" && zip -r "../release_assets/$zip_name" .)
           done
 
-      - name: Build and collect signed Android APK
+      - name: Collect and verify signed Android APK
         id: android
-        # 安卓那边的作业上限是 60 分钟，但作业超时不计排队时间——这一步却要把排队也等掉。
-        # 给足 60 分钟构建 + 60 分钟排队余量：这里先超时的话，安卓那边还在跑，产物白丢。
-        timeout-minutes: 120
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ANDROID_RUN_ID: ${{ needs.android.outputs.run_id }}
+          EXPECTED_IDENTITY: ${{ needs.android.outputs.identity }}
           RELEASE_TAG: ${{ needs.meta.outputs.tag }}
-          SOURCE_REF: ${{ github.ref_name }}
           SOURCE_SHA: ${{ github.sha }}
-          VERSION_TYPE: ${{ needs.meta.outputs.version_type }}
         run: |
-          # CI 通道发的是测试身份（独立包名、独立签名，可与正式包共存）；
-          # 正式 / beta / alpha 一律用项目签名密钥与正式包名。
-          # 用 if 而不是 `[ ] && x=y`：后者在条件为假时退出码为 1，
-          # 而 Actions 的默认 shell 带 -e，会把整个步骤判成失败。
-          if [ "$VERSION_TYPE" = "ci" ]; then identity=ci; else identity=release; fi
-          export EXPECTED_IDENTITY="$identity"   # 下面的 heredoc 只看得到导出的变量
-          # Keep android.yml's own build counter; wait for this exact dispatched run.
-          # Two things are load-bearing here, and both are required to get a run ID back:
-          #   - the 2026-03-10 API version, which is what knows the parameter at all;
-          #   - return_run_details=true, without which the endpoint keeps answering
-          #     204 with no body and leaves nothing for --jq to read.
-          # (gh defaults it to true only for `gh workflow run`, not for raw `gh api`.)
-          run_id=$(gh api --method POST "repos/$GITHUB_REPOSITORY/actions/workflows/android.yml/dispatches" \
-            -H "X-GitHub-Api-Version: 2026-03-10" \
-            -F return_run_details=true \
-            -f ref="$SOURCE_REF" -f "inputs[version_name]=$RELEASE_TAG" \
-            -F 'inputs[release_build]=true' -f "inputs[source_sha]=$SOURCE_SHA" \
-            -f "inputs[identity]=$identity" \
-            --jq '.workflow_run_id')
-          [[ "$run_id" =~ ^[0-9]+$ ]] || { echo "Missing Android workflow run ID"; exit 1; }
-          echo "Android build: https://github.com/$GITHUB_REPOSITORY/actions/runs/$run_id" >> "$GITHUB_STEP_SUMMARY"
-          gh run watch "$run_id" --repo "$GITHUB_REPOSITORY" --exit-status --interval 30
-          gh run download "$run_id" --repo "$GITHUB_REPOSITORY" \
+          gh run download "$ANDROID_RUN_ID" --repo "$GITHUB_REPOSITORY" \
             --name MFABD2-android-arm64 --dir android-release
           python3 - <<'PY'
           import hashlib, json, os, shutil

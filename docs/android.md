@@ -9,8 +9,11 @@
 `.github/workflows/android.yml` 是安卓构建的唯一入口，推送开发分支或手动触发后生成签名 Release APK。
 默认只上传 Actions 产物。手动传入已有 Release tag 作为 `version_name` 并开启 `publish`，
 才会将 APK、SHA256 文件和构建元数据附加到该 Release；不会创建 Release 或覆盖同名附件。
-主发布流程先调用这一入口，沿用同一个版本标签，并用 `source_sha` 锁定与桌面包相同的资源提交。
-`release_build=true` 保留安卓工作流自己的安装编号序列；主流程等待这次构建成功，取回 APK、校验文件和构建元数据，
+主发布流程由独立的 `android` job 调用这一入口，在资源检查通过后与桌面 `install` job 并行构建。
+安卓 job 沿用原有发版条件：手动发版、版本标签推送、alpha / beta 发版才运行，普通 push 不通过主流程触发 APK。
+两端沿用同一个版本标签，并用 `source_sha` 锁定与桌面包相同的资源提交。
+`release_build=true` 保留安卓工作流自己的安装编号序列；`release` job 等待桌面、安卓和更新日志全部成功，
+再按安卓 job 返回的运行编号取回 APK、校验文件和构建元数据，
 核对提交、版本、文件名及摘要后，与桌面 ZIP 一起上传到新建的 Release。安卓失败或附件不匹配时停止发布。
 发布通知等待发布步骤成功。旧安卓 ZIP 构建与镜像上传入口已停用，APK 直接作为发布附件，不再套一层 ZIP。
 APK 文件名为 `MFABD2-<项目版本>-android-arm64.apk`，与桌面 ZIP 同构；安装编号只放在同名的 `.apk.json` 里。
