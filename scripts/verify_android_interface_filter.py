@@ -1,9 +1,11 @@
 import importlib.util
 import json
 import sys
+import tempfile
 import unittest
 from copy import deepcopy
 from pathlib import Path
+from unittest.mock import patch
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -26,7 +28,9 @@ class AndroidInterfaceFilterTest(unittest.TestCase):
         self.assertEqual([item["name"] for item in filtered["resource"]], ["ADB"])
         self.assertEqual(filtered["resource"][0]["path"], ["./resource/base", "./resource/android_native"])
         self.assertNotIn("mirrorchyan_rid", filtered)
-        self.assertEqual(filtered["task"], self.interface["task"])
+        expected_tasks = [task for task in self.interface["task"]
+                          if not task.get("controller") or "Adb" in task["controller"]]
+        self.assertEqual(filtered["task"], expected_tasks)
 
     def test_task_and_preset_references_follow_controller_filter(self):
         source = deepcopy(self.interface)
@@ -35,6 +39,35 @@ class AndroidInterfaceFilterTest(unittest.TestCase):
         filtered = INSTALL.prepare_interface_for_target(source, "android")
         self.assertNotIn("pc-only", [task["name"] for task in filtered["task"]])
         self.assertNotIn("pc-only", [task["name"] for task in filtered["preset"][0]["task"]])
+
+    def test_installed_resources_follow_target_and_remove_stale_packs(self):
+        with tempfile.TemporaryDirectory() as work:
+            root = Path(work)
+            assets = root / "assets"
+            source = assets / "resource"
+            output = root / "install"
+            packs = {"base", "android_native", "Announcement", "pc", "playcover", "future_platform"}
+            for name in packs:
+                directory = source / name / "nested"
+                directory.mkdir(parents=True)
+                (directory / "content.txt").write_text(name, encoding="utf-8")
+            (assets / "interface.json").write_text(json.dumps(self.interface), encoding="utf-8")
+            (assets / "mfa_layout.json").write_text("{}", encoding="utf-8")
+            source_files = {path.relative_to(source): path.read_bytes() for path in source.rglob("*") if path.is_file()}
+            with patch.multiple(INSTALL, working_dir=root, install_path=output, version="v0.0.1"), \
+                    patch.object(INSTALL, "configure_ocr_model"):
+                # Reuse one output directory to exercise desktop -> Android cleanup.
+                for target in ("win-x64", "android-arm64", "android", "linux-x64"):
+                    with self.subTest(target=target), patch.object(INSTALL, "target_os", target):
+                        INSTALL.install_resource()
+                        expected = {"base", "android_native", "Announcement"} if target.startswith("android") else packs
+                        self.assertEqual({path.name for path in (output / "resource").iterdir() if path.is_dir()}, expected)
+                        for name in expected:
+                            self.assertEqual((output / "resource" / name / "nested" / "content.txt").read_text(encoding="utf-8"), name)
+                        self.assertEqual((output / "resource" / "mfa_layout.json").read_text(), "{}")
+                        installed = json.loads((output / "interface.json").read_text(encoding="utf-8"))
+                        self.assertEqual(installed["resource"], INSTALL.prepare_interface_for_target(self.interface, target)["resource"])
+            self.assertEqual({path.relative_to(source): path.read_bytes() for path in source.rglob("*") if path.is_file()}, source_files)
 
     def test_desktop_targets_are_unfiltered(self):
         filtered = INSTALL.prepare_interface_for_target(self.interface, "win-x64")
