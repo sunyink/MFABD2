@@ -14,6 +14,7 @@
     "StartGame_RunApp": {
         "desc": "安卓原生控制器启动游戏；保留 base 的加载识别链，失败交给公共兜底，不执行 ADB Shell。",
         "action": "StartApp",
+        "package": "com.neowizgames.game.browndust2",
         "on_error": [
             "Global_Null_Exception",
             "Global_Null_Panic"

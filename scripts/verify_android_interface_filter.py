@@ -40,6 +40,39 @@ class AndroidInterfaceFilterTest(unittest.TestCase):
         self.assertNotIn("pc-only", [task["name"] for task in filtered["task"]])
         self.assertNotIn("pc-only", [task["name"] for task in filtered["preset"][0]["task"]])
 
+    def test_pc_pretask_is_not_shipped_to_android(self):
+        filtered = INSTALL.prepare_interface_for_target(self.interface, "android")
+        self.assertEqual(filtered.get("pretask"), [])
+        self.assertTrue(self.interface["pretask"])
+        source = deepcopy(self.interface)
+        source["pretask"].extend([
+            {"name": "shared", "exec": "test"},
+            {"name": "adb-only", "exec": "test", "controller": ["Adb"]},
+        ])
+        filtered = INSTALL.prepare_interface_for_target(source, "android")
+        self.assertEqual([task["name"] for task in filtered["pretask"]], ["shared", "adb-only"])
+
+    def test_windows_install_rewrites_pretask_paths(self):
+        with tempfile.TemporaryDirectory() as work:
+            root = Path(work)
+            (root / "agent").mkdir()
+            (root / "agent" / "pc_bootstrap.py").write_text("# fixture", encoding="utf-8")
+            output = root / "install"
+            output.mkdir()
+            (output / "interface.json").write_text(json.dumps(self.interface), encoding="utf-8")
+            with patch.multiple(INSTALL, working_dir=root, install_path=output):
+                INSTALL.install_agent("win-x64")
+            installed = json.loads((output / "interface.json").read_text(encoding="utf-8"))
+            pretask = installed["pretask"][0]
+            self.assertEqual(pretask["exec"], "../../python/python.exe")
+            self.assertEqual(pretask["args"][-1], "../../agent/pc_bootstrap.py")
+            base = output / "resource" / "base"
+            self.assertEqual((base / pretask["args"][-1]).resolve(), (output / "agent" / "pc_bootstrap.py").resolve())
+            self.assertTrue((output / "agent" / "pc_bootstrap.py").is_file())
+        pretask = self.interface["pretask"][0]
+        self.assertEqual((ROOT / "assets/resource/base" / pretask["args"][-1]).resolve(), ROOT / "agent/pc_bootstrap.py")
+        self.assertEqual((ROOT / "assets/resource/base" / pretask["exec"]).resolve(), ROOT / ".venv/Scripts/python.exe")
+
     def test_installed_resources_follow_target_and_remove_stale_packs(self):
         with tempfile.TemporaryDirectory() as work:
             root = Path(work)

@@ -16,12 +16,28 @@
             "type": "Win32",
             "win32": {
                 "class_regex": "UnityWndClass",
+                "window_regex": "^BrownDust II$",
                 "screencap": "FramePool",
                 "mouse": "PostMessageWithWindowPos",
                 "keyboard": "PostMessageWithWindowPos"
             },
             "permission_required": true,
             "display_short_side": 720
+        }
+    ],
+    "pretask": [
+        {
+            "name": "PC游戏启动准备",
+            "controller": [
+                "PC客户端"
+            ],
+            "exec": "../../../.venv/Scripts/python.exe",
+            "args": [
+                "-u",
+                "-X",
+                "utf8=1",
+                "../../../agent/pc_bootstrap.py"
+            ]
         }
     ],
     "resource": [

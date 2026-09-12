@@ -48,6 +48,11 @@ def prepare_interface_for_target(interface, target_os):
     if not adb_name:
         raise ValueError("Android Adb controller requires a name")
     result["controller"] = [adb]
+    if "pretask" in result:
+        result["pretask"] = [
+            task for task in result["pretask"]
+            if not task.get("controller") or adb_name in task["controller"]
+        ]
 
     resources = []
     for resource in result.get("resource") or []:
@@ -246,6 +251,11 @@ def install_agent(target_os):
         if any(target_os.startswith(p) for p in ["win", "windows"]):
             interface["agent"]["child_exec"] = r"{PROJECT_DIR}/python/python.exe"
             interface["agent"]["child_args"] = ["-u", "-X", "utf8=1", r"{PROJECT_DIR}/agent/main.py"]
+            # MFAA v2.15.2 pretask cwd is resource/base; args have no placeholder expansion.
+            for pretask in interface.get("pretask", []):
+                if pretask.get("name") == "PC游戏启动准备":
+                    pretask["exec"] = "../../python/python.exe"
+                    pretask["args"] = ["-u", "-X", "utf8=1", "../../agent/pc_bootstrap.py"]
         
         # 2. macOS: 智能判断 (有嵌入用嵌入，没嵌入用系统)
         elif any(target_os.startswith(p) for p in ["macos", "darwin", "osx"]):

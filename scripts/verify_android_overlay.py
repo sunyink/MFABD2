@@ -32,12 +32,14 @@ def main():
         assert resource.post_bundle(str(overlay_dir)).wait().succeeded
         check = resource.get_node_data(names[0])
         launch = resource.get_node_data(names[1])
-        assert before[names[0]]["action"]["type"] == "Shell"
+        assert before[names[0]]["action"]["type"] == "Custom"
+        assert before[names[0]]["action"]["param"]["custom_action"] == "StartupCheckApp"
         assert check["action"] == {"type": "DoNothing", "param": {}}
         assert check["focus"] is None
         assert [ref["name"] for ref in check["next"]] == [names[1]]
         assert not check["on_error"]
-        assert launch["action"] == before[names[1]]["action"]
+        assert before[names[1]]["action"]["param"]["custom_action"] == "StartupRunApp"
+        assert launch["action"] == {"type": "StartApp", "param": {"package": "com.neowizgames.game.browndust2"}}
         assert launch["next"] == before[names[1]]["next"]
         assert launch["timeout"] == before[names[1]]["timeout"]
         assert [ref["name"] for ref in launch["on_error"]] == ["Global_Null_Exception", "Global_Null_Panic"]
