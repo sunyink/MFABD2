@@ -642,8 +642,20 @@
         "recognition": "And",
         "all_of": ["Event_Event_Main"],
         "next": [
-            "Even_MamonoFollowUp_InMamono"
+            "Even_MamonoFollowUp_InMamono",
+            "SeasonEvent_Mamono_Bypass"
         ]
+    },
+    "SeasonEvent_Mamono_Bypass": {
+        "desc": "魔兽准备期识别",
+        "recognition": "OCR",
+        "roi": [
+            174,
+            425,
+            923,
+            172
+        ],
+        "expected": ["可练习战斗"]
     },
     "Even_MamonoFollowUp_InMamono": {
         "recognition": "OCR",

@@ -150,15 +150,9 @@
     },
     "Equip_EquipMakeBack": {
         "desc": "制作装备界面，左上返回",
-        "recognition": "OCR",
-        "roi": [
-            943,
-            600,
-            149,
-            120
-        ],
-        "expected": [
-            "制作"
+        "recognition": "Or",
+        "any_of": [
+            "Equip_EquipMake"
         ],
         "action": "Click",
         "target": [
@@ -174,15 +168,9 @@
     },
     "Equip_ToEquipGui": {
         "desc": "前往装备界面",
-        "recognition": "OCR",
-        "roi": [
-            1019,
-            647,
-            124,
-            31
-        ],
-        "expected": [
-            "立刻前往装备"
+        "recognition": "Or",
+        "any_of": [
+            "Equip_EquipMakeGui"
         ],
         "action": "Click",
         "post_wait_freezes": 1000,

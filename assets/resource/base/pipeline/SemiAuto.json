@@ -13,58 +13,6 @@
             "SemiAuto_Evil_SemiautoTower_Start"
         ]
     },
-    "SemiAuto_HomePageHub": {
-        "desc": "找到run-点击返回主页",
-        "recognition": "TemplateMatch",
-        "roi": [
-            1047,
-            516,
-            107,
-            110
-        ],
-        "template": [
-            "Run.png"
-        ],
-        "green_mask": true,
-        "action": "Click",
-        "target": [
-            1186,
-            46
-        ],
-        "post_delay": 2000,
-        "next": [],
-        "focus": "G=0.页面预期内，普通启动。M.箱庭地图run已确认"
-    },
-    "SemiAuto_HomePageHub1": {
-        "recognition": "Or",
-        "any_of": [
-            "Rec_SandBox_Pin_Tpl",
-            "Rec_SandBox_Run_Tpl"
-        ],
-        "post_delay": 2000,
-        "next": [],
-        "focus": "G=0.页面预期内，普通启动。BM.箱庭地图pin已确认"
-    },
-    "SemiAuto_HomePageHub2": {
-        "desc": "其他页面，返回按钮",
-        "recognition": "TemplateMatch",
-        "roi": [
-            1,
-            1,
-            231,
-            124
-        ],
-        "template": [
-            "BackButGe.png",
-            "BackButGe2.png",
-            "UI_qsback.png"
-        ],
-        "green_mask": true,
-        "action": "Click",
-        "post_delay": 2000,
-        "next": [],
-        "focus": "G=1.页面非预期，点击返回按钮"
-    },
     "SemiAuto_Evil_SemiautoTower_Timeout": {
         "desc": "半自动爬塔的时间闸,超过上限就收工。识别逻辑是反的:已超时才算命中,未超时返回失败让引擎继续试 next 里的后续候选,因此挂在各循环节点 next 首位不改变原有候选语义。上限由 interface.json 的「半自动爬塔时间上限」注入,默认 30 分钟,填 0 为不限时。为什么这条链需要时间界见 agent/recognition/timer.py 的模块注释。",
         "recognition": "Custom",
@@ -91,20 +39,6 @@
         "next": [
             "SemiAuto_Evil_SemiautoTower_On"
         ]
-    },
-    "SemiAuto_Evil_Move": {
-        "recognition": "Or",
-        "any_of": [
-            "Rec_SandBox_Pin_Tpl",
-            "Rec_SandBox_Run_Tpl"
-        ],
-        "action": "LongPress",
-        "target": [
-            651,
-            171
-        ],
-        "duration": 5000,
-        "focus": "MM.向上行走。BM.箱庭地图pin确认"
     },
     "SemiAuto_Evil_SemiautoTower_On": {
         "recognition": "OCR",
@@ -166,16 +100,8 @@
         ]
     },
     "SemiAuto_Evil_SemiautoTower_AuDaemon": {
-        "recognition": "OCR",
-        "roi": [
-            1035,
-            624,
-            81,
-            45
-        ],
-        "expected": [
-            "URN"
-        ],
+        "recognition": "Or",
+        "any_of": ["SemiAuto_Evil_SemiautoTower_InManual"],
         "pre_delay": 10000,
         "next": [
             "SemiAuto_Evil_SemiautoTower_InManual"
@@ -221,20 +147,6 @@
             "SemiAuto_Evil_SemiautoTower_InManual",
             "SemiAuto_Evil_SemiautoTower_InAuto"
         ]
-    },
-    "SemiAuto_Evil_SemiautoTower_OnCk2": {
-        "recognition": "OCR",
-        "roi": [
-            676,
-            403,
-            93,
-            39
-        ],
-        "expected": [
-            "确认"
-        ],
-        "action": "Click",
-        "post_delay": 5000
     },
     "SemiAuto_Evil_SemiautoTower_Defeat": {
         "recognition": "OCR",
@@ -432,6 +344,8 @@
             75
         ],
         "expected": ["连续精炼"],
+        "pre_delay": 0,
+        "post_delay": 0,
         "next": [
             "SemiAuto_SRef_QuotaIsMax",
             "[JumpBack]SemiAuto_SRef_TabMax"
@@ -463,6 +377,8 @@
             },
             "Sub_Ocr_Enable_Clr"
         ],
+        "pre_delay": 0,
+        "post_delay": 0,
         "next": ["SemiAuto_SRef_HaltOnSuccess_TrunOff"],
         "focus": "连续精炼-最大值确认"
     },
@@ -497,7 +413,9 @@
             255,
             255
         ],
+        "pre_delay": 0,
         "anchor": "SliderSwitchColor",
+        "post_delay": 0,
         "next": [
             "[JumpBack]Anc_SliderSwitch_Yew_TurnOff_Clr",
             "SemiAuto_SRef_ButtStr"
@@ -518,8 +436,21 @@
         "post_delay": 2000,
         "next": [
             "SemiAuto_SRef_Skip",
-            "SemiAuto_SRef_ButtStr"
+            "SemiAuto_SRef_ButtStr",
+            "SemiAuto_SRef_NoPowder"
         ]
+    },
+    "SemiAuto_SRef_NoPowder": {
+        "desc": "弹窗菜单,确认点击,进行精炼",
+        "recognition": "OCR",
+        "roi": [
+            569,
+            38,
+            129,
+            148
+        ],
+        "expected": ["強化粉末不足"],
+        "focus": "[ERR]强化粉末不足,无法继续"
     },
     "SemiAuto_SRef_Skip": {
         "recognition": "TemplateMatch",

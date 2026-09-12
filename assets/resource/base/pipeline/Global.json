@@ -1044,6 +1044,8 @@
             44
         ],
         "count": 25,
+        "pre_delay": 0,
+        "post_delay": 0,
         "next": [
             "Global_SliderSwitch_End"
         ]
@@ -1100,27 +1102,32 @@
         "all_of": [
             "Anc_SliderSwitch_YewOn_Clr"
         ],
+        "pre_delay": 0,
+        "post_delay": 0,
         "timeout": 3000,
         "next": [
             "Anc_SliderSwitch_GryOff_Clr",
-            "[JumpBack]Anc_SliderSwitch_Act_Turn"
+            "Anc_SliderSwitch_Act_Turn"
         ]
     },
     "Anc_SliderSwitch_Act_Turn": {
         "desc": "点击滑块,改变颜色",
-        "max_hit": 10,
         "action": "Click",
         "target": "[Anchor]SliderSwitchColor",
-        "post_delay": 800
+        "post_delay": 1000
     },
     "Global_SliderSwitch_End": {
         "desc": "调整结束",
+        "pre_delay": 0,
+        "post_delay": 0,
         "next": [
             "[Anchor]SliderSwitchColor"
         ]
     },
     "Global_Hub_End": {
-        "desc": "避免正常结束时,报错跳出"
+        "desc": "避免正常结束时,报错跳出",
+        "pre_delay": 0,
+        "post_delay": 0
     },
     "Global_ERR_AtFish": {
         "desc": "钓鱼界面返回",
