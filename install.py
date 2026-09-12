@@ -87,15 +87,37 @@ def prepare_interface_for_target(interface, target_os):
 # ... (保留原有注释代码) ...
 
 
+def copy_resources_for_target(source, destination, target_os):
+    """Copy resource packs, excluding other platforms from Android output."""
+    android = str(target_os).lower().startswith("android")
+    # Announcement is shared documentation, not a platform resource pack.
+    allowed = {"base", "android_native", "Announcement"}
+
+    def ignore(directory, names):
+        if not android or Path(directory) != source:
+            return []
+        return [name for name in names if (source / name).is_dir() and name not in allowed]
+
+    # A local Android build may reuse output from a previous desktop build.
+    if android and destination.exists():
+        for child in destination.iterdir():
+            if child.is_dir() and child.name not in allowed:
+                if child.is_symlink() or child.resolve().parent != destination.resolve():
+                    raise ValueError(f"Refusing to remove resource directory outside output: {child}")
+                shutil.rmtree(child)
+
+    shutil.copytree(
+        source,
+        destination,
+        dirs_exist_ok=True,
+        ignore=ignore,
+    )
+
+
 def install_resource():
     configure_ocr_model()
 
-    # 复制整个 resource 目录
-    shutil.copytree(
-        working_dir / "assets" / "resource",
-        install_path / "resource",
-        dirs_exist_ok=True,
-    )
+    copy_resources_for_target(working_dir / "assets" / "resource", install_path / "resource", target_os)
     
     # ================= [MFAA布局文件预配置写入开始] =================
     # 单文件适配: 显式复制 assets/mfa_layout.json 到 install/resource/
