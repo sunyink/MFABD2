@@ -263,7 +263,8 @@ def _rescue_rois(type_dets: list, cfg: dict) -> list:
     return rois
 
 
-def _rescue_tail_num(context, screenshot, type_dets: list, cfg: dict, bounds) -> tuple:
+def _rescue_tail_num(context, screenshot, type_dets: list, cfg: dict, bounds,
+                     number_dets=()) -> tuple:
     """不同裁剪读取编号；当前区域内至少两次一致且没有高置信度分歧才接受。"""
     if not type_dets:
         return "", 0.0
@@ -272,8 +273,14 @@ def _rescue_tail_num(context, screenshot, type_dets: list, cfg: dict, bounds) ->
     for roi in _rescue_rois(type_dets, cfg):
         roi = [int(v) for v in roi]
         left, top, right, bottom = bounds
-        x1, y1 = max(roi[0], left), max(roi[1], top)
-        x2, y2 = min(roi[0] + roi[2], right), min(roi[1] + roi[3], bottom)
+        # 已检测到的编号必须完整入框；纵向偏移不能把11切成1后参与投票。
+        x1 = max(min([roi[0]] + [d['x'] for d in number_dets]), left)
+        y1 = max(min([roi[1]] + [d['y'] for d in number_dets]), top)
+        x2 = min(max([roi[0] + roi[2]] + [d['x'] + d['w'] for d in number_dets]), right)
+        y2 = min(max([roi[1] + roi[3]] + [d['y'] + d['h'] for d in number_dets]), bottom)
+        if any(d['x'] < x1 or d['y'] < y1 or d['x'] + d['w'] > x2 or d['y'] + d['h'] > y2
+               for d in number_dets):
+            continue
         roi = [int(x1), int(y1), int(x2 - x1), int(y2 - y1)]
         if roi[2] <= 0 or roi[3] <= 0 or tuple(roi) in seen_rois:
             continue
@@ -312,28 +319,81 @@ def _rescue_tail_num(context, screenshot, type_dets: list, cfg: dict, bounds) ->
     return best_num, best_sc
 
 
-def _cart_regions(carts, current_y, monthly_y, next_y, column_roi):
-    """金额/倍率定位上下行；月度类型框的上边缘为当前换行编号留足空间。"""
-    if monthly_y is None or not current_y < monthly_y < next_y:
+def _cart_groups(carts):
+    """纯编号连接邻近类型；保留原框，以类型框的位置决定整组归属。"""
+    groups = [[d] for d in carts if re.search(r'[^\W\d_]', d['text'])]
+    orphans = []
+    for number in sorted(carts, key=lambda d: (d['cy'], d['cx'])):
+        if not re.fullmatch(r'\s*[0-9]+\s*', number['text']):
+            continue
+        candidates = []
+        for group in groups:
+            typed = group[0]
+            dy = number['cy'] - typed['cy']
+            overlap = min(number['x'] + number['w'], typed['x'] + typed['w']) - max(number['x'], typed['x'])
+            same_line = (abs(dy) <= min(number['h'], typed['h']) / 2
+                         and typed['x'] + typed['w'] - number['w'] / 4 <= number['x']
+                         <= typed['x'] + typed['w'] + typed['h'])
+            wrapped = (min(number['h'], typed['h']) / 2 < dy <= 1.5 * typed['h']
+                       and overlap > 0)
+            if same_line or wrapped:
+                candidates.append((abs(dy), group))
+        candidates.sort(key=lambda pair: pair[0])
+        if (not candidates or len(candidates) > 1 and candidates[0][0] == candidates[1][0]
+                or len(candidates[0][1]) != 1 or _tail_num(candidates[0][1][0]['text'])):
+            orphans.append(number)
+            continue
+        candidates[0][1].append(number)
+    return groups, orphans
+
+
+def _cart_split_y(names, amounts, current_y, monthly_y, next_y):
+    """复用现有OCR：名称/基础金额中线优先，当前/月峰值收购金额中线备用。"""
+    bases = [d for d in names if current_y + SUBROW_TOL < d['cy'] < next_y
+             and re.fullmatch(r'[\s0-9,.]+', d['text']) and _money_token_value(d['text']) is not None]
+    if len(bases) == 1:
+        return (current_y + bases[0]['cy']) / 2
+    if monthly_y is None:
+        return None
+    current = [d for d in amounts if abs(d['cy'] - current_y) <= SUBROW_TOL
+               and _money_token_value(d['text']) is not None]
+    monthly = [d for d in amounts if abs(d['cy'] - monthly_y) <= SUBROW_TOL
+               and _money_token_value(d['text']) is not None]
+    if len(current) == len(monthly) == 1 and current[0]['cy'] < monthly[0]['cy']:
+        return (current[0]['cy'] + monthly[0]['cy']) / 2
+    return None
+
+
+def _cart_regions(carts, current_y, monthly_y, next_y, column_roi, *, split_y=None, previous_monthly_y=None):
+    """先拼类型/编号，再按类型中心分当前/月度；裁剪边界独立保留完整编号。"""
+    if split_y is None:
+        if monthly_y is None or not current_y < monthly_y < next_y:
+            return [], [], None
+        split_y = (current_y + monthly_y) / 2
+    if not current_y < split_y < next_y:
         return [], [], None
     x, y, w, h = column_roi
-    gap = monthly_y - current_y
-    upper = max(y, current_y - gap / 2)
-    lower = min(y + h, next_y - (next_y - monthly_y) / 2)
-    monthly_types = [d for d in carts if re.search(r'[^\W\d_]', d['text'])
-                     and abs(d['cy'] - monthly_y) <= SUBROW_TOL]
-    split = min(d['y'] for d in monthly_types) if monthly_types else monthly_y - gap / 4
-    if not upper < split < lower:
+    monthly_y = monthly_y if monthly_y is not None else 2 * split_y - current_y
+    if previous_monthly_y is None:
+        previous_monthly_y = monthly_y - (next_y - current_y)
+    upper = max(y, (previous_monthly_y + current_y) / 2)
+    lower = min(y + h, (monthly_y + next_y) / 2)
+    if not upper < split_y < lower:
         return [], [], None
-    current, monthly = [], []
-    for det in carts:
-        overlaps = [max(0, min(det['y'] + det['h'], end) - max(det['y'], start)) / max(det['h'], 1)
-                    for start, end in [(upper, split), (split, lower)]]
-        if overlaps[0] >= 0.8:
-            current.append(det)
-        elif overlaps[1] >= 0.8:
-            monthly.append(det)
-    return current, monthly, (x, upper, x + w, split)
+    groups, orphans = _cart_groups(carts)
+    day_groups = [g for g in groups if upper <= g[0]['cy'] < split_y]
+    month_groups = [g for g in groups if split_y <= g[0]['cy'] < lower]
+    # 中线负责文字归属；月度类型顶部才是编号复核不能越过的下界。
+    crop_bottom = min(g[0]['y'] for g in month_groups) if month_groups else split_y
+    next_types = [g[0]['y'] for g in groups if g[0]['cy'] >= lower]
+    month_bottom = min(next_types) if next_types else y + h
+    if crop_bottom <= upper:
+        return [], [], None
+    current = [d for g in day_groups for d in g if d['y'] + d['h'] <= crop_bottom]
+    monthly = [d for g in month_groups for d in g if d['y'] + d['h'] <= month_bottom]
+    if not day_groups:
+        current = [d for d in orphans if upper <= d['cy'] < split_y]
+    return current, monthly, (x, upper, x + w, crop_bottom)
 
 
 def _current_cart(dets, context, screenshot, cfg, bounds, label):
@@ -356,7 +416,7 @@ def _current_cart(dets, context, screenshot, cfg, bounds, label):
     body, body_score = _cart_group(type_only)
     if wrapped and not numbers:
         return body, body_score, "multiline_box_needs_split"
-    number, number_score = _rescue_tail_num(context, screenshot, type_only, cfg, bounds)
+    number, number_score = _rescue_tail_num(context, screenshot, type_only, cfg, bounds, numbers)
     if number and (not original or original == number or
                    len(original) == 1 and len(number) == 2 and number.endswith(original)):
         mfaalog.info(f"[Arbitrage] 当前编号复核: {label} {original or '缺号'}→{number}")
@@ -626,6 +686,7 @@ class ArbitrageSellController(CustomAction):
                 "cart_conflict": item.get("cart_conflict", False),
                 "cartridge_alt": item.get("alt_cartridge", ""),
                 "current_rate": item.get("current_rate"),
+                "cartridge_read_basis": item.get("cartridge_read_basis", "unknown"),
                 "reserve": reserves.get(canon(item["name"])),
             }
             for item in peak_items
@@ -654,11 +715,11 @@ class ArbitrageSellController(CustomAction):
             cart_raw = target["cartridge_raw"]
             mfaalog.info(f"[Arbitrage] 👉 正在执行 {idx}/{len(targets_to_sell)}: 前往 [{cart_raw}] 售卖 [{item_name}]")
 
-            # 缺尾号拦截(2026-07-25):尾号现实一定存在,拼组+救援后仍无号 = 识别彻底失手。按既定策略
-            # 报警并跳过——绝不去「只有类型、没有号」的柜台臆测消歧(最坏进错柜台空跑),交下轮重扫。
+            # 类型缺失、编号分歧等均不能派发；保留解析原因，避免统一误报成尾号救援失败。
             if not _tail_num(cart_raw):
                 mfaalog.warning(
-                    f"[Arbitrage] 🚨 [{item_name}] 卡带尾号缺失且救援失败([{cart_raw}]),"
+                    f"[Arbitrage] 🚨 [{item_name}] 当前卡带未确认"
+                    f"(原因={target['cartridge_read_basis']}，读数=[{cart_raw}]),"
                     f"跳过本项以免进错柜台空跑"
                 )
                 sold_fail.append(item_name)
@@ -937,6 +998,7 @@ class ArbitrageSellController(CustomAction):
             return out
 
         results = []
+        previous_monthly_y = None
         for i, row in enumerate(anchors):
             item_data = {
                 "name": row["name"],
@@ -984,7 +1046,19 @@ class ArbitrageSellController(CustomAction):
                 top_money, bot_money, top_pct, bot_pct
             )
 
-            day_dets, month_dets, bounds = _cart_regions(carts, ny, mon_y, next_ny, cart_roi)
+            split_y = _cart_split_y(names, amounts, ny, mon_y, next_ny)
+            if len(anchors) == 1 and split_y is not None:
+                # 单项画面没有相邻名称可量行距，改用实读上下行距补足商品范围。
+                lower_y = mon_y if mon_y is not None else 2 * split_y - ny
+                next_ny = max(next_ny, ny + 2 * (lower_y - ny))
+            if split_y is None:
+                day_dets, month_dets, bounds = [], [], None
+            else:
+                day_dets, month_dets, bounds = _cart_regions(
+                    carts, ny, mon_y, next_ny, cart_roi, split_y=split_y,
+                    previous_monthly_y=previous_monthly_y)
+            previous_monthly_y = mon_y if mon_y is not None else (
+                2 * split_y - ny if split_y is not None else None)
             day_cart, day_score, basis = _current_cart(
                 day_dets, context, screenshot, rescue_cfg, bounds, row['name'])
             item_data["target_cartridge"] = day_cart

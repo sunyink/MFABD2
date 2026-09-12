@@ -10,7 +10,7 @@ from .persistent_store import PersistentStore, SharedStore
 
 
 SCHEMA_VERSION = 2
-MARKET_PARSER_VERSION = 2
+MARKET_PARSER_VERSION = 3
 MARKET_RETENTION_DAYS = 62
 OBSERVATION_LIMIT = 200
 

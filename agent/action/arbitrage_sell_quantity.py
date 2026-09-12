@@ -30,14 +30,15 @@ def _integer(value, label, minimum=0):
 
 
 def plan_quantity(inventory, reserve, target=None):
-    """target=None表示本次没有额外计划上限，实际仍受库存、保留量和99999限制。"""
+    """计算计划上限；实际单批还须受当前打开堆叠的MAX读数限制。"""
     _integer(inventory, "库存")
     _integer(reserve, "保留量", -1)
     if target is not None:
         _integer(target, "剩余待售量")
     if reserve == -1:
         return 0
-    return min(max(inventory - reserve, 0), 99999, target if target is not None else 99999)
+    available = max(inventory - reserve, 0)
+    return available if target is None else min(available, target)
 
 
 def parse_quantity(texts, inventory=False):
@@ -165,7 +166,7 @@ class QuantityAdjuster:
         else:
             current = max_selected
         if current != maximum:
-            raise RuntimeError(f"MAX选量{current}与库存推算上限{maximum}不符")
+            raise RuntimeError(f"MAX选量{current}与本批控件上限{maximum}不符")
         if current == target:
             return current
 
@@ -215,16 +216,31 @@ class QuantityAdjuster:
         self.check_running()
         if self.request["reserve"] == -1 or self.request.get("target") == 0:
             return {"status": "skipped", "reason": "无限保留或本次目标为0"}
-        inventory, _ = self.read(full=True)
+        inventory, initial_selected = self.read(full=True)
         target = plan_quantity(inventory, self.request["reserve"], self.request.get("target"))
         if target == 0:
             return {"status": "skipped", "inventory": inventory, "target": 0, "reason": "已达到保留量"}
-        selected = self.adjust(target, min(inventory, 99999))
+        # 拥有量是所有堆叠的总量，MAX只覆盖当前打开的一叠，不假定固定堆叠上限。
+        # 先确认起点为1，避免MAX失效时把上次残留的选量当成当前上限。
+        if initial_selected != 1:
+            self.action("min_node")
+            minimum = self.read()
+            if minimum != 1:
+                raise RuntimeError(f"MIN未回到1: {minimum}")
+        self.action("max_node")
+        maximum = self.read()
+        if not 1 <= maximum <= inventory:
+            raise RuntimeError(f"MAX选量{maximum}不在库存允许范围1～{inventory}内")
+        if maximum == 1 and inventory > 1:
+            raise RuntimeError("MAX后仍选中1个，无法确认当前堆叠上限")
+        target = min(target, maximum)
+        selected = self.adjust(target, maximum, max_selected=maximum)
         final_inventory, final_selected = self.read(full=True)
         if final_inventory != inventory or final_selected != target or selected != target:
             raise RuntimeError("最终库存或待售数量改变，取消本批")
         return {"status": "ready", "inventory": inventory, "selected": final_selected,
-                "target": target, "reserve": self.request["reserve"], "adjustments": self.adjustments}
+                "target": target, "reserve": self.request["reserve"], "maximum": maximum,
+                "adjustments": self.adjustments}
 
 
 class SaleQuantityAdjuster(QuantityAdjuster):
@@ -308,7 +324,8 @@ class ArbitrageSellQuantity(CustomAction):
                     check_scope(context, batch)
                     batch.arm(result)
                 mfaalog.info(f"[SellQuantity] [{request['item_name']}] 库存{result['inventory']}，"
-                             f"保留{result['reserve']}，本批选量{result['selected']}，"
+                             f"保留{result['reserve']}，当前堆叠MAX{result['maximum']}，"
+                             f"本批选量{result['selected']}，"
                              f"实际报价{result['quoted_total']}已核对")
                 return True
             mfaalog.info(f"[SellQuantity] 跳过本批: {result['reason']}")
