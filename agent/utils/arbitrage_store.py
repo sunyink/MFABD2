@@ -10,6 +10,7 @@ from .persistent_store import PersistentStore, SharedStore
 
 
 SCHEMA_VERSION = 2
+MARKET_PARSER_VERSION = 2
 MARKET_RETENTION_DAYS = 62
 OBSERVATION_LIMIT = 200
 
@@ -69,6 +70,10 @@ def _normalized_market_items(items: list[dict]) -> list[dict]:
         "cart_score",
         "cart_conflict",
         "alt_cartridge",
+        "current_cartridge",
+        "current_cartridge_raw",
+        "monthly_cartridge",
+        "cartridge_read_basis",
     )
     for item in items:
         if not isinstance(item, dict):
@@ -88,12 +93,13 @@ def _normalized_market_items(items: list[dict]) -> list[dict]:
 
 
 def get_market_snapshot(day: str | None = None) -> dict | None:
-    """读取当天完整的共享行情快照；不完整观察不能命中缓存。"""
+    """读取当天完整且由当前解析器生成的共享行情；旧版上下行择优缓存需重扫。"""
     with _LOCK:
         data = SharedStore.load()
         days = _dict_child(_dict_child(_root(data), "market"), "days")
         snapshot = days.get(day or market_day())
-        if not isinstance(snapshot, dict) or not snapshot.get("complete"):
+        if (not isinstance(snapshot, dict) or not snapshot.get("complete")
+                or snapshot.get("parser_version") != MARKET_PARSER_VERSION):
             return None
         return copy.deepcopy(snapshot)
 
@@ -102,6 +108,7 @@ def save_market_snapshot(scan: dict, day: str | None = None) -> bool:
     """保存所有物品视图里的当天行情；完整缓存不会被失败重扫覆盖。"""
     snapshot = {
         "day": day or market_day(),
+        "parser_version": MARKET_PARSER_VERSION,
         "observed_at": scan.get("observed_at") or utc_now(),
         "scope": "all_sellable_items",
         "complete": bool(scan.get("complete")),

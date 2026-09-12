@@ -1,5 +1,6 @@
 import json
 import re
+import unicodedata
 from datetime import datetime, timezone
 from pathlib import Path
 from maa.custom_action import CustomAction
@@ -44,7 +45,7 @@ _SELL_QUANTITY = "Arbitrage_Sell_Item_Quantity"
 # ==========================================
 # 溢价率取两三位数+%:排除OCR把装饰符读成"4"/"A"的噪声,并吃'18120%'粘连(取靠%的三位)
 RE_PCT = re.compile(r'(\d{2,3})\s*%')
-RE_MONEY = re.compile(r'^\s*(\d[\d,.]*)\s*$')
+RE_MONEY = re.compile(r'(?:[0-9]+|[0-9]{1,3}(?P<sep>[,.])[0-9]{3}(?:(?P=sep)[0-9]{3})*)')
 SUBROW_TOL = 14      # 同子行 y 容差(子行间距约30px,商品行距约73px)
 SCORE_MIN = 0.6      # 卡带选中组组分低于此=低置信,打WRN(实录错读曾得0.51,正确读数更高,#B)
 
@@ -58,7 +59,7 @@ SCORE_MIN = 0.6      # 卡带选中组组分低于此=低置信,打WRN(实录错
 def _sell_item_override(context: Context, item_name: str) -> dict:
     """每次派发同时更新OCR和模板；无模板时父Or只走OCR，不沿用上一件的图。"""
     result = {
-        _SELL_ITEM_OCR: {"expected": item_name},
+        _SELL_ITEM_OCR: {"expected": "^" + re.escape(item_name) + "$"},
         _SELL_ITEM_LIST: {"any_of": [_SELL_ITEM_OCR]},
     }
     try:
@@ -123,31 +124,27 @@ def _cart_expected(raw: str) -> str:
     return body + r'(?<!\d)' + m.group(1) + r'(?!\d)'
 
 
-# 卡带上下两子行交叉核对(#B,2026-07-24)：满价商品「当前档」与「每月最高档」是同一柜台,卡带名
-# 理应同串。两子行各拼一组(类型+号两个det),组分=组内最小det置信(短板:类型和号都得对才能进对
-# 柜台),取组分高的一组整串去匹配菜单。卡带只决定「去哪卖」,读错最坏是进错柜台、首页找不到物品名
-# →当没卖掉(现有金币验证兜底WRN),绝不误卖,故不做类型闭集纠错/错字重映射(错字是开放集收不过来,
-# 收益仅省一次空跑,不划算)。
+# 当前和月度卡带按位置分别读取。金额因取整相等不代表两行是同一个柜台。
 def _cart_group(dets) -> tuple:
-    """一子行的卡带 det 组 → (整串, 组分)。串按 cx 序拼接+清洗;组分取组内最小 det 置信。空组→("",0.0)。"""
-    dets = sorted(dets, key=lambda t: t["cx"])
+    """区域内先按行、再按横向位置拼接，支持类型和编号换行。"""
+    dets = sorted(dets, key=lambda t: t["cy"])
     if not dets:
         return "", 0.0
-    raw = "".join(t["text"] for t in dets)
+    lines = []
+    for det in dets:
+        if lines and abs(det["cy"] - lines[-1][0]["cy"]) < min(det["h"], lines[-1][0]["h"]) / 2:
+            lines[-1].append(det)
+        else:
+            lines.append([det])
+    raw = "".join(t["text"] for line in lines for t in sorted(line, key=lambda t: t["cx"]))
     text = re.sub(r'[^\w一-龥]', '', raw)
     return text, min(t["score"] for t in dets)
 
 
 # ==========================================
-# 尾号救援(2026-07-25)：DBNet 对孤立细「1」召回不稳——同页尾号里多位数(11/10/2)稳检、单个细「1」
-# 漏检,换 4mb~60mb 多个 det 均无解:坏的是 det,rec 本身能读。故某子行拼组后无尾号时,以类型 det 框为
-# 锚,其正下方 only_rec 跳过 det 直接把号读回。节点靠 override 内联,不占 JSON(同 RDDraw 回显)。
-#
-# roi 宽窄互补(21:33 实测复盘)：值恒右对齐于类型右缘,但噪声随 crop 边界而变——【宽 roi】给 rec 足
-# 够上下文、多数行读对,但有的行被左侧整排类型字底带偏(→00/=—/e 前缀,如实录 0021/e21/=—1);【窄
-# roi】只圈右侧值带、躲开左侧字底,但「1」正处「帶」正下方,窄了反被「帶」右下钩带偏(→」)。二者恰
-# 好互补(同帧宽崩的行窄能读对、反之亦然)。故每行按【宽+窄】各读一次,取「置信最高且号合理(1~99 无
-# 前导0)」的一版——对 crop 边界做小集成。全不合理/全低分则保持无号,交上层按「缺号可疑」跳过柜台。
+# 尾号救援：缺号或编号换行时，在当前区域内改变裁剪边界，only_rec跳过检测直接读编号。
+# ROI沿用类型框右对齐的宽/窄及纵向偏移配置，限定在当前区域并去重。
+# 至少两个不同裁剪读到相同编号才接受；9/19等分歧不按置信度选胜者。
 # ==========================================
 # 扫描翻页的硬上界。业务可用节点的 custom_action_param 传 max_scan_pages 覆盖,
 # 但不允许无限翻 —— 见 run() 里三层终止条件的说明。
@@ -217,14 +214,21 @@ def _tail_num(s: str) -> str:
 
 
 def _money_token_value(text: str) -> int | None:
-    """价目表金额 OCR → 整数；兼容金额与百分比粘连。"""
+    """价目表整数金额：允许边缘图标杂字，不合并多个数字段或猜测残缺数字。"""
+    text = unicodedata.normalize("NFKC", text).strip()
     pct = RE_PCT.search(text)
     if pct:
+        # 兼容4.416120%之类粘连；百分比后的另一个数字不能悄悄丢弃。
+        if re.search(r"[0-9%]", text[pct.end():]):
+            return None
         text = text[:pct.start()]
-    match = RE_MONEY.fullmatch(text)
-    if not match:
+    # 金币图标可能被识别成•、字母等。仅清理一个完整数字段两侧的杂字，
+    # 保留逗点/符号的语法意义：-7、7/8、17 20、1O0均不能抽数字后拼接。
+    edge = r"[^0-9.,%/+\-−–—]*"
+    match = re.fullmatch(edge + r"([0-9]+(?:[,.][0-9]+)*)" + edge, text)
+    if not match or not RE_MONEY.fullmatch(match[1]):
         return None
-    value = int(re.sub(r"[,.]", "", match.group(1)))
+    value = int(re.sub(r"[,.]", "", match[1]))
     return value if value > 0 else None
 
 
@@ -259,14 +263,21 @@ def _rescue_rois(type_dets: list, cfg: dict) -> list:
     return rois
 
 
-def _rescue_tail_num(context, screenshot, type_dets: list, cfg: dict) -> tuple:
-    """多候选 roi 各 only_rec,收合理号(1~99无前导0);先按号串投票取多数(真号在多档复现、杂读难复现),
-    同票再以最高 score 破平 → (号串, 该号最高 score)。全不中或最优 score<min_score → ("",0.0)。"""
+def _rescue_tail_num(context, screenshot, type_dets: list, cfg: dict, bounds) -> tuple:
+    """不同裁剪读取编号；当前区域内至少两次一致且没有高置信度分歧才接受。"""
     if not type_dets:
         return "", 0.0
     votes = {}   # num -> [票数, 最高 score]
+    seen_rois = set()
     for roi in _rescue_rois(type_dets, cfg):
         roi = [int(v) for v in roi]
+        left, top, right, bottom = bounds
+        x1, y1 = max(roi[0], left), max(roi[1], top)
+        x2, y2 = min(roi[0] + roi[2], right), min(roi[1] + roi[3], bottom)
+        roi = [int(x1), int(y1), int(x2 - x1), int(y2 - y1)]
+        if roi[2] <= 0 or roi[3] <= 0 or tuple(roi) in seen_rois:
+            continue
+        seen_rois.add(tuple(roi))
         try:
             reco = context.run_recognition(
                 _RESCUE_NODE, screenshot,
@@ -281,37 +292,77 @@ def _rescue_tail_num(context, screenshot, type_dets: list, cfg: dict) -> tuple:
             continue
         top = max(cand, key=lambda r: getattr(r, "score", 0.0))
         sc = getattr(top, "score", 0.0)
-        num = re.sub(r'\D', '', getattr(top, "text", "") or "")
+        num = re.sub(r'\s', '', unicodedata.normalize("NFKC", getattr(top, "text", "") or ""))
         if not re.fullmatch(r'[1-9]\d?', num):   # 只收合理号,挡 0021/」/=— 噪声
+            continue
+        if sc < cfg["min_score"]:
             continue
         v = votes.setdefault(num, [0, 0.0])
         v[0] += 1
         v[1] = max(v[1], sc)
     if not votes:
         return "", 0.0
-    best_num = max(votes, key=lambda n: (votes[n][0], votes[n][1]))   # 票数优先,同票比 score
+    if len(votes) != 1 or next(iter(votes.values()))[0] < 2:
+        # 不同裁剪仍在9/19之间分歧时，不用最高分猜是否漏了1。
+        return "", 0.0
+    best_num = next(iter(votes))
     best_sc = votes[best_num][1]
     if best_sc < cfg["min_score"]:
         return "", 0.0
     return best_num, best_sc
 
 
-def _cart_group_rescued(dets, context, screenshot, cfg: dict, label="") -> tuple:
-    """_cart_group 外加尾号救援:拼组后若无尾号,以类型 det 为锚 only_rec 补号(号计入组分,取短板)。
-    置于置信率对比之前,故上/下两子行各自先补号再比对(#B 交叉核对拿到的是补齐后的整串)。
-    label=行标识(商品名·子行),仅用于日志人工核对定位。"""
-    dets = list(dets)
+def _cart_regions(carts, current_y, monthly_y, next_y, column_roi):
+    """金额/倍率定位上下行；月度类型框的上边缘为当前换行编号留足空间。"""
+    if monthly_y is None or not current_y < monthly_y < next_y:
+        return [], [], None
+    x, y, w, h = column_roi
+    gap = monthly_y - current_y
+    upper = max(y, current_y - gap / 2)
+    lower = min(y + h, next_y - (next_y - monthly_y) / 2)
+    monthly_types = [d for d in carts if re.search(r'[^\W\d_]', d['text'])
+                     and abs(d['cy'] - monthly_y) <= SUBROW_TOL]
+    split = min(d['y'] for d in monthly_types) if monthly_types else monthly_y - gap / 4
+    if not upper < split < lower:
+        return [], [], None
+    current, monthly = [], []
+    for det in carts:
+        overlaps = [max(0, min(det['y'] + det['h'], end) - max(det['y'], start)) / max(det['h'], 1)
+                    for start, end in [(upper, split), (split, lower)]]
+        if overlaps[0] >= 0.8:
+            current.append(det)
+        elif overlaps[1] >= 0.8:
+            monthly.append(det)
+    return current, monthly, (x, upper, x + w, split)
+
+
+def _current_cart(dets, context, screenshot, cfg, bounds, label):
+    """换行编号即使已读到合法尾号，也复查可能丢失的十位；只使用当前区域。"""
     text, score = _cart_group(dets)
-    if text and not _tail_num(text):
-        type_dets = [d for d in dets
-                     if not re.sub(r'[^\w一-龥]', '', d["text"]).isdigit()]
-        num, nsc = _rescue_tail_num(context, screenshot, type_dets, cfg)
-        if num:
-            text, score = text + num, min(score, nsc)
-            mfaalog.info(f"[Arbitrage]   ↳ 尾号救援成功: {label} → {text}(号置信{nsc:.2f})")
-        else:
-            mfaalog.warning(f"[Arbitrage]   ⚠️ 尾号救援失败: {label},[{text}] 仍缺号,将按缺号可疑处置")
-    return text, score
+    if not text or bounds is None:
+        return "", 0.0, "unreadable_region"
+    typed = [d for d in dets if re.search(r'[^\W\d_]', d['text'])]
+    numbers = [d for d in dets if re.fullmatch(r'\s*[0-9]+\s*', d['text'])]
+    if not typed:
+        return "", 0.0, "missing_type"
+    original = _tail_num(text)
+    wrapped = any(n['cy'] > max(t['cy'] for t in typed) + min(t['h'] for t in typed) / 2
+                  for n in numbers)
+    wrapped = wrapped or any(t['h'] > (bounds[3] - bounds[1]) * 0.65 for t in typed)
+    if original and re.fullmatch(r'[1-9][0-9]?', original) and not wrapped and score >= cfg['min_score']:
+        return text, score, "current_row"
+    # 去掉已检测出的编号，避免原读9与补读19拼成919。
+    type_only = [{**d, 'text': re.sub(r'[0-9]+\s*$', '', d['text'])} for d in typed]
+    body, body_score = _cart_group(type_only)
+    if wrapped and not numbers:
+        return body, body_score, "multiline_box_needs_split"
+    number, number_score = _rescue_tail_num(context, screenshot, type_only, cfg, bounds)
+    if number and (not original or original == number or
+                   len(original) == 1 and len(number) == 2 and number.endswith(original)):
+        mfaalog.info(f"[Arbitrage] 当前编号复核: {label} {original or '缺号'}→{number}")
+        return body + number, min(body_score, number_score), "current_number_rechecked"
+    mfaalog.warning(f"[Arbitrage] 当前编号未确认: {label}，原读{original or '缺号'}，不借用月度编号")
+    return body, body_score, "unconfirmed_current_number"
 
 
 def _action_params(argv) -> dict:
@@ -849,6 +900,7 @@ class ArbitrageSellController(CustomAction):
         amounts = _col(_COL_AMOUNT)
         prices = _col(_COL_PRICE)
         carts = _col(_COL_CART)
+        cart_roi = list(context.get_node_object(_COL_CART).recognition.param.roi)
 
         # 名锚:名列内非数字文本 = 各商品行(与上子行同高),按 y 升序、近距去重
         anchors = []
@@ -908,6 +960,11 @@ class ArbitrageSellController(CustomAction):
                 if ny + SUBROW_TOL < t["cy"] < next_ny and RE_PCT.search(t["text"])
             )
             mon_y = below_ys[0] if below_ys else None
+            if mon_y is None:
+                # 倍率漏读时仍可由金额行定位；不借用月度卡带自身来猜当前编号。
+                money_ys = sorted(t["cy"] for t in amounts if ny + SUBROW_TOL < t["cy"] < next_ny
+                                  and _money_token_value(t["text"]) is not None)
+                mon_y = money_ys[0] if money_ys else None
 
             # 金额相等才是最终满价判据。低价物品会因向下取整在 117%/118% 提前撞到峰值金额；
             # 只比溢价率会漏卖。金额列有一侧读不到时才退回旧的溢价率交集判据。
@@ -927,36 +984,15 @@ class ArbitrageSellController(CustomAction):
                 top_money, bot_money, top_pct, bot_pct
             )
 
-            # 卡带:上子行(当前)组;满价时下子行(每月)是同柜台、理应同串(#B),两组各取组分并取
-            # 组分高的一组整串。非满价不卖,仅取上子行(每月档与当前不同,交叉无意义)。
-            up_str, up_sc = _cart_group_rescued(
-                (t for t in carts if abs(t["cy"] - ny) <= SUBROW_TOL),
-                context, screenshot, rescue_cfg, f"{row['name']}·当前")
-            best_str, best_sc = up_str, up_sc
-            if item_data["is_max_price"] and mon_y is not None:
-                lo_str, lo_sc = _cart_group_rescued(
-                    (t for t in carts if abs(t["cy"] - mon_y) <= SUBROW_TOL),
-                    context, screenshot, rescue_cfg, f"{row['name']}·每月")
-                if lo_str:                                    # 每月组也读到才交叉
-                    # 号是去柜台的必需位:带号组优先(缺号组即便类型分更高也不能选,否则会像 07-25
-                    # 实录——一子行救回号、另一子行没救回却因类型分高被选中→整项缺号被误跳)。
-                    up_has, lo_has = bool(_tail_num(up_str)), bool(_tail_num(lo_str))
-                    if lo_has and not up_has:
-                        best_str, best_sc = lo_str, lo_sc
-                    elif up_has == lo_has and lo_sc > up_sc:  # 两组同态(都带号/都缺号)→ 比组分
-                        best_str, best_sc = lo_str, lo_sc
-                    # 分歧判定同样走匹配式(2026-08-03):繁简互吃的两串生成同一条正则、指向同一
-                    # 柜台,不算分歧——否则会对无害的 帶/带 差异打误导性告警并触发回退空跑。
-                    item_data["cart_conflict"] = (
-                        _cart_expected(up_str) != _cart_expected(lo_str)
-                    )
-                    if item_data["cart_conflict"]:
-                        # 分歧回退候选(2026-08-03):两子行各自笃定却互斥时(实录组分双1.00,当前行误读
-                        # 17/每月行12,首选进错柜台白跑),把未被选中的一串也带走,执行层金币验证失败后
-                        # 可改试一次——把"抛硬币"变成"两个都试",真相仍由金币验证承担。
-                        item_data["alt_cartridge"] = lo_str if best_str == up_str else up_str
-            item_data["target_cartridge"] = best_str
-            item_data["cart_score"] = best_sc
+            day_dets, month_dets, bounds = _cart_regions(carts, ny, mon_y, next_ny, cart_roi)
+            day_cart, day_score, basis = _current_cart(
+                day_dets, context, screenshot, rescue_cfg, bounds, row['name'])
+            item_data["target_cartridge"] = day_cart
+            item_data["current_cartridge"] = day_cart
+            item_data["current_cartridge_raw"] = _cart_group(day_dets)[0]
+            item_data["monthly_cartridge"] = _cart_group(month_dets)[0]
+            item_data["cartridge_read_basis"] = basis
+            item_data["cart_score"] = day_score
 
             results.append(item_data)
 

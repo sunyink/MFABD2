@@ -9,8 +9,8 @@ from maa.agent.agent_server import AgentServer
 from maa.custom_action import CustomAction
 
 from .arbitrage_sell_quantity import QuantityAdjuster, parse_quantity, _clean, _integer, _COUNT
+from .gold_verify import clear_verdict, get_baseline
 from utils import mfaalog
-from utils.name_i18n import canon
 from utils.arbitrage_quote import parse_money, parse_quote as parse_cost
 
 
@@ -69,35 +69,8 @@ class BuyQuantityAdjuster(QuantityAdjuster):
             raise ValueError(f"金额行数量{quantity}与独立选量{selected}不一致")
         return owned, available, gold, cost
 
-    def observe(self):
-        """购后只复核实际收据字段；选量、价格或按钮变灰不影响库存差额读取。"""
-        previous = None
-        reason = "购买后库存、店余或金币未稳定"
-        for attempt in range(self.read_attempts):
-            if attempt:
-                time.sleep(self.read_interval)
-            image = self.capture()
-            try:
-                if not self.recognize("menu_node", image).hit:
-                    raise ValueError("购买子页未打开")
-                names = {canon(_clean(text)) for text in self.texts("name_node", image) if text}
-                if names != {self.name}:
-                    raise ValueError(f"购买名称不符: 期望{self.name}，实际{names}")
-                value = (parse_quantity(self.texts("inventory_node", image), inventory=True),
-                         parse_available(self.texts("available_node", image)),
-                         parse_money(self.texts("gold_node", image)))
-                if value == previous:
-                    return {"status": "observed", "owned": value[0], "available": value[1], "gold": value[2]}
-                previous = value
-            except ValueError as exc:
-                reason = str(exc)
-                previous = None
-        raise RuntimeError(reason)
-
     def prepare(self):
         self.check_running()
-        if self.request.get("verify_only"):
-            return self.observe()
         initial, _ = self.read(full=True)
         owned, available, gold, _ = initial
         if "expected_owned" in self.request and owned != self.request["expected_owned"]:
@@ -159,7 +132,7 @@ class ArbitrageBuyQuantity(CustomAction):
 
 def confirm_purchase(context, request, config, ready):
     """Retry only an unchanged, fully checked purchase page; never replay a receipt."""
-    if request.get("dry_run") or request.get("verify_only") or ready.get("status") != "ready":
+    if request.get("dry_run") or ready.get("status") != "ready":
         raise ValueError("本批没有可执行的真实购买选量")
     adjuster = BuyQuantityAdjuster(context, config, request)
     expected = (ready["owned"], ready["available"], ready["gold"], ready["quoted_total"])
@@ -176,6 +149,14 @@ def confirm_purchase(context, request, config, ready):
         if state != expected or selected != ready["selected"]:
             mfaalog.info("[PreciseBuy] 购买页面数据已变化，停止点击，交给成交回读核对")
             return
+        if attempt == 0:
+            # 单节点任务提供Custom回调所需的识别上下文；局部切断后继，不进入商品点击链。
+            snapshot = context.clone().run_task("Arbitrage_Sell_Gold_Snapshot", {
+                "Arbitrage_Sell_Gold_Snapshot": {"recognition": "DirectHit", "action": "Custom",
+                    "custom_action": "GoldSnapshot", "custom_action_param": {"node": config["gold_node"]},
+                    "next": [], "on_error": []}})
+            if snapshot is None or not snapshot.status.succeeded or get_baseline() != ready["gold"]:
+                raise RuntimeError("购买金币基准与本批读数不一致，未点击")
         image = adjuster.capture()
         if (adjuster.state(image) != expected
                 or parse_quantity(adjuster.texts("selected_node", image)) != ready["selected"]):
@@ -184,6 +165,7 @@ def confirm_purchase(context, request, config, ready):
         if button is None or not button.hit:
             return
         ready["confirmation_attempts"] = attempt + 1
+        ready["purchase_attempted"] = True
         clicked = context.run_action("Agt_BuyConfirm_Click", box=button.box)
         mfaalog.info(f"[PreciseBuy] 购买确认点击 {attempt + 1}/3，等待2秒复检")
         time.sleep(2)
@@ -195,6 +177,7 @@ def confirm_purchase(context, request, config, ready):
 @AgentServer.custom_action("ArbitrageBuyConfirm")
 class ArbitrageBuyConfirm(CustomAction):
     def run(self, context, argv):
+        ready = None
         try:
             raw = argv.custom_action_param
             request = raw if isinstance(raw, dict) else json.loads(str(raw))
@@ -204,7 +187,15 @@ class ArbitrageBuyConfirm(CustomAction):
             confirm_purchase(context, request, context.get_node_object(_QUANTITY).attach, ready)
             return True
         except Exception as exc:
-            mfaalog.warning(f"[PreciseBuy] 购买确认结束: {exc}；由主控回读成交，不继续点击")
+            if isinstance(ready, dict) and ready.get("purchase_attempted"):
+                # 点击后窗口可能已经关闭；复读失败只结束重试，成交由金币核对决定。
+                ready["confirmation_note"] = str(exc)
+                mfaalog.info("[PreciseBuy] 已点击购买，结束重试并转金币核对")
+                mfaalog.debug(f"[PreciseBuy] 购后重试结束原因：{exc}")
+            else:
+                if isinstance(ready, dict):
+                    ready["reason"] = str(exc)
+                mfaalog.warning(f"[PreciseBuy] 本批未点击购买：{exc}")
             return False
 
 
@@ -219,7 +210,7 @@ def buy_overrides(context, request):
                      if request.get("shop_name") else _cart_expected(request["cartridge"]))
     patch.update({
         "Arbitrage_Sell_HUB": {"anchor": {"Sell_Bypass": ""}},
-        "Arbitrage_Sell_Type_Ocr": {"expected": ["购买"], "roi": [66, 80, 140, 78]},
+        "Arbitrage_Sell_Type_Ocr": {"any_of": ["Arbitrage_Buy_Button_Chg"]},
         "Arbitrage_Sell_Type_Clr": {"roi": [118, 94, 36, 59]},
         "Arbitrage_Sell_PackShopSwich": {"expected": shop_expected},
         "Arbitrage_Sell_PackShopSwich_Clr": {"next": [
@@ -232,7 +223,7 @@ def buy_overrides(context, request):
         "Arbitrage_Sell_Gold_Snapshot": {"action": "DoNothing"},
         "Arbitrage_Sell_End": {"action": "DoNothing", "focus": "Arb.补买：本批返回"},
         _QUANTITY: {"custom_action": "ArbitrageBuyQuantity", "custom_action_param": request,
-                    "attach": config, "next": [_EXIT] if request.get("dry_run") or request.get("verify_only")
+                    "attach": config, "next": [_EXIT] if request.get("dry_run")
                     else ["Arbitrage_Sell_Item_Selling"]},
     })
     for node in ("Arbitrage_ItemList_Swip", "Arbitrage_Sell_Item_ListTraverse_End",
@@ -248,33 +239,79 @@ def run_batch(context, request):
     for node in ("Arbitrage_Sell_Item_Cancel", "Arbitrage_Sell_Item_Exit_ResetSwip",
                  "Arbitrage_Sell_Item_ListTraverse"):
         if not local.clear_hit_count(node):
-            raise RuntimeError(f"无法清除本批计数: {node}")
+            return {"status": "skipped", "return_ok": False, "reason": f"无法清除本批计数: {node}"}, False
+    error = None
+    detail = None
     try:
         detail = local.run_task("Arbitrage_Sell_HUB", buy_overrides(local, batch))
+    except Exception as exc:
+        error = str(exc)
     finally:
         result = take_buy_result(batch["request_id"])
+    attempted = bool(result and result.get("purchase_attempted"))
     if detail is None:
-        raise RuntimeError("补买流程未能启动")
+        return {**(result or {"status": "unknown"}), "return_ok": False,
+                "reason": error or "补买流程未能启动"}, attempted
     names = {node.name for node in detail.nodes}
     if "Arbitrage_Sell_Item_Exit_Failed" in names:
-        raise RuntimeError("补买子页未能复位")
+        return {**(result or {"status": "unknown"}), "return_ok": False,
+                "reason": "补买子页未能复位"}, attempted
     if not detail.status.succeeded or "Arbitrage_Sell_End" not in names:
-        raise RuntimeError("补买流程未确认正常退出")
+        return {**(result or {"status": "unknown"}), "return_ok": False,
+                "reason": "补买流程未确认正常退出"}, attempted
     if "Arbitrage_PreciseBuy_NotFound" in names:
         return {"status": "not_found"}, False
-    attempted = any(node.name == "Arbitrage_Sell_Item_Selling" and node.action is not None for node in detail.nodes)
     if result is None and not attempted and "Arbitrage_Sell_Item_Click" in names:
         if "Arbitrage_Sell_Item_SellMenu" not in names:
-            # 仅凭不能打开不能声称售罄；购买后走到这里仍由execute_buy判为未知收据。
+            # 未点击购买且页面已恢复，不能打开只表示跳过，不声称售罄。
             image = local.tasker.controller.post_screencap().wait().get()
             if image is None or not image.size:
-                raise RuntimeError("补买退出截图失败")
+                return {"status": "skipped", "return_ok": False, "reason": "补买退出截图失败"}, False
             visible = local.run_recognition("Arbitrage_Replenish_ShopReady", image)
             if visible is None or not visible.hit:
-                raise RuntimeError("补买未打开子页，且未确认返回商店列表")
+                return {"status": "skipped", "return_ok": False,
+                        "reason": "补买未打开子页，且未确认返回商店列表"}, False
             mfaalog.warning(f"[PreciseBuy] [{request['item_name']}] 名称存在但购买子页未打开，本批跳过")
             return {"status": "skipped", "reason": "item_menu_unavailable"}, False
     return result or {"status": "unknown"}, attempted
+
+
+def verify_purchase(context, request, ready):
+    """两帧稳定金币与本批报价精确相符才记账，不重开可能已售罄的商品。"""
+    local = context.clone()
+    config = dict(context.get_node_object(_QUANTITY).attach)
+    config["gold_node"] = "Agt_BuyQuantity_Gold_Ocr"
+    if not local.override_pipeline({_CONFIRM: {"recognition": "Custom", "custom_recognition": "GoldVerdict",
+            "custom_recognition_param": {"node": config["gold_node"], "direction": "decrease",
+                                         "expected_delta": -ready["quoted_total"]}}}):
+        raise RuntimeError("购买金币核对配置失败")
+    adjuster = BuyQuantityAdjuster(local, config, request)
+    previous = None
+    reason = "购后金币读数未稳定"
+    for attempt in range(adjuster.read_attempts):
+        if attempt:
+            time.sleep(adjuster.read_interval)
+        image = adjuster.capture()
+        try:
+            after = parse_money(adjuster.texts("gold_node", image))
+            verdict = local.run_recognition(_CONFIRM, image)
+            matched = bool(verdict is not None and verdict.hit)
+            value = (after, matched)
+            if value == previous:
+                spent = ready["gold"] - after
+                if matched and spent == ready["quoted_total"] and get_baseline() == ready["gold"]:
+                    amount = ready["selected"]
+                    return {"status": "confirmed" if amount == request["target"] else "partial",
+                            "actual_quantity": amount, "actual_spent": spent, "gold_after": after,
+                            "owned_after": ready["owned"] + amount,
+                            "remaining_stock": ready["available"] - amount,
+                            "inventory_source": "gold_confirmed", "remaining_stock_source": "calculated"}
+                reason = f"金币差额未确认：减少{spent}，本批报价{ready['quoted_total']}"
+            previous = value
+        except ValueError as exc:
+            previous = None
+            reason = f"购后金币读不清：{exc}"
+    return {"status": "unknown", "actual_quantity": None, "actual_spent": None, "reason": reason}
 
 
 def execute_buy(context, request):
@@ -294,29 +331,26 @@ def execute_buy(context, request):
     dry_run = request.get("dry_run", True)
     if type(dry_run) is not bool:
         raise ValueError("dry_run必须为布尔值")
-    request = {**request, "dry_run": dry_run, "verify_only": False}
-    ready, attempted = run_batch(context, request)
-    if dry_run:
-        if attempted:
-            raise RuntimeError("只调数模式意外进入购买确认节点，结果未知")
-        return {**ready, "status": "prepared" if ready["status"] == "ready" else ready["status"],
-                "actual_quantity": 0, "actual_spent": 0}
-    if ready["status"] != "ready" or not attempted:
-        unknown = attempted or ready["status"] in ("ready", "unknown")
-        return {**ready, "status": "unknown" if unknown else ready["status"],
-                "actual_quantity": None if unknown else 0, "actual_spent": None if unknown else 0}
-    # 再次打开同一物品只读库存；无论结果如何，都不再次提交购买。
-    after, _ = run_batch(context, {**request, "verify_only": True, "dry_run": True})
-    result = {**ready, "status": "unknown", "actual_quantity": None, "actual_spent": None}
-    if after["status"] == "observed":
-        amount = after["owned"] - ready["owned"]
-        spent = ready["gold"] - after["gold"]
-        if (0 < amount <= ready["selected"] and ready["available"] - after["available"] == amount
-                and spent == amount * ready["unit_price"]):
-            result.update(status="confirmed" if amount == request["target"] else "partial",
-                          actual_quantity=amount, actual_spent=spent, remaining_stock=after["available"],
-                          owned_after=after["owned"], gold_after=after["gold"])
-    return result
+    request = {**request, "dry_run": dry_run}
+    clear_verdict()
+    try:
+        ready, attempted = run_batch(context, request)
+        ready["purchase_attempted"] = attempted
+        if attempted and not dry_run and ready["status"] == "ready":
+            try:
+                return {**ready, **verify_purchase(context, request, ready)}
+            except Exception as exc:
+                return {**ready, "status": "unknown", "actual_quantity": None, "actual_spent": None,
+                        "reason": str(exc)}
+        if attempted or ready["status"] == "unknown":
+            return {**ready, "status": "unknown", "actual_quantity": None, "actual_spent": None}
+        status = "prepared" if dry_run and ready["status"] == "ready" else ready["status"]
+        if status == "ready":
+            status = "skipped"
+            ready.setdefault("reason", "购买确认未点击")
+        return {**ready, "status": status, "actual_quantity": 0, "actual_spent": 0}
+    finally:
+        clear_verdict()
 
 
 @AgentServer.custom_action("ArbitrageBuyController")

@@ -1,10 +1,9 @@
-"""按实际补买与当前库存筛选今日待售料理，局部复用原MAX制作链。"""
+"""按采购前确定的料理名单尝试补做，缺料沿原链返回并继续下一种。"""
 
 from .cooking_stock import get_cooking_stock
 from utils.account_sync import sync_from_context
 from utils import arbitrage_store as store, mfaalog
 from utils.arbitrage_recipe_catalog import discover_recipe_entries, build_replenish_selection
-from utils.arbitrage_replenish_plan import _market_prices
 from utils.name_i18n import canon
 
 
@@ -15,45 +14,17 @@ _MENU = "Arbitrage_Cooking_Menu_Reset_SubOut"
 _UNLIMITED = 2 ** 32 - 1
 
 
-def select_cooking_targets(entries, purchases, quantities, market, data, *, day, sell_names):
-    """不分配预测份数；共享材料最终按原队列MAX和短缺分支裁决。"""
+def select_cooking_targets(entries, planned_names):
+    """只检查预定料理当前仍可执行，不按购买结果或记账库存重新筛选。"""
+    if not isinstance(planned_names, (list, tuple)) or any(
+            not isinstance(name, str) or not name.strip() for name in planned_names):
+        raise ValueError("计划补做名单必须为料理名称列表")
+    lookup = {entry.name: entry for entry in entries}
     result = {"status": "skipped", "targets": [], "skipped": {}}
-    if purchases.get("status") != "completed" or purchases.get("day") != day:
-        return {**result, "reason": "purchases_not_completed_today"}
-    if not isinstance(market, dict) or market.get("day") != day or market.get("complete") is not True:
-        return {**result, "reason": "current_market_incomplete"}
-    bought = {canon(name) for name, amount in purchases.get("purchased", {}).items()
-              if type(amount) is int and amount > 0}
-    if not bought:
-        return {**result, "reason": "nothing_purchased"}
-    if isinstance(sell_names, (str, bytes)):
-        raise ValueError("最终出售清单必须为名称集合")
-    sell_names = {canon(name) for name in sell_names}
-    prices, peaks = _market_prices(market)
-    for entry in entries:
-        name = entry.name
-        recipe = data["recipes"].get(name)
-        reason = None
-        if not entry.enabled or entry.reason:
-            reason = "recipe_disabled_or_unresolved"
-        elif not recipe:
-            reason = "recipe_data_missing"
-        elif name not in sell_names or name not in peaks:
-            reason = "not_today_peak_sale"
-        elif not bought.intersection(recipe["ingredients"]):
-            reason = "not_related_to_actual_purchase"
-        elif any(type(quantities.get(mat)) is not int for mat in recipe["ingredients"]):
-            reason = "inventory_unknown"
-        elif any(quantities[mat] < count for mat, count in recipe["ingredients"].items()):
-            reason = "insufficient_actual_inventory"
-        elif any(mat not in prices for mat in recipe["ingredients"]):
-            reason = "material_peak_missing"
-        elif prices[name] <= sum(prices[mat] * count for mat, count in recipe["ingredients"].items()) + (
-            recipe["level"] * data["tonic_unit_price"]
-        ):
-            reason = "cooking_not_profitable"
-        if reason:
-            result["skipped"][name or entry.entry] = reason
+    for name in dict.fromkeys(canon(name) for name in planned_names):
+        entry = lookup.get(name)
+        if entry is None or not entry.enabled or entry.reason:
+            result["skipped"][name] = "recipe_disabled_or_unresolved"
         else:
             result["targets"].append(name)
     result["status"] = "planned" if result["targets"] else "skipped"
@@ -64,7 +35,7 @@ def _active(node):
     return node.get("enabled", True) and node.get("max_hit", _UNLIMITED) != 0
 
 
-def execute_replenish_cooking(context, purchases, market, data, *, bag_run_id, sell_names, callback_task_id):
+def execute_replenish_cooking(context, planned_names, *, day, bag_run_id, callback_task_id):
     """P5入口。started=True且returned=False时，调用者不得盲目回Hub继续出售。
 
     completed只表示目标队列已遍历且返回料理菜单，不声称已做出指定份数。
@@ -74,22 +45,18 @@ def execute_replenish_cooking(context, purchases, market, data, *, bag_run_id, s
               "selected": [], "observations": []}
     if type(callback_task_id) is not int or callback_task_id <= 0:
         return {**report, "status": "stopped", "reason": "invalid_callback_task_id"}
-    if (not isinstance(purchases, dict) or purchases.get("bag_run_id") != bag_run_id
-            or purchases.get("day") != store.market_day() or purchases.get("status") != "completed"):
-        return {**report, "reason": "purchase_context_mismatch"}
+    if day != store.market_day():
+        return {**report, "reason": "plan_day_changed"}
+    if not planned_names:
+        return report
     if context.tasker.stopping:
         return {**report, "status": "stopped", "reason": "task_stopping"}
     if not sync_from_context(context, where="ArbitrageReplenishCook"):
         return {**report, "status": "stopped", "reason": "account_sync_failed"}
     try:
-        inventory = store.get_replenish_inventory(bag_run_id)["quantities"]
-        for name, amount in purchases.get("purchased", {}).items():
-            if (type(amount) is not int or amount <= 0 or name not in purchases.get("inventory_after", {})
-                    or inventory.get(name) != purchases["inventory_after"][name]):
-                return {**report, "reason": "purchase_inventory_changed"}
+        store.get_replenish_inventory(bag_run_id)
         entries = discover_recipe_entries(context)
-        planned = select_cooking_targets(entries, purchases, inventory, market, data,
-                                         day=store.market_day(), sell_names=sell_names)
+        planned = select_cooking_targets(entries, planned_names)
         report.update(planned)
         selection = build_replenish_selection(entries, planned["targets"])
         if not selection.recipes:

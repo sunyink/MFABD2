@@ -1,6 +1,6 @@
 """仓检后的单次补充阶段：计划、补买、必要补做；最终出售仍由原Hub派发。"""
 
-from collections import OrderedDict
+from collections import Counter, OrderedDict
 from copy import deepcopy
 import json
 
@@ -22,6 +22,35 @@ from utils.arbitrage_replenish_plan import build_replenish_plan
 
 
 _RESULTS = OrderedDict()
+
+
+def _summary(report):
+    purchases = report.get("purchases", {})
+    cooking = report.get("cooking", {})
+    counts = Counter(row["result"].get("status") for row in purchases.get("results", []))
+    skipped = sum(counts[name] for name in ("skipped", "not_found", "rejected", "stale"))
+    status = {"completed": "本轮完成", "partial": "本轮结束", "prepared": "仅调数结束",
+              "skipped": "本轮跳过", "stopped": "本轮停止"}.get(report["status"], "本轮结束")
+    parts = [f"[Replenish] {status}"]
+    if report.get("reason"):
+        parts.append(report["reason"])
+    if purchases.get("results"):
+        parts.append(f"购买成功{counts['confirmed']}笔，部分买入{counts['partial']}笔，跳过{skipped}笔")
+    if purchases.get("pending_requests"):
+        parts.append(f"未执行{len(purchases['pending_requests'])}笔")
+    parts.append(f"已确认支出={purchases.get('confirmed_spend', 0)}金币")
+    if purchases.get("unconfirmed_count"):
+        parts.append(f"另有{purchases['unconfirmed_count']}笔未核对成功，总支出未完全确认")
+    planned = report.get("plan", {}).get("cook_today_candidates", [])
+    if not planned:
+        parts.append("计划无补做" if "plan" in report else "未安排补做")
+    elif cooking.get("started"):
+        parts.append(f"计划补做{len(planned)}项，实际选择{len(cooking.get('selected', []))}项")
+    else:
+        parts.append(f"计划补做{len(planned)}项，本轮未启动")
+    if cooking.get("reason"):
+        parts.append(f"补做说明：{cooking['reason']}")
+    return "；".join(parts)
 
 
 def get_replenish_result(task_id):
@@ -121,6 +150,7 @@ def run_replenishment(context, task_id, config):
                                 budget=ceiling if budget is None else budget, sell_names=sell_names)
     report.update(day=day, bag_run_id=bag_run_id, plan=plan)
     if not plan["requests"]:
+        mfaalog.info("[Replenish] 本轮无需补买")
         return {**report, "reason": "没有符合条件的补买需求"}
     ensure_shop(context)
     available_gold = _gold(context)
@@ -131,18 +161,28 @@ def run_replenishment(context, task_id, config):
                                 budget=available_gold if budget is None else min(budget, available_gold),
                                 sell_names=sell_names)
     report["plan"] = plan
+    planned_cooking = tuple(plan["cook_today_candidates"])
+    if plan["requests"]:
+        mfaalog.info("[Replenish] 本轮补买计划（数量与金额为预计值）：\n" + "\n".join(
+            f"[{row['shop_name']}] {row['item_name']} × {row['target']}，预计{row['budget']}金币"
+            for row in plan["requests"]) + f"\n预计合计{plan['estimated_spend']}金币，本轮预算{plan['budget']}金币；"
+            + "计划补做：" + ("、".join(planned_cooking) or "无"))
+    else:
+        mfaalog.info("[Replenish] 本轮无需补买：当前金币预算下没有可执行采购")
     bought = execute_replenish_purchases(context, plan, bag_run_id=bag_run_id, dry_run=dry_run)
     report["purchases"] = bought
-    if bought["status"] not in ("completed", "prepared", "empty"):
+    if bought["status"] == "expired":
+        return {**report, "status": "skipped", "reason": "日期已刷新，取消余下旧日补买与补做"}
+    if bought["status"] not in ("completed", "partial", "prepared", "empty"):
         return {**report, "status": "stopped", "return_ok": False, "reason": "补买结果未完整确认"}
     if dry_run:
         return {**report, "status": "prepared", "reason": "只调数已结束，未购买或补做"}
-    cooked = execute_replenish_cooking(context, bought, store.get_market_snapshot(day), data,
-                                       bag_run_id=bag_run_id, sell_names=sell_names, callback_task_id=task_id)
+    cooked = execute_replenish_cooking(context, planned_cooking, day=day,
+                                       bag_run_id=bag_run_id, callback_task_id=task_id)
     report["cooking"] = cooked
     if cooked["status"] == "stopped" or (cooked.get("started") and not cooked.get("returned")):
         return {**report, "status": "stopped", "return_ok": False, "reason": "补做收尾未确认"}
-    report["status"] = "partial" if cooked["status"] == "incomplete" else "completed"
+    report["status"] = "partial" if bought["status"] == "partial" or cooked["status"] == "incomplete" else "completed"
     return report
 
 
@@ -160,11 +200,7 @@ class ArbitrageReplenishController(CustomAction):
         _RESULTS.move_to_end(task_id)
         while len(_RESULTS) > 16:
             _RESULTS.popitem(last=False)
-        purchases = report.get("purchases", {})
-        cooking = report.get("cooking", {})
-        text = (f"[Replenish] {report['status']}：{report.get('reason', '本轮完成')}；"
-                f"确认支出={purchases.get('confirmed_spend', 0)}，"
-                f"补做选择={len(cooking.get('selected', []))}项")
+        text = _summary(report)
         (mfaalog.info if report["return_ok"] else mfaalog.warning)(text)
         return report["return_ok"]
 

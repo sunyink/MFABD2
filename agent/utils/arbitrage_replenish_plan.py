@@ -140,7 +140,7 @@ def build_replenish_plan(entries, quantities, market, data, *, day, budget, sell
     quantities必须来自本次有效库存读口。商店无本轮观察时只生成参考报价候选，
     执行层仍需复核价格/余量；max_unit_price锁定本次计算使用的报价，不共享利润
     余量给多个柜台涨价。返回的unallocated_inventory是模型预留余额，不能写回存档。
-    cook_today_candidates也只是预计候选，必须在实际买入后重新筛选。
+    cook_today_candidates是本轮预定补做名单；采购结束按顺序尝试，缺料由制作链跳过。
     """
     date.fromisoformat(day)
     _integer(budget, "补买预算")
