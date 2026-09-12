@@ -1927,7 +1927,6 @@
         "next": [
             "Arbitrage_Favorit_Buy_SubMenu_BuyAction",
             "Arbitrage_Favorit_Buy_GlodConfirm",
-            "Arbitrage_Favorit_Buy_SubMenu",
             "Arbitrage_Favorit_Buy_WRN"
         ],
         "on_error": [
@@ -1946,7 +1945,11 @@
         "next": ["Arbitrage_Buy_Select_End"]
     },
     "Arbitrage_Favorit_Buy_WRN": {
-        "next": ["Arbitrage_Buy_End"],
+        "next": [
+            "Arbitrage_Buy_End",
+            "Arbitrage_Favorit_Buy_SubMenu",
+            "[JumpBack]Arbitrage_Favorit_Buy_Again"
+        ],
         "focus": "[WRN]常规购买不能验证"
     },
     "Arbitrage_ShopOut": {
