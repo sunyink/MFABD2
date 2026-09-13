@@ -4,6 +4,15 @@ import time
 # 核心修改：MFA GUI 监听的是标准输出，且需要特定的前缀
 # 开发者原话："focus或者字符串前面拼接info："
 
+_debug_ui_enabled = False
+
+
+def set_debug_ui_enabled(enabled: bool) -> None:
+    """由任务启动事件更新；日志输出本身不读取客户端配置。"""
+    global _debug_ui_enabled
+    _debug_ui_enabled = enabled is True
+
+
 def _print_to_gui(prefix, msg):
     """
     基础输出函数
@@ -36,9 +45,11 @@ def error(msg):
     _print_to_gui("error:", f"🔴 >>> {msg}")
 
 def debug(msg):
-    """调试日志"""
-    # debug 可能会被 GUI 过滤，如果显示不出来，可以改用 info: [DEBUG]
-    _print_to_gui("debug:", msg)
+    """始终保留调试日志；仅调试模式使用 MFAA 日志台识别的前缀。"""
+    if _debug_ui_enabled:
+        _print_to_gui("debug:", msg)
+    else:
+        print(f"[DEBUG] {msg}", flush=True)
 
 def focus(task_id):
     """
