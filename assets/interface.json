@@ -1839,7 +1839,7 @@
                 {
                     "name": "保留天数",
                     "pipeline_type": "int",
-                    "default": "7",
+                    "default": "14",
                     "verify": "^[0-9]+$",
                     "pattern_msg": "请输入非负整数天数。"
                 }
