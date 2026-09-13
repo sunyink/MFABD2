@@ -106,6 +106,6 @@ class ClearNodeHitCountAction(CustomAction):
                 mfaalog.error(f"[ClearNodeHitCount] {node_name}: 失败（清除后计数为 {after}）")
                 return
 
-            mfaalog.info(f"[ClearNodeHitCount] {node_name}: 成功（{before} -> 0）")
+            print(f"[ClearNodeHitCount] {node_name}: 成功（{before} -> 0）", flush=True)
         except Exception as e:
             mfaalog.error(f"[ClearNodeHitCount] {node_name}: 失败（{e}）")

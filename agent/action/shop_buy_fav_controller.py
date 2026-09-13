@@ -504,10 +504,11 @@ class ShopBuyFavController(CustomAction):
                     "star_cx": star["cx"],
                     "star_cy": star["cy"],
                 })
-                mfaalog.info(
+                print(
                     f"[ShopBuy]   🔗 [{name_item['name']}] "
                     f"↔ 星({star['right_x']:.0f},{star['cy']:.0f}) "
-                    f"dx={best_dx:.0f} {star['color']}"
+                    f"dx={best_dx:.0f} {star['color']}",
+                    flush=True,
                 )
             else:
                 mfaalog.warning(
