@@ -90,6 +90,12 @@ class NativeAPI:
     def fullscreen(self, hwnd):
         return False
 
+    def minimized(self, hwnd):
+        return False
+
+    def pseudo_minimized(self, hwnd):
+        return False
+
     def client_size(self, hwnd):
         return self.size
 
@@ -115,6 +121,11 @@ class Context:
 
     def get_task_job(self):
         return SimpleNamespace(job_id=self.task_id)
+
+    def get_node_object(self, name):
+        if name != "StartGame_PCWindowOptions":
+            raise AssertionError("Unexpected node: " + name)
+        return SimpleNamespace(attach={})
 
 
 class ContractTest(unittest.TestCase):
@@ -345,7 +356,7 @@ class GuardTests(ContractTest):
         controller = Controller(kind="win32")
         controller.info["name"] = "Adb"
         gate.ensure(Context(controller))
-        self.assertEqual(len(self.calls[0]), 3)
+        self.assertEqual(len(self.calls[0]), 4)
 
     def test_uuid_and_task_id_deduplicate_across_controller_objects(self):
         gate = self.make_guard()

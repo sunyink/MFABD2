@@ -45,10 +45,13 @@ def main():
     try:
         from startup.pc import prepare
         from startup.win32 import WindowsAPI
+        from startup.options import PCOptions
 
         budget = Budget(report, lambda: watchdog.host_exited(0))
+        options = PCOptions.from_pretask(sys.argv[1:])
+        report(f"[PC窗口][pretask] 配置：{options.resolution}；最小化={'连接后执行' if options.minimize else '关闭'}")
         with WindowsAPI() as api:
-            prepare(api, budget)
+            prepare(api, budget, options=options)
         budget.success()
         return 0
     except (Cancelled, KeyboardInterrupt):

@@ -1,4 +1,12 @@
 {
+    "StartGame_PCWindowOptions": {
+        "desc": "PC 启动准备配置，仅供 pretask/sink 共享读取，不进入业务流程。",
+        "enabled": false,
+        "attach": {
+            "resolution": "720p",
+            "minimize": false
+        }
+    },
     "StartGame_Start": {
         "next": [
             "[JumpBack]Env_AccountSave_Switch",

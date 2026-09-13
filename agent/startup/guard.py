@@ -4,6 +4,7 @@ from collections import OrderedDict
 
 from . import adb
 from .common import Budget, Cancelled, Prepared, PreparationError
+from .options import PCOptions
 
 
 class StartupGuard:
@@ -18,7 +19,7 @@ class StartupGuard:
         self.identity_failure = None
 
     @staticmethod
-    def _pc_prepare(controller, info, budget):
+    def _pc_prepare(controller, info, budget, options):
         from .pc import prepare
         from .win32 import WindowsAPI
 
@@ -28,7 +29,19 @@ class StartupGuard:
         if not isinstance(hwnd, int) or not hwnd:
             raise PreparationError("Win32 控制器未提供有效的窗口句柄")
         with WindowsAPI() as api:
-            return prepare(api, budget, hwnd=hwnd)
+            if not options.minimize and api.pseudo_minimized(hwnd):
+                budget.check()
+                # Let the framework restore its own saved extended styles.
+                job = controller.post_inactive()
+                until = min(budget.deadline, budget.clock() + 5)
+                while not job.done:
+                    budget.check()
+                    if budget.clock() >= until:
+                        raise PreparationError("框架恢复普通窗口超时")
+                    budget.pause(0.1)
+                if not job.succeeded:
+                    raise PreparationError("框架无法恢复普通窗口")
+            return prepare(api, budget, hwnd=hwnd, options=options)
 
     @staticmethod
     def stop(tasker):
@@ -61,7 +74,8 @@ class StartupGuard:
             if kind == "adb":
                 result = self.adb_prepare(controller, budget)
             else:
-                result = self.pc_prepare(controller, info, budget)
+                options = PCOptions.from_context(context)
+                result = self.pc_prepare(controller, info, budget, options)
             budget.success()
             self.tasks[task_key] = result
             if len(self.tasks) > 256:

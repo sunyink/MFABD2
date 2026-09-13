@@ -37,6 +37,10 @@
                 "-X",
                 "utf8=1",
                 "../../../agent/pc_bootstrap.py"
+            ],
+            "option": [
+                "PC窗口分辨率",
+                "PC启动最小化"
             ]
         }
     ],
@@ -71,6 +75,8 @@
         }
     ],
     "global_option": [
+        "PC窗口分辨率",
+        "PC启动最小化",
         "前置助手",
         "存档名称"
     ],
@@ -327,6 +333,70 @@
         }
     ],
     "option": {
+        "PC窗口分辨率": {
+            "type": "select",
+            "label": "PC窗口分辨率",
+            "controller": [
+                "PC客户端"
+            ],
+            "default_case": "720p",
+            "description": "调整游戏窗口内部画面的尺寸：720p 为 1280×720，1080p 为 1920×1080。<br>识别坐标仍由框架按 720p 缩放。下一个任务开始时生效，无需重新连接。",
+            "cases": [
+                {
+                    "name": "720p",
+                    "label": "720p（1280×720）",
+                    "pipeline_override": {
+                        "StartGame_PCWindowOptions": {
+                            "attach": {
+                                "resolution": "720p"
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "1080p",
+                    "label": "1080p（1920×1080）",
+                    "pipeline_override": {
+                        "StartGame_PCWindowOptions": {
+                            "attach": {
+                                "resolution": "1080p"
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        "PC启动最小化": {
+            "type": "switch",
+            "label": "PC启动后最小化",
+            "controller": [
+                "PC客户端"
+            ],
+            "default_case": "No",
+            "description": "连接完成后，每个任务开始时先调整分辨率，再最小化游戏，减少后台操作时窗口跳动的干扰。连接前保持普通窗口。<br>框架保持后台渲染；点击任务栏中的游戏可恢复查看。任务结束或停止时，框架可能自动恢复窗口。下一个任务开始时生效。",
+            "cases": [
+                {
+                    "name": "No",
+                    "pipeline_override": {
+                        "StartGame_PCWindowOptions": {
+                            "attach": {
+                                "minimize": false
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "StartGame_PCWindowOptions": {
+                            "attach": {
+                                "minimize": true
+                            }
+                        }
+                    }
+                }
+            ]
+        },
         "日常-强制只跑指定子项": {
             "label": "[手动开关]-强制只跑指定子项",
             "type": "switch",
@@ -1662,7 +1732,9 @@
                 {
                     "name": "Yes",
                     "pipeline_override": {},
-                    "option": ["亲密度谈心等级筛选"]
+                    "option": [
+                        "亲密度谈心等级筛选"
+                    ]
                 },
                 {
                     "name": "No",
@@ -1683,7 +1755,9 @@
                     "name": "Lv<10",
                     "pipeline_override": {
                         "Sub_Intimacy_LV": {
-                            "expected": ["^[1-9]$"]
+                            "expected": [
+                                "^[1-9]$"
+                            ]
                         }
                     }
                 },
@@ -1691,7 +1765,9 @@
                     "name": "Lv<15",
                     "pipeline_override": {
                         "Sub_Intimacy_LV": {
-                            "expected": ["^([1-9]|1[0-4])$"]
+                            "expected": [
+                                "^([1-9]|1[0-4])$"
+                            ]
                         }
                     }
                 },
@@ -1699,7 +1775,9 @@
                     "name": "Lv<20",
                     "pipeline_override": {
                         "Sub_Intimacy_LV": {
-                            "expected": ["^([1-9]|1[0-9])$"]
+                            "expected": [
+                                "^([1-9]|1[0-9])$"
+                            ]
                         }
                     }
                 }

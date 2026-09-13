@@ -45,6 +45,7 @@ class WindowsAPI:
             (self.user, "SetWindowPos", W.BOOL, [W.HWND, W.HWND, C.c_int, C.c_int, C.c_int, C.c_int, W.UINT]),
             (self.user, "PostMessageW", W.BOOL, [W.HWND, W.UINT, W.WPARAM, W.LPARAM]),
             (self.user, "GetWindowLongW", W.LONG, [W.HWND, C.c_int]),
+            (self.user, "GetLayeredWindowAttributes", W.BOOL, [W.HWND, C.POINTER(W.DWORD), C.POINTER(W.BYTE), C.POINTER(W.DWORD)]),
             (self.user, "SetThreadDpiAwarenessContext", W.HANDLE, [W.HANDLE]),
             (self.kernel, "OpenProcess", W.HANDLE, [W.DWORD, W.BOOL, W.DWORD]),
             (self.kernel, "CloseHandle", W.BOOL, [W.HANDLE]),
@@ -161,6 +162,22 @@ class WindowsAPI:
             self.user.ShowWindowAsync(hwnd, 9)
             return False
         return True
+
+    def minimized(self, hwnd):
+        return bool(self.user.IsIconic(hwnd))
+
+    def pseudo_minimized(self, hwnd):
+        style = self.user.GetWindowLongW(hwnd, -20)
+        if style & 0x80020 != 0x80020:
+            return False
+        color, alpha, flags = W.DWORD(), W.BYTE(), W.DWORD()
+        return bool(self.user.GetLayeredWindowAttributes(hwnd, C.byref(color), C.byref(alpha), C.byref(flags))
+                    and flags.value & 2 and alpha.value == 0)
+
+    def minimize(self, hwnd):
+        if not self.user.IsWindow(hwnd):
+            raise PreparationError("最小化前游戏窗口已失效")
+        self.user.ShowWindowAsync(hwnd, 6)
 
     def fullscreen(self, hwnd):
         return not bool(self.user.GetWindowLongW(hwnd, -16) & 0x00C00000)
