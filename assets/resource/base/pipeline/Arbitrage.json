@@ -197,12 +197,25 @@
         "recognition": "Or",
         "any_of": ["Arbitrage_Merchant_Ico"],
         "action": "Click",
+        "anchor": {"Merchant_Bypass": ""},
         "post_delay": 2000,
         "next": [
             "Arbitrage_Merchant_Dialog",
             "Arbitrage_Merchant_Entry"
         ],
-        "focus": "打开商店..."
+        "focus": "打开折扣商店..."
+    },
+    "Arbitrage_Merchant_NoDiscount_Entry": {
+        "recognition": "Or",
+        "any_of": ["Arbitrage_Merchant_Ico"],
+        "action": "Click",
+        "anchor": {"Merchant_Bypass": "Arbitrage_Merchant_NoSkill"},
+        "post_delay": 2000,
+        "next": [
+            "Arbitrage_Merchant_Dialog",
+            "Arbitrage_Merchant_NoDiscount_Entry"
+        ],
+        "focus": "打开无折扣商店..."
     },
     "Arbitrage_Merchant_Dialog": {
         "desc": "右上角天赋药图标,已在对话界面",
@@ -218,7 +231,24 @@
         ],
         "next": [
             "[Anchor]PractiseBargaining_Per",
+            "[Anchor]Merchant_Bypass",
             "Arbitrage_Bargaining_SkillList"
+        ]
+    },
+    "Arbitrage_Merchant_NoSkill": {
+        "recognition": "Or",
+        "any_of": ["Arbitrage_Merchant_Dialog"],
+        "action": "Click",
+        "target": [
+            1122,
+            523,
+            8,
+            15
+        ],
+        "post_delay": 2000,
+        "next": [
+            "Arbitrage_Merchant_Egress",
+            "Arbitrage_Merchant_NoSkill"
         ]
     },
     "Arbitrage_Bargaining_SkillList": {
@@ -315,6 +345,7 @@
             "购买",
             "出售"
         ],
+        "anchor": {"Merchant_Bypass": ""},
         "next": ["[Anchor]PractiseBargaining_Per"]
     },
     "Arbitrage_Merchant_Close_Ck": {
@@ -2087,7 +2118,7 @@
         "anchor": {"Arbitrage_Sell_Preview": "Arbitrage_Sell_Preview_All_Prepare"},
         "next": [
             "Arbitrage_Sell_Type_Ocr",
-            "[JumpBack]Arbitrage_Merchant_Entry"
+            "[JumpBack]Arbitrage_Merchant_NoDiscount_Entry"
         ],
         "focus": "Arb.M.出售模块启动"
     },

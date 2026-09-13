@@ -66,16 +66,21 @@ def _requests(plan):
     return list(merged.values())
 
 
-def ensure_shop(context):
-    """只在局部改写原寻路终点；不能重新进入Action_Hub或固定收藏购买。"""
+def ensure_shop(context, *, bargain=True):
+    """局部选择购买砍价或出售直入；不能重新进入Action_Hub或固定收藏购买。"""
     if context.tasker.stopping:
         raise RuntimeError("任务已停止")
     local = context.clone()
     if not local.clear_hit_count("Arbitrage_Sell_Item_Cancel"):
         raise RuntimeError("无法重置商店子页关闭计数")
+    entry = "Arbitrage_Merchant_Entry" if bargain else "Arbitrage_Merchant_NoDiscount_Entry"
     patch = {
-        "Arbitrage_Replenish_EnsureShop": {"enabled": True, "anchor": {"PractiseBargaining_Per": ""}},
-        "Arbitrage_Merchant_Ico": {"next": ["Arbitrage_Merchant_Entry"]},
+        "Arbitrage_Replenish_EnsureShop": {
+            "enabled": True, "anchor": {"PractiseBargaining_Per": ""},
+            "next": ["[JumpBack]Arbitrage_Sell_Item_Cancel", "Arbitrage_Replenish_ShopReady",
+                     f"[JumpBack]{entry}", "Arbitrage_Start"],
+        },
+        "Arbitrage_Merchant_Ico": {"next": [entry]},
         "Arbitrage_Merchant_Egress": {"next": ["Arbitrage_Replenish_ShopReady"]},
         "Arbitrage_Action_Hub": {"enabled": False},
     }

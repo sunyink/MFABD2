@@ -1451,16 +1451,6 @@
                         },
                         "Arbitrage_Favorit_Buy": {
                             "enabled": false
-                        },
-                        "Arbitrage_Bargaining_SkillList": {
-                            "recognition": "DirectHit",
-                            "target": [
-                                1122,
-                                523,
-                                8,
-                                15
-                            ],
-                            "next": "Arbitrage_Merchant_Egress"
                         }
                     }
                 }
