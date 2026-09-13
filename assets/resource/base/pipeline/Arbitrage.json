@@ -4073,8 +4073,7 @@
                 ],
                 "template": [
                     "Shop/RecipeList/料理_炸猪排盖饭.png"
-                ],
-                "green_mask": true
+                ]
             },
             "Sub_<Arbitrage_Cooking>_Clr"
         ],
