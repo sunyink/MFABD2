@@ -5,6 +5,11 @@ import os
 import sys
 from pathlib import Path
 
+# The embedded Windows interpreter uses python310._pth and does not add the
+# script directory to sys.path. Resolve from this file, not the UI's cwd.
+agent_dir = Path(__file__).resolve().parent
+sys.path.insert(0, str(agent_dir))
+
 from startup.common import Budget, Cancelled
 
 
