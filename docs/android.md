@@ -133,6 +133,8 @@ controller 声明，实际运行使用 AndroidNativeController；该版本未按
 筛选列表。安装脚本在生成 Android interface 时应用这些限制，仅保留可用的控制器和资源。
 当前项目产物中只保留 `Adb` / `ADB`。桌面源码 interface 和桌面安装产物继续包含各平台声明。
 安卓资源显示为“安卓原生机”，实际按 `base → android_native` 加载；任务及预设按控制器限制筛选。
+安卓打包只复制 `base`、`android_native` 两个资源包，另保留 `Announcement` 公告帮助和资源根目录文件；
+`pc`、`playcover` 等其他资源目录不进入产物，复用安装目录时也会清理这些残留。桌面仍复制全部资源。
 `android/maaowm.json` 是该覆盖包的 MaaOWM 配置，输出为 Pipeline V1。
 覆盖包只有两个启动节点：跳过不受支持的 Shell 探针，直接交给已实测成功的 StartApp；
 保留 base 的加载识别链，失败进入公共兜底，不再调用 Shell 启动兜底。

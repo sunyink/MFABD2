@@ -48,6 +48,11 @@ def prepare_interface_for_target(interface, target_os):
     if not adb_name:
         raise ValueError("Android Adb controller requires a name")
     result["controller"] = [adb]
+    if "pretask" in result:
+        result["pretask"] = [
+            task for task in result["pretask"]
+            if not task.get("controller") or adb_name in task["controller"]
+        ]
 
     resources = []
     for resource in result.get("resource") or []:
@@ -87,15 +92,37 @@ def prepare_interface_for_target(interface, target_os):
 # ... (保留原有注释代码) ...
 
 
+def copy_resources_for_target(source, destination, target_os):
+    """Copy resource packs, excluding other platforms from Android output."""
+    android = str(target_os).lower().startswith("android")
+    # Announcement is shared documentation, not a platform resource pack.
+    allowed = {"base", "android_native", "Announcement"}
+
+    def ignore(directory, names):
+        if not android or Path(directory) != source:
+            return []
+        return [name for name in names if (source / name).is_dir() and name not in allowed]
+
+    # A local Android build may reuse output from a previous desktop build.
+    if android and destination.exists():
+        for child in destination.iterdir():
+            if child.is_dir() and child.name not in allowed:
+                if child.is_symlink() or child.resolve().parent != destination.resolve():
+                    raise ValueError(f"Refusing to remove resource directory outside output: {child}")
+                shutil.rmtree(child)
+
+    shutil.copytree(
+        source,
+        destination,
+        dirs_exist_ok=True,
+        ignore=ignore,
+    )
+
+
 def install_resource():
     configure_ocr_model()
 
-    # 复制整个 resource 目录
-    shutil.copytree(
-        working_dir / "assets" / "resource",
-        install_path / "resource",
-        dirs_exist_ok=True,
-    )
+    copy_resources_for_target(working_dir / "assets" / "resource", install_path / "resource", target_os)
     
     # ================= [MFAA布局文件预配置写入开始] =================
     # 单文件适配: 显式复制 assets/mfa_layout.json 到 install/resource/
@@ -218,12 +245,33 @@ def install_agent(target_os):
         if "agent" not in interface:
             interface["agent"] = {}
 
+        win32_names = {
+            controller["name"] for controller in interface.get("controller", [])
+            if controller.get("type") == "Win32" and controller.get("name")
+        }
+        if not any(target_os.startswith(p) for p in ["win", "windows"]) and "pretask" in interface:
+            interface["pretask"] = [
+                pretask for pretask in interface["pretask"]
+                if not pretask.get("controller") or not set(pretask["controller"]).issubset(win32_names)
+            ]
+
         # ==================== [核心路径配置] ====================
         
         # 1. Windows: 嵌入式 Python
         if any(target_os.startswith(p) for p in ["win", "windows"]):
             interface["agent"]["child_exec"] = r"{PROJECT_DIR}/python/python.exe"
             interface["agent"]["child_args"] = ["-u", "-X", "utf8=1", r"{PROJECT_DIR}/agent/main.py"]
+            # MFAA v2.15.2 pretask cwd is resource/base; args have no placeholder expansion.
+            for pretask in interface.get("pretask", []):
+                args = pretask.get("args", [])
+                script_indices = [
+                    index for index, arg in enumerate(args)
+                    if Path(arg.replace("\\", "/")).name == "pc_bootstrap.py"
+                ]
+                if script_indices:
+                    pretask["exec"] = "../../python/python.exe"
+                    for index in script_indices:
+                        args[index] = "../../agent/pc_bootstrap.py"
         
         # 2. macOS: 智能判断 (有嵌入用嵌入，没嵌入用系统)
         elif any(target_os.startswith(p) for p in ["macos", "darwin", "osx"]):
@@ -259,13 +307,22 @@ def install_agent(target_os):
 
     # 回读校验：确认写进去的确实是本平台的配置，而不是仓库里那份开发用路径。
     with open(interface_json_path, "r", encoding="utf-8") as f:
-        written = jsonc.load(f).get("agent", {}).get("child_exec", "")
+        written_interface = jsonc.load(f)
+    written = written_interface.get("agent", {}).get("child_exec", "")
     if written != interface["agent"]["child_exec"]:
         print(f"::error::child_exec 回读不符: 期望 {interface['agent']['child_exec']}，实得 {written}")
         sys.exit(1)
     if ".venv" in written:
         print(f"::error::child_exec 仍指向开发环境虚拟环境: {written}")
         sys.exit(1)
+    if written_interface.get("pretask") != interface.get("pretask"):
+        print("::error::pretask 回读不符: 写入后的内容与本次配置不一致")
+        sys.exit(1)
+    for pretask in written_interface.get("pretask", []):
+        for value in [pretask.get("exec", ""), *pretask.get("args", [])]:
+            if ".venv" in value.lower():
+                print(f"::error::pretask {pretask.get('name', '<unnamed>')!r} 仍指向开发环境虚拟环境: {value}")
+                sys.exit(1)
     print(f"✅ Agent 配置更新完成: {written}")
 
 if __name__ == "__main__":
