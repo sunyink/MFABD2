@@ -16,7 +16,6 @@ class StartupGuard:
         self.pc_prepare = pc_prepare or self._pc_prepare
         self.tasks = OrderedDict()
         self.failures = {}
-        self.identity_failure = None
 
     @staticmethod
     def _pc_prepare(controller, info, budget, options):
@@ -52,8 +51,6 @@ class StartupGuard:
         tasker = context.tasker
         key = None
         try:
-            if self.identity_failure:
-                raise PreparationError(self.identity_failure)
             controller = tasker.controller
             info = controller.info
             kind = info.get("type")
@@ -86,11 +83,12 @@ class StartupGuard:
             self.stop(tasker)
             return None
         except Exception as exc:
-            reason = str(exc)
-            if key is None:
-                self.identity_failure = reason
-            else:
+            reason = str(exc) or type(exc).__name__
+            if key is not None:
                 self.failures[key] = reason
-            self.error(f"[启动准备] {reason}；本会话后续任务将停止执行，请修复后重新启动软件")
+                self.error(f"[启动准备] {reason}；本会话该控制器的后续任务将停止执行，请修复后重新启动软件")
+            else:
+                # A transient identity query cannot poison unrelated devices.
+                self.error(f"[启动准备] {reason}；本任务已停止，请检查控制器连接后重试")
             self.stop(tasker)
             return None

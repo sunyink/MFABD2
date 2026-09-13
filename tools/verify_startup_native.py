@@ -22,14 +22,21 @@ def agent(identifier, mode):
     from maa.controller import Controller
     from startup.common import Budget
 
-    # Match main.py: existing custom registrations initialize v5.12.2 bindings
-    # before the context-sink decorator runs.
-    @AgentServer.custom_action("test_initialize_bindings")
-    class Initialize(CustomAction):
-        def run(self, context, argv):
-            return True
-
+    # Import the sink before any custom registrations to verify it initializes
+    # its own binding instead of relying on unrelated action import order.
     from startup.sink import guard
+
+    @AgentServer.custom_action("test_nested")
+    class Nested(CustomAction):
+        def run(self, context, argv):
+            root_id = context.get_task_job().job_id
+            assert context.get_node_object("StartGame_PCWindowOptions").attach == {"resolution": "1080p", "minimize": True}
+            for _ in range(2):
+                job = context.run_task("test_child")
+                assert job and job.status.succeeded
+                assert job.task_id != root_id
+                assert context.get_task_job().job_id == root_id
+            return True
 
     original_info = Controller.info.fget
 
@@ -106,12 +113,16 @@ def run(mode, work, maa_dir):
     folder = work / mode
     (folder / "resource/pipeline").mkdir(parents=True, exist_ok=True)
     nodes = {
+        "StartGame_PCWindowOptions": {"enabled": False, "attach": {"resolution": "720p", "minimize": False}},
         "test_entry": {"action": "Click", "target": [1, 1], "pre_delay": 0, "post_delay": 0, "next": ["test_next"]},
         "test_next": {"action": "Click", "target": [1, 1], "pre_delay": 0, "post_delay": 0},
     }
     if mode == "node_timeout":
         nodes["test_entry"] = {"recognition": "Custom", "custom_recognition": "test_never",
                                "timeout": 100, "rate_limit": 0, "on_error": ["test_next"]}
+    elif mode == "nested":
+        nodes["test_entry"].update(action="Custom", custom_action="test_nested")
+        nodes["test_child"] = {"action": "Click", "target": [1, 1], "pre_delay": 0, "post_delay": 0}
     (folder / "resource/pipeline/test.json").write_text(json.dumps(nodes), encoding="utf-8")
     Tasker.set_log_dir(folder / "log")
     resource, controller, tasker = Resource(), Synthetic(), Tasker()
@@ -125,6 +136,15 @@ def run(mode, work, maa_dir):
     never = Never()
     assert resource.register_custom_recognition("test_never", never)
     assert resource.post_bundle(folder / "resource").wait().succeeded
+    # Verify native attach parsing for all four option combinations.
+    interface = json.loads((ROOT / "assets/interface.json").read_text(encoding="utf-8"), strict=False)
+    for resolution in interface["option"]["PC窗口分辨率"]["cases"]:
+        for minimize in interface["option"]["PC启动最小化"]["cases"]:
+            assert resource.override_pipeline(resolution["pipeline_override"])
+            assert resource.override_pipeline(minimize["pipeline_override"])
+            assert resource.get_node_object("StartGame_PCWindowOptions").attach == {
+                "resolution": resolution["name"], "minimize": minimize["name"] == "Yes"}
+    assert resource.override_pipeline({"StartGame_PCWindowOptions": {"attach": {"resolution": "720p", "minimize": False}}})
     assert controller.post_connection().wait().succeeded
     assert tasker.bind(resource, controller)
     client = AgentClient()
@@ -141,7 +161,12 @@ def run(mode, work, maa_dir):
             statuses = []
             for index in range(1 if mode == "node_timeout" else 2):
                 started = time.monotonic()
-                job = tasker.post_task("test_entry")
+                # The UI submits an array to Tasker (Resource accepts objects).
+                overrides = [
+                    {"StartGame_PCWindowOptions": {"attach": {"resolution": "1080p"}}},
+                    {"StartGame_PCWindowOptions": {"attach": {"minimize": True}}},
+                ]
+                job = tasker.post_task("test_entry", overrides)
                 while not job.done and time.monotonic() - started < 15:
                     time.sleep(0.02)
                 assert job.done, "Native task did not complete"
@@ -158,7 +183,7 @@ def run(mode, work, maa_dir):
                     assert controller.clicks == 1
                     assert time.monotonic() - started >= 2
                 else:
-                    assert controller.clicks == (index + 1) * 2
+                    assert controller.clicks == (index + 1) * (3 if mode == "nested" else 2)
                     assert len(controller.commands) == 4 + index, controller.commands
             report = dict(mode=mode, frames=controller.frames, clicks=controller.clicks,
                           commands=controller.commands, statuses=statuses, misses=never.count)
@@ -179,7 +204,7 @@ def main():
     parser.add_argument("--maa-dir", type=Path, required=True)
     parser.add_argument("--work-dir", type=Path, required=True)
     parser.add_argument("--agent")
-    parser.add_argument("--mode", choices=("success", "failure", "node_timeout"))
+    parser.add_argument("--mode", choices=("success", "failure", "node_timeout", "nested"))
     args = parser.parse_args()
     sys.path[:0] = [str(args.maa_dir), str(ROOT / "agent")]
     if args.agent:
@@ -191,7 +216,7 @@ def main():
     if args.agent:
         agent(args.agent, args.mode)
     else:
-        for mode in ("success", "failure", "node_timeout"):
+        for mode in ((args.mode,) if args.mode else ("success", "failure", "node_timeout", "nested")):
             run(mode, args.work_dir, args.maa_dir)
 
 

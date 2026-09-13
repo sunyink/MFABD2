@@ -8,6 +8,7 @@ from .common import Prepared, PreparationError
 PACKAGE = "com.neowizgames.game.browndust2"
 COMPONENT = re.compile(r"(?<![\w.])([A-Za-z0-9_.]+)/(\.?[A-Za-z0-9_.$]+)(?![\w.$])")
 ERROR = re.compile(r"permission denial|securityexception|error:|not found|can't find|exception", re.I)
+COMMAND_ERROR = re.compile(r"^\s*(?:permission denial\b|(?:java\.lang\.)?securityexception\b|error:|exception\b|/system/bin/sh:|sh:)", re.I)
 
 
 class Foreground(Enum):
@@ -17,10 +18,13 @@ class Foreground(Enum):
 
 
 def parse_foreground(output, markers):
-    if not output or ERROR.search(output):
+    if not output:
+        return Foreground.UNKNOWN
+    lines = output.splitlines()
+    if any(COMMAND_ERROR.search(line) for line in lines):
         return Foreground.UNKNOWN
     packages = set()
-    for line in output.splitlines():
+    for line in lines:
         if any(marker in line for marker in markers):
             match = COMPONENT.search(line)
             if match:

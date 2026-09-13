@@ -17,9 +17,14 @@ def prepare_adb(controller, budget):
 
 guard = StartupGuard(mfaalog.info, mfaalog.error, adb_prepare=prepare_adb)
 
+# MaaFw 5.12.2's context-sink decorator does not initialize its ctypes binding.
+# Initialize explicitly instead of depending on unrelated action import order.
+AgentServer._set_api_properties()
 
 @AgentServer.context_sink()
 class StartupSink(ContextEventSink):
     def on_node_pipeline_node(self, context, noti_type, detail):
         if noti_type == NotificationType.Starting:
-            guard.ensure(context, detail.task_id)
+            # Nested run_task events have a new task id; their cloned Context
+            # still identifies the top-level task that owns this preparation.
+            guard.ensure(context)

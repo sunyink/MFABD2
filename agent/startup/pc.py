@@ -9,7 +9,8 @@ TARGET = (1280, 720)
 def resize(api, hwnd, budget, target=TARGET):
     until = min(budget.deadline, budget.clock() + 10)
     toggled = False
-    for _ in range(5):
+    original_size = None
+    while True:
         budget.check()
         if budget.clock() >= until:
             break
@@ -24,12 +25,15 @@ def resize(api, hwnd, budget, target=TARGET):
                 toggled = True
             budget.pause(min(1, until - budget.clock()))
             continue
-        if api.client_size(hwnd) == target:
-            return
+        size = api.client_size(hwnd)
+        if original_size is None:
+            original_size = size
+        if size == target:
+            return original_size
         api.resize_client(hwnd, target)
         budget.pause(min(0.5, until - budget.clock()))
         if api.is_game(hwnd) and not api.fullscreen(hwnd) and api.client_size(hwnd) == target:
-            return
+            return original_size
     raise PreparationError(f"无法将游戏客户区调整为 {target[0]}×{target[1]}，请手动 Alt+Enter 切回窗口模式后重试")
 
 
@@ -41,9 +45,12 @@ def apply_window_options(api, hwnd, budget, options, source):
     was_minimized = api.minimized(hwnd)
     was_fullscreen = api.fullscreen(hwnd)
     if not options.minimize and api.pseudo_minimized(hwnd):
-        raise PreparationError("游戏窗口仍由旧控制器保持透明，请停止旧任务后重新连接")
-    if not (options.minimize and was_minimized and before == options.target):
-        resize(api, hwnd, budget, options.target)
+        raise PreparationError("游戏窗口仍保持透明，请先关闭其他控制端；若旧控制端已退出，请重启游戏后重新连接")
+    # Iconic windows can report 0x0. Measure after restoring instead of
+    # treating the iconic size as a real resolution or an optimization hint.
+    restored_size = resize(api, hwnd, budget, options.target)
+    if was_minimized:
+        before = restored_size
     actual = api.client_size(hwnd)
     # Measure and confirm the physical client area before Windows minimizes it.
     if actual != options.target:

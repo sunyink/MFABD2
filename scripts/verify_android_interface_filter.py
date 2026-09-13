@@ -1,4 +1,5 @@
 import importlib.util
+import io
 import json
 import sys
 import tempfile
@@ -72,6 +73,88 @@ class AndroidInterfaceFilterTest(unittest.TestCase):
         pretask = self.interface["pretask"][0]
         self.assertEqual((ROOT / "assets/resource/base" / pretask["args"][-1]).resolve(), ROOT / "agent/pc_bootstrap.py")
         self.assertEqual((ROOT / "assets/resource/base" / pretask["exec"]).resolve(), ROOT / ".venv/Scripts/python.exe")
+
+    def install_agent_fixture(self, interface, target, tamper=None):
+        with tempfile.TemporaryDirectory() as work:
+            root = Path(work)
+            (root / "agent").mkdir()
+            (root / "agent" / "pc_bootstrap.py").write_text("# fixture", encoding="utf-8")
+            output = root / "install"
+            output.mkdir()
+            interface_path = output / "interface.json"
+            interface_path.write_text(json.dumps(interface), encoding="utf-8")
+            original_dump = INSTALL.jsonc.dump
+
+            def dump(value, handle, **kwargs):
+                value = deepcopy(value)
+                if tamper is not None:
+                    tamper(value)
+                return original_dump(value, handle, **kwargs)
+
+            with patch.multiple(INSTALL, working_dir=root, install_path=output), \
+                    patch.object(INSTALL.jsonc, "dump", side_effect=dump):
+                INSTALL.install_agent(target)
+            return json.loads(interface_path.read_text(encoding="utf-8"))
+
+    def test_renamed_bootstrap_preserves_args_and_matches_both_slashes(self):
+        for script in ("../../../agent/pc_bootstrap.py", r"..\..\..\agent\pc_bootstrap.py"):
+            with self.subTest(script=script):
+                source = {
+                    "controller": [{"name": "renamed-pc", "type": "Win32"}],
+                    "pretask": [{"name": "renamed-bootstrap", "controller": ["renamed-pc"],
+                                 "exec": "../../../.venv/Scripts/python.exe",
+                                 "args": ["-B", "-u", script, "--custom-flag", "value"]}],
+                }
+                installed = self.install_agent_fixture(source, "win-x64")
+                self.assertEqual(installed["pretask"], [
+                    {**source["pretask"][0], "exec": "../../python/python.exe",
+                     "args": ["-B", "-u", "../../agent/pc_bootstrap.py", "--custom-flag", "value"]},
+                ])
+
+    def test_unrelated_pretask_venv_paths_fail_with_name(self):
+        for field, value in (("exec", "../../../.venv/Scripts/python.exe"),
+                             ("args", [r"..\.venv\other.py"])):
+            with self.subTest(field=field):
+                pretask = {"name": "unrelated-tool", "exec": "python3", "args": ["other.py"], field: value}
+                with patch("sys.stdout", new_callable=io.StringIO) as output, \
+                        self.assertRaises(SystemExit) as raised:
+                    self.install_agent_fixture({"pretask": [pretask]}, "win-x64")
+                self.assertEqual(raised.exception.code, 1)
+                self.assertIn("pretask 'unrelated-tool'", output.getvalue())
+                self.assertIn(".venv", output.getvalue())
+
+    def test_non_windows_drops_only_exclusively_win32_pretasks(self):
+        source = {
+            "controller": [{"name": "renamed-pc", "type": "Win32"},
+                           {"name": "second-pc", "type": "Win32"},
+                           {"name": "phone", "type": "Adb"},
+                           {"name": "mac", "type": "PlayCover"}],
+            "pretask": [
+                {"name": "pc-only", "controller": ["renamed-pc"], "exec": ".venv/python"},
+                {"name": "two-pcs", "controller": ["renamed-pc", "second-pc"], "exec": ".venv/python"},
+                {"name": "shared", "exec": "python3", "args": ["shared.py"]},
+                {"name": "empty", "controller": [], "exec": "python3"},
+                {"name": "mixed-adb", "controller": ["renamed-pc", "phone"], "exec": "python3"},
+                {"name": "mixed-other", "controller": ["renamed-pc", "mac"], "exec": "python3"},
+                {"name": "other-only", "controller": ["mac"], "exec": "python3"},
+            ],
+        }
+        for target in ("macos-arm64", "linux-x64"):
+            with self.subTest(target=target):
+                installed = self.install_agent_fixture(source, target)
+                self.assertEqual(installed["pretask"], source["pretask"][2:])
+
+    def test_pretask_readback_tampering_fails(self):
+        source = {"pretask": [{"name": "shared", "exec": "python3", "args": ["shared.py"]}]}
+
+        def tamper(value):
+            value["pretask"][0]["args"] = ["different.py"]
+
+        with patch("sys.stdout", new_callable=io.StringIO) as output, \
+                self.assertRaises(SystemExit) as raised:
+            self.install_agent_fixture(source, "linux-x64", tamper)
+        self.assertEqual(raised.exception.code, 1)
+        self.assertIn("pretask 回读不符", output.getvalue())
 
     def test_installed_resources_follow_target_and_remove_stale_packs(self):
         with tempfile.TemporaryDirectory() as work:

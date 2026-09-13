@@ -28,10 +28,10 @@ class StartupRunApp(CustomAction):
         if result is None:
             return False
         controller = context.tasker.controller
-        if controller.info.get("type") in ("adb", "win32"):
+        if controller.info.get("type") in ("adb", "win32", "playcover"):
             return True
-        # PlayCover continues to use its native StartApp implementation. Native
-        # Android overrides this node with StartApp in its resource layer.
+        # PlayCover must already be running to connect; StartApp is unsupported.
+        # Native Android overrides this node with StartApp in its resource layer.
         try:
             budget = Budget(mfaalog.info, lambda: context.tasker.stopping)
             job = controller.post_start_app("com.neowizgames.game.browndust2")

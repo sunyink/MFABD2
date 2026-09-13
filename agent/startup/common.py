@@ -52,5 +52,8 @@ class Budget:
         self.check()
 
     def success(self):
-        self.check()
+        # Preparation has already confirmed readiness. Reporting must not turn
+        # that result into a timeout, but cancellation still stops the task.
+        if self.cancelled():
+            raise Cancelled("启动准备已取消")
         self.report(f"[启动准备] 完成（{self.clock() - self.started:.1f} 秒）")

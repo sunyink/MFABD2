@@ -139,6 +139,17 @@ class ContractTest(unittest.TestCase):
 
 
 class BudgetTests(ContractTest):
+    def test_success_report_does_not_revoke_readiness_at_deadline(self):
+        budget = self.budget()
+        self.clock.now = 300.1
+        budget.success()
+        self.assertIn("完成", self.messages[-1])
+
+    def test_success_still_honors_cancellation(self):
+        budget = self.budget(cancelled=lambda: True)
+        with self.assertRaises(Cancelled):
+            budget.success()
+
     def test_total_timeout_and_30_through_270_progress(self):
         budget = self.budget()
         with self.assertRaises(PreparationError):
@@ -165,6 +176,12 @@ class BudgetTests(ContractTest):
 
 
 class ADBTests(ContractTest):
+    def test_unrelated_diagnostic_text_does_not_mask_foreground(self):
+        output = "last exception: background error: not found\n" + f"mCurrentFocus=Window{{123 u0 {adb.PACKAGE}/.Main}}"
+        self.assertEqual(adb.parse_foreground(output, ("mCurrentFocus=",)), adb.Foreground.GAME)
+        self.assertEqual(adb.parse_foreground("mCurrentFocus=Window{123 u0 com.exception.launcher/.Main}", ("mCurrentFocus=",)), adb.Foreground.OTHER)
+        self.assertEqual(adb.parse_foreground("Permission Denial: blocked\n" + output, ("mCurrentFocus=",)), adb.Foreground.UNKNOWN)
+
     GAME = "mCurrentFocus=Window{1 " + adb.PACKAGE + "/.MainActivity}"
     OTHER = "mCurrentFocus=Window{1 com.android.launcher/.Home}"
 
@@ -325,11 +342,25 @@ class PCTests(ContractTest):
                 with self.assertRaises(PreparationError):
                     pc.prepare(api, self.budget(), hwnd=7)
                 self.assertLessEqual(self.clock.now, 10)
-                self.assertLessEqual(api.resizes, 5)
+                self.assertLessEqual(api.resizes, 20)
                 self.assertEqual(api.scans, 0)
 
 
 class GuardTests(ContractTest):
+    def test_identity_failure_does_not_poison_reconnection_or_other_types(self):
+        gate = self.make_guard()
+        class Unavailable:
+            @property
+            def info(self):
+                raise RuntimeError()
+        broken = Context(Unavailable())
+        self.assertIsNone(gate.ensure(broken))
+        self.assertEqual(broken.tasker.stops, 1)
+        self.assertIn("RuntimeError", self.errors[-1])
+        self.assertEqual(gate.ensure(Context(Controller(kind="custom"), 2)), Prepared())
+        self.assertEqual(gate.ensure(Context(Controller(), 3)), Prepared())
+        self.assertEqual(len(self.calls), 1)
+
     def make_guard(self, prepare=None):
         self.calls = []
         self.errors = []
@@ -342,7 +373,7 @@ class GuardTests(ContractTest):
 
     def test_actual_type_bypasses_even_if_label_says_pc(self):
         gate = self.make_guard()
-        for kind in ("playcover", "custom", "", None):
+        for kind in ("playcover", "custom", "native_android", "", None):
             controller = Controller(kind=kind, uuid=None)
             controller.info["name"] = "PC客户端"
             context = Context(controller)

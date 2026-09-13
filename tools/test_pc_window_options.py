@@ -70,8 +70,9 @@ class FakeAPI:
         return True
 
     def client_size(self, hwnd):
-        self.calls.append(('read', self.size))
-        return self.size
+        size = (0, 0) if self.iconic else self.size
+        self.calls.append(('read', size))
+        return size
 
     def minimized(self, hwnd):
         return self.iconic
@@ -220,6 +221,27 @@ class Contracts(unittest.TestCase):
         self.assertTrue(api.pseudo)
         self.assertLess(api.calls.index(('read', (1280, 720))), api.calls.index(('minimize',)))
 
+    def test_iconic_size_is_measured_after_restore(self):
+        api = FakeAPI(size=(1280, 720), minimized=True)
+        self.prepare(api, minimize=True)
+        self.assertIn(('read', (0, 0)), api.calls)
+        self.assertIn('1280×720 → 1280×720（无需调整', self.logs[-1])
+        self.assertNotIn('0×0 →', self.logs[-1])
+
+    def test_restore_can_finish_after_the_old_five_probe_limit(self):
+        api = FakeAPI(size=(1280, 720), minimized=True)
+        restore = api.restore
+        api.restore = lambda hwnd: restore(hwnd) if self.clock.now >= 2 else False
+        self.prepare(api)
+        self.assertGreaterEqual(self.clock.now, 2)
+        self.assertLess(self.clock.now, 10)
+
+    def test_pretask_orphan_transparency_gives_actionable_recovery(self):
+        api = FakeAPI(size=(1280, 720), pseudo=True)
+        api.scan = Mock(return_value=([0x123], True, []))
+        with self.assertRaisesRegex(common.PreparationError, '重启游戏'):
+            pc.prepare(api, self.budget)
+
     def test_pretask_defers_minimize_for_both_resolutions(self):
         for resolution, target in options.RESOLUTIONS.items():
             with self.subTest(resolution=resolution):
@@ -314,7 +336,7 @@ class Contracts(unittest.TestCase):
         self.assertEqual(prepare.call_args_list[1].args[3], options.PCOptions('1080p', True))
 
     def test_non_pc_never_reads_pc_node(self):
-        for kind in ('adb', 'custom'):
+        for kind in ('adb', 'custom', 'native_android'):
             with self.subTest(kind=kind):
                 ctx = context(kind)
                 ctx.get_node_object.side_effect = AssertionError('PC node accessed')

@@ -245,6 +245,16 @@ def install_agent(target_os):
         if "agent" not in interface:
             interface["agent"] = {}
 
+        win32_names = {
+            controller["name"] for controller in interface.get("controller", [])
+            if controller.get("type") == "Win32" and controller.get("name")
+        }
+        if not any(target_os.startswith(p) for p in ["win", "windows"]) and "pretask" in interface:
+            interface["pretask"] = [
+                pretask for pretask in interface["pretask"]
+                if not pretask.get("controller") or not set(pretask["controller"]).issubset(win32_names)
+            ]
+
         # ==================== [核心路径配置] ====================
         
         # 1. Windows: 嵌入式 Python
@@ -253,9 +263,15 @@ def install_agent(target_os):
             interface["agent"]["child_args"] = ["-u", "-X", "utf8=1", r"{PROJECT_DIR}/agent/main.py"]
             # MFAA v2.15.2 pretask cwd is resource/base; args have no placeholder expansion.
             for pretask in interface.get("pretask", []):
-                if pretask.get("name") == "PC游戏启动准备":
+                args = pretask.get("args", [])
+                script_indices = [
+                    index for index, arg in enumerate(args)
+                    if Path(arg.replace("\\", "/")).name == "pc_bootstrap.py"
+                ]
+                if script_indices:
                     pretask["exec"] = "../../python/python.exe"
-                    pretask["args"] = ["-u", "-X", "utf8=1", "../../agent/pc_bootstrap.py"]
+                    for index in script_indices:
+                        args[index] = "../../agent/pc_bootstrap.py"
         
         # 2. macOS: 智能判断 (有嵌入用嵌入，没嵌入用系统)
         elif any(target_os.startswith(p) for p in ["macos", "darwin", "osx"]):
@@ -291,13 +307,22 @@ def install_agent(target_os):
 
     # 回读校验：确认写进去的确实是本平台的配置，而不是仓库里那份开发用路径。
     with open(interface_json_path, "r", encoding="utf-8") as f:
-        written = jsonc.load(f).get("agent", {}).get("child_exec", "")
+        written_interface = jsonc.load(f)
+    written = written_interface.get("agent", {}).get("child_exec", "")
     if written != interface["agent"]["child_exec"]:
         print(f"::error::child_exec 回读不符: 期望 {interface['agent']['child_exec']}，实得 {written}")
         sys.exit(1)
     if ".venv" in written:
         print(f"::error::child_exec 仍指向开发环境虚拟环境: {written}")
         sys.exit(1)
+    if written_interface.get("pretask") != interface.get("pretask"):
+        print("::error::pretask 回读不符: 写入后的内容与本次配置不一致")
+        sys.exit(1)
+    for pretask in written_interface.get("pretask", []):
+        for value in [pretask.get("exec", ""), *pretask.get("args", [])]:
+            if ".venv" in value.lower():
+                print(f"::error::pretask {pretask.get('name', '<unnamed>')!r} 仍指向开发环境虚拟环境: {value}")
+                sys.exit(1)
     print(f"✅ Agent 配置更新完成: {written}")
 
 if __name__ == "__main__":
