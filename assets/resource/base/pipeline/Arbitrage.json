@@ -1917,7 +1917,6 @@
         "expected": [
             "购买全部收藏"
         ],
-        "action": "Click",
         "post_wait_freezes": {
             "target": [
                 617,
