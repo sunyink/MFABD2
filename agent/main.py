@@ -50,6 +50,7 @@ import action # action子文件夹:agent/action/__init__.py里声明的全部
 import recognition
 from utils.instance_resolver import resolve_instance_id  # 实例身份探测(仅日志)
 from utils.host_watchdog import HostWatchdog, cleanup_socket_file  # 宿主(UI)存活守护
+from utils.log_event_sink import LogEventSink
 import fishing_agent # 钓鱼~
 
 def main():
@@ -105,6 +106,9 @@ def main():
     print(f"Socket ID: {socket_id}")
 
     # 3. 启动服务
+    # 独立于 startup.sink 的同步窗口准备；仅任务开始时刷新日志显示配置。
+    AgentServer._set_api_properties()
+    AgentServer.add_tasker_sink(LogEventSink(project_root / "config" / "maa_option.json"))
     # start_up 返回 bool。失败时若继续走 join()，C++ 侧会打一条
     # "msg_thread is not joinable" 然后立刻返回，进程静默退出 —— 必须在这里拦下。
     if not AgentServer.start_up(socket_id):
