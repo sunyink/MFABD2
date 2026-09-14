@@ -10,6 +10,9 @@ on:
       - "**"
     paths:
       - ".github/workflows/install.yml"
+      - ".github/workflows/android.yml"
+      - ".github/workflows/android-check.yml"
+      - "android/**"
       - "assets/**"
       - "**.py"
       # 内核版本是从这里钉住的 MFAAvalonia 里探测出来的，改它等于换内核。
@@ -19,6 +22,9 @@ on:
       - "**"
     paths:
       - ".github/workflows/install.yml"
+      - ".github/workflows/android.yml"
+      - ".github/workflows/android-check.yml"
+      - "android/**"
       - "assets/**"
       - "**.py"
       - "requirements.txt"
@@ -175,6 +181,14 @@ jobs:
       maa_version: ${{ steps.detect_maa.outputs.version }}
       mfaa_tag: ${{ steps.parse_config.outputs.mfaa_tag }}
       mfa_core_tag: ${{ steps.parse_config.outputs.mfa_core_tag }}
+
+  android_check:
+    name: Check Android
+    needs: meta
+    uses: ./.github/workflows/android-check.yml
+    with:
+      source_ref: ${{ github.sha }}
+      desktop_maafw_version: ${{ needs.meta.outputs.maa_version }}
 
   resource_check:
     name: Check Resources
@@ -791,7 +805,7 @@ jobs:
           include-hidden-files: true
   android:
     name: Build Android APK
-    # 只为发版构建 APK；与桌面 install 一样，先通过资源检查再并行启动。
+    # 只为发版构建 APK；资源和安卓检查通过后，与 install 平台矩阵并行。
     # 普通 push 和 fork 跳过此 job，release 会随 needs 一起跳过。
     if: >-
       github.repository == 'sunyink/MFABD2' &&
@@ -801,7 +815,7 @@ jobs:
         contains(needs.meta.outputs.tag, '-alpha') ||
         (github.event_name == 'workflow_dispatch' && contains(needs.meta.outputs.tag, '-ci'))
       )
-    needs: [meta, resource_check]
+    needs: [meta, resource_check, android_check]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -812,9 +826,9 @@ jobs:
     steps:
       - name: Build signed Android APK
         id: build
-        # 安卓那边的作业上限是 60 分钟，但作业超时不计排队时间——这一步却要把排队也等掉。
-        # 给足 60 分钟构建 + 60 分钟排队余量：这里先超时的话，安卓那边还在跑，产物白丢。
-        timeout-minutes: 120
+        # 安卓现在有检查和构建两个作业；这里还要等待两个作业各自的排队时间。
+        # 20 分钟检查 + 60 分钟构建 + 两次各 60 分钟排队余量。
+        timeout-minutes: 200
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TAG: ${{ needs.meta.outputs.tag }}

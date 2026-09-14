@@ -30,16 +30,18 @@ on:
     branches:
       - main
     # 这里只列**影响安卓构建链本身**的路径，不含 agent/** 与 assets/**。
-    # 那两处的改动由 install.yml 那条链先验（Check Resources + 剥离注释后的加载校验），
+    # 那两处的改动由 install.yml 的 Check Resources / Check Android 先验，
     # 安卓侧只是把它们打包进去；而每跑一次这个工作流是 9 分钟 + 128MB 产物，
     # 挂在高频目录上等于给日常改 pipeline 收一笔固定税。
     # 安卓真正的脆弱点是上游 pin、Google 的 SDK 索引、AGP/Gradle——都在下面这几项里。
     paths:
       - .github/workflows/android.yml
+      - .github/workflows/android-check.yml
       - android/**
       - install.py
       - configure.py
       - scripts/verify_android*.py
+      - scripts/android_test_support.py
       - scripts/android_build.py
       - scripts/detect_maa_version.py
       - requirements.txt
@@ -59,20 +61,28 @@ env:
   STRIP_COMMENTS: "true"
 
 jobs:
+  check:
+    name: Check Android
+    if: github.repository == 'sunyink/MFABD2'
+    uses: ./.github/workflows/android-check.yml
+    with:
+      source_ref: ${{ inputs.publish && inputs.version_name || (inputs.release_build && inputs.source_sha) || github.sha }}
+
   apk:
     if: github.repository == 'sunyink/MFABD2'
+    needs: check
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
         with:
-          ref: ${{ inputs.publish && inputs.version_name || (inputs.release_build && inputs.source_sha) || github.sha }}
+          ref: ${{ needs.check.outputs.source_sha }}
           fetch-depth: 0
       - name: Checkout pinned Android UI
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
         with:
           repository: Aliothmoon/MaaFwApp
-          ref: f4f6f220e21e3a1b7b0cf5df4bdbe0ec04c668f7
+          ref: ${{ needs.check.outputs.upstream_sha }}
           path: android-upstream
       - name: Restore pinned OCR assets
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
@@ -81,43 +91,18 @@ jobs:
           ref: df9c78afd7089ff925b014f01ae650fa72f859a2
           path: android-build/assets
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        id: tools
         with:
           python-version: "3.11"
-      # 与 install.yml 的 meta job 走同一个脚本、同一份 requirements.txt：
-      # 内核版本是从 MFAAvalonia 的二进制里问出来的，不是任何地方写下的常量。
-      - name: Parse pinned configuration
-        id: parse_config
-        run: python3 scripts/detect_maa_version.py parse
-      - name: Download MFAAvalonia for detection
-        uses: robinraju/release-downloader@28fc21f50d76778e7023361aa1f863e717d3d56f # v1
-        with:
-          repository: MaaXYZ/MFAAvalonia
-          latest: false
-          tag: ${{ steps.parse_config.outputs.mfaa_tag }}
-          fileName: "MFAAvalonia-*-linux-x64*"
-          out-file-path: "temp_detect"
-          extract: true
-      - name: Download override core for detection
-        if: steps.parse_config.outputs.mfa_core_tag != ''
-        uses: robinraju/release-downloader@28fc21f50d76778e7023361aa1f863e717d3d56f # v1
-        with:
-          repository: MaaXYZ/MaaFramework
-          latest: false
-          tag: ${{ steps.parse_config.outputs.mfa_core_tag }}
-          fileName: "MAA-linux-x86_64-*"
-          out-file-path: "core_src"
-          extract: true
-      - name: Detect MaaFramework version
-        id: core
-        run: python3 scripts/detect_maa_version.py detect --assets temp_detect --override core_src
-      # agent core（形如 3.13.15-maafw5.12.3：CPython 版本 + 框架版本）由上游自己钉死在
-      # build_agent_bundle.py 的 CORE_TAG 里 —— 它的 Kotlin 侧与那个组合是一起验过的。
-      # 这一步只读那个常量并校验桌面内核是否跟得上，对不上就停，不替上游挑版本。
-      - name: Resolve Android agent core
-        id: agent_core
+      - name: Record build interpreter and verify checked sources
+        env:
+          INTERPRETER: ${{ steps.tools.outputs.python-path }}
+          CHECKED_SOURCE_SHA: ${{ needs.check.outputs.source_sha }}
+          CHECKED_UPSTREAM_SHA: ${{ needs.check.outputs.upstream_sha }}
         run: |
-          python3 scripts/detect_maa_version.py agent-core-tag \
-            --maafw "${{ steps.core.outputs.version }}" --upstream android-upstream
+          echo "BUILD_PYTHON=$INTERPRETER" >> "$GITHUB_ENV"
+          test "$(git rev-parse HEAD)" = "$CHECKED_SOURCE_SHA"
+          test "$(git -C android-upstream rev-parse HEAD)" = "$CHECKED_UPSTREAM_SHA"
       - name: Resolve project version and Android identity
         id: metadata
         env:
@@ -143,47 +128,38 @@ jobs:
           if [[ "$PUBLISH_REQUEST" == "true" || "$RELEASE_BUILD" == "true" ]]; then
             published=(--published)
           fi
-          python scripts/android_build.py metadata --version "$REQUESTED_VERSION" \
+          "$BUILD_PYTHON" scripts/android_build.py metadata --version "$REQUESTED_VERSION" \
             --identity "$IDENTITY" "${published[@]}"
-      # 这里起，框架版本一律取 agent_core 的输出而非桌面探测值：APK 里的 Python 侧
+      # 框架版本取前置检查解析出的 agent core 输出，而非桌面探测值：APK 里的 Python 侧
       # maafw 是 agent core 自带的（上游会丢弃我们钉的版本），原生库与校验期望值
       # 必须跟它一致，否则就是"wheel 是新的、.so 是旧的"。
-      - name: Verify agent and prepare resources
+      - name: Prepare and verify packaged resources
         env:
           PROJECT_VERSION: ${{ steps.metadata.outputs.version_name }}
-          MAAFW_VERSION: ${{ steps.agent_core.outputs.maafw_version }}
-          # 桌面值只喂给测试：它断言两边没漂到不同的次版本线上。
-          MFABD2_DESKTOP_MAAFW: ${{ steps.core.outputs.version }}
+          MAAFW_VERSION: ${{ needs.check.outputs.maafw_version }}
         run: |
-          python -m pip install "MaaFw==$MAAFW_VERSION" "numpy==2.3.2" "Pillow==11.0.0" "json-with-comments==1.3.0"
-          python scripts/verify_android_runtime.py
-          python scripts/verify_android_interface_filter.py
-          python scripts/verify_android_build.py
-          python scripts/verify_android_overlay.py
-          python scripts/verify_android_apk.py --interface assets/interface.json
-          python agent/recognition/test_rdd_hsv_rescue.py
-          PYTHONPATH=agent python -c "import action, recognition, fishing_agent"
+          "$BUILD_PYTHON" scripts/android_build.py requirements --maafw "$MAAFW_VERSION" \
+            --output android-build/requirements.txt
+          "$BUILD_PYTHON" -m pip install -r android-build/requirements.txt
           mkdir -p assets/MaaCommonAssets
           cp -a android-build/assets/MaaCommonAssets/. assets/MaaCommonAssets/
-          python install.py "$PROJECT_VERSION" android "$MAAFW_VERSION"
-          python scripts/android_build.py requirements --maafw "$MAAFW_VERSION" \
-            --output android-build/requirements.txt
+          "$BUILD_PYTHON" install.py "$PROJECT_VERSION" android "$MAAFW_VERSION"
           if [ "$STRIP_COMMENTS" = "true" ]; then
-            python scripts/strip_build_comments.py install
+            "$BUILD_PYTHON" scripts/strip_build_comments.py install
           fi
-          python check_resource.py install
+          "$BUILD_PYTHON" check_resource.py install
       - name: Assemble Android Python dependencies
         working-directory: android-upstream
         env:
-          AGENT_CORE_TAG: ${{ steps.agent_core.outputs.agent_core_tag }}
-          MAAFW_TAG: ${{ steps.agent_core.outputs.maafw_tag }}
+          AGENT_CORE_TAG: ${{ needs.check.outputs.agent_core_tag }}
+          MAAFW_TAG: ${{ needs.check.outputs.maafw_tag }}
         run: |
-          python scripts/build_agent_bundle.py \
+          "$BUILD_PYTHON" scripts/build_agent_bundle.py \
             --out "$GITHUB_WORKSPACE/android-build/agent-dist" \
             --abi arm64-v8a --core-tag "$AGENT_CORE_TAG" \
             --requirements "$GITHUB_WORKSPACE/android-build/requirements.txt" \
             --extra-index-url https://chaquo.com/pypi-13.1/
-          python scripts/setup_maa_framework.py --tag "$MAAFW_TAG" --abi arm64-v8a
+          "$BUILD_PYTHON" scripts/setup_maa_framework.py --tag "$MAAFW_TAG" --abi arm64-v8a
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -206,8 +182,8 @@ jobs:
           CI_KEYSTORE_B64: ${{ secrets.ANDROID_CI_KEYSTORE_B64 }}
           CI_PASSWORD: ${{ secrets.ANDROID_CI_PASSWORD }}
         run: |
-          python scripts/android_build.py prepare
-          python - <<'PY'
+          "$BUILD_PYTHON" scripts/android_build.py prepare
+          "$BUILD_PYTHON" - <<'PY'
           import base64, hashlib, json, os, subprocess
           from pathlib import Path
           metadata = json.loads(Path("android-build/build-metadata.json").read_text())
@@ -248,10 +224,10 @@ jobs:
           apk="android-upstream/app/build/outputs/apk/release/app-release.apk"
           "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs "$apk" > android-build/signature.txt
           "$ANDROID_HOME/build-tools/36.0.0/aapt2" dump badging "$apk" > android-build/badging.txt
-          python scripts/verify_android_apk.py "$apk" --metadata android-build/build-metadata.json \
+          "$BUILD_PYTHON" scripts/verify_android_apk.py "$apk" --metadata android-build/build-metadata.json \
             --badging android-build/badging.txt --signature android-build/signature.txt \
-            --maafw "${{ steps.agent_core.outputs.maafw_version }}"
-          python scripts/android_build.py artifacts --apk "$apk"
+            --maafw "${{ needs.check.outputs.maafw_version }}"
+          "$BUILD_PYTHON" scripts/android_build.py artifacts --apk "$apk"
       - name: Remove temporary signing file
         if: always()
         run: rm -f "$RUNNER_TEMP/mfabd2-signing.p12"

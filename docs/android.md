@@ -6,10 +6,10 @@
 
 ## 构建
 
-`.github/workflows/android.yml` 是安卓构建的唯一入口，推送开发分支或手动触发后生成签名 Release APK。
+`.github/workflows/android.yml` 是安卓构建的唯一入口，推送 main 上的构建相关改动或手动触发后生成签名 Release APK。
 默认只上传 Actions 产物。手动传入已有 Release tag 作为 `version_name` 并开启 `publish`，
 才会将 APK、SHA256 文件和构建元数据附加到该 Release；不会创建 Release 或覆盖同名附件。
-主发布流程由独立的 `android` job 调用这一入口，在资源检查通过后与桌面 `install` job 并行构建。
+主发布流程由独立的 `android` job 调用这一入口，在资源检查和安卓源码检查通过后，与 `install` 平台矩阵并行构建。
 安卓 job 沿用原有发版条件：手动发版、版本标签推送、alpha / beta 发版才运行，普通 push 不通过主流程触发 APK。
 两端沿用同一个版本标签，并用 `source_sha` 锁定与桌面包相同的资源提交。
 `release_build=true` 保留安卓工作流自己的安装编号序列；`release` job 等待桌面、安卓和更新日志全部成功，
@@ -17,7 +17,7 @@
 核对提交、版本、文件名及摘要后，与桌面 ZIP 一起上传到新建的 Release。安卓失败或附件不匹配时停止发布。
 发布通知等待发布步骤成功。旧安卓 ZIP 构建与镜像上传入口已停用，APK 直接作为发布附件，不再套一层 ZIP。
 APK 文件名为 `MFABD2-<项目版本>-android-arm64.apk`，与桌面 ZIP 同构；安装编号只放在同名的 `.apk.json` 里。
-首次接入时，应先将安卓工作流合入默认分支，再验收主流程的手动派发与发布上传；开发分支的推送构建可先验证出包。
+首次接入时，应先将安卓工作流合入默认分支，再验收主流程的手动派发与发布上传；开发分支可手动触发安卓构建验证出包。
 发布构建按目标版本单独分组，不被开发分支的新推送取消；同一版本已有发布构建运行时，后续请求等待。
 普通开发构建仍只保留同分支的最新运行。GitHub 默认每组只保留一个等待请求，不保证重复派发的请求全部执行。
 
@@ -47,6 +47,42 @@ UI 原版从自身 git 历史生成 versionCode；本工作流在临时上游 ch
 以便资源代码变化时也能触发手机端重新解包。
 `android/update/` 独立保存本项目的数字版本更新策略及测试，构建时复制到固定上游并替换更新客户端注册。
 不修改上游通用版本比较器；上游源码变化导致接入位置不匹配时停止构建。
+
+## 源码检查（贡献者）
+
+`.github/workflows/android-check.yml` 是两个入口共用的检查作业。主工作流在普通提交、PR
+和手动运行中执行 `Check Android`，与资源检测并行；它失败会阻止 APK 和统一发布，
+不会阻止 Windows、macOS、Linux 的 `install` 平台矩阵。fork PR 的检查只需读取权限，
+不需要签名密钥。独立安卓构建也必须经过相同检查，主流程发版时会再次执行。
+
+检查输出实际检出的资源提交、Android UI 提交、agent core、Python 和 MaaFw 版本，
+APK 按这些输出检出并复核提交。Android UI 的固定提交只配置在共用检查工作流中。
+
+检查分为两套解释器：构建配置测试使用 Python 3.11；Agent、存档、接口筛选、资源覆盖、
+红点算法和业务导入检查使用上游 agent core 的 Python 版本，当前为 3.13.15。
+依赖由同一个 `android_build.py requirements` 生成，当前 NumPy 为 2.3.2；不会将
+桌面 `numpy<2` 直接安装进该环境，也不会因缺少依赖而改用模拟模块或跳过检查。
+
+运行环境测试在新进程中模拟 Maa 的导入和注册边界，真实加载 `action`、`recognition`、
+`fishing_agent`、启动与日志监听器。Maa 替身仅提供明确的模块和接口，缺项直接失败；
+注册时创建实际业务类实例，并与源码声明核对。另一个进程使用真实 MaaFw 检查接口签名、
+业务导入和本机构建环境中的原生注册，不连接宿主或控制器。临时存档不会接触用户数据。
+
+本地复跑时先检出工作流固定的 MaaFwApp 到 `android-upstream/`，使用与 CI 相同的
+Python 环境。以下版本参数以 `detect_maa_version.py agent-core-tag` 的实际输出为准：
+
+```bash
+# BUILD_PYTHON 为 Python 3.11；AGENT_PYTHON 为上游版本的独立环境解释器绝对路径。
+"$BUILD_PYTHON" scripts/detect_maa_version.py agent-core-tag --maafw "$DESKTOP_MAAFW" --upstream android-upstream
+"$BUILD_PYTHON" scripts/android_build.py requirements --maafw "$ANDROID_MAAFW" --output android-build/requirements.txt
+"$AGENT_PYTHON" -m pip install -r android-build/requirements.txt
+"$AGENT_PYTHON" scripts/verify_android_agent.py real --python-version "$ANDROID_PYTHON_VERSION" --maafw-version "$ANDROID_MAAFW"
+"$AGENT_PYTHON" scripts/verify_android_runtime.py
+```
+
+其余检查命令集中列在共用工作流中。源码检查使用构建机器对应的 Python 包，证明的是
+安卓版本组合下的源码行为和本机导入兼容性；Android ARM64 原生库、APK 签名与内容仍在
+打包后独立校验，设备运行与存档升级仍需实机验收。不能用其中一层代替另一层。
 
 ## 两套身份
 

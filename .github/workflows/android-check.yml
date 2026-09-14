@@ -1,0 +1,156 @@
+name: Android source checks
+
+on:
+  workflow_call:
+    inputs:
+      source_ref:
+        description: "Exact project commit or release tag to check"
+        required: true
+        type: string
+      desktop_maafw_version:
+        description: "Desktop version already detected from this source; empty detects it here"
+        default: ""
+        type: string
+    outputs:
+      source_sha:
+        value: ${{ jobs.check.outputs.source_sha }}
+      upstream_sha:
+        value: ${{ jobs.check.outputs.upstream_sha }}
+      desktop_maafw_version:
+        value: ${{ jobs.check.outputs.desktop_maafw_version }}
+      agent_core_tag:
+        value: ${{ jobs.check.outputs.agent_core_tag }}
+      maafw_version:
+        value: ${{ jobs.check.outputs.maafw_version }}
+      maafw_tag:
+        value: ${{ jobs.check.outputs.maafw_tag }}
+      python_version:
+        value: ${{ jobs.check.outputs.python_version }}
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Android source and agent
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      source_sha: ${{ steps.source.outputs.sha }}
+      upstream_sha: ${{ steps.upstream.outputs.sha }}
+      desktop_maafw_version: ${{ steps.core.outputs.version }}
+      agent_core_tag: ${{ steps.agent_core.outputs.agent_core_tag }}
+      maafw_version: ${{ steps.agent_core.outputs.maafw_version }}
+      maafw_tag: ${{ steps.agent_core.outputs.maafw_tag }}
+      python_version: ${{ steps.agent_core.outputs.python_version }}
+    env:
+      PYTHONUTF8: "1"
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          ref: ${{ inputs.source_ref }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Record checked source
+        id: source
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        id: tools
+        with:
+          python-version: "3.11"
+      - name: Record build interpreter
+        env:
+          INTERPRETER: ${{ steps.tools.outputs.python-path }}
+        run: echo "BUILD_PYTHON=$INTERPRETER" >> "$GITHUB_ENV"
+      # This is the only Android UI pin. APK builds use this job's checked SHA.
+      - name: Checkout pinned Android UI
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          repository: Aliothmoon/MaaFwApp
+          ref: f4f6f220e21e3a1b7b0cf5df4bdbe0ec04c668f7
+          path: android-upstream
+          persist-credentials: false
+      - name: Record checked Android UI
+        id: upstream
+        run: echo "sha=$(git -C android-upstream rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - name: Parse pinned configuration
+        if: inputs.desktop_maafw_version == ''
+        id: parse_config
+        run: '"$BUILD_PYTHON" scripts/detect_maa_version.py parse'
+      - name: Download MFAAvalonia for detection
+        if: inputs.desktop_maafw_version == ''
+        uses: robinraju/release-downloader@28fc21f50d76778e7023361aa1f863e717d3d56f # v1
+        with:
+          repository: MaaXYZ/MFAAvalonia
+          latest: false
+          tag: ${{ steps.parse_config.outputs.mfaa_tag }}
+          fileName: "MFAAvalonia-*-linux-x64*"
+          out-file-path: "temp_detect"
+          extract: true
+      - name: Download override core for detection
+        if: inputs.desktop_maafw_version == '' && steps.parse_config.outputs.mfa_core_tag != ''
+        uses: robinraju/release-downloader@28fc21f50d76778e7023361aa1f863e717d3d56f # v1
+        with:
+          repository: MaaXYZ/MaaFramework
+          latest: false
+          tag: ${{ steps.parse_config.outputs.mfa_core_tag }}
+          fileName: "MAA-linux-x86_64-*"
+          out-file-path: "core_src"
+          extract: true
+      - name: Resolve desktop MaaFramework version
+        id: core
+        env:
+          DETECTED_VERSION: ${{ inputs.desktop_maafw_version }}
+        run: |
+          if [ -n "$DETECTED_VERSION" ]; then
+            [[ "$DETECTED_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || exit 1
+            echo "version=$DETECTED_VERSION" >> "$GITHUB_OUTPUT"
+          else
+            "$BUILD_PYTHON" scripts/detect_maa_version.py detect --assets temp_detect --override core_src
+          fi
+      - name: Resolve Android agent core and Python
+        id: agent_core
+        env:
+          DESKTOP_MAAFW: ${{ steps.core.outputs.version }}
+        run: '"$BUILD_PYTHON" scripts/detect_maa_version.py agent-core-tag --maafw "$DESKTOP_MAAFW" --upstream android-upstream'
+      - name: Verify build configuration and generate Android dependencies
+        env:
+          MFABD2_DESKTOP_MAAFW: ${{ steps.core.outputs.version }}
+          ANDROID_MAAFW: ${{ steps.agent_core.outputs.maafw_version }}
+          MFABD2_REQUIRE_ANDROID_UPSTREAM: "1"
+        run: |
+          "$BUILD_PYTHON" scripts/verify_android_build.py
+          "$BUILD_PYTHON" scripts/android_build.py requirements --maafw "$ANDROID_MAAFW" --output android-build/requirements.txt
+      - name: Set up the Android agent's Python version
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        id: agent
+        with:
+          python-version: ${{ steps.agent_core.outputs.python_version }}
+      - name: Record agent interpreter
+        env:
+          INTERPRETER: ${{ steps.agent.outputs.python-path }}
+        run: echo "AGENT_PYTHON=$INTERPRETER" >> "$GITHUB_ENV"
+      - name: Install Android check dependencies
+        run: |
+          "$AGENT_PYTHON" -m pip install -r android-build/requirements.txt
+          "$AGENT_PYTHON" -m pip check
+      - name: Check real Maa binding and business registrations
+        env:
+          EXPECTED_PYTHON: ${{ steps.agent_core.outputs.python_version }}
+          EXPECTED_MAAFW: ${{ steps.agent_core.outputs.maafw_version }}
+          SOURCE_SHA: ${{ steps.source.outputs.sha }}
+          UPSTREAM_SHA: ${{ steps.upstream.outputs.sha }}
+        run: |
+          echo "Checked source: $SOURCE_SHA; Android UI: $UPSTREAM_SHA"
+          echo "Build interpreter: $BUILD_PYTHON; agent interpreter: $AGENT_PYTHON"
+          "$AGENT_PYTHON" scripts/verify_android_agent.py real --python-version "$EXPECTED_PYTHON" --maafw-version "$EXPECTED_MAAFW"
+      - name: Check isolated bootstrap and save data
+        run: '"$AGENT_PYTHON" scripts/verify_android_runtime.py'
+      - name: Check interface filtering and option types
+        run: |
+          "$AGENT_PYTHON" scripts/verify_android_interface_filter.py
+          "$AGENT_PYTHON" scripts/verify_android_apk.py --interface assets/interface.json
+      - name: Check resource overlay with MaaFramework
+        run: '"$AGENT_PYTHON" scripts/verify_android_overlay.py'
+      - name: Check recognition algorithm
+        run: '"$AGENT_PYTHON" agent/recognition/test_rdd_hsv_rescue.py'

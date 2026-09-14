@@ -22,6 +22,11 @@ Python Agent 提供自定义识别/动作，MFAAvalonia 提供 GUI。
 （用了 `hashlib.file_digest` 与 `TestCase.enterContext`），本地用 3.10 跑会直接报
 AttributeError——不是测试失败。
 
+安卓源码检查由 `.github/workflows/android-check.yml` 集中执行，主工作流的 `Check Android`
+与 `Check Resources` 并行；只阻止 APK，不作为 `install` 平台矩阵的依赖。
+构建工具用 Python 3.11，Agent 检查使用上游 `CORE_TAG` 中的 Python 版本与安卓依赖清单。
+模拟启动与真实 MaaFw 导入检查分进程运行；具体命令与验收边界见 `docs/android.md`。
+
 ## 运行
 
 `agent/main.py` **不能直接运行**——它需要 MaaFramework 通过命令行末位参数传入

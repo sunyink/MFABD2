@@ -5,6 +5,7 @@ These tests simulate host environments, not an Android device or native callback
 """
 
 import os
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -12,6 +13,11 @@ from pathlib import Path
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
+# The test's simulated environment must not remove OS DLL search settings from
+# a newly launched interpreter. The child installs its own Android environment.
+PROBE_ENV = {key: value for key, value in os.environ.items() if key not in {
+    "MAAFW_BINARY_PATH", "MAA_LIBRARY_DIR", "PI_CLIENT_NAME", "MFA_ANDROID_OUTPUT_BRIDGED", "MFABD2_DATA_DIR",
+}}
 sys.path.insert(0, str(ROOT / "agent"))
 from utils import runtime_environment as runtime
 from utils.persistent_store import PersistentStore
@@ -54,23 +60,45 @@ class AndroidRuntimeTests(unittest.TestCase):
         self.assertEqual(os.environ["MAAFW_BINARY_PATH"], str(native))
 
     def test_android_bootstrap_skips_desktop_venv_with_requirements_present(self):
-        import runpy
-        import types
-        native = self.libraries()
-        os.environ.update(PI_CLIENT_NAME="MaaFwApp", MAAFW_BINARY_PATH=str(native))
-        modules = {name: types.ModuleType(name) for name in (
-            "maa", "maa.agent", "maa.agent.agent_server", "maa.toolkit",
-            "action", "recognition", "fishing_agent",
-        )}
-        modules["maa.agent.agent_server"].AgentServer = object
-        modules["maa.toolkit"].Toolkit = object
-        os.environ["MFABD2_DATA_DIR"] = str(self.root / "save")
-        with patch.dict(sys.modules, modules), patch("utils.venv_ops.ensure_venv") as venv, patch.object(PersistentStore, "configure_storage") as configure:
-            namespace = runpy.run_path(str(ROOT / "agent" / "main.py"), run_name="bootstrap_test")
-        venv.assert_not_called()
-        self.assertEqual(namespace["runtime"].mode, "android")
-        configure.assert_called_once_with(namespace["runtime"].storage)
-        self.assertEqual(os.environ["MAAFW_BINARY_PATH"], str(native))
+        result = self.bootstrap_probe()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("Simulated Android bootstrap passed", result.stdout)
+
+    @staticmethod
+    def bootstrap_probe(fault=None):
+        # -I removes the script directory too; use a small explicit launcher so
+        # user PYTHONPATH/site customizations cannot satisfy missing imports.
+        launcher = "import runpy,sys; sys.path.insert(0,sys.argv[1]); sys.argv=sys.argv[2:]; runpy.run_path(sys.argv[0],run_name='__main__')"
+        command = [sys.executable, "-I", "-B", "-X", "utf8", "-c", launcher, str(ROOT / "scripts"),
+                   str(ROOT / "scripts/verify_android_agent.py"), "bootstrap"]
+        if fault:
+            command.extend(["--fault", fault])
+        return subprocess.run(command, capture_output=True, text=True, encoding="utf-8", timeout=60, env=PROBE_ENV)
+
+    def test_bootstrap_rejects_missing_maa_module(self):
+        result = self.bootstrap_probe("missing-event-module")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Unmodelled Maa module: maa.event_sink", result.stderr)
+
+    def test_bootstrap_rejects_missing_maa_base(self):
+        result = self.bootstrap_probe("missing-tasker-base")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("TaskerEventSink", result.stderr)
+
+    def test_bootstrap_rejects_wrong_registration_signature(self):
+        result = self.bootstrap_probe("bad-registration")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("unexpected", result.stderr)
+
+    def test_bootstrap_rejects_missing_business_registration(self):
+        result = self.bootstrap_probe("missing-registration")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Registration mismatch", result.stderr)
+
+    def test_bootstrap_does_not_hide_business_import_errors(self):
+        result = self.bootstrap_probe("business-import")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Injected business import failure", result.stderr)
 
     def test_mfaa_native_alias(self):
         native = self.libraries()

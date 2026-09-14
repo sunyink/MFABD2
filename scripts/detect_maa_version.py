@@ -180,7 +180,8 @@ def main() -> int:
         else:
             # 安卓侧的构建一律用 maafw_version，不用桌面探测值——APK 内部必须自洽。
             tag, version = agent_core_tag(args.maafw, args.upstream)
-            emit(agent_core_tag=tag, maafw_version=version, maafw_tag=f"v{version}")
+            python_version = tag.split("-maafw", 1)[0]
+            emit(agent_core_tag=tag, maafw_version=version, maafw_tag=f"v{version}", python_version=python_version)
     except (ValueError, OSError, subprocess.CalledProcessError) as error:
         print(f"::error::{error}")
         return 1

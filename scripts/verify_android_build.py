@@ -7,6 +7,8 @@ import io
 import json
 import os
 import shutil
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -217,6 +219,20 @@ class FrameworkVersionChecks(unittest.TestCase):
             self.assertEqual(detect_maa_version.agent_core_tag("5.12.3", upstream),
                              ("3.13.15-maafw5.12.3", "5.12.3"))
 
+    def test_cli_reports_the_python_version_from_the_core_tag(self):
+        with tempfile.TemporaryDirectory() as work:
+            upstream = self._upstream(work, "3.13.15-maafw5.12.3")
+            environment = {key: value for key, value in os.environ.items() if key != "GITHUB_OUTPUT"}
+            result = subprocess.run(
+                [sys.executable, str(ROOT / "scripts/detect_maa_version.py"), "agent-core-tag",
+                 "--maafw", "5.12.3", "--upstream", str(upstream)],
+                capture_output=True, text=True, encoding="utf-8", env=environment, check=True,
+            )
+            outputs = dict(line.split("=", 1) for line in result.stdout.splitlines())
+            self.assertEqual(outputs["python_version"], "3.13.15")
+            self.assertEqual(outputs["maafw_version"], "5.12.3")
+            self.assertEqual(outputs["agent_core_tag"], "3.13.15-maafw5.12.3")
+
     def test_patch_drift_is_tolerated_and_reported(self):
         with tempfile.TemporaryDirectory() as work:
             upstream = self._upstream(work, "3.13.15-maafw5.12.3")
@@ -250,9 +266,13 @@ class FrameworkVersionChecks(unittest.TestCase):
     def test_pinned_upstream_stays_within_one_patch_of_the_desktop_line(self):
         """Guards the accepted gap: the real checkout must not have drifted a minor away."""
         if not (UPSTREAM / "scripts" / "build_agent_bundle.py").is_file():
+            if os.environ.get("MFABD2_REQUIRE_ANDROID_UPSTREAM") == "1":
+                self.fail(f"Required Android upstream not checked out: {UPSTREAM}")
             self.skipTest(f"{UPSTREAM} not checked out")
         desktop = os.environ.get("MFABD2_DESKTOP_MAAFW")
         if not desktop:
+            if os.environ.get("MFABD2_REQUIRE_ANDROID_UPSTREAM") == "1":
+                self.fail("Required detected desktop MaaFw version is missing")
             # Only CI knows it — it comes out of the MFAAvalonia binary, not a constant.
             self.skipTest("set MFABD2_DESKTOP_MAAFW to the detected desktop version")
         detect_maa_version.agent_core_tag(desktop, UPSTREAM)
