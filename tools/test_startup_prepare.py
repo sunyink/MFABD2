@@ -21,6 +21,7 @@ sys.meta_path.insert(0, NoNativeImports())
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "agent"))
 from startup import adb, pc, guard
 from startup.common import Budget, Cancelled, Prepared, PreparationError
+from startup.options import PCOptions
 
 
 class Clock:
@@ -266,6 +267,42 @@ class ADBTests(ContractTest):
 
 
 class PCTests(ContractTest):
+    def test_minimize_exception_is_optional(self):
+        api = NativeAPI()
+        def fail(hwnd):
+            raise OSError("minimize rejected")
+        api.minimize = fail
+        self.assertEqual(pc.prepare(api, self.budget(), hwnd=7,
+                                    options=PCOptions(minimize=True)), Prepared())
+        self.assertIn("minimize rejected", self.messages[-1])
+        self.assertIn("继续任务", self.messages[-1])
+
+    def test_confirmed_minimize_is_not_reported_as_failure(self):
+        api = NativeAPI()
+        api.minimize = lambda hwnd: setattr(api, "minimized", lambda hwnd: True)
+        pc.prepare(api, self.budget(), hwnd=7, options=PCOptions(minimize=True))
+        self.assertIn("最小化状态已确认", self.messages[-1])
+        self.assertFalse(any("未确认" in message for message in self.messages))
+
+    def test_minimize_does_not_swallow_cancellation_or_deadline(self):
+        for cancelled, timeout, expected in (
+            (lambda: self.clock.now >= 0.2, 300, Cancelled),
+            (lambda: False, 0.2, PreparationError),
+        ):
+            with self.subTest(expected=expected):
+                self.clock = Clock()
+                api = NativeAPI()
+                api.minimize = lambda hwnd: None
+                with self.assertRaises(expected):
+                    pc.prepare(api, self.budget(cancelled=cancelled, timeout=timeout),
+                               hwnd=7, options=PCOptions(minimize=True))
+
+    def test_window_lost_during_minimize_remains_fatal(self):
+        api = NativeAPI()
+        api.minimize = lambda hwnd: setattr(api, "valid", False)
+        with self.assertRaisesRegex(PreparationError, "游戏窗口已失效"):
+            pc.prepare(api, self.budget(), hwnd=7, options=PCOptions(minimize=True))
+
     def test_old_launcher_error_keeps_waiting_for_main_window(self):
         api = NativeAPI([([], True, ["ERROR"]), ([], True, ["ERROR"]), ([7], True, [])])
         pc.prepare(api, self.budget())
@@ -347,6 +384,24 @@ class PCTests(ContractTest):
 
 
 class GuardTests(ContractTest):
+    def test_unconfirmed_minimize_continues_and_next_task_retries(self):
+        api = NativeAPI()
+        attempts = []
+        api.minimize = attempts.append
+        def prepare(controller, info, budget, options):
+            return pc.prepare(api, budget, hwnd=info["hwnd"], options=options)
+        gate = self.make_guard(prepare)
+        context = Context(Controller(kind="win32"))
+        context.get_node_object = lambda name: SimpleNamespace(attach={"minimize": True})
+        for task_id in (1, 1, 2):
+            context.task_id = task_id
+            self.assertEqual(gate.ensure(context), Prepared())
+        self.assertEqual(attempts, [7, 7])
+        self.assertEqual(context.tasker.stops, 0)
+        self.assertEqual(gate.failures, {})
+        self.assertEqual(self.errors, [])
+        self.assertEqual(sum("最小化未确认" in message for message in self.messages), 2)
+
     def test_identity_failure_does_not_poison_reconnection_or_other_types(self):
         gate = self.make_guard()
         class Unavailable:

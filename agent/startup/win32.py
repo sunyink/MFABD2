@@ -177,7 +177,9 @@ class WindowsAPI:
     def minimize(self, hwnd):
         if not self.user.IsWindow(hwnd):
             raise PreparationError("最小化前游戏窗口已失效")
-        self.user.ShowWindowAsync(hwnd, 6)
+        C.set_last_error(0)
+        if not self.user.ShowWindowAsync(hwnd, 6):
+            raise PreparationError(f"发送最小化请求失败（Windows 错误码 {C.get_last_error()}）")
 
     def fullscreen(self, hwnd):
         return not bool(self.user.GetWindowLongW(hwnd, -16) & 0x00C00000)

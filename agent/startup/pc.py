@@ -1,6 +1,6 @@
 """PC state machine, independent of native calls for offline verification."""
 
-from .common import Prepared, PreparationError
+from .common import Cancelled, Prepared, PreparationError
 from .options import PCOptions
 
 TARGET = (1280, 720)
@@ -55,19 +55,33 @@ def apply_window_options(api, hwnd, budget, options, source):
     # Measure and confirm the physical client area before Windows minimizes it.
     if actual != options.target:
         raise PreparationError(f"PC 客户区回读不符：期望 {options.target}，实际 {actual}")
+    mode = "普通窗口"
     if options.minimize:
-        budget.check()
-        if not api.minimized(hwnd) and not api.pseudo_minimized(hwnd):
-            api.minimize(hwnd)
-        until = min(budget.deadline, budget.clock() + 2)
-        while not (api.minimized(hwnd) or api.pseudo_minimized(hwnd)):
+        try:
             budget.check()
-            if not api.is_game(hwnd) or budget.clock() >= until:
-                raise PreparationError("2 秒内未确认 PC 窗口最小化状态")
-            budget.pause(0.1)
+            if not api.minimized(hwnd) and not api.pseudo_minimized(hwnd):
+                api.minimize(hwnd)
+            until = min(budget.deadline, budget.clock() + 2)
+            while not (api.minimized(hwnd) or api.pseudo_minimized(hwnd)):
+                budget.check()
+                if not api.is_game(hwnd):
+                    raise PreparationError("绑定的游戏窗口已失效，请重新连接")
+                if budget.clock() >= until:
+                    raise PreparationError("2 秒内未确认 PC 窗口最小化状态")
+                budget.pause(0.1)
+            mode = "最小化状态已确认"
+        except Cancelled:
+            raise
+        except Exception as exc:
+            # Only the optional minimize step is best-effort. Cancellation,
+            # the shared deadline and a lost game window remain fatal.
+            budget.check()
+            if not api.is_game(hwnd):
+                raise PreparationError("绑定的游戏窗口已失效，请重新连接") from exc
+            reason = str(exc) or type(exc).__name__
+            mode = f"提示：最小化未确认（{reason}）；保持当前窗口状态并继续任务，下个任务重新检查"
     resized = "已调整" if before != actual else "无需调整"
     restored = "；已退出全屏" if was_fullscreen else "；已还原窗口" if was_minimized and not options.minimize else ""
-    mode = "最小化（由框架维持后台渲染）" if options.minimize else "普通窗口"
     budget.report(f"[PC窗口][{source}] 分辨率 {before[0]}×{before[1]} → {actual[0]}×{actual[1]}（{resized}{restored}）；{mode}")
 
 
