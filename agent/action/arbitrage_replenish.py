@@ -111,7 +111,7 @@ def run_replenishment(context, task_id, config):
     sell_names = {entry.name for entry in entries if entry.enabled and entry.name}
     if not sell_names:
         return {**report, "reason": "没有可补做料理"}
-    prepared = context.run_task("Arbitrage_Market_Ensure")
+    prepared = context.run_task("Arbitrage_GlobalMarket_Ensure")
     if prepared is None or not prepared.status.succeeded:
         return {**report, "status": "stopped", "return_ok": False, "reason": "补买行情准备失败"}
     day = store.market_day()

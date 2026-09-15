@@ -7128,7 +7128,7 @@
                 {
                     "name": "Yes",
                     "pipeline_override": {
-                        "Arbitrage_SellItem_Preview": {
+                        "Arbitrage_PreSell_Entry": {
                             "enabled": true
                         }
                     }
@@ -7136,7 +7136,7 @@
                 {
                     "name": "No",
                     "pipeline_override": {
-                        "Arbitrage_SellItem_Preview": {
+                        "Arbitrage_PreSell_Entry": {
                             "enabled": false
                         }
                     }

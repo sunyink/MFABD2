@@ -586,7 +586,7 @@ class ArbitrageSellController(CustomAction):
         if mode == _MODE_PREVIEW_POSSESS:
             # ①有独立开关；完整料理目录与④共用，均不依赖③制作选择。
             try:
-                sell_node = context.get_node_data("Arbitrage_SellItem_Preview")
+                sell_node = context.get_node_data("Arbitrage_PreSell_Entry")
                 if not isinstance(sell_node, dict):
                     raise ValueError("开局出售节点不可读")
             except Exception as exc:

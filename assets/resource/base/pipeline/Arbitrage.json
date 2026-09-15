@@ -196,12 +196,12 @@
         "custom_action": "ClearNodeHitCount",
         "custom_action_param": {
             "node_name": [
-                "Arbitrage_Market_Ensure",
+                "Arbitrage_GlobalMarket_Ensure",
                 "Arbitrage_Sale_EnsureShop"
             ]
         },
         "next": [
-            "[JumpBack]Arbitrage_SellItem_Preview",
+            "[JumpBack]Arbitrage_PreSell_Entry",
             "[JumpBack]Arbitrage_BuyItem",
             "[JumpBack]Arbitrage_Cooking",
             "[JumpBack]Arbitrage_SellItem",
@@ -2164,16 +2164,13 @@
         "custom_action": "ClearNodeHitCount",
         "custom_action_param": {
             "node_name": [
-                "Arbitrage_Market_Ensure",
+                "Arbitrage_GlobalMarket_Ensure",
                 "Arbitrage_Sale_EnsureShop"
             ]
         },
-        "anchor": {
-            "Arbitrage_Sell_Preview": ""
-        },
         "timeout": 4000,
         "next": [
-            "[JumpBack]Arbitrage_Market_Ensure",
+            "[JumpBack]Arbitrage_GlobalMarket_Ensure",
             "[JumpBack]Arbitrage_Sale_EnsureShop",
             "Arbitrage_ShopSell_Active"
         ],
@@ -2182,16 +2179,13 @@
         ],
         "focus": "④ 收尾出售料理"
     },
-    "Arbitrage_SellItem_Preview": {
-        "desc": "①开局出售料理以回笼金币。由Arbitrage_Action_Hub调用；先准备今日行情，再经Arbitrage_Preview_Open打开已有物品价目表。",
+    "Arbitrage_PreSell_Entry": {
+        "desc": "①开局出售料理以回笼金币。由Arbitrage_Action_Hub调用；先确保今日完整行情，再经Arbitrage_PreSell_GlobalMarket_Reset进入仅拥有扫描及出售。",
         "enabled": true,
         "max_hit": 1,
-        "anchor": {
-            "Arbitrage_Sell_Preview": "Arbitrage_Preview_PossessPrepare"
-        },
         "next": [
-            "[JumpBack]Arbitrage_Market_Ensure",
-            "Arbitrage_Preview_Open"
+            "[JumpBack]Arbitrage_GlobalMarket_Ensure",
+            "Arbitrage_PreSell_GlobalMarket_Reset"
         ],
         "focus": "① 开局出售料理，回笼金币"
     },
@@ -2231,10 +2225,10 @@
         "count": 30,
         "timeout": 5000,
         "next": [
-            "Arbitrage_Sell_PriceList"
+            "Arbitrage_PriceList_Open_Entry"
         ]
     },
-    "Arbitrage_Sell_PriceList": {
+    "Arbitrage_PriceList_Open_Entry": {
         "desc": "点击价目表按钮",
         "recognition": "OCR",
         "roi": [
@@ -2257,12 +2251,12 @@
             ]
         },
         "next": [
-            "Arbitrage_Sell_PriceList_Enter",
-            "Arbitrage_Sell_PriceList"
+            "Arbitrage_PriceList_Open_Egress",
+            "Arbitrage_PriceList_Open_Entry"
         ]
     },
-    "Arbitrage_Sell_PriceList_Enter": {
-        "desc": "确认价目表子菜单",
+    "Arbitrage_PriceList_Open_Egress": {
+        "desc": "确认价目表已打开并退栈。由Arbitrage_PriceList_Open_Entry点击后进入，不派发扫描；全盘和拥有准备链同时复用此节点的识别条件。",
         "recognition": "OCR",
         "roi": [
             165,
@@ -2272,33 +2266,32 @@
         ],
         "expected": [
             "价目表"
-        ],
-        "next": [
-            "[Anchor]Arbitrage_Sell_Preview",
-            "[JumpBack]Arbitrage_Sell_PackShopListSwich_OnlyHave_NeedDisable",
-            "[JumpBack]Arbitrage_Sell_PriceList_FirstCalibration",
-            "[JumpBack]Arbitrage_Sell_PackShopListSwich_OCR_Entry",
-            "Arbitrage_ShopSell_Active"
         ]
     },
-    "Arbitrage_Sell_PackShopListSwich_OCR_Entry": {
-        "desc": "价目表本身的排序修改,若第一项存在非120%,触发",
+    "Arbitrage_PriceList_Sort_Entry": {
+        "desc": "全盘和拥有准备链共用的价目表排序入口；仅在价目表已打开且首项识别到非120%时回跳调整，本次最多4次。",
         "max_hit": 4,
-        "recognition": "OCR",
-        "roi": [
-            894,
-            210,
-            72,
-            93
-        ],
-        "expected": [
-            "^(?!120%$)\\d+(?:\\.\\d+)?%?$"
+        "recognition": "And",
+        "all_of": [
+            {
+                "recognition": "OCR",
+                "roi": [
+                    894,
+                    210,
+                    72,
+                    93
+                ],
+                "expected": [
+                    "^(?!120%$)\\d+(?:\\.\\d+)?%?$"
+                ]
+            },
+            "Arbitrage_PriceList_Open_Egress"
         ],
         "next": [
-            "Arbitrage_Sell_PackShopListSwich_Butt"
+            "Arbitrage_PriceList_Sort_Open"
         ]
     },
-    "Arbitrage_Sell_PackShopListSwich_Butt": {
+    "Arbitrage_PriceList_Sort_Open": {
         "desc": "改价目表排序",
         "action": "Click",
         "target": [
@@ -2309,11 +2302,11 @@
         ],
         "post_delay": 1000,
         "next": [
-            "Arbitrage_Sell_PackShopListSwich_Type_Enter",
-            "Arbitrage_Sell_PackShopListSwich_Type_Change"
+            "Arbitrage_PriceList_Sort_Check",
+            "Arbitrage_PriceList_Sort_Select"
         ]
     },
-    "Arbitrage_Sell_PackShopListSwich_Type_Enter": {
+    "Arbitrage_PriceList_Sort_Check": {
         "recognition": "And",
         "all_of": [
             {
@@ -2331,10 +2324,10 @@
             "Sub_SieveExpand_Yew_Clr"
         ],
         "next": [
-            "Arbitrage_Sell_PackShopListSwich_Close"
+            "Arbitrage_PriceList_Sort_Egress"
         ]
     },
-    "Arbitrage_Sell_PackShopListSwich_Type_Change": {
+    "Arbitrage_PriceList_Sort_Select": {
         "recognition": "OCR",
         "roi": [
             693,
@@ -2348,15 +2341,15 @@
         "action": "Click",
         "post_delay": 800,
         "next": [
-            "Arbitrage_Sell_PackShopListSwich_Type_Enter",
-            "Arbitrage_Sell_PackShopListSwich_Type_Change"
+            "Arbitrage_PriceList_Sort_Check",
+            "Arbitrage_PriceList_Sort_Select"
         ]
     },
-    "Arbitrage_Sell_PackShopListSwich_Close": {
+    "Arbitrage_PriceList_Sort_Egress": {
         "desc": "排序选项确认正确,消除排序三级窗口.需要点击二级窗口空白处",
         "recognition": "And",
         "all_of": [
-            "Arbitrage_Sell_PackShopListSwich_Type_Change"
+            "Arbitrage_PriceList_Sort_Select"
         ],
         "action": "Click",
         "target": [
@@ -2366,8 +2359,8 @@
             43
         ]
     },
-    "Arbitrage_Sell_PackShopListSwich_OnlyHave_NeedDisable": {
-        "desc": "价目表的'仅显示已有物品'当前关闭时点击,确保后续只扫描本存档持有物",
+    "Arbitrage_PriceList_Owned_Enable": {
+        "desc": "拥有准备链按需回跳：确认价目表已打开且仅拥有为灰色关闭时点击勾选；变黄后不再命中。",
         "max_hit": 4,
         "recognition": "And",
         "all_of": [
@@ -2391,13 +2384,14 @@
                     255
                 ]
             },
-            "Rec_SliderSwitch_GryOff_Clr"
+            "Rec_SliderSwitch_GryOff_Clr",
+            "Arbitrage_PriceList_Open_Egress"
         ],
         "action": "Click",
         "post_delay": 1500
     },
-    "Arbitrage_Sell_PackShopListSwich_OnlyHave_Disable": {
-        "desc": "价目表的'仅显示已有物品'当前开启时点击,让共享行情观察覆盖所有商品",
+    "Arbitrage_PriceList_Owned_Disable": {
+        "desc": "全盘准备链按需回跳：确认价目表已打开且仅拥有为黄色开启时点击取消；变灰后不再命中。",
         "max_hit": 4,
         "recognition": "And",
         "all_of": [
@@ -2421,14 +2415,19 @@
                     255
                 ]
             },
-            "Rec_SliderSwitch_YewOn_Clr"
+            "Rec_SliderSwitch_YewOn_Clr",
+            "Arbitrage_PriceList_Open_Egress"
         ],
         "action": "Click",
         "post_delay": 1500
     },
-    "Arbitrage_Sell_PriceList_FirstCalibration": {
-        "desc": "初次打开价目表,将4行价格纵向对齐",
+    "Arbitrage_PriceList_Calibrate": {
+        "desc": "价目表已打开时执行本次首次校准，将4行价格纵向对齐。由全盘和拥有准备链回跳调用，入口清除max_hit:1计数，回跳后跳过。",
         "max_hit": 1,
+        "recognition": "Or",
+        "any_of": [
+            "Arbitrage_PriceList_Open_Egress"
+        ],
         "next": [
             "Arbitrage_Swip_Calibration_Hub"
         ]
@@ -2450,20 +2449,35 @@
         ],
         "focus": "出售模块启动"
     },
-    "Arbitrage_Sell_Preview_All_Prepare": {
-        "desc": "启动变现先切到全商品视图；当天共享行情已有完整快照时,Python会直接复用",
+    "Arbitrage_GlobalMarket_Prepare": {
+        "desc": "准备全商品价目表并启动纯行情扫描。由Arbitrage_GlobalMarket_Entry进入；ClearNodeHitCount清除本次勾选、校准和排序计数，依次按需回跳处理，页面未打开时复用出售页及无折扣进店链。",
         "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "ClearNodeHitCount",
+        "custom_action_param": {
+            "node_name": [
+                "Arbitrage_PriceList_Owned_Disable",
+                "Arbitrage_PriceList_Calibrate",
+                "Arbitrage_PriceList_Sort_Entry"
+            ]
+        },
         "post_delay": 0,
         "rate_limit": 0,
         "next": [
-            "[JumpBack]Arbitrage_Sell_PackShopListSwich_OnlyHave_Disable",
-            "[JumpBack]Arbitrage_Sell_PriceList_FirstCalibration",
-            "[JumpBack]Arbitrage_Sell_PackShopListSwich_OCR_Entry",
-            "Arbitrage_ShopSell_Active_Preview_All"
+            "[JumpBack]Arbitrage_PriceList_Owned_Disable",
+            "[JumpBack]Arbitrage_PriceList_Calibrate",
+            "[JumpBack]Arbitrage_PriceList_Sort_Entry",
+            "Arbitrage_GlobalMarket_Scan",
+            "[JumpBack]Arbitrage_Sell_Type_Ocr",
+            "[JumpBack]Arbitrage_Merchant_NoDiscount_Entry"
         ]
     },
-    "Arbitrage_ShopSell_Active_Preview_All": {
-        "desc": "扫描全商品价目表并保存共享行情，不执行交易。由Arbitrage_Sell_Preview_All_Prepare调用；agent/action/arbitrage_result.py的ArbitrageSellController使用preview_all模式，完成后进入预览出口。",
+    "Arbitrage_GlobalMarket_Scan": {
+        "desc": "确认价目表已打开后，扫描全商品价目表并保存公共行情，不执行交易。由Arbitrage_GlobalMarket_Prepare调用；agent/action/arbitrage_result.py的ArbitrageSellController使用preview_all模式，完成后进入Arbitrage_PriceList_Egress。",
+        "recognition": "Or",
+        "any_of": [
+            "Arbitrage_PriceList_Open_Egress"
+        ],
         "action": "Custom",
         "custom_action": "ArbitrageSellController",
         "custom_action_param": {
@@ -2471,12 +2485,16 @@
             "max_scan_pages": 80
         },
         "next": [
-            "Arbitrage_ShopSell_Active_Preview_End"
+            "Arbitrage_PriceList_Egress"
         ],
         "focus": "Arb.M.观察今日共享行情"
     },
-    "Arbitrage_ShopSell_Active_Preview_Possess": {
-        "desc": "扫描已有物品价目表，随后尝试出售达到今日峰值的料理。由Arbitrage_Preview_PossessPrepare调用；agent/action/arbitrage_result.py的ArbitrageSellController使用preview_possess模式完成①开局变现，再进入预览出口。",
+    "Arbitrage_PreSell_Run": {
+        "desc": "确认价目表已打开后，扫描已有物品价目表，随后尝试出售达到今日峰值的料理。由Arbitrage_PreSell_Prepare调用；agent/action/arbitrage_result.py的ArbitrageSellController使用preview_possess模式完成①开局变现，再进入Arbitrage_PriceList_Egress。",
+        "recognition": "Or",
+        "any_of": [
+            "Arbitrage_PriceList_Open_Egress"
+        ],
         "action": "Custom",
         "custom_action": "ArbitrageSellController",
         "custom_action_param": {
@@ -2484,20 +2502,17 @@
             "max_scan_pages": 80
         },
         "next": [
-            "Arbitrage_ShopSell_Active_Preview_End"
+            "Arbitrage_PriceList_Egress"
         ],
         "focus": "Arb.M.启动变现:仅出售料理"
     },
-    "Arbitrage_ShopSell_Active_Preview_End": {
-        "desc": "启动变现结束,清理校准命中次数与预览旁路锚点",
+    "Arbitrage_PriceList_Egress": {
+        "desc": "全盘扫描与①拥有扫描出售的共同出口。清除首次校准计数后退出商店，返回各自调用方，不串接另一种扫描。",
         "pre_delay": 0,
         "action": "Custom",
         "custom_action": "ClearNodeHitCount",
         "custom_action_param": {
-            "node_name": "Arbitrage_Sell_PriceList_FirstCalibration"
-        },
-        "anchor": {
-            "Arbitrage_Sell_Preview": ""
+            "node_name": "Arbitrage_PriceList_Calibrate"
         },
         "post_delay": 0,
         "timeout": 3000,
@@ -7602,8 +7617,8 @@
             ]
         }
     },
-    "Arbitrage_Market_Ensure": {
-        "desc": "确保存在今日完整行情，已有记录时直接复用。供①④⑤管路及arbitrage_replenish.py补买计划调用；arbitrage_flow.py的ArbitrageMarketEnsure按需进店扫描。max_hit:1防同阶段回跳重入；总调度、①后续Preview_Open和④⑤入口按调用边界清计数。",
+    "Arbitrage_GlobalMarket_Ensure": {
+        "desc": "确保存在今日完整公共行情，已有记录时直接复用。供①④⑤管路及arbitrage_replenish.py补买计划调用；arbitrage_flow.py的ArbitrageMarketEnsure负责必要时补扫。max_hit:1防同阶段回跳重入；总调度、①后续Arbitrage_PreSell_GlobalMarket_Reset和④⑤入口按调用边界清除计数。",
         "max_hit": 1,
         "pre_delay": 0,
         "action": "Custom",
@@ -7615,38 +7630,41 @@
         ],
         "focus": "套利准备：检查今日行情"
     },
-    "Arbitrage_Market_Scan": {
-        "desc": "打开全商品价目表并扫描今日行情。由agent/action/arbitrage_flow.py的ArbitrageMarketEnsure通过run_task调用；设置全表预览锚点，经出售页及Arbitrage_Sell_Preview_All_Prepare进入Python扫描。",
-        "anchor": {
-            "Arbitrage_Sell_Preview": "Arbitrage_Sell_Preview_All_Prepare"
-        },
+    "Arbitrage_GlobalMarket_Entry": {
+        "desc": "公共行情扫描入口。由agent/action/arbitrage_flow.py的ArbitrageMarketEnsure在缺少今日完整行情时通过run_task调用，普通next进入全盘准备；纯扫描并退出商店后返回Python。",
         "next": [
-            "Arbitrage_Sell_Type_Ocr",
-            "[JumpBack]Arbitrage_Merchant_NoDiscount_Entry"
+            "Arbitrage_GlobalMarket_Prepare"
         ]
     },
-    "Arbitrage_Preview_Open": {
-        "desc": "打开①开局出售使用的价目表。由Arbitrage_SellItem_Preview在行情准备返回后普通next进入，此时清除Market_Ensure计数供后续③补买调用；后续沿已有物品预览链执行，不再回到①的Ensure候选列表。",
+    "Arbitrage_PreSell_GlobalMarket_Reset": {
+        "desc": "①行情准备返回后清除Arbitrage_GlobalMarket_Ensure计数，供后续阶段复用。由Arbitrage_PreSell_Entry普通next进入，再普通next进入Arbitrage_PreSell_Prepare；页面打开和扫描由下游完成。",
         "action": "Custom",
         "custom_action": "ClearNodeHitCount",
         "custom_action_param": {
-            "node_name": "Arbitrage_Market_Ensure"
-        },
-        "anchor": {
-            "Arbitrage_Sell_Preview": "Arbitrage_Preview_PossessPrepare"
+            "node_name": "Arbitrage_GlobalMarket_Ensure"
         },
         "next": [
-            "Arbitrage_Sell_Type_Ocr",
-            "[JumpBack]Arbitrage_Merchant_NoDiscount_Entry"
+            "Arbitrage_PreSell_Prepare"
         ]
     },
-    "Arbitrage_Preview_PossessPrepare": {
-        "desc": "准备①开局出售的已有物品视图并校准价目表。由Arbitrage_SellItem_Preview设置为Arbitrage_Sell_Preview锚点目标；完成页面准备后进入Arbitrage_ShopSell_Active_Preview_Possess。",
+    "Arbitrage_PreSell_Prepare": {
+        "desc": "准备仅拥有价目表并启动①扫描及出售。由Arbitrage_PreSell_GlobalMarket_Reset进入；ClearNodeHitCount清除本次勾选、校准和排序计数，依次按需回跳处理，页面未打开时复用出售页及无折扣进店链。",
+        "action": "Custom",
+        "custom_action": "ClearNodeHitCount",
+        "custom_action_param": {
+            "node_name": [
+                "Arbitrage_PriceList_Owned_Enable",
+                "Arbitrage_PriceList_Calibrate",
+                "Arbitrage_PriceList_Sort_Entry"
+            ]
+        },
         "next": [
-            "[JumpBack]Arbitrage_Sell_PackShopListSwich_OnlyHave_NeedDisable",
-            "[JumpBack]Arbitrage_Sell_PriceList_FirstCalibration",
-            "[JumpBack]Arbitrage_Sell_PackShopListSwich_OCR_Entry",
-            "Arbitrage_ShopSell_Active_Preview_Possess"
+            "[JumpBack]Arbitrage_PriceList_Owned_Enable",
+            "[JumpBack]Arbitrage_PriceList_Calibrate",
+            "[JumpBack]Arbitrage_PriceList_Sort_Entry",
+            "Arbitrage_PreSell_Run",
+            "[JumpBack]Arbitrage_Sell_Type_Ocr",
+            "[JumpBack]Arbitrage_Merchant_NoDiscount_Entry"
         ]
     },
     "Arbitrage_SellMaterials": {
@@ -7658,14 +7676,14 @@
         "custom_action": "ClearNodeHitCount",
         "custom_action_param": {
             "node_name": [
-                "Arbitrage_Market_Ensure",
+                "Arbitrage_GlobalMarket_Ensure",
                 "Arbitrage_Sale_EnsureShop"
             ]
         },
         "post_delay": 0,
         "timeout": 4000,
         "next": [
-            "[JumpBack]Arbitrage_Market_Ensure",
+            "[JumpBack]Arbitrage_GlobalMarket_Ensure",
             "[JumpBack]Arbitrage_Sale_EnsureShop",
             "Arbitrage_ShopSell_Materials"
         ],

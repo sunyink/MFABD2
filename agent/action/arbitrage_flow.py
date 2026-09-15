@@ -18,7 +18,7 @@ from utils.arbitrage_replenish_data import load_replenish_data
 from utils.persistent_store import PersistentStore
 
 
-STAGES = ("Arbitrage_SellItem_Preview", "Arbitrage_BuyItem", "Arbitrage_Cooking",
+STAGES = ("Arbitrage_PreSell_Entry", "Arbitrage_BuyItem", "Arbitrage_Cooking",
           "Arbitrage_SellItem", "Arbitrage_SellMaterials")
 _COOKING_RUNS = OrderedDict()
 _NORMAL_COMPLETED = OrderedDict()
@@ -159,14 +159,12 @@ class ArbitrageMarketEnsure(CustomAction):
             if store.get_market_snapshot() is not None:
                 mfaalog.info("[行情] 复用今日完整行情")
                 return True
-            # 子上下文隔离全表/已有物锚点；扫描结束后下一阶段自行恢复商店。
+            # Pipeline负责全盘页面准备和计数清理；扫描退出后下一阶段自行恢复商店。
             local = context.clone()
             ensure_shop(local, bargain=False)
-            if not local.clear_hit_count("Arbitrage_Sell_PriceList_FirstCalibration"):
-                raise RuntimeError("行情校准计数无法重置")
-            result = local.run_task("Arbitrage_Market_Scan")
+            result = local.run_task("Arbitrage_GlobalMarket_Entry")
             if (result is None or not result.status.succeeded
-                    or not any(node.name == "Arbitrage_ShopSell_Active_Preview_End" for node in result.nodes)
+                    or not any(node.name == "Arbitrage_PriceList_Egress" for node in result.nodes)
                     or store.get_market_snapshot() is None):
                 raise RuntimeError("今日完整行情未取得")
             return True

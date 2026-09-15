@@ -199,27 +199,38 @@ class ArbitragePreviewTests(unittest.TestCase):
         self.assertEqual(ar._max_price_verdict(set(), set(), {"120"}, {"120"}),
                          (True, "rate_fallback"))
 
-    def test_pipeline_wires_all_view_before_possession_view(self):
-        entry = PIPELINE["Arbitrage_Sell_PriceList_Enter"]["next"]
-        prepare = PIPELINE["Arbitrage_Sell_Preview_All_Prepare"]["next"]
-        preview_all = PIPELINE["Arbitrage_ShopSell_Active_Preview_All"]
-        preview_possess = PIPELINE["Arbitrage_ShopSell_Active_Preview_Possess"]
-        self.assertEqual(entry[0], "[Anchor]Arbitrage_Sell_Preview")
-        self.assertEqual(prepare, [
-            "[JumpBack]Arbitrage_Sell_PackShopListSwich_OnlyHave_Disable",
-            "[JumpBack]Arbitrage_Sell_PriceList_FirstCalibration",
-            "[JumpBack]Arbitrage_Sell_PackShopListSwich_OCR_Entry",
-            "Arbitrage_ShopSell_Active_Preview_All",
-        ])
-        self.assertEqual(preview_all["custom_action_param"]["mode"], "preview_all")
-        self.assertEqual(preview_all["custom_action_param"]["max_scan_pages"], 80)
-        self.assertEqual(preview_all["next"][0],
-                         "[JumpBack]Arbitrage_Sell_PackShopListSwich_OnlyHave_NeedDisable")
-        self.assertEqual(preview_possess["custom_action_param"]["mode"], "preview_possess")
+    def test_pipeline_scan_callers_keep_separate_modes(self):
+        def scan_modes(entry):
+            pending, visited, modes = [entry], set(), set()
+            while pending:
+                name = pending.pop()
+                if name in visited or name not in PIPELINE:
+                    continue
+                visited.add(name)
+                node = PIPELINE[name]
+                if node.get("custom_action") == "ArbitrageSellController":
+                    modes.add(node["custom_action_param"]["mode"])
+                    continue
+                pending.extend(target.removeprefix("[JumpBack]")
+                               for target in node.get("next", []))
+            return modes
+
+        self.assertEqual(scan_modes("Arbitrage_GlobalMarket_Entry"), {"preview_all"})
+        self.assertEqual(scan_modes("Arbitrage_PreSell_GlobalMarket_Reset"), {"preview_possess"})
+        self.assertEqual(scan_modes("Arbitrage_SellItem"), {"sell"})
+        self.assertEqual(scan_modes("Arbitrage_SellMaterials"), {"sell"})
+        self.assertFalse(PIPELINE["Arbitrage_PriceList_Open_Egress"].get("next"))
+        for node in PIPELINE.values():
+            self.assertNotIn("Arbitrage_Sell_Preview", node.get("anchor", {}))
+            self.assertNotIn("[Anchor]Arbitrage_Sell_Preview", node.get("next", []))
+        for name in ("Arbitrage_GlobalMarket_Scan", "Arbitrage_PreSell_Run"):
+            node = PIPELINE[name]
+            self.assertEqual(node["custom_action_param"]["max_scan_pages"], 80)
+            self.assertEqual(node["next"], ["Arbitrage_PriceList_Egress"])
         self.assertIn("Rec_SliderSwitch_YewOn_Clr",
-                      PIPELINE["Arbitrage_Sell_PackShopListSwich_OnlyHave_Disable"]["all_of"])
+                      PIPELINE["Arbitrage_PriceList_Owned_Disable"]["all_of"])
         self.assertIn("Rec_SliderSwitch_GryOff_Clr",
-                      PIPELINE["Arbitrage_Sell_PackShopListSwich_OnlyHave_NeedDisable"]["all_of"])
+                      PIPELINE["Arbitrage_PriceList_Owned_Enable"]["all_of"])
         self.assertEqual(PIPELINE["Arbitrage_Sell_Col_Amount"]["roi"], [817, 209, 79, 344])
 
 
