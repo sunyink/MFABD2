@@ -8,7 +8,7 @@
         "timeout": 2000,
         "next": [
             "Arbitrage_Merchant_Ico",
-            "Arbitrage_HomePageOldCardMenu_Goin",
+            "[JumpBack]Arbitrage_HomePageOldCardMenu_Goin",
             "[JumpBack]Global_ToHomePage"
         ],
         "on_error": [
@@ -17,7 +17,7 @@
     },
     "#1总控与进图寻路": {},
     "Arbitrage_HomePageOldCardMenu_Goin": {
-        "desc": "进入卡带界面",
+        "desc": "从主页进入卡带5并寻路到商人。由总入口或出售恢复链回跳调用；到Arbitrage_Merchant_Locate_Egress退栈，不派发五阶段。",
         "recognition": "And",
         "all_of": [
             "Rec_HomePage_GA_Ocr",
@@ -73,7 +73,7 @@
         "post_delay": 1000,
         "next": [
             "[JumpBack]PVP_PerPetTask",
-            "Arbitrage_Merchant_Ico",
+            "Arbitrage_Merchant_Locate_Egress",
             "Arbitrage_Sandplay_SeeMerchant",
             "[JumpBack]Collect_FindTeleporCircle0.9",
             "[JumpBack]Collect_FindTeleporCircle",
@@ -135,7 +135,7 @@
             "Arbitrage_NviGuide_CKMsgBox_Ocr",
             "Arbitrage_NviGuide_Merchant_Ocr",
             "[JumpBack]Arbitrage_NviGuide_Onfoot_Loop",
-            "Arbitrage_Merchant_Ico"
+            "Arbitrage_Merchant_Locate_Egress"
         ],
         "focus": "点击商店"
     },
@@ -154,7 +154,7 @@
         "post_delay": 1000,
         "next": [
             "[JumpBack]Arbitrage_NviGuide_Onfoot_Loop",
-            "Arbitrage_Merchant_Ico",
+            "Arbitrage_Merchant_Locate_Egress",
             "Arbitrage_NviGuide_CKMsgBox_Ocr"
         ]
     },
@@ -188,6 +188,15 @@
             "[Anchor]PractiseBargaining_Per",
             "Arbitrage_Action_Hub"
         ]
+    },
+    "Arbitrage_Merchant_Locate_Egress": {
+        "desc": "寻路到商人的公共出口。由卡带5箱庭导航链进入；仅引用商人图标识别，空next退回总入口或出售恢复调用方，不进入Action_Hub。",
+        "recognition": "Or",
+        "any_of": [
+            "Arbitrage_Merchant_Ico"
+        ],
+        "pre_delay": 0,
+        "post_delay": 0
     },
     "#2商人交互与分支总枢纽": {},
     "Arbitrage_Action_Hub": {
@@ -7607,12 +7616,12 @@
         }
     },
     "Agt_Arbitrage_StageConfig": {
-        "desc": "保存套利进入商店前的导航候选，仅供Python读取，不参与管路识别。agent/action/arbitrage_flow.py的ArbitrageStagePrepare据此设置Arbitrage_Start.next；arbitrage_replenish_buy.py的ensure_shop恢复页面时也复用此配置。",
+        "desc": "保存套利进入商店前的导航候选，供ArbitrageStagePrepare及ensure_shop读取。主页寻路使用JumpBack，找到商人后返回调用方，再由Arbitrage_Merchant_Ico选择总调度或局部进店路线。",
         "enabled": false,
         "attach": {
             "start_next": [
                 "Arbitrage_Merchant_Ico",
-                "Arbitrage_HomePageOldCardMenu_Goin",
+                "[JumpBack]Arbitrage_HomePageOldCardMenu_Goin",
                 "[JumpBack]Global_ToHomePage"
             ]
         }
@@ -7784,15 +7793,113 @@
         "post_delay": 0
     },
     "Arbitrage_Sale_EnsureShop": {
-        "desc": "为④料理出售和⑤材料出售恢复商店页面。由两个阶段通过JumpBack调用；arbitrage_replenish.py的ArbitragePrepareFinalSale不砍价进店，不执行出售。max_hit:1防同阶段回跳重入；总调度及④⑤入口清计数，允许跨阶段重新进店。",
+        "desc": "为④料理出售和⑤材料出售准备出售页及卡带列表顶部。由阶段入口JumpBack调用；仅使用ClearNodeHitCount清本次局部计数，按next顺序修复页面，成功出口退栈后继续各自出售；恢复失败停止当前套利任务。max_hit:1由总调度及④⑤入口清理，内部回跳不重做本入口动作。",
         "max_hit": 1,
         "pre_delay": 0,
         "action": "Custom",
-        "custom_action": "ArbitragePrepareFinalSale",
+        "custom_action": "ClearNodeHitCount",
+        "custom_action_param": {
+            "node_name": [
+                "Arbitrage_Sale_Shop_Switch",
+                "Arbitrage_Sale_Shop_Reset",
+                "Arbitrage_Sale_Shop_Navigate",
+                "Arbitrage_Sale_SubMenu_Close"
+            ]
+        },
+        "anchor": {
+            "PractiseBargaining_Per": ""
+        },
         "post_delay": 0,
         "timeout": 4000,
+        "next": [
+            "Arbitrage_Sale_Shop_Egress",
+            "[JumpBack]Arbitrage_Sale_Shop_Switch",
+            "[JumpBack]Arbitrage_Sale_Shop_Reset",
+            "[JumpBack]Arbitrage_Merchant_NoDiscount_Entry",
+            "[JumpBack]Arbitrage_Sale_Shop_Navigate",
+            "[JumpBack]Global_WaitingForLoading",
+            "[JumpBack]Arbitrage_Sale_SubMenu_Close",
+            "[JumpBack]Global_BackPageHub_Once"
+        ],
         "on_error": [
             "Arbitrage_Replenish_Stop"
         ]
+    },
+    "Arbitrage_Sale_Shop_Egress": {
+        "desc": "④⑤出售准备成功出口：出售页签亮色且卡带列表顶部出现血骑士。仅确认列表回顶，不代表选中卡带1；空next退回阶段入口，继续对应出售Custom。",
+        "recognition": "And",
+        "all_of": [
+            "Arbitrage_Sell_Type_Clr",
+            "Arbitrage_PackList_ResetEnter"
+        ],
+        "pre_delay": 0,
+        "post_delay": 0
+    },
+    "Arbitrage_Sale_Shop_Switch": {
+        "desc": "④⑤出售准备按需切页：购买页签亮色且出售文字可见时，点击出售文字；空next返回准备入口。每次准备最多3次，入口清计数。",
+        "max_hit": 3,
+        "recognition": "And",
+        "all_of": [
+            "Arbitrage_Buy_Button",
+            "Arbitrage_Sell_Item_ListReset_Sell_Chg"
+        ],
+        "box_index": 1,
+        "action": "Click",
+        "post_delay": 2000
+    },
+    "Arbitrage_Sale_Shop_Reset": {
+        "desc": "④⑤出售准备按需回顶：确认出售页签亮色后滑动卡带列表；成功出口优先确认血骑士已在顶部。每次准备最多8次，入口清计数，空next返回。",
+        "max_hit": 8,
+        "recognition": "Or",
+        "any_of": [
+            "Arbitrage_Sell_Type_Clr"
+        ],
+        "action": "Swipe",
+        "begin": [
+            285,
+            135
+        ],
+        "end": [
+            285,
+            660
+        ],
+        "end_hold": 500,
+        "duration": 300,
+        "post_wait_freezes": 1000
+    },
+    "Arbitrage_Sale_Shop_Navigate": {
+        "desc": "④⑤出售准备的寻路入口：主页或箱庭可识别时借用对应导航链，到Arbitrage_Merchant_Locate_Egress退回准备入口。每次准备最多进入1次，入口清计数；不调用Arbitrage_Start及总调度。",
+        "max_hit": 1,
+        "recognition": "Or",
+        "any_of": [
+            "Arbitrage_HomePageOldCardMenu_Goin",
+            "Arbitrage_OperationsMain_Sandplay"
+        ],
+        "pre_delay": 0,
+        "post_delay": 0,
+        "timeout": 4000,
+        "next": [
+            "Arbitrage_HomePageOldCardMenu_Goin",
+            "Arbitrage_OperationsMain_Sandplay"
+        ],
+        "on_error": [
+            "Arbitrage_Replenish_Stop"
+        ]
+    },
+    "Arbitrage_Sale_SubMenu_Close": {
+        "desc": "④⑤出售准备关闭已知料理或出售子菜单。Or只引用子菜单识别，命中后点击左上空白处，空next返回；排在通用返回之前，每次准备最多3次，入口清计数。",
+        "max_hit": 3,
+        "recognition": "Or",
+        "any_of": [
+            "Arbitrage_Cooking_SubMenu",
+            "Arbitrage_Sell_Item_SellMenu"
+        ],
+        "pre_delay": 0,
+        "action": "Click",
+        "target": [
+            1,
+            1
+        ],
+        "post_delay": 800
     }
 }
