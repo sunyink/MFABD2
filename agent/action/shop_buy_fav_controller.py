@@ -37,6 +37,9 @@ from maa.context import Context
 from maa.agent.agent_server import AgentServer
 from utils import mfaalog
 from utils.name_i18n import canon
+from utils.arbitrage_purchase_lists import FORCED_UNFAVORITES, get_purchase_run, load_purchase_catalog
+from utils.arbitrage_store import save_purchase_alignment
+from utils.account_sync import sync_from_context
 
 
 # 数据节点名（py 自定义引用节点，_Csm 后缀标记）
@@ -103,23 +106,37 @@ class ShopBuyFavController(CustomAction):
             # 先加载外置参数（各端可覆盖），失败自动回落兜底默认值。
             self.cfg = self._load_params(context)
 
-            target_items, ocr_exclude = self._load_config(context, cart_name)
-            if target_items is None:
+            if not sync_from_context(context, where="ShopBuyFavController"):
                 return False
-            if not target_items:
-                mfaalog.info(
-                    f"[ShopBuy] [{cart_name}] 购物清单为空，跳过购买。"
-                )
-                return True
+            run = get_purchase_run(argv.task_detail.task_id)
+            if run is None or run["failed"] or cart_name not in run["table"]:
+                raise ValueError("缺少本轮已准备采购名单，不能使用旧收藏")
+            target_items = run["table"][cart_name] - FORCED_UNFAVORITES
+            _, ocr_exclude = self._load_config(context, cart_name)
+            if ocr_exclude is None:
+                return False
+            self.expected_items = {canon(name) for name in load_purchase_catalog()[cart_name]["items"]} - FORCED_UNFAVORITES
 
             mfaalog.debug(
                 f"[ShopBuy] 📋 [{cart_name}] 目标商品 ({len(target_items)}项): "
                 f"{', '.join(target_items)}"
             )
 
-            return self._align_favorites(
-                context, target_items, ocr_exclude, cart_name
-            )
+            aligned = self._align_favorites(context, target_items, ocr_exclude, cart_name)
+            if aligned:
+                if not sync_from_context(context, where="ShopBuyFavController/complete"):
+                    return False
+                # 再次核对账号；失败或中途切换不能把结果写给其他账号。
+                if get_purchase_run(argv.task_detail.task_id) is not run:
+                    return False
+                if not save_purchase_alignment(cart_name, target_items):
+                    raise RuntimeError("收藏成功记录保存失败")
+                run["pending"].discard(cart_name)
+                if not run["pending"]:
+                    # 所有变更已核实，无须把剩余未变化的卡带列表继续翻到底。
+                    if not context.override_pipeline({"Arbitrage_Buy_Select_Str": {"next": []}}):
+                        raise RuntimeError("收藏遍历收尾设置失败")
+            return aligned
 
         except Exception as e:
             mfaalog.error(f"[ShopBuy] ❌ 未预期异常: {e}")
@@ -267,8 +284,16 @@ class ShopBuyFavController(CustomAction):
                 return False
 
             entities = self._scan_page(context, screenshot, ocr_exclude)
-            if entities is None:
-                mfaalog.warning(f"[ShopBuy] ⚠️ [{cart_name}] 识别失败。")
+            if not self._complete_page(entities):
+                # 普通商品漏识别仍不能购买；已确认的天赋神药黄星单独取消。
+                forced = [item for item in entities or [] if item["name"] in FORCED_UNFAVORITES]
+                forced_actions = self._decide_actions(forced, set())
+                if forced_actions:
+                    self._execute_clicks(context, forced_actions, cart_name)
+                mfaalog.warning(f"[ShopBuy] ⚠️ [{cart_name}] 商品未完整识别，不能核实收藏。")
+                if attempt < max_retries:
+                    time.sleep(verify_delay)
+                    continue
                 return False
 
             actions = self._decide_actions(entities, target_items)
@@ -303,7 +328,7 @@ class ShopBuyFavController(CustomAction):
         if final_ss is None:
             return False
         final_entities = self._scan_page(context, final_ss, ocr_exclude)
-        if final_entities is None:
+        if not self._complete_page(final_entities):
             return False
         final_actions = self._decide_actions(final_entities, target_items)
         if final_actions:
@@ -318,6 +343,19 @@ class ShopBuyFavController(CustomAction):
             return False
 
         mfaalog.info(f"[ShopBuy] ✅ [{cart_name}] 收藏对齐验证通过！")
+        return True
+
+    def _complete_page(self, entities):
+        """普通货架必须完整；固定取消收藏的商品可缺席，出现时交给点星流程处理。"""
+        if not entities:
+            return False
+        observed = {item["name"] for item in entities}
+        expected = self.expected_items
+        missing = expected - observed
+        extra = observed - expected - FORCED_UNFAVORITES
+        if missing or extra or len(entities) != len(observed):
+            mfaalog.warning(f"[ShopBuy] 货架核实不完整：缺少={sorted(missing)}，额外={sorted(extra)}")
+            return False
         return True
 
     # ==========================================
@@ -347,10 +385,10 @@ class ShopBuyFavController(CustomAction):
             cleaned = canon(cleaned)
             if not cleaned or cleaned.isdigit():
                 continue
-            if cleaned in ocr_exclude:
+            if cleaned in ocr_exclude and cleaned not in FORCED_UNFAVORITES:
                 continue
             # 过滤 Toast 消息（"已将商品蘑菇加入收藏"等长文本）
-            if len(cleaned) > name_max_len:
+            if len(cleaned) > name_max_len and cleaned not in FORCED_UNFAVORITES:
                 continue
             name_items.append({
                 "name": cleaned,
@@ -407,6 +445,11 @@ class ShopBuyFavController(CustomAction):
 
         # --- 配对 ---
         entities = self._bind_star_to_name(all_stars, name_items)
+        forced_seen = {item["name"] for item in name_items} & FORCED_UNFAVORITES
+        forced_unmatched = forced_seen - {item["name"] for item in entities}
+        if forced_unmatched:
+            mfaalog.warning(f"[ShopBuy] 已看到固定取消收藏商品但无法确认星星状态：{sorted(forced_unmatched)}")
+            return None
         if not entities:
             mfaalog.warning("[ShopBuy] ⚠️ 星星与商品名完全无法配对，识别失败。")
             return None
@@ -525,7 +568,19 @@ class ShopBuyFavController(CustomAction):
         for entity in entities:
             name = entity["name"]
             color = entity["star_color"]
-            is_target = name in target_items
+            is_target = name in target_items and name not in FORCED_UNFAVORITES
+
+            if name in FORCED_UNFAVORITES:
+                if color == "yellow":
+                    actions.append({
+                        "name": name, "action": "extinguish",
+                        "star_cx": entity["star_cx"],
+                        "star_cy": entity["star_cy"],
+                    })
+                    mfaalog.info(f"[ShopBuy]   🔄 [{name}] 固定取消收藏+黄星 → 将熄灭")
+                else:
+                    mfaalog.info(f"[ShopBuy]   ✓  [{name}] 固定取消收藏+灰星 → 已正确")
+                continue
 
             if is_target and color == "gray":
                 actions.append({

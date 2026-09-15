@@ -26,6 +26,24 @@ def market_day() -> str:
     return datetime.now(timezone.utc).date().isoformat()
 
 
+def get_purchase_alignments() -> dict:
+    """当前账号各卡带已成功应用的收藏名单；不从共享存档借用。"""
+    with _LOCK:
+        rows = _root(PersistentStore.load()).get("purchase_alignments", {})
+        if not isinstance(rows, dict):
+            raise ValueError("采购收藏记录格式错误")
+        return copy.deepcopy(rows)
+
+
+def save_purchase_alignment(cartridge: str, items) -> bool:
+    """仅由收藏实际核对成功的回调调用；失败不更新该卡带基准。"""
+    with _LOCK:
+        data = PersistentStore.load()
+        rows = _dict_child(_root(data), "purchase_alignments")
+        rows[cartridge] = {"items": sorted(set(items)), "applied_at": utc_now()}
+        return bool(PersistentStore.save(data))
+
+
 def _dict_child(parent: dict, key: str) -> dict:
     value = parent.get(key)
     if not isinstance(value, dict):

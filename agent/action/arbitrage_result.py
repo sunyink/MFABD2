@@ -436,6 +436,8 @@ def _action_params(argv) -> dict:
     mode = params.get("mode", _MODE_SELL)
     if mode not in _VALID_MODES:
         raise ValueError(f"mode={mode!r} 非法，可选 {sorted(_VALID_MODES)}")
+    if mode == _MODE_SELL and params.get("sale_scope", "recipes") not in ("recipes", "materials"):
+        raise ValueError("sale_scope必须为recipes或materials")
     params["mode"] = mode
     return params
 
@@ -556,20 +558,20 @@ class ArbitrageSellController(CustomAction):
         preview_recipe_names = None
         possession_plan = None
         final_reserves = {}
-        final_whitelist = set()
         final_market = None
         final_market_day = None
         if mode == _MODE_SELL:
-            final_whitelist = self._load_whitelist(context)
-            final_reserves = {name: 0 for name in final_whitelist & _load_recipe_names()}
-            try:
-                policy = read_material_reserve_policy(context)
-                final_reserves.update({name: policy.reserve_for(name) for name in policy.sale_eligible
-                                       if policy.reserve_for(name) >= 0})
-                mfaalog.info(f"[Arbitrage] 材料出售模式={policy.mode}；"
-                             "仅月度峰值出售超过保留量的部分")
-            except Exception as exc:
-                mfaalog.warning(f"[Arbitrage] 材料保留配置不可用({exc})，本轮只处理料理")
+            if params.get("sale_scope", "recipes") == "recipes":
+                final_reserves = {name: 0 for name in _load_recipe_names()}
+            else:
+                try:
+                    policy = read_material_reserve_policy(context)
+                    final_reserves = {name: policy.reserve_for(name) for name in policy.sale_eligible
+                                      if name not in _load_recipe_names() and policy.reserve_for(name) >= 0}
+                    mfaalog.info(f"[⑤材料] 保留模式={policy.mode}；仅峰值出售超过保留量的部分")
+                except Exception as exc:
+                    mfaalog.error(f"[⑤材料] 保留配置不可用({exc})，停止材料出售")
+                    return False
             if not final_reserves:
                 mfaalog.info("[Arbitrage] 当前没有获准出售的料理或材料")
                 return True
@@ -579,19 +581,19 @@ class ArbitrageSellController(CustomAction):
             except Exception as exc:
                 mfaalog.warning(f"[Arbitrage] 无法读取今日完整行情({exc})")
             if not final_market or not final_market.get("complete"):
-                mfaalog.error("[Arbitrage] 今日完整行情存档缺失，最终出售停止；请先完成开局行情扫描")
+                mfaalog.error("[Arbitrage] 今日完整行情存档缺失，最终出售停止；请检查共享行情准备步骤")
                 return False
         if mode == _MODE_PREVIEW_POSSESS:
-            # 预览入口仍需全量采价，但开局变现与最终出售共用用户的出售开关。
+            # ①有独立开关；完整料理目录与④共用，均不依赖③制作选择。
             try:
-                sell_node = context.get_node_data("Arbitrage_SellItem")
+                sell_node = context.get_node_data("Arbitrage_SellItem_Preview")
                 if not isinstance(sell_node, dict):
-                    raise ValueError("最终出售节点不可读")
+                    raise ValueError("开局出售节点不可读")
             except Exception as exc:
                 mfaalog.error(f"[Arbitrage] 无法确认出售开关({exc})，跳过开局变现")
                 return False
             if not sell_node.get("enabled", True) or sell_node.get("max_hit") == 0:
-                mfaalog.info("[Arbitrage] 出售已关闭，保留全量行情观察，跳过开局变现")
+                mfaalog.info("[Arbitrage] ①已关闭，跳过开局变现")
                 return True
             preview_recipe_names = _load_recipe_names()
             try:
@@ -668,10 +670,10 @@ class ArbitrageSellController(CustomAction):
             whitelist_set = preview_recipe_names if preview_recipe_names is not None else _load_recipe_names()
             mfaalog.info("[Arbitrage] 🍳 启动变现只允许料理类别，材料与其他物品一律不卖")
         else:
-            whitelist_set = final_whitelist
+            whitelist_set = set(final_reserves)
             mfaalog.info(f"[Arbitrage] 📋 期望售卖清单 ({len(whitelist_set)}项): {', '.join(whitelist_set)}")
 
-        # 料理仍由白名单控制；材料只在最终出售、显式开启模式后按完整资格表加入。
+        # ①④使用完整料理目录；⑤单独使用材料资格与保留量。
         recipe_names = preview_recipe_names if preview_recipe_names is not None else _load_recipe_names()
         reserves = final_reserves if mode == _MODE_SELL else {name: 0 for name in whitelist_set & recipe_names}
         excluded = whitelist_set - reserves.keys()
@@ -794,21 +796,6 @@ class ArbitrageSellController(CustomAction):
         else:
             mfaalog.info(f"[Arbitrage] ➖ 本轮 {len(targets_to_sell)} 项待售,一项都未及处理(多半是收到停止指令)。")
         return True
-
-    @staticmethod
-    def _load_whitelist(context: Context) -> set[str]:
-        """读取正常出售节点的合并白名单。"""
-        whitelist = set()
-        node_obj = context.get_node_object("Arbitrage_ShopSell_Active")
-        attach = getattr(node_obj, "attach", None) if node_obj else None
-        for val_str in (attach or {}).values():
-            if not isinstance(val_str, str) or not val_str.strip():
-                continue
-            for item in (x.strip() for x in re.split(r"[，,;|]+", val_str) if x.strip()):
-                cleaned = re.sub(r"[^\w\u4e00-\u9fa5]", "", item)
-                if cleaned:
-                    whitelist.add(canon(cleaned))
-        return whitelist
 
     def _scan_price_list(self, context: Context, max_scan_pages: int, stop_at_non_max: bool,
                          stop_below_rate: int | None = None) -> dict:

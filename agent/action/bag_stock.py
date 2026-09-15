@@ -28,6 +28,14 @@ _REASON_TEXT = {
 }
 
 _BAG_RUNS = OrderedDict()
+_BAG_REQUESTS = OrderedDict()
+
+
+def request_bag_materials(task_id, names):
+    _BAG_REQUESTS[task_id] = set(names)
+    _BAG_REQUESTS.move_to_end(task_id)
+    while len(_BAG_REQUESTS) > 16:
+        _BAG_REQUESTS.popitem(last=False)
 
 
 def get_bag_scan_run(task_id):
@@ -175,16 +183,22 @@ class BagStockScan(CustomAction):
             params = raw if isinstance(raw, dict) else json.loads(str(raw))
             config = context.get_node_object(params["config_node"]).attach
             catalog = bag_catalog(context, config)
-            pending = pending_materials(catalog, get_inventory_items(),
+            required = _BAG_REQUESTS.get(task_id, set(catalog))
+            pending = pending_materials(dict.fromkeys(sorted(required)), get_inventory_items(),
                                         get_cooking_scan_start(argv.task_detail.task_id))
             record["unknown_item_names"] = list(pending)
-            record["reused_item_names"] = [name for name in catalog if name not in pending]
+            record["reused_item_names"] = sorted(required - set(pending))
             if not invalidate_inventory_quantities(pending, "bag_scan_pending"):
                 raise RuntimeError("待补查库存未能标记为未知")
-            scanner = BagScanner(context, config)
-            scanner.list_image()
-            mfaalog.info(f"[BagStock] 复用本轮有效读数 {len(catalog) - len(pending)} 项，背包补查 {len(pending)} 项")
+            if set(pending) & catalog.keys():
+                scanner = BagScanner(context, config)
+                scanner.list_image()
+            mfaalog.info(f"[BagStock] 复用本轮有效读数 {len(required) - len(pending)} 项，待补查 {len(pending)} 项")
             for name in pending:
+                if name not in catalog:
+                    record["errors"][name] = "template_missing"
+                    mfaalog.warning(f"[BagStock] {name}: 没有已验证背包模板，保留未知")
+                    continue
                 quantity, reason = scanner.find(name, catalog[name])
                 if quantity is None:
                     record["errors"][name] = reason
