@@ -169,6 +169,9 @@ jobs:
           distribution: temurin
           java-version: "17"
       - uses: android-actions/setup-android@v3
+        with:
+          # The default also requests the unavailable legacy "tools" package.
+          packages: platform-tools
       - name: Install Android build tools
         # ⚠️ 是 android-37.0，不是 android-37。API 37 起 Google 的平台包只发带 minor 的
         # 形式（37.0 / 37.1 / 37.2），裸的 `platforms;android-37` 在仓库索引里不存在，
