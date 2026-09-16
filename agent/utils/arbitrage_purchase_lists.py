@@ -1,7 +1,6 @@
 """采购默认表与每卡带自选表的合成，以及本轮已核实收藏状态。"""
 
 from collections import OrderedDict
-from datetime import datetime
 from pathlib import Path
 import json
 import re
@@ -54,19 +53,18 @@ def resolve_purchase_table(defaults, catalog, overrides):
     return result
 
 
-def changed_cartridges(table, applied, reset_timestamp, every_run=False):
+def changed_cartridges(table, applied):
+    """仅比较成功清单；周周期与每次模式由 Pipeline 决定。"""
     pending = []
     for cartridge, selected in table.items():
         previous = applied.get(cartridge, {})
         try:
-            timestamp = datetime.fromisoformat(previous["applied_at"])
-            fresh = timestamp.tzinfo is not None and timestamp.timestamp() >= reset_timestamp
             items = previous["items"]
             same = (isinstance(items, list) and all(isinstance(item, str) for item in items)
                     and {canon(item) for item in items} == selected)
         except (KeyError, TypeError, ValueError):
-            fresh = same = False
-        if every_run or not fresh or not same:
+            same = False
+        if not same:
             pending.append(cartridge)
     return pending
 

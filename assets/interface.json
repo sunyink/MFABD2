@@ -1503,22 +1503,14 @@
                 {
                     "name": "Yes",
                     "pipeline_override": {
-                        "Arbitrage_Buy_ListPrepare": {
-                            "attach": {
-                                "scan_every_run": true
-                            }
+                        "Arbitrage_Buy_CheckCycle": {
+                            "recognition": "DirectHit"
                         }
                     }
                 },
                 {
                     "name": "No",
-                    "pipeline_override": {
-                        "Arbitrage_Buy_ListPrepare": {
-                            "attach": {
-                                "scan_every_run": false
-                            }
-                        }
-                    }
+                    "pipeline_override": {}
                 }
             ]
         },

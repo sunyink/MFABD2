@@ -73,18 +73,15 @@ class PurchaseSupplyTests(unittest.TestCase):
     def setUp(self):
         self.context = Reader()
         self.argv = NS(task_detail=NS(task_id=99), node_name="Arbitrage_Buy_Select_End",
-                       custom_action_param=PIPE["Arbitrage_Buy_Select_End"]["custom_action_param"])
+                       custom_action_param={})
         for p in (patch.dict(lists._RUNS, clear=True),
                   patch.object(PersistentStore, "_current_account_id", "test"),
                   patch.object(buy, "sync_from_context", return_value=True),
                   patch.object(buy.store, "get_purchase_alignments", return_value={}),
                   patch.object(buy.store, "market_day", return_value=DAY),
-                  patch.object(buy.mfaalog, "info"),
-                  patch.object(buy, "CooldownManager"),
-                  patch.object(buy.MarkCompleteAction, "run", return_value=True)):
+                  patch.object(buy.mfaalog, "info")):
             p.start()
             self.addCleanup(p.stop)
-        buy.CooldownManager.return_value._calculate_server_reset_timestamp.return_value = (0, None)
 
     def prepare(self, complete=True):
         self.assertTrue(buy.ArbitrageBuyListPrepare().run(self.context, self.argv))

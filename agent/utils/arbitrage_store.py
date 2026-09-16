@@ -40,18 +40,25 @@ def save_purchase_alignment(cartridge: str, items) -> bool:
     with _LOCK:
         data = PersistentStore.load()
         rows = _dict_child(_root(data), "purchase_alignments")
-        rows[cartridge] = {"items": sorted(set(items)), "applied_at": utc_now()}
+        rows[cartridge] = {"items": sorted(set(items))}
         return bool(PersistentStore.save(data))
 
 
 def invalidate_purchase_alignment(cartridge: str) -> bool:
     """重新核对前撤销旧基准，避免部分点星后失败仍复用旧成功记录。"""
+    return invalidate_purchase_alignments((cartridge,))
+
+
+def invalidate_purchase_alignments(cartridges) -> bool:
+    """全扫前一次撤销旧清单；漏扫卡带下次仍按无记录重试。"""
     with _LOCK:
         data = PersistentStore.load()
         rows = _dict_child(_root(data), "purchase_alignments")
-        if cartridge not in rows:
+        stale = set(cartridges) & rows.keys()
+        if not stale:
             return True
-        del rows[cartridge]
+        for cartridge in stale:
+            del rows[cartridge]
         return bool(PersistentStore.save(data))
 
 

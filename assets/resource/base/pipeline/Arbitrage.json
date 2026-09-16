@@ -407,9 +407,19 @@
     },
     "#3购买流程": {},
     "Arbitrage_BuyItem": {
-        "desc": "②按采购清单购买材料的阶段入口。由Arbitrage_Action_Hub调用；先进入Arbitrage_Buy_ListPrepare核对名单，再打开购买页。",
+        "desc": "②采购入口。先关闭本轮扫描周打标节点，再准备名单并打开购买页；周检通过且全扫准备成功后才重新启用打标。",
         "enabled": true,
         "max_hit": 1,
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "PatchPipeline",
+        "custom_action_param": {
+            "target": "Arbitrage_Buy_ScanCycleMark",
+            "patch": {
+                "enabled": false
+            }
+        },
+        "post_delay": 0,
         "next": [
             "Arbitrage_Buy_ListPrepare"
         ],
@@ -437,7 +447,9 @@
         ],
         "count": 30,
         "next": [
+            "[JumpBack]Arbitrage_Buy_CheckCycle",
             "[JumpBack]Arbitrage_Buy_ToSelect",
+            "[JumpBack]Arbitrage_Buy_ScanCycleMark",
             "Arbitrage_Buy_SkipSelect"
         ]
     },
@@ -457,6 +469,61 @@
         "pre_delay": 500,
         "action": "Click",
         "post_delay": 1000
+    },
+    "Arbitrage_Buy_CheckCycle": {
+        "desc": "检查本周是否需要全扫购买收藏。每次模式由interface直接改为DirectHit；命中后准备全扫并启用配对的Arbitrage_Buy_ScanCycleMark，失败不打标。",
+        "max_hit": 1,
+        "recognition": "Custom",
+        "custom_recognition": "CheckCoolDown",
+        "custom_recognition_param": {
+            "card_name": "Arbitrage_Buy_ScanCycle",
+            "cycle_type": "g_weekly"
+        },
+        "pre_delay": 0,
+        "post_delay": 0,
+        "next": [
+            "Arbitrage_Buy_ScanPrepare"
+        ]
+    },
+    "Arbitrage_Buy_ScanPrepare": {
+        "desc": "为周检或每次模式准备全扫：撤销旧成功清单并启用本轮全部卡带。只准备数据，不判断周期；成功后才进入打标启用节点。",
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "ArbitrageBuyScanPrepare",
+        "post_delay": 0,
+        "next": [
+            "Arbitrage_Buy_ScanCycleMark_Enable"
+        ]
+    },
+    "Arbitrage_Buy_ScanCycleMark_Enable": {
+        "desc": "全扫准备成功后启用本轮周打标，再进入共用扫描入口。扫描从正常出口或滑到底退栈后，均由购买页派发打标。",
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "PatchPipeline",
+        "custom_action_param": {
+            "target": "Arbitrage_Buy_ScanCycleMark",
+            "patch": {
+                "enabled": true
+            }
+        },
+        "post_delay": 0,
+        "next": [
+            "Arbitrage_Buy_ToSelect"
+        ]
+    },
+    "Arbitrage_Buy_ScanCycleMark": {
+        "desc": "与Arbitrage_Buy_CheckCycle配对，记录本轮全扫尝试结束；不代表全部卡带核实成功或购买成交。默认关闭，由全扫准备成功后的PatchPipeline启用，JumpBack执行一次后返回购买页。",
+        "enabled": false,
+        "max_hit": 1,
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "MarkComplete",
+        "custom_action_param": {
+            "card_name": "Arbitrage_Buy_ScanCycle",
+            "cycle_type": "g_weekly"
+        },
+        "post_delay": 0,
+        "focus": "② 本轮收藏全扫尝试结束，更新周标记"
     },
     "Arbitrage_Buy_ToSelect": {
         "desc": "本轮有待处理的收藏卡带时进入扫描；单卡失败只记入失败名单，后续卡带继续处理。",
@@ -1887,13 +1954,9 @@
         ]
     },
     "Arbitrage_Buy_Select_End": {
-        "desc": "记录已确认的常规采购并退出购买页。由Arbitrage_Favorit_Buy_GlodConfirm进入；ArbitrageBuyComplete保存本轮最终名单的采购完成日，供补买排除已购供给，并沿用Arbitrage_BuyItems周完成标记。",
+        "desc": "记录已确认的常规采购并退出购买页。由Arbitrage_Favorit_Buy_GlodConfirm进入；ArbitrageBuyComplete只保存本轮最终名单的成交日期，供补买排除已购供给，不再写扫描周标记。",
         "action": "Custom",
         "custom_action": "ArbitrageBuyComplete",
-        "custom_action_param": {
-            "card_name": "Arbitrage_BuyItems",
-            "cycle_type": "g_weekly"
-        },
         "timeout": 1005,
         "next": [
             "Arbitrage_Buy_End",
@@ -7831,7 +7894,7 @@
         ]
     },
     "Arbitrage_Buy_ListPrepare": {
-        "desc": "生成本轮采购清单并标出需要更新收藏的卡带。由Arbitrage_BuyItem调用；agent/action/arbitrage_buy_list.py的ArbitrageBuyListPrepare合并默认与自选名单，按名单变化、周周期及强制扫描开关设置卡带入口enabled。",
+        "desc": "生成本轮采购清单，按名单变化或成功记录缺失设置卡带入口enabled。只比较商品集合；周周期和每次扫描由Arbitrage_Buy_CheckCycle控制。",
         "pre_delay": 0,
         "action": "Custom",
         "custom_action": "ArbitrageBuyListPrepare",
@@ -7845,8 +7908,7 @@
         ],
         "focus": "② 检查采购清单变化",
         "attach": {
-            "custom_enabled": false,
-            "scan_every_run": false
+            "custom_enabled": false
         }
     },
     "Arbitrage_BagStockScan_Record": {
