@@ -120,7 +120,11 @@ def run_replenishment(context, task_id, config):
     if market is None:
         return {**report, "reason": "今日完整行情不可用"}
     supply = load_replenish_data()
-    purchased_items = completed_purchase_items(task_id, day)
+    try:
+        purchased_items = completed_purchase_items(task_id, day)
+    except Exception as exc:
+        purchased_items = set()
+        mfaalog.warning(f"[Replenish] 常规已购依据不可用：{exc}；按库存和商店现场继续补买")
     if purchased_items:
         mfaalog.info(f"[Replenish] 按本轮最终采购名单排除已购供给：{len(purchased_items)}组柜台商品")
     # 仅用有限供给总额筛是否有需求；有请求后才进店，以实读金币重算正式预算。

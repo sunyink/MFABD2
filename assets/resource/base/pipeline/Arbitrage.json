@@ -447,7 +447,7 @@
         ],
         "count": 30,
         "next": [
-            "[JumpBack]Arbitrage_Buy_CheckCycle",
+            "[JumpBack]Arbitrage_Buy_CheckCycle_Entry",
             "[JumpBack]Arbitrage_Buy_ToSelect",
             "[JumpBack]Arbitrage_Buy_ScanCycleMark",
             "Arbitrage_Buy_SkipSelect"
@@ -469,6 +469,18 @@
         "pre_delay": 500,
         "action": "Click",
         "post_delay": 1000
+    },
+    "Arbitrage_Buy_CheckCycle_Entry": {
+        "desc": "本轮存档依据可用时进入扫描周检；不可用只跳过记录分支，购买策略仍由购买出口决定。",
+        "max_hit": 1,
+        "recognition": "Custom",
+        "custom_recognition": "ArbitrageBuyRecordReady",
+        "pre_delay": 0,
+        "post_delay": 0,
+        "next": [
+            "Arbitrage_Buy_CheckCycle",
+            "Global_Null"
+        ]
     },
     "Arbitrage_Buy_CheckCycle": {
         "desc": "检查本周是否需要全扫购买收藏。每次模式由interface直接改为DirectHit；命中后准备全扫并启用配对的Arbitrage_Buy_ScanCycleMark，失败不打标。",
@@ -515,6 +527,8 @@
         "desc": "与Arbitrage_Buy_CheckCycle配对，记录本轮全扫尝试结束；不代表全部卡带核实成功或购买成交。默认关闭，由全扫准备成功后的PatchPipeline启用，JumpBack执行一次后返回购买页。",
         "enabled": false,
         "max_hit": 1,
+        "recognition": "Custom",
+        "custom_recognition": "ArbitrageBuyRecordReady",
         "pre_delay": 0,
         "action": "Custom",
         "custom_action": "MarkComplete",
@@ -605,17 +619,63 @@
         }
     },
     "Arbitrage_Buy_SkipSelect": {
-        "desc": "核对本轮采购配置并汇总未核实卡带，继续按游戏当前收藏购买；单卡扫描失败不关闭一键购买。只有配置不可用或账号核对失败才结束常规采购。",
+        "desc": "集中核对本轮收藏结果；未核实或数据不可用时，由容错选项决定购买当前收藏还是跳过②。",
         "pre_delay": 0,
         "action": "Custom",
         "custom_action": "ArbitrageBuyReady",
         "post_delay": 0,
         "timeout": 2000,
         "next": [
-            "Arbitrage_Favorit_Buy"
+            "[JumpBack]Arbitrage_Buy_Purchase",
+            "Arbitrage_Buy_Cleanup"
         ],
         "on_error": [
+            "Arbitrage_Buy_CurrentFavorites",
             "Arbitrage_ShopBuy_Abort"
+        ]
+    },
+    "Arbitrage_Buy_CurrentFavorites": {
+        "desc": "未核实时购买游戏当前收藏的容错入口，由interface直接控制enabled。复用购买页导航，不再读取名单或重入扫描。",
+        "enabled": true,
+        "max_hit": 1,
+        "pre_delay": 0,
+        "post_delay": 0,
+        "timeout": 4000,
+        "next": [
+            "Arbitrage_Buy_CurrentFavorites_Ready",
+            "[JumpBack]Arbitrage_Buy_Button_Chg",
+            "[JumpBack]Arbitrage_Merchant_Entry"
+        ],
+        "on_error": ["Arbitrage_Buy_Cleanup"],
+        "focus": "② 收藏未完全核实，按设置尝试购买游戏当前收藏"
+    },
+    "Arbitrage_Buy_CurrentFavorites_Ready": {
+        "desc": "借用购买页识别，确认页面后执行原一键购买；不继承购买页的周期与扫描派发。",
+        "recognition": "Or",
+        "any_of": ["Arbitrage_Buy_Button"],
+        "pre_delay": 0,
+        "post_delay": 0,
+        "next": [
+            "[JumpBack]Arbitrage_Buy_Purchase",
+            "Arbitrage_Buy_Cleanup"
+        ]
+    },
+    "Arbitrage_Buy_Purchase": {
+        "desc": "给购买按钮有限识别时间，完成或失败均退回调用方收尾；本轮只派发一次原一键购买链。",
+        "max_hit": 1,
+        "pre_delay": 0,
+        "post_delay": 0,
+        "timeout": 4000,
+        "next": ["Arbitrage_Favorit_Buy"]
+    },
+    "Arbitrage_Buy_Cleanup": {
+        "desc": "②购买尝试结束后的共用收尾。能识别商店则复用退店，否则空出口返回调用方；不再点击购买。",
+        "pre_delay": 0,
+        "post_delay": 0,
+        "next": [
+            "Arbitrage_Buy_End",
+            "Arbitrage_ShopOut",
+            "Global_Null"
         ]
     },
     "Arbitrage_Buy_Select_QC1": {
@@ -1959,8 +2019,10 @@
         "custom_action": "ArbitrageBuyComplete",
         "timeout": 1005,
         "next": [
-            "Arbitrage_Buy_End",
-            "[JumpBack]Arbitrage_PackList_ResetSwip"
+            "Arbitrage_Buy_Cleanup"
+        ],
+        "on_error": [
+            "Arbitrage_Buy_Cleanup"
         ],
         "focus": "② 常规采购结束"
     },
@@ -2056,6 +2118,8 @@
         ]
     },
     "Arbitrage_Favorit_Buy_SubMenu_BuyAction": {
+        "desc": "在确认按钮仍存在时有限重试；耗尽或无法确认则结束购买尝试，不因记账或验证失败重复整笔购买。",
+        "max_hit": 4,
         "recognition": "OCR",
         "roi": [
             632,
@@ -2078,13 +2142,14 @@
             "timeout": 10000
         },
         "post_delay": 5000,
+        "timeout": 4000,
         "next": [
             "Arbitrage_Favorit_Buy_SubMenu_BuyAction",
             "Arbitrage_Favorit_Buy_GlodConfirm",
             "Arbitrage_Favorit_Buy_WRN"
         ],
         "on_error": [
-            "Global_Null_Exception"
+            "Arbitrage_Buy_Cleanup"
         ]
     },
     "Arbitrage_Favorit_Buy_GlodConfirm": {
@@ -2101,10 +2166,9 @@
         ]
     },
     "Arbitrage_Favorit_Buy_WRN": {
+        "desc": "未确认成交时报告并收尾，不把未知成交重新提交为一笔购买。",
         "next": [
-            "Arbitrage_Buy_End",
-            "Arbitrage_Favorit_Buy_SubMenu",
-            "[JumpBack]Arbitrage_Favorit_Buy_Again"
+            "Arbitrage_Buy_Cleanup"
         ],
         "focus": "[WRN]常规购买不能验证"
     },
@@ -6158,10 +6222,11 @@
         ]
     },
     "Arbitrage_ShopBuy_Abort": {
-        "desc": "采购配置或账号核对失败时结束②常规采购；空next返回阶段调度，不改派发next及购买开关，不停止整个套利任务。",
+        "desc": "未核实且用户关闭容错购买时跳过本轮②，尝试退店后返回阶段调度。",
         "pre_delay": 0,
         "post_delay": 0,
-        "focus": "② 采购配置未就绪，结束常规采购并继续后续阶段"
+        "next": ["Arbitrage_Buy_Cleanup"],
+        "focus": "② 收藏未核实，按设置跳过本轮常规购买并继续后续阶段"
     },
     "Arbitrage_BagStockScan": {
         "desc": "决定③阶段需要补查哪些食材库存。由Arbitrage_Cooking通过JumpBack调用；agent/action/arbitrage_flow.py的ArbitrageBagPrepare按本轮实际检查过的料理计算缺失库存，动态将next改为进背包、仅记录或直接结束。",
@@ -7904,6 +7969,7 @@
             "Arbitrage_Buy_Open"
         ],
         "on_error": [
+            "Arbitrage_Buy_CurrentFavorites",
             "Arbitrage_ShopBuy_Abort"
         ],
         "focus": "② 检查采购清单变化",

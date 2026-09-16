@@ -28,29 +28,31 @@ def parse_items(raw):
 
 
 def resolve_purchase_table(defaults, catalog, overrides):
-    """开启自选时整行替换；False条目不追加，空自选不回退默认。"""
-    result = {}
+    """返回可用名单和逐卡错误；配置错误既不回退默认，也不代表空自选。"""
+    result, errors = {}, {}
     for cartridge, definition in catalog.items():
-        if cartridge not in defaults:
-            raise ValueError(f"采购默认表缺少卡带: {cartridge}")
-        available = {canon(name) for name in definition["items"]} - FORCED_UNFAVORITES
-        selected = parse_items(defaults[cartridge]) - FORCED_UNFAVORITES
-        override = overrides.get(cartridge)
-        if override is not None:
-            if not isinstance(override, dict):
-                raise ValueError(f"{cartridge}自选表与货架目录不一致")
-            # 旧配置可能仍带已移除的天赋神药选项，忽略它而不是重新开放购买。
-            override = {name: value for name, value in override.items()
-                        if canon(name) not in FORCED_UNFAVORITES}
-            if set(override) != set(definition["items"]) - FORCED_UNFAVORITES:
-                raise ValueError(f"{cartridge}自选表与货架目录不一致")
-            if any(type(value) is not bool for value in override.values()):
-                raise ValueError(f"{cartridge}自选值必须为布尔")
-            selected = {canon(name) for name, value in override.items() if value}
-        if not selected <= available:
-            raise ValueError(f"{cartridge}采购名单包含目录外商品: {selected - available}")
-        result[cartridge] = selected
-    return result
+        try:
+            available = {canon(name) for name in definition["items"]} - FORCED_UNFAVORITES
+            if cartridge in overrides:
+                override = overrides[cartridge]
+                if not isinstance(override, dict):
+                    raise ValueError("自选表不可读")
+                # 兼容旧配置，但不恢复天赋神药采购。
+                override = {name: value for name, value in override.items()
+                            if canon(name) not in FORCED_UNFAVORITES}
+                if set(override) != set(definition["items"]) - FORCED_UNFAVORITES:
+                    raise ValueError("自选表与货架目录不一致")
+                if any(type(value) is not bool for value in override.values()):
+                    raise ValueError("自选值必须为布尔")
+                selected = {canon(name) for name, value in override.items() if value}
+            else:
+                selected = parse_items(defaults[cartridge]) - FORCED_UNFAVORITES
+            if not selected <= available:
+                raise ValueError(f"采购名单包含目录外商品: {selected - available}")
+            result[cartridge] = selected
+        except (KeyError, TypeError, ValueError) as exc:
+            errors[cartridge] = str(exc)
+    return result, errors
 
 
 def changed_cartridges(table, applied):
@@ -69,9 +71,10 @@ def changed_cartridges(table, applied):
     return pending
 
 
-def put_purchase_run(task_id, table, pending):
+def put_purchase_run(task_id, table, pending, failed_cards=None):
     _RUNS[task_id] = {"account_id": PersistentStore._current_account_id,
-                      "table": table, "pending": set(pending), "failed_cards": {}}
+                      "table": table, "pending": set(pending), "failed_cards": dict(failed_cards or {}),
+                      "scan_error": ""}
     _RUNS.move_to_end(task_id)
     while len(_RUNS) > 16:
         _RUNS.popitem(last=False)
@@ -85,6 +88,7 @@ def clear_purchase_run(task_id):
 def get_purchase_run(task_id):
     value = _RUNS.get(task_id)
     if value is not None and value["account_id"] != PersistentStore._current_account_id:
+        clear_purchase_run(task_id)
         raise ValueError("采购过程中账号改变，旧名单不可继续使用")
     return value
 
@@ -92,7 +96,7 @@ def get_purchase_run(task_id):
 def completed_purchase_items(task_id, day):
     """仅排除本轮已确认常规采购、且收藏核实过的最终名单，不把默认表当成交。"""
     run = get_purchase_run(task_id)
-    if run is None or run.get("completed_day") != day:
+    if run is None or run.get("scan_error") or run.get("completed_day") != day:
         return set()
     unverified = run["pending"] | run["failed_cards"].keys()
     return {(canon(cartridge.split(":", 1)[1]), item)

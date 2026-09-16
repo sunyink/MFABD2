@@ -1457,6 +1457,7 @@
                     },
                     "option": [
                         "购买收藏扫描（每周|每次）",
+                        "收藏未核实仍继续购买",
                         "自定义卡带采购"
                     ]
                 },
@@ -1488,6 +1489,30 @@
                     "name": "No",
                     "pipeline_override": {
                         "Arbitrage_SellItem": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "收藏未核实仍继续购买": {
+            "type": "switch",
+            "label": "收藏未核实仍继续购买",
+            "description": "开启：名单读取或收藏核对未完成时，仍尝试购买游戏当前收藏，可能买入旧收藏或本次已完成部分调整后的商品。<br>关闭：收藏未核实则跳过本轮常规购买，继续后续阶段。<br>此设置只影响②常规采购，不改变③补买预算等条件。",
+            "default_case": "Yes",
+            "cases": [
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "Arbitrage_Buy_CurrentFavorites": {
+                            "enabled": true
+                        }
+                    }
+                },
+                {
+                    "name": "No",
+                    "pipeline_override": {
+                        "Arbitrage_Buy_CurrentFavorites": {
                             "enabled": false
                         }
                     }

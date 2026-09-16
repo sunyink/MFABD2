@@ -41,7 +41,8 @@ from utils.persistent_store import PersistentStore
 PIPE = json.loads((ROOT / "assets/resource/base/pipeline/Arbitrage.json").read_text(encoding="utf-8"))
 INTERFACE = json.loads((ROOT / "assets/interface.json").read_text(encoding="utf-8"), strict=False)
 CATALOG = lists.load_purchase_catalog()
-TABLE = lists.resolve_purchase_table(PIPE[lists.DATA_NODE]["attach"], CATALOG, {})
+TABLE, TABLE_ERRORS = lists.resolve_purchase_table(PIPE[lists.DATA_NODE]["attach"], CATALOG, {})
+assert not TABLE_ERRORS, TABLE_ERRORS
 CHECK = "Arbitrage_Buy_CheckCycle"
 MARK = "Arbitrage_Buy_ScanCycleMark"
 CYCLE = PIPE[CHECK]["custom_recognition_param"]
@@ -107,6 +108,12 @@ class PurchaseCycleTests(unittest.TestCase):
         self.events = []
         self.scanned = []
         self.exhausted = False
+        self.failed_scan = False
+        self.mark_failed = False
+        self.lose_account = False
+        self.lose_run = False
+        self.purchase_failed = False
+        self.continued = 0
         self.controller.swipes = 0
         self.context = MemoryContext()
         self.argv = NS(task_detail=NS(task_id=99), custom_action_param={})
@@ -129,8 +136,9 @@ class PurchaseCycleTests(unittest.TestCase):
     def fresh_cycle(self):
         self.data[KEY] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    def run_native(self, every_run=False, dirty_marker=False):
+    def run_native(self, every_run=False, dirty_marker=False, allow_unverified=True, extra=None):
         owner = self
+        traverse = self.exhausted or self.lose_account or self.lose_run
 
         class Scan(CustomAction):
             def run(self, context, argv):
@@ -140,50 +148,77 @@ class PurchaseCycleTests(unittest.TestCase):
                 for card in list(run["pending"]):
                     if owner.exhausted and card == FIRST:
                         continue
+                    if owner.failed_scan and card == FIRST:
+                        run["pending"].remove(card)
+                        run["failed_cards"][card] = "test: cannot verify"
+                        continue
                     assert store.save_purchase_alignment(card, run["table"][card])
                     run["pending"].remove(card)
-                if owner.exhausted:
+                if traverse:
                     selectors = {row["selector"]: {"enabled": False} for row in CATALOG.values()}
                     first = CATALOG[FIRST]["selector"]
-                    selectors[first] = {"enabled": True, "recognition": "DirectHit", "action": "DoNothing",
-                                        "pre_delay": 0, "post_delay": 0, "post_wait_freezes": 0,
-                                        "timeout": 1, "next": [first]}
+                    if owner.exhausted:
+                        selectors[first] = {"enabled": True, "recognition": "DirectHit", "action": "DoNothing",
+                                            "pre_delay": 0, "post_delay": 0, "post_wait_freezes": 0,
+                                            "timeout": 1, "next": [first]}
                     assert context.override_pipeline(selectors)
+                if owner.lose_account:
+                    PersistentStore._current_account_id = "other"
+                if owner.lose_run:
+                    lists.clear_purchase_run(argv.task_detail.task_id)
                 return True
 
         class Mark(cycles.MarkCompleteAction):
             def run(self, context, argv):
                 owner.events.append("mark")
+                if owner.mark_failed:
+                    return False
                 return super().run(context, argv)
 
         class Buy(CustomAction):
             def run(self, context, argv):
                 owner.events.append("buy")
+                return not owner.purchase_failed
+
+        class Continue(CustomAction):
+            def run(self, context, argv):
+                owner.continued += 1
                 return True
 
         for name, action in (
             ("PatchPipeline", PatchPipeline()), ("ArbitrageBuyListPrepare", buy.ArbitrageBuyListPrepare()),
             ("ArbitrageBuyScanPrepare", buy.ArbitrageBuyScanPrepare()), ("ArbitrageBuyReady", buy.ArbitrageBuyReady()),
+            ("ArbitrageBuyComplete", buy.ArbitrageBuyComplete()),
             ("MarkComplete", Mark()), ("SmartAction", SmartAction()),
-            ("test_cycle_scan", Scan()), ("test_cycle_buy", Buy()),
+            ("test_cycle_scan", Scan()), ("test_cycle_buy", Buy()), ("test_cycle_continue", Continue()),
         ):
             self.assertTrue(self.resource.register_custom_action(name, action))
         for name, recognition in (
             ("CheckCoolDown", cycles.CheckCoolDownRecognition()),
             ("ArbitrageBuyNeedsScan", buy.ArbitrageBuyNeedsScan()),
             ("ArbitrageBuyScanFinished", buy.ArbitrageBuyScanFinished()),
+            ("ArbitrageBuyRecordReady", buy.ArbitrageBuyRecordReady()),
         ):
             self.assertTrue(self.resource.register_custom_recognition(name, recognition))
         option = INTERFACE["option"]["购买收藏扫描（每周|每次）"]
         chosen = next(case for case in option["cases"] if case["name"] == ("Yes" if every_run else "No"))
         overrides = deepcopy(chosen["pipeline_override"])
+        policy = INTERFACE["option"]["收藏未核实仍继续购买"]
+        selected = next(case for case in policy["cases"] if case["name"] == ("Yes" if allow_unverified else "No"))
+        overrides.update(deepcopy(selected["pipeline_override"]))
         overrides.update({
+            "test_purchase_flow": {"next": ["[JumpBack]Arbitrage_BuyItem", "test_purchase_after"],
+                                   "pre_delay": 0, "post_delay": 0},
+            "test_purchase_after": {"action": "Custom", "custom_action": "test_cycle_continue",
+                                    "pre_delay": 0, "post_delay": 0},
             "Arbitrage_Buy_Open": {"next": ["Arbitrage_Buy_Button"], "pre_delay": 0, "post_delay": 0},
             "Arbitrage_Buy_Button": {"recognition": "DirectHit", "pre_delay": 0, "post_delay": 0},
+            # 空白控制器不模拟商店页面；只验证实际收尾分支能够返回外层。
+            "Arbitrage_ShopOut": {"recognition": "DirectHit", "next": [], "pre_delay": 0, "post_delay": 0},
             "Arbitrage_PackList_ResetEnter": {
                 "recognition": "DirectHit", "action": "Custom", "custom_action": "test_cycle_scan",
                 "pre_delay": 0, "post_delay": 0,
-                "next": ["Arbitrage_Buy_Select_Str" if self.exhausted else "Arbitrage_Buy_Select_Finished"],
+                "next": ["Arbitrage_Buy_Select_Str" if traverse else "Arbitrage_Buy_Select_Finished"],
             },
             "Arbitrage_Buy_Select_Str": {"recognition": "DirectHit", "pre_delay": 0, "post_delay": 0},
             "Arbitrage_Favorit_Buy": {
@@ -193,7 +228,7 @@ class PurchaseCycleTests(unittest.TestCase):
         })
         if dirty_marker:
             overrides[MARK] = {"enabled": True}
-        if self.exhausted:
+        if traverse:
             swipe = deepcopy(PIPE["Arbitrage_Select_Swip"]["custom_action_param"])
             swipe["settle_delay"] = 0
             swipe["proxy_override"].update(duration=1, end_hold=0, post_delay=0)
@@ -201,10 +236,12 @@ class PurchaseCycleTests(unittest.TestCase):
                 "recognition": "DirectHit", "custom_action_param": swipe,
                 "pre_delay": 0, "post_delay": 0, "post_wait_freezes": 0,
             }
+        for name, fields in (extra or {}).items():
+            overrides.setdefault(name, {}).update(fields)
         timer = threading.Timer(15, self.tasker.post_stop)
         timer.start()
         try:
-            result = self.tasker.post_task("Arbitrage_BuyItem", overrides).wait().get()
+            result = self.tasker.post_task("test_purchase_flow", overrides).wait().get()
         finally:
             timer.cancel()
         self.assertTrue(result.status.succeeded)
@@ -262,8 +299,104 @@ class PurchaseCycleTests(unittest.TestCase):
     def test_full_scan_preparation_failure_cannot_enable_marker(self):
         with patch.object(store, "invalidate_purchase_alignments", return_value=False):
             self.run_native()
+        self.assertEqual(self.events, ["buy"])
+        self.assertNotIn(KEY, self.data)
+        self.assertEqual(self.continued, 1)
+        run = next(iter(lists._RUNS.values()))
+        self.assertEqual(run["table"], TABLE)
+        self.assertTrue(run["scan_error"])
+
+    def test_full_scan_preparation_failure_strict_skips_purchase(self):
+        with patch.object(store, "invalidate_purchase_alignments", return_value=False):
+            self.run_native(allow_unverified=False)
         self.assertEqual(self.events, [])
         self.assertNotIn(KEY, self.data)
+        self.assertEqual(self.continued, 1)
+
+    def test_exhausted_exit_strict_still_marks_and_continues(self):
+        self.exhausted = True
+        result = self.run_native(allow_unverified=False)
+        self.assertEqual(self.events, ["scan", "mark"])
+        self.assertEqual(self.controller.swipes, 3)
+        self.assertNotIn("Arbitrage_Buy_Select_Finished", [node.name for node in result.nodes])
+        self.assertEqual(self.continued, 1)
+
+    def test_finished_exit_failed_card_uses_selected_policy(self):
+        self.failed_scan = True
+        result = self.run_native(allow_unverified=False)
+        self.assertIn("Arbitrage_Buy_Select_Finished", [node.name for node in result.nodes])
+        self.assertEqual(self.events, ["scan", "mark"])
+        self.assertEqual(self.continued, 1)
+        self.events.clear()
+        self.run_native(every_run=True)
+        self.assertEqual(self.events, ["scan", "mark", "buy"])
+
+    def test_list_failure_policy_does_not_reenter_preparation(self):
+        for allowed in (True, False):
+            with self.subTest(allowed=allowed), patch.object(buy, "resolve_purchase_table", side_effect=ValueError("bad data")):
+                self.events.clear()
+                result = self.run_native(allow_unverified=allowed)
+                self.assertEqual(self.events, ["buy"] if allowed else [])
+                self.assertEqual(sum(node.name == "Arbitrage_Buy_ListPrepare" for node in result.nodes), 1)
+                self.assertNotIn("Arbitrage_Buy_CheckCycle", [node.name for node in result.nodes])
+        self.assertEqual(self.continued, 2)
+
+    def test_missing_run_after_scan_falls_back_without_mark(self):
+        self.lose_run = True
+        self.run_native()
+        self.assertEqual(self.events, ["scan", "buy"])
+        self.assertNotIn(KEY, self.data)
+        self.assertEqual(self.continued, 1)
+
+    def test_account_change_after_scan_does_not_mark_other_account(self):
+        self.lose_account = True
+        self.run_native()
+        self.assertEqual(self.events, ["scan", "buy"])
+        self.assertNotIn(KEY, self.data)
+        self.assertFalse(lists._RUNS)
+        self.assertEqual(self.continued, 1)
+
+    def test_sync_failure_bypasses_all_store_access(self):
+        with patch.object(buy, "sync_from_context", return_value=False), \
+             patch.object(store, "get_purchase_alignments") as read:
+            self.run_native()
+        read.assert_not_called()
+        self.assertEqual(self.events, ["buy"])
+        self.assertFalse(self.writes)
+        self.assertEqual(self.continued, 1)
+
+    def test_mark_write_failure_does_not_block_purchase(self):
+        self.mark_failed = True
+        self.run_native(allow_unverified=False)
+        self.assertEqual(self.events, ["scan", "mark", "buy"])
+        self.assertNotIn(KEY, self.data)
+        self.assertEqual(self.continued, 1)
+
+    def test_completion_record_failure_still_cleans_up(self):
+        with patch.object(store, "market_day", side_effect=ValueError("record unavailable")) as record:
+            result = self.run_native(extra={"Arbitrage_Favorit_Buy": {"next": ["Arbitrage_Buy_Select_End"]}})
+        record.assert_called_once()
+        self.assertEqual(self.events.count("buy"), 1)
+        self.assertIn("Arbitrage_Buy_Cleanup", [node.name for node in result.nodes])
+        self.assertEqual(self.continued, 1)
+
+    def test_purchase_action_failure_still_cleans_up_and_continues(self):
+        self.purchase_failed = True
+        result = self.run_native()
+        self.assertEqual(self.events.count("buy"), 1)
+        self.assertIn("Arbitrage_Buy_Cleanup", [node.name for node in result.nodes])
+        self.assertEqual(self.continued, 1)
+
+    def test_ready_failure_uses_pipeline_policy(self):
+        with patch.object(buy.ArbitrageBuyReady, "run", return_value=False):
+            self.run_native()
+        self.assertEqual(self.events, ["scan", "mark", "buy"])
+        self.assertEqual(self.continued, 1)
+
+    def test_disabled_purchase_stage_cannot_enter_fallback(self):
+        self.run_native(extra={"Arbitrage_BuyItem": {"enabled": False}})
+        self.assertFalse(self.events)
+        self.assertEqual(self.continued, 1)
 
     def test_purchase_confirmation_only_records_in_memory_evidence(self):
         self.assertTrue(buy.ArbitrageBuyListPrepare().run(self.context, self.argv))

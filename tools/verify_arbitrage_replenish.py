@@ -148,6 +148,57 @@ class PurchaseSupplyTests(unittest.TestCase):
         PersistentStore._current_account_id = "other"
         with self.assertRaises(ValueError):
             lists.completed_purchase_items(99, DAY)
+        self.assertEqual(lists.completed_purchase_items(99, DAY), set())
+
+    def test_bad_custom_card_preserves_other_cards_and_current_favorites(self):
+        card = "S16:三国同盟"
+        self.custom(card, set())
+        definition = lists.load_purchase_catalog()[card]
+        del self.context.nodes[definition["custom_node"]]["attach"]["盐"]
+        self.assertTrue(buy.ArbitrageBuyListPrepare().run(self.context, self.argv))
+        run = lists.get_purchase_run(99)
+        self.assertNotIn(card, run["table"])
+        self.assertIn(card, run["failed_cards"])
+        self.assertIn("S17:试炼之路", run["table"])
+        self.assertFalse(self.context.nodes[definition["selector"]]["enabled"])
+        with patch.object(buy.store, "invalidate_purchase_alignments", return_value=True) as invalidate:
+            self.assertTrue(buy.ArbitrageBuyScanPrepare().run(self.context, self.argv))
+        self.assertNotIn(card, invalidate.call_args.args[0])
+        self.assertFalse(self.context.nodes[definition["selector"]]["enabled"])
+        run["pending"].clear()
+        self.assertFalse(buy.ArbitrageBuyReady().run(self.context, self.argv))
+        self.assertTrue(buy.ArbitrageBuyComplete().run(self.context, self.argv))
+        purchased = lists.completed_purchase_items(99, DAY)
+        self.assertNotIn(("三国同盟", "盐"), purchased)
+        self.assertIn(("试炼之路", "盐"), purchased)
+
+    def test_unreadable_custom_node_does_not_silently_restore_defaults(self):
+        self.custom("S16:三国同盟", set())
+        node = lists.load_purchase_catalog()["S16:三国同盟"]["custom_node"]
+        del self.context.nodes[node]
+        self.assertTrue(buy.ArbitrageBuyListPrepare().run(self.context, self.argv))
+        self.assertNotIn("S16:三国同盟", lists.get_purchase_run(99)["table"])
+
+    def test_broken_default_row_is_isolated_and_empty_custom_is_valid(self):
+        catalog = lists.load_purchase_catalog()
+        defaults = deepcopy(self.context.nodes[lists.DATA_NODE]["attach"])
+        defaults["S1:血骑士"] = None
+        table, errors = lists.resolve_purchase_table(defaults, catalog, {
+            "S16:三国同盟": {item: False for item in catalog["S16:三国同盟"]["items"]}})
+        self.assertEqual(set(errors), {"S1:血骑士"})
+        self.assertNotIn("S1:血骑士", table)
+        self.assertEqual(table["S16:三国同盟"], set())
+
+    def test_completion_without_record_or_sync_still_returns_to_cleanup(self):
+        self.assertTrue(buy.ArbitrageBuyComplete().run(self.context, self.argv))
+        self.prepare(complete=False)
+        with patch.object(buy, "sync_from_context", return_value=False):
+            self.assertTrue(buy.ArbitrageBuyComplete().run(self.context, self.argv))
+        self.assertEqual(lists.completed_purchase_items(99, DAY), set())
+
+    def test_ready_exception_reports_unverified_for_pipeline(self):
+        with patch.object(buy, "get_purchase_run", side_effect=ValueError("bad state")):
+            self.assertFalse(buy.ArbitrageBuyReady().run(self.context, self.argv))
 
     def test_fresh_shop_observation_overrides_purchase_inference(self):
         self.prepare()
@@ -156,12 +207,14 @@ class PurchaseSupplyTests(unittest.TestCase):
         rows = salt_plan(lists.completed_purchase_items(99, DAY), observed)["requests"]
         self.assertEqual(next(row["target"] for row in rows if row["shop_name"] == "三国同盟"), 50)
 
-    def test_controller_supplies_same_exclusions_to_both_planning_passes(self):
+    def check_controller_exclusions(self, unavailable=False):
         self.prepare()
         purchased = lists.completed_purchase_items(99, DAY)
         plan = salt_plan(purchased)
         self.context.run_task = lambda name: NS(status=NS(succeeded=True))
         with patch.object(replenish, "sync_from_context", return_value=True), \
+             patch.object(replenish, "completed_purchase_items", return_value=purchased,
+                          side_effect=ValueError("purchase context lost") if unavailable else None), \
              patch.object(replenish, "cooking_stage_active", return_value=True), \
              patch.object(replenish, "get_bag_scan_run", return_value="bag"), \
              patch.object(replenish.store, "get_replenish_inventory", return_value={"quantities": {"盐": 0}}), \
@@ -174,7 +227,14 @@ class PurchaseSupplyTests(unittest.TestCase):
         self.assertEqual(result["status"], "prepared")
         self.assertEqual(self.context.get_anchor("Replenish_ShopEntry"), "Arbitrage_Merchant_Entry")
         self.assertEqual(build.call_count, 2)
-        self.assertTrue(all(call.kwargs["purchased_items"] == purchased for call in build.call_args_list))
+        expected = set() if unavailable else purchased
+        self.assertTrue(all(call.kwargs["purchased_items"] == expected for call in build.call_args_list))
+
+    def test_controller_supplies_same_exclusions_to_both_planning_passes(self):
+        self.check_controller_exclusions()
+
+    def test_unavailable_purchase_evidence_does_not_stop_replenishment(self):
+        self.check_controller_exclusions(unavailable=True)
 
 
 class FavoriteAlignmentTests(unittest.TestCase):
@@ -221,7 +281,7 @@ class FavoriteAlignmentTests(unittest.TestCase):
             argv.custom_action_param = "S17:试炼之路"
             self.assertTrue(self.controller.run(context, argv))
             self.assertIsNotNone(buy.ArbitrageBuyScanFinished().analyze(context, argv))
-            self.assertTrue(buy.ArbitrageBuyReady().run(context, argv))
+            self.assertFalse(buy.ArbitrageBuyReady().run(context, argv))
             self.assertEqual(invalidate.call_count, 2)
             save.assert_called_once_with("S17:试炼之路", {"盐"})
             run["completed_day"] = DAY
