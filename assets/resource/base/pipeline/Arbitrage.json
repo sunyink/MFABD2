@@ -2207,7 +2207,15 @@
                 ],
                 "duration": 600,
                 "end_hold": 1000,
-                "post_delay": 1000
+                "post_wait_freezes": {
+                    "time": 500,
+                    "target": [
+                        195,
+                        107,
+                        128,
+                        41
+                    ]
+                }
             },
             "detect_roi": [
                 195,
@@ -2221,7 +2229,6 @@
             "on_unchanged": "error",
             "unchanged_streak": 3
         },
-        "post_wait_freezes": 1000,
         "timeout": 2000,
         "next": [
             "[Anchor]PackSwip_End",
@@ -3110,7 +3117,15 @@
                 ],
                 "duration": 800,
                 "end_hold": 800,
-                "post_delay": 1000
+                "post_wait_freezes": {
+                    "time": 500,
+                    "target": [
+                        407,
+                        157,
+                        50,
+                        142
+                    ]
+                }
             },
             "detect_roi": [
                 384,
@@ -3125,7 +3140,6 @@
             "loop_exhausted": "error",
             "threshold": 3.0
         },
-        "post_wait_freezes": 1000,
         "timeout": 1,
         "focus": "滑动出售物品列表"
     },
@@ -3572,7 +3586,15 @@
         ],
         "end_hold": 500,
         "duration": 300,
-        "post_wait_freezes": 1000
+        "post_wait_freezes": {
+            "time": 500,
+            "target": [
+                195,
+                107,
+                128,
+                41
+            ]
+        }
     },
     "Arbitrage_Sell_Item_Exit_Failed": {
         "desc": "统一出口未能确认卡带表复位，明确结束本批；不能把正常退栈视为已成交。",
@@ -3608,7 +3630,15 @@
         ],
         "end_hold": 500,
         "duration": 300,
-        "post_wait_freezes": 1000,
+        "post_wait_freezes": {
+            "time": 500,
+            "target": [
+                195,
+                107,
+                128,
+                41
+            ]
+        },
         "focus": "复位商店卡带表"
     },
     "Arbitrage_Sell_GoldRead": {
@@ -4060,7 +4090,15 @@
             46
         ],
         "end_hold": 500,
-        "post_delay": 1500,
+        "post_wait_freezes": {
+            "time": 500,
+            "target": [
+                1107,
+                118,
+                67,
+                168
+            ]
+        },
         "focus": "Arb.下滑料理页面"
     },
     "Arbitrage_Cooking_B10_Entry": {
@@ -6427,7 +6465,15 @@
             92
         ],
         "end_hold": 250,
-        "post_delay": 1000
+        "post_wait_freezes": {
+            "time": 500,
+            "target": [
+                986,
+                79,
+                84,
+                237
+            ]
+        }
     },
     "Arbitrage_BagStockScan_Sort_Menu_Set": {
         "recognition": "OCR",
@@ -6596,7 +6642,16 @@
             100
         ],
         "end_hold": 500,
-        "duration": 600
+        "duration": 600,
+        "post_wait_freezes": {
+            "time": 500,
+            "target": [
+                986,
+                79,
+                84,
+                237
+            ]
+        }
     },
     "Agt_Cooking_Commit_Click": {
         "desc": "py 独占，勿挂进管路。库存作废后点击原制作按钮识别框，外层保留等待和后续链",
@@ -8082,7 +8137,15 @@
         ],
         "end_hold": 500,
         "duration": 300,
-        "post_wait_freezes": 1000
+        "post_wait_freezes": {
+            "time": 500,
+            "target": [
+                195,
+                107,
+                128,
+                41
+            ]
+        }
     },
     "Arbitrage_Sale_Shop_Navigate": {
         "desc": "④⑤出售准备的寻路入口：主页或箱庭可识别时借用对应导航链，到Arbitrage_Merchant_Locate_Egress退回准备入口。每次准备最多进入1次，入口清计数；不调用Arbitrage_Start及总调度。",
