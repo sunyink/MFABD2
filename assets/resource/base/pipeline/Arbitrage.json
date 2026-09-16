@@ -646,13 +646,17 @@
             "[JumpBack]Arbitrage_Buy_Button_Chg",
             "[JumpBack]Arbitrage_Merchant_Entry"
         ],
-        "on_error": ["Arbitrage_Buy_Cleanup"],
+        "on_error": [
+            "Arbitrage_Buy_Cleanup"
+        ],
         "focus": "② 收藏未完全核实，按设置尝试购买游戏当前收藏"
     },
     "Arbitrage_Buy_CurrentFavorites_Ready": {
         "desc": "借用购买页识别，确认页面后执行原一键购买；不继承购买页的周期与扫描派发。",
         "recognition": "Or",
-        "any_of": ["Arbitrage_Buy_Button"],
+        "any_of": [
+            "Arbitrage_Buy_Button"
+        ],
         "pre_delay": 0,
         "post_delay": 0,
         "next": [
@@ -666,7 +670,9 @@
         "pre_delay": 0,
         "post_delay": 0,
         "timeout": 4000,
-        "next": ["Arbitrage_Favorit_Buy"]
+        "next": [
+            "Arbitrage_Favorit_Buy"
+        ]
     },
     "Arbitrage_Buy_Cleanup": {
         "desc": "②购买尝试结束后的共用收尾。能识别商店则复用退店，否则空出口返回调用方；不再点击购买。",
@@ -6263,7 +6269,9 @@
         "desc": "未核实且用户关闭容错购买时跳过本轮②，尝试退店后返回阶段调度。",
         "pre_delay": 0,
         "post_delay": 0,
-        "next": ["Arbitrage_Buy_Cleanup"],
+        "next": [
+            "Arbitrage_Buy_Cleanup"
+        ],
         "focus": "② 收藏未核实，按设置跳过本轮常规购买并继续后续阶段"
     },
     "Arbitrage_BagStockScan": {
@@ -7120,7 +7128,9 @@
             100,
             43
         ],
-        "expected": ["食物"],
+        "expected": [
+            "食物"
+        ],
         "post_wait_freezes": {
             "time": 500,
             "target": [
@@ -7130,7 +7140,9 @@
                 406
             ]
         },
-        "next": ["Arbitrage_Sell_Item_Search"]
+        "next": [
+            "Arbitrage_Sell_Item_Search"
+        ]
     },
     "Arbitrage_Sell_Item_Search": {
         "desc": "从已回顶的列表查找；同屏先找目标后判末端，滑动失败或疑似命中详情失败不判零。",
