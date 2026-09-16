@@ -2973,6 +2973,28 @@
         ],
         "count": 100,
         "next": [
+            "Arbitrage_Sell_PackShopSwich_PostOcr"
+        ]
+    },
+    "Arbitrage_Sell_PackShopSwich_PostOcr": {
+        "desc": "切卡带后借用OCR确认商品列表已出现，并等待商品区域稳定；空动作且前后延迟为0。出售主控覆写本节点后续为排序及列表复位，补买覆写为DirectHit并取消稳定等待后查找商品。",
+        "recognition": "Or",
+        "any_of": [
+            "Arbitrage_Sell_Item_ListReset_PostOcr"
+        ],
+        "pre_delay": 0,
+        "action": "DoNothing",
+        "post_wait_freezes": {
+            "time": 500,
+            "target": [
+                660,
+                145,
+                67,
+                406
+            ]
+        },
+        "post_delay": 0,
+        "next": [
             "[JumpBack]Arbitrage_ItemList_Sorting_Entry",
             "[Anchor]Sell_Bypass",
             "Arbitrage_Sell_Item_ListTraverse",
@@ -7129,7 +7151,7 @@
             43
         ],
         "expected": [
-            "食物"
+            "^食物$"
         ],
         "post_wait_freezes": {
             "time": 500,
@@ -8109,13 +8131,35 @@
         ]
     },
     "Arbitrage_Sale_Shop_Egress": {
-        "desc": "④⑤出售准备成功出口：出售页签亮色且卡带列表顶部出现血骑士。仅确认列表回顶，不代表选中卡带1；空next退回阶段入口，继续对应出售Custom。",
+        "desc": "④⑤出售准备确认：出售页签亮色且卡带列表顶部出现血骑士。仅确认卡带列表回顶，不代表选中卡带1；继续等待商品列表加载后退回阶段入口。",
         "recognition": "And",
         "all_of": [
             "Arbitrage_Sell_Type_Clr",
             "Arbitrage_PackList_ResetEnter"
         ],
         "pre_delay": 0,
+        "post_delay": 0,
+        "next": [
+            "Arbitrage_Sale_Shop_PostOcr"
+        ]
+    },
+    "Arbitrage_Sale_Shop_PostOcr": {
+        "desc": "④⑤出售准备的加载等待出口：借用商品列表OCR并等待商品区域稳定，空next退栈，不进入单件出售扫描。",
+        "recognition": "Or",
+        "any_of": [
+            "Arbitrage_Sell_Item_ListReset_PostOcr"
+        ],
+        "pre_delay": 0,
+        "action": "DoNothing",
+        "post_wait_freezes": {
+            "time": 500,
+            "target": [
+                660,
+                145,
+                67,
+                406
+            ]
+        },
         "post_delay": 0
     },
     "Arbitrage_Sale_Shop_Switch": {

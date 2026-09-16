@@ -213,8 +213,9 @@ def buy_overrides(context, request):
         "Arbitrage_Sell_Type_Ocr": {"any_of": ["Arbitrage_Buy_Button_Chg"]},
         "Arbitrage_Sell_Type_Clr": {"roi": [118, 94, 36, 59]},
         "Arbitrage_Sell_PackShopSwich": {"expected": shop_expected},
-        "Arbitrage_Sell_PackShopSwich_Clr": {"next": [
-            "Arbitrage_Sell_Item_ListTraverse", "Arbitrage_PreciseBuy_NotFound"]},
+        "Arbitrage_Sell_PackShopSwich_PostOcr": {
+            "recognition": "DirectHit", "post_wait_freezes": 0,
+            "next": ["Arbitrage_Sell_Item_ListTraverse", "Arbitrage_PreciseBuy_NotFound"]},
         "Rec_<Arbitrage_Sell_Item_SellMenu>_Ocr_01": {"expected": [_BUY_BUTTON]},
         "Arbitrage_Sell_Item_Price_MaxCheck": {"roi": [810, 450, 222, 102], "expected": _BUY_BUTTON},
         _CONFIRM: {"expected": [_BUY_BUTTON], "action": "Custom",
