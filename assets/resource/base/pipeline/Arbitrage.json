@@ -7035,7 +7035,7 @@
             "Arbitrage_Sell_Type_Clr"
         ],
         "next": [
-            "Arbitrage_Sell_Item_Search"
+            "Arbitrage_Sell_Item_ListReset_PostOcr"
         ],
         "on_error": [
             "Arbitrage_Sell_Item_BatchExit"
@@ -7055,6 +7055,27 @@
         ],
         "action": "Click",
         "post_delay": 2000
+    },
+    "Arbitrage_Sell_Item_ListReset_PostOcr": {
+        "desc": "切换列表可能造成延迟,确认列表正常后再扫",
+        "recognition": "OCR",
+        "roi": [
+            377,
+            100,
+            100,
+            43
+        ],
+        "expected": ["食物"],
+        "post_wait_freezes": {
+            "time": 500,
+            "target": [
+                660,
+                145,
+                67,
+                406
+            ]
+        },
+        "next": ["Arbitrage_Sell_Item_Search"]
     },
     "Arbitrage_Sell_Item_Search": {
         "desc": "从已回顶的列表查找；同屏先找目标后判末端，滑动失败或疑似命中详情失败不判零。",
@@ -8045,9 +8066,10 @@
     "Arbitrage_Sale_Shop_Reset": {
         "desc": "④⑤出售准备按需回顶：确认出售页签亮色后滑动卡带列表；成功出口优先确认血骑士已在顶部。每次准备最多8次，入口清计数，空next返回。",
         "max_hit": 8,
-        "recognition": "Or",
-        "any_of": [
-            "Arbitrage_Sell_Type_Clr"
+        "recognition": "And",
+        "all_of": [
+            "Arbitrage_Sell_Type_Clr",
+            "Arbitrage_Merchant_Egress"
         ],
         "action": "Swipe",
         "begin": [
