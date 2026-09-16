@@ -125,7 +125,9 @@ class ArbitrageSaleSearch(CustomAction):
                     raise RuntimeError("出售目标识别未执行")
                 if found.hit:
                     return True
-                end = context.run_recognition("Arbitrage_Sell_Item_ListTraverse_End", image)
+                end_node = (context.get_anchor("Arbitrage_Sell_ListEnd")
+                            or "Arbitrage_Sell_Item_ListTraverse_End")
+                end = context.run_recognition(end_node, image)
                 if end is None:
                     raise RuntimeError("出售列表末端识别未执行")
                 if end.hit:

@@ -75,17 +75,11 @@ def ensure_shop(context, *, bargain=True):
         raise RuntimeError("无法重置商店子页关闭计数")
     entry = "Arbitrage_Merchant_Entry" if bargain else "Arbitrage_Merchant_NoDiscount_Entry"
     patch = {
-        # 恢复页面借用导航，不重新执行总任务的阶段准备。
-        "Arbitrage_Start": {"action": "DoNothing", "next":
-                            context.get_node_object("Agt_Arbitrage_StageConfig").attach["start_next"]},
         "Arbitrage_Replenish_EnsureShop": {
-            "enabled": True, "anchor": {"PractiseBargaining_Per": ""},
-            "next": ["[JumpBack]Arbitrage_Sell_Item_Cancel", "Arbitrage_Replenish_ShopReady",
-                     f"[JumpBack]{entry}", "Arbitrage_Start"],
+            "enabled": True,
+            "anchor": {"PractiseBargaining_Per": "", "Arbitrage_Replenish_ShopEntry": entry},
         },
-        "Arbitrage_Merchant_Ico": {"next": [entry]},
         "Arbitrage_Merchant_Egress": {"next": ["Arbitrage_Replenish_ShopReady"]},
-        "Arbitrage_Action_Hub": {"enabled": False},
     }
     result = local.run_task("Arbitrage_Replenish_EnsureShop", patch)
     if (result is None or not result.status.succeeded

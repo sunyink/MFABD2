@@ -22,7 +22,7 @@ def utc_now() -> str:
 
 
 def market_day() -> str:
-    """国际服行情在 UTC 0 点刷新，直接用 UTC 日期作为共享缓存键。"""
+    """行情缓存暂以 UTC 日期分桶；商店实际换日时刻尚待核实，交易仍须子页核价。"""
     return datetime.now(timezone.utc).date().isoformat()
 
 
@@ -41,6 +41,17 @@ def save_purchase_alignment(cartridge: str, items) -> bool:
         data = PersistentStore.load()
         rows = _dict_child(_root(data), "purchase_alignments")
         rows[cartridge] = {"items": sorted(set(items)), "applied_at": utc_now()}
+        return bool(PersistentStore.save(data))
+
+
+def invalidate_purchase_alignment(cartridge: str) -> bool:
+    """重新核对前撤销旧基准，避免部分点星后失败仍复用旧成功记录。"""
+    with _LOCK:
+        data = PersistentStore.load()
+        rows = _dict_child(_root(data), "purchase_alignments")
+        if cartridge not in rows:
+            return True
+        del rows[cartridge]
         return bool(PersistentStore.save(data))
 
 

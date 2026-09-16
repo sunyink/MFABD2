@@ -37,7 +37,7 @@ def _market_prices(market):
     return prices
 
 
-def _offers(data, observations, day):
+def _offers(data, observations, day, purchased_items):
     overrides = {}
     for row in observations:
         key = (_name(row.get("shop_name")), _name(row.get("item_name")))
@@ -51,6 +51,10 @@ def _offers(data, observations, day):
             key = (shop_name, material)
             observation = overrides.pop(key, None)
             if observation is None:
+                if key in purchased_items:
+                    issues.append({"shop_name": shop_name, "item_name": material,
+                                   "reason": "regular_purchase_completed"})
+                    continue
                 price, remaining = item["price_reference"], item["daily_limit_reference"]
                 source = "reference"
             else:
@@ -129,7 +133,8 @@ def _candidate(recipe, material, available, prices, offers, budget, tonic_price)
     return (best, "") if best else (None, "nonpositive_purchase_gain")
 
 
-def build_replenish_plan(entries, quantities, market, data, *, day, budget, sell_names, shop_observations=()):
+def build_replenish_plan(entries, quantities, market, data, *, day, budget, sell_names,
+                         shop_observations=(), purchased_items=()):
     """按P1队列顺序规划第一版单种缺料补买。
 
     quantities必须来自本次有效库存读口。商店无本轮观察时只生成参考报价候选，
@@ -157,7 +162,7 @@ def build_replenish_plan(entries, quantities, market, data, *, day, budget, sell
         result.update(status="unavailable", reason="current_market_incomplete")
         return result
     prices = _market_prices(market)
-    offers, result["offer_issues"] = _offers(data, shop_observations, day)
+    offers, result["offer_issues"] = _offers(data, shop_observations, day, set(purchased_items))
     tonic_price = _integer(data["tonic_unit_price"], "神药参考单价", 1)
     requests = {}
     seen = set()

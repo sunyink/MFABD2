@@ -73,11 +73,15 @@ def changed_cartridges(table, applied, reset_timestamp, every_run=False):
 
 def put_purchase_run(task_id, table, pending):
     _RUNS[task_id] = {"account_id": PersistentStore._current_account_id,
-                      "table": table, "pending": set(pending), "failed": False}
+                      "table": table, "pending": set(pending), "failed_cards": {}}
     _RUNS.move_to_end(task_id)
     while len(_RUNS) > 16:
         _RUNS.popitem(last=False)
     return _RUNS[task_id]
+
+
+def clear_purchase_run(task_id):
+    _RUNS.pop(task_id, None)
 
 
 def get_purchase_run(task_id):
@@ -85,6 +89,17 @@ def get_purchase_run(task_id):
     if value is not None and value["account_id"] != PersistentStore._current_account_id:
         raise ValueError("采购过程中账号改变，旧名单不可继续使用")
     return value
+
+
+def completed_purchase_items(task_id, day):
+    """仅排除本轮已确认常规采购、且收藏核实过的最终名单，不把默认表当成交。"""
+    run = get_purchase_run(task_id)
+    if run is None or run.get("completed_day") != day:
+        return set()
+    unverified = run["pending"] | run["failed_cards"].keys()
+    return {(canon(cartridge.split(":", 1)[1]), item)
+            for cartridge, items in run["table"].items() if cartridge not in unverified
+            for item in items}
 
 
 def node_enabled(context, name):

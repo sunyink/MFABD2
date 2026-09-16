@@ -177,6 +177,7 @@
         "next": [
             "Global_ToHomePage_Enter",
             "Global_ToHomePage_HomeButton",
+            "[JumpBack]Arbitrage_Merchant_Close_Ck",
             "Global_ToHomePage_Reset",
             "[JumpBack]Global_ToHomePage_Else",
             "[JumpBack]Global_WaitingForLoading",

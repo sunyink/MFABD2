@@ -31,6 +31,9 @@ class Context:
             return SimpleNamespace(attach={"default": "烤蜂蜜苹果"})
         return SimpleNamespace(attach={})
 
+    def get_node_data(self, name):
+        return dict(PIPELINE[name])
+
     def run_task(self, node, pipeline_override=None):
         self.calls.append((node, pipeline_override))
         return Detail()
@@ -94,24 +97,21 @@ class ArbitragePreviewTests(unittest.TestCase):
             item("盐", False, current_rate=118),
         ]
         saved = []
-        inventory_updates = []
-        verdict = {"before": 1000, "after": 1100, "delta": 100}
         market = {"complete": True, "items": [
             item("烤蜂蜜苹果", current_rate=118),
         ]}
         with patch.object(ar, "get_market_snapshot", return_value=market), \
                 patch.object(ar, "save_possession_snapshot", side_effect=lambda scan: saved.append(scan) or True), \
-                patch.object(ar, "invalidate_inventory_quantities",
-                             side_effect=lambda values, **kwargs: inventory_updates.append(values) or True), \
-                patch.object(ar.gold_verify, "clear_verdict"), \
-                patch.object(ar.gold_verify, "take_verdict", return_value=verdict):
+                patch.object(ar, "execute_sale_item", return_value={
+                    "status": "confirmed", "actual_quantity": 10, "page_ok": True}) as execute:
             self.assertTrue(controller.run(context, Argv('{"mode":"preview_possess"}')))
         self.assertEqual([entry["name"] for entry in saved[0]["items"]], ["烤蜂蜜苹果", "蜂蜜", "盐"])
-        sell_calls = [override for name, override in context.calls if name == "Arbitrage_Sell_HUB"]
-        self.assertEqual(len(sell_calls), 1)
-        self.assertEqual(sell_calls[0]["Arbitrage_Sell_Item_ListTraverse"]["expected"], "烤蜂蜜苹果")
-        self.assertEqual(sell_calls[0]["Arbitrage_Sell_Item_Price_MaxCheck"]["expected"], "118%")
-        self.assertEqual(inventory_updates, [["烤蜂蜜苹果"]])
+        execute.assert_called_once()
+        self.assertEqual(execute.call_args.args[:2], (context, "烤蜂蜜苹果"))
+        override = execute.call_args.args[2]
+        self.assertEqual(override["Agt_<Sell_Item>_Ocr"]["expected"], "^烤蜂蜜苹果$")
+        self.assertEqual(override["Arbitrage_Sell_Item_Price_MaxCheck"]["expected"], "118%")
+        self.assertEqual(execute.call_args.kwargs, {"reserve": 0})
 
     def test_possession_plan_uses_lowest_peak_recipe_rate(self):
         recipes = {"蘑菇汤", "街头烤鸡肉串"}

@@ -1,0 +1,288 @@
+"""收藏核对、采购最终名单与补买供给回归；不连接游戏、不读写账号存档。
+
+运行：python -B tools/verify_arbitrage_replenish.py -v
+"""
+
+from copy import deepcopy
+import json
+from pathlib import Path
+import sys
+from types import SimpleNamespace as NS
+import unittest
+from unittest.mock import patch
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "agent"))
+
+from action import arbitrage_buy_list as buy
+from action import arbitrage_replenish as replenish
+from action import arbitrage_replenish_buy as replenish_buy
+from action import arbitrage_sell_batch as sale
+from action import shop_buy_fav_controller as favorites
+from utils import arbitrage_purchase_lists as lists
+from utils.arbitrage_replenish_data import load_replenish_data
+from utils.arbitrage_replenish_plan import build_replenish_plan
+from utils.persistent_store import PersistentStore
+
+
+DAY = "2026-09-15"
+PIPE = json.loads((ROOT / "assets/resource/base/pipeline/Arbitrage.json").read_text(encoding="utf-8"))
+DATA = load_replenish_data()
+
+
+class Reader:
+    def __init__(self):
+        self.nodes = deepcopy(PIPE)
+        self.tasker = NS(stopping=False)
+
+    def get_node_object(self, name):
+        return NS(attach=self.nodes[name].get("attach", {}))
+
+    def get_node_data(self, name):
+        return self.nodes[name]
+
+    def override_pipeline(self, values):
+        for name, value in values.items():
+            self.nodes[name].update(value)
+        return True
+
+
+def salt_plan(purchased=(), observations=()):
+    recipe = DATA["recipes"]["香草牛排"]
+    inventory = {name: 100000 for name in recipe["ingredients"]}
+    inventory["盐"] = 0
+    entry = NS(name="香草牛排", enabled=True, reason="", entry="test_recipe")
+    market = {"day": DAY, "complete": True, "items": [
+        {"name": name, "peak_price": value["peak_reference"]}
+        for name, value in {**DATA["materials"], **DATA["recipes"]}.items()]}
+    return build_replenish_plan([entry], inventory, market, DATA, day=DAY, budget=1000000,
+                                sell_names={entry.name}, purchased_items=purchased,
+                                shop_observations=observations)
+
+
+class PurchaseSupplyTests(unittest.TestCase):
+    def setUp(self):
+        self.context = Reader()
+        self.argv = NS(task_detail=NS(task_id=99), node_name="Arbitrage_Buy_Select_End",
+                       custom_action_param=PIPE["Arbitrage_Buy_Select_End"]["custom_action_param"])
+        for p in (patch.dict(lists._RUNS, clear=True),
+                  patch.object(PersistentStore, "_current_account_id", "test"),
+                  patch.object(buy, "sync_from_context", return_value=True),
+                  patch.object(buy.store, "get_purchase_alignments", return_value={}),
+                  patch.object(buy.store, "market_day", return_value=DAY),
+                  patch.object(buy.mfaalog, "info"),
+                  patch.object(buy, "CooldownManager"),
+                  patch.object(buy.MarkCompleteAction, "run", return_value=True)):
+            p.start()
+            self.addCleanup(p.stop)
+        buy.CooldownManager.return_value._calculate_server_reset_timestamp.return_value = (0, None)
+
+    def prepare(self, complete=True):
+        self.assertTrue(buy.ArbitrageBuyListPrepare().run(self.context, self.argv))
+        run = lists.get_purchase_run(99)
+        run["pending"].clear()
+        if complete:
+            self.assertTrue(buy.ArbitrageBuyComplete().run(self.context, self.argv))
+        return run
+
+    def custom(self, card, selected):
+        self.context.nodes[lists.PREPARE_NODE]["attach"]["custom_enabled"] = True
+        node = lists.load_purchase_catalog()[card]["custom_node"]
+        self.context.nodes[node]["enabled"] = True
+        self.context.nodes[node]["attach"] = {
+            name: name in selected for name in lists.load_purchase_catalog()[card]["items"]}
+
+    def test_default_confirmed_salt_shops_are_not_replenished(self):
+        self.prepare()
+        purchased = lists.completed_purchase_items(99, DAY)
+        sold = {"三国同盟", "被遗忘的战争", "试炼之路"}
+        self.assertTrue({(shop, "盐") for shop in sold} <= purchased)
+        baseline = {row["shop_name"] for row in salt_plan()["requests"]}
+        remaining = {row["shop_name"] for row in salt_plan(purchased)["requests"]}
+        self.assertTrue(sold <= baseline)
+        self.assertEqual(remaining, baseline - sold)
+
+    def test_interface_custom_removal_restores_that_shop_offer(self):
+        self.custom("S16:三国同盟", set())
+        self.prepare()
+        purchased = lists.completed_purchase_items(99, DAY)
+        self.assertNotIn(("三国同盟", "盐"), purchased)
+        self.assertIn("三国同盟", {row["shop_name"] for row in salt_plan(purchased)["requests"]})
+
+    def test_interface_addition_excludes_newly_selected_offer(self):
+        self.custom("S5:沙漠之花", {"盐"})
+        self.prepare()
+        self.assertIn(("沙漠之花", "盐"), lists.completed_purchase_items(99, DAY))
+
+    def test_disabled_outer_custom_ignores_hidden_selection(self):
+        self.custom("S16:三国同盟", set())
+        self.context.nodes[lists.PREPARE_NODE]["attach"]["custom_enabled"] = False
+        self.prepare()
+        self.assertIn(("三国同盟", "盐"), lists.completed_purchase_items(99, DAY))
+
+    def test_preparation_alone_and_other_task_or_day_do_not_exclude(self):
+        self.assertEqual(lists.completed_purchase_items(99, DAY), set())
+        self.prepare(complete=False)
+        self.assertEqual(lists.completed_purchase_items(99, DAY), set())
+        self.assertTrue(buy.ArbitrageBuyComplete().run(self.context, self.argv))
+        self.assertEqual(lists.completed_purchase_items(100, DAY), set())
+        self.assertEqual(lists.completed_purchase_items(99, "2026-09-16"), set())
+
+    def test_unverified_cards_are_not_assumed_purchased(self):
+        run = self.prepare()
+        run["failed_cards"]["S16:三国同盟"] = "unreadable"
+        run["pending"].add("S17:试炼之路")
+        purchased = lists.completed_purchase_items(99, DAY)
+        self.assertNotIn(("三国同盟", "盐"), purchased)
+        self.assertNotIn(("试炼之路", "盐"), purchased)
+        self.assertIn(("被遗忘的战争", "盐"), purchased)
+
+    def test_changed_account_cannot_reuse_purchase_evidence(self):
+        self.prepare()
+        PersistentStore._current_account_id = "other"
+        with self.assertRaises(ValueError):
+            lists.completed_purchase_items(99, DAY)
+
+    def test_fresh_shop_observation_overrides_purchase_inference(self):
+        self.prepare()
+        observed = [{"shop_name": "三国同盟", "item_name": "盐", "remaining": 50,
+                     "unit_price": 1, "day": DAY}]
+        rows = salt_plan(lists.completed_purchase_items(99, DAY), observed)["requests"]
+        self.assertEqual(next(row["target"] for row in rows if row["shop_name"] == "三国同盟"), 50)
+
+    def test_controller_supplies_same_exclusions_to_both_planning_passes(self):
+        self.prepare()
+        purchased = lists.completed_purchase_items(99, DAY)
+        plan = salt_plan(purchased)
+        self.context.run_task = lambda name: NS(status=NS(succeeded=True))
+        with patch.object(replenish, "sync_from_context", return_value=True), \
+             patch.object(replenish, "cooking_stage_active", return_value=True), \
+             patch.object(replenish, "get_bag_scan_run", return_value="bag"), \
+             patch.object(replenish.store, "get_replenish_inventory", return_value={"quantities": {"盐": 0}}), \
+             patch.object(replenish, "replenishment_entries", return_value=[NS(name="香草牛排", enabled=True)]), \
+             patch.object(replenish.store, "get_market_snapshot", return_value={"complete": True}), \
+             patch.object(replenish, "build_replenish_plan", return_value=plan) as build, \
+             patch.object(replenish, "ensure_shop"), patch.object(replenish, "_gold", return_value=1000000), \
+             patch.object(replenish, "execute_replenish_purchases", return_value={"status": "prepared"}):
+            result = replenish.run_replenishment(self.context, 99, {"dry_run": True})
+        self.assertEqual(result["status"], "prepared")
+        self.assertEqual(build.call_count, 2)
+        self.assertTrue(all(call.kwargs["purchased_items"] == purchased for call in build.call_args_list))
+
+
+class FavoriteAlignmentTests(unittest.TestCase):
+    def setUp(self):
+        self.controller = favorites.ShopBuyFavController()
+        self.controller.cfg = {"bind_dx_min": 5, "bind_dx_max": 40, "bind_dy_max": 15}
+        self.controller._scan_issues = []
+
+    def bind(self, names):
+        stars = [{"box": [100, y, 20, 20], "cx": 110, "cy": y + 10,
+                  "right_x": 120, "color": "gray"} for y in (100, 200)]
+        labels = [{"name": name, "box": [130, y, 60, 20], "left_x": 130, "cy": y + 10}
+                  for name, y in names]
+        return self.controller._bind_star_to_name(stars, labels)
+
+    def test_same_name_at_two_positions_adjusts_both_stars(self):
+        entities = self.bind([("盐", 100), ("盐", 200)])
+        self.assertTrue(self.controller._complete_page(entities))
+        actions = self.controller._decide_actions(entities, {"盐"})
+        self.assertEqual([(row["action"], row["star_cy"]) for row in actions],
+                         [("light", 110), ("light", 210)])
+
+    def test_missing_or_ambiguous_name_cannot_save_alignment(self):
+        for labels in ([('盐', 100)], [('盐', 100), ('糖', 100), ('盐', 200)]):
+            with self.subTest(labels=labels):
+                self.controller._scan_issues = []
+                self.assertFalse(self.controller._complete_page(self.bind(labels)))
+
+    def test_failed_card_does_not_block_other_cards_or_count_as_purchased(self):
+        with patch.dict(lists._RUNS, clear=True), \
+             patch.object(PersistentStore, "_current_account_id", "test"), \
+             patch.object(favorites, "sync_from_context", return_value=True), \
+             patch.object(buy, "sync_from_context", return_value=True), \
+             patch.object(favorites, "invalidate_purchase_alignment", return_value=True) as invalidate, \
+             patch.object(favorites, "save_purchase_alignment", return_value=True) as save, \
+             patch.object(self.controller, "_load_config", return_value=({}, set())), \
+             patch.object(self.controller, "_align_favorites", side_effect=[False, True]):
+            table = {"S16:三国同盟": {"盐"}, "S17:试炼之路": {"盐"}}
+            run = lists.put_purchase_run(99, table, table)
+            context = Reader()
+            argv = NS(task_detail=NS(task_id=99), custom_action_param="S16:三国同盟")
+            self.assertFalse(self.controller.run(context, argv))
+            self.assertIsNotNone(buy.ArbitrageBuyNeedsScan().analyze(context, argv))
+            argv.custom_action_param = "S17:试炼之路"
+            self.assertTrue(self.controller.run(context, argv))
+            self.assertIsNotNone(buy.ArbitrageBuyScanFinished().analyze(context, argv))
+            self.assertTrue(buy.ArbitrageBuyReady().run(context, argv))
+            self.assertEqual(invalidate.call_count, 2)
+            save.assert_called_once_with("S17:试炼之路", {"盐"})
+            run["completed_day"] = DAY
+            self.assertEqual(lists.completed_purchase_items(99, DAY), {("试炼之路", "盐")})
+
+
+class ShopRecoveryTests(unittest.TestCase):
+    def test_local_recovery_preserves_total_entry_and_selects_bargaining(self):
+        from unittest.mock import Mock
+        for bargain, entry in ((True, "Arbitrage_Merchant_Entry"),
+                               (False, "Arbitrage_Merchant_NoDiscount_Entry")):
+            with self.subTest(bargain=bargain):
+                context = Reader()
+                local = Mock()
+                context.clone = lambda: local
+                local.clear_hit_count.return_value = True
+                local.run_task.return_value = NS(status=NS(succeeded=True),
+                    nodes=[NS(name="Arbitrage_Replenish_ShopReady")])
+                replenish_buy.ensure_shop(context, bargain=bargain)
+                name, overrides = local.run_task.call_args.args
+                self.assertEqual(name, "Arbitrage_Replenish_EnsureShop")
+                self.assertFalse({"Arbitrage_Start", "Arbitrage_Merchant_Ico",
+                                  "Arbitrage_Action_Hub"} & overrides.keys())
+                self.assertEqual(overrides[name]["anchor"]["Arbitrage_Replenish_ShopEntry"], entry)
+                local.run_task.return_value.nodes = [NS(name="Global_Null")]
+                with self.assertRaisesRegex(RuntimeError, "未确认商店列表"):
+                    replenish_buy.ensure_shop(context, bargain=bargain)
+
+
+class SaleBoundaryTests(unittest.TestCase):
+    def search(self, scope, found=False):
+        from unittest.mock import Mock
+        end_node = PIPE[scope]["anchor"]["Arbitrage_Sell_ListEnd"]
+        batch = NS(request={"item_name": "test"}, absent=Mock(), fail=Mock())
+        calls = []
+
+        def recognize(node, image):
+            calls.append(node)
+            hit = (node == "Agt_SellList_Ready" or node == sale._LIST and found
+                   or node == "Arbitrage_Sell_Item_ListTraverse_End_Recipes")
+            return NS(hit=hit)
+
+        context = NS(get_anchor=lambda name: end_node, run_recognition=recognize,
+                     get_node_object=lambda name: NS(attach={"max_pages": 1}),
+                     tasker=NS(controller=NS(post_screencap=lambda: NS(wait=lambda: NS(get=lambda: NS(size=1))))))
+        with patch.object(sale, "_batch", return_value=batch), patch.object(sale, "check_scope"):
+            result = sale.ArbitrageSaleSearch().run(context, NS(node_name="test"))
+        return result, batch, calls
+
+    def test_recipe_stops_at_ingredients_in_both_sale_stages(self):
+        for node in ("Arbitrage_PreSell_Entry", "Arbitrage_SellItem"):
+            result, batch, calls = self.search(node)
+            self.assertFalse(result)
+            batch.absent.assert_called_once()
+            batch.fail.assert_not_called()
+
+    def test_material_stage_does_not_mark_zero_at_ingredients(self):
+        result, batch, calls = self.search("Arbitrage_SellMaterials")
+        self.assertFalse(result)
+        batch.absent.assert_not_called()
+        batch.fail.assert_called_once()
+
+    def test_visible_target_wins_over_same_screen_category_boundary(self):
+        result, batch, calls = self.search("Arbitrage_SellItem", found=True)
+        self.assertTrue(result)
+        batch.absent.assert_not_called()
+        self.assertNotIn("Arbitrage_Sell_Item_ListTraverse_End_Recipes", calls)
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -16,6 +16,7 @@ from utils import arbitrage_store as store, mfaalog
 from utils.account_sync import sync_from_context
 from utils.arbitrage_replenish_data import load_replenish_data
 from utils.arbitrage_replenish_plan import build_replenish_plan
+from utils.arbitrage_purchase_lists import completed_purchase_items
 
 
 _RESULTS = OrderedDict()
@@ -119,11 +120,15 @@ def run_replenishment(context, task_id, config):
     if market is None:
         return {**report, "reason": "今日完整行情不可用"}
     supply = load_replenish_data()
+    purchased_items = completed_purchase_items(task_id, day)
+    if purchased_items:
+        mfaalog.info(f"[Replenish] 按本轮最终采购名单排除已购供给：{len(purchased_items)}组柜台商品")
     # 仅用有限供给总额筛是否有需求；有请求后才进店，以实读金币重算正式预算。
     ceiling = sum(item["price_reference"] * min(item["daily_limit_reference"], 99999)
                   for shop in supply["shops"].values() for item in shop["items"].values())
     plan = build_replenish_plan(entries, inventory, market, supply, day=day,
-                                budget=ceiling if budget is None else budget, sell_names=sell_names)
+                                budget=ceiling if budget is None else budget, sell_names=sell_names,
+                                purchased_items=purchased_items)
     report.update(day=day, bag_run_id=bag_run_id, plan=plan)
     if not plan["requests"]:
         mfaalog.info("[Replenish] 本轮无需补买")
@@ -135,7 +140,7 @@ def run_replenishment(context, task_id, config):
     inventory = store.get_replenish_inventory(bag_run_id)["quantities"]
     plan = build_replenish_plan(entries, inventory, market, supply, day=day,
                                 budget=available_gold if budget is None else min(budget, available_gold),
-                                sell_names=sell_names)
+                                sell_names=sell_names, purchased_items=purchased_items)
     report["plan"] = plan
     planned_cooking = tuple(plan["cook_today_candidates"])
     if plan["requests"]:

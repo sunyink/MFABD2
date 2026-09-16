@@ -221,6 +221,7 @@ def buy_overrides(context, request):
                    "custom_action": "ArbitrageBuyConfirm", "custom_action_param": request,
                    "post_delay": 0, "timeout": 4000, "next": [_EXIT], "on_error": [_EXIT]},
         "Arbitrage_Sell_Gold_Snapshot": {"action": "DoNothing"},
+        "Arbitrage_Sell_Item_Click": {"target_offset": [0, 30, 0, 0]},
         "Arbitrage_Sell_End": {"action": "DoNothing", "focus": "Arb.补买：本批返回"},
         _QUANTITY: {"custom_action": "ArbitrageBuyQuantity", "custom_action_param": request,
                     "attach": config, "next": [_EXIT] if request.get("dry_run")

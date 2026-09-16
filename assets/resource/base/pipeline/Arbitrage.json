@@ -391,6 +391,7 @@
         ]
     },
     "Arbitrage_Merchant_Close_Ck": {
+        "desc": "关闭商店",
         "recognition": "OCR",
         "roi": [
             667,
@@ -458,7 +459,7 @@
         "post_delay": 1000
     },
     "Arbitrage_Buy_ToSelect": {
-        "desc": "有待核实的采购收藏时才进入卡带扫描。由Arbitrage_Buy_Button识别候选调用；agent/action/arbitrage_buy_list.py的ArbitrageBuyNeedsScan检查本轮pending名单及失败状态，不依赖画面识别。",
+        "desc": "本轮有待处理的收藏卡带时进入扫描；单卡失败只记入失败名单，后续卡带继续处理。",
         "max_hit": 1,
         "recognition": "Custom",
         "custom_recognition": "ArbitrageBuyNeedsScan",
@@ -490,6 +491,7 @@
         ],
         "anchor": "PackSwip_Str",
         "next": [
+            "Arbitrage_Buy_Select_Finished",
             "[JumpBack]Arbitrage_Buy_Select_QC1",
             "[JumpBack]Arbitrage_Buy_Select_QC2",
             "[JumpBack]Arbitrage_Buy_Select_QC3",
@@ -525,7 +527,7 @@
         ]
     },
     "Arbitrage_Buy_SharedEnd": {
-        "desc": "购买选卡:成功买完后关掉刚处理的卡带([Anchor]CurCard),防节点A重复分发;还原点由账本自动登记",
+        "desc": "结束当前卡带的收藏处理并关闭其入口；成功和失败均经过这里，避免本轮重复进入，空next返回选卡列表。",
         "action": "Custom",
         "custom_action": "PatchPipeline",
         "custom_action_param": {
@@ -536,7 +538,7 @@
         }
     },
     "Arbitrage_Buy_SkipSelect": {
-        "desc": "确认本轮所有待更新收藏均已核实，才放行一键购买。由Arbitrage_Buy_Button调用；agent/action/arbitrage_buy_list.py的ArbitrageBuyReady检查采购记录，未完成则转Arbitrage_ShopBuy_Abort。",
+        "desc": "核对本轮采购配置并汇总未核实卡带，继续按游戏当前收藏购买；单卡扫描失败不关闭一键购买。只有配置不可用或账号核对失败才结束常规采购。",
         "pre_delay": 0,
         "action": "Custom",
         "custom_action": "ArbitrageBuyReady",
@@ -1885,9 +1887,9 @@
         ]
     },
     "Arbitrage_Buy_Select_End": {
-        "desc": "记录常规采购的周完成标记并退出购买页。由Arbitrage_Favorit_Buy_GlodConfirm进入；agent/action/cartridge_lib.py的MarkComplete写入Arbitrage_BuyItems记录，收藏是否重扫另由采购准备动作判断。",
+        "desc": "记录已确认的常规采购并退出购买页。由Arbitrage_Favorit_Buy_GlodConfirm进入；ArbitrageBuyComplete保存本轮最终名单的采购完成日，供补买排除已购供给，并沿用Arbitrage_BuyItems周完成标记。",
         "action": "Custom",
-        "custom_action": "MarkComplete",
+        "custom_action": "ArbitrageBuyComplete",
         "custom_action_param": {
             "card_name": "Arbitrage_BuyItems",
             "cycle_type": "g_weekly"
@@ -2177,6 +2179,9 @@
                 "Arbitrage_Sale_EnsureShop"
             ]
         },
+        "anchor": {
+            "Arbitrage_Sell_ListEnd": "Arbitrage_Sell_Item_ListTraverse_End_Recipes"
+        },
         "timeout": 4000,
         "next": [
             "[JumpBack]Arbitrage_GlobalMarket_Ensure",
@@ -2192,6 +2197,9 @@
         "desc": "①开局出售料理以回笼金币。由Arbitrage_Action_Hub调用；先确保今日完整行情，再经Arbitrage_PreSell_GlobalMarket_Reset进入仅拥有扫描及出售。",
         "enabled": true,
         "max_hit": 1,
+        "anchor": {
+            "Arbitrage_Sell_ListEnd": "Arbitrage_Sell_Item_ListTraverse_End_Recipes"
+        },
         "next": [
             "[JumpBack]Arbitrage_GlobalMarket_Ensure",
             "Arbitrage_PreSell_GlobalMarket_Reset"
@@ -2826,7 +2834,7 @@
             "[JumpBack]Arbitrage_ItemList_Sorting_Entry",
             "[Anchor]Sell_Bypass",
             "Arbitrage_Sell_Item_ListTraverse",
-            "Arbitrage_Sell_Item_ListTraverse_End",
+            "[Anchor]Arbitrage_Sell_ListEnd",
             "[JumpBack]Arbitrage_ItemList_Swip"
         ]
     },
@@ -3107,6 +3115,21 @@
         "expected": [
             "圣石",
             "装备材料"
+        ]
+    },
+    "Arbitrage_Sell_Item_ListTraverse_End_Recipes": {
+        "desc": "纯料理出售的列表结束判定。料理排在食材前，看到料理食材即可结束；由①④入口设置Arbitrage_Sell_ListEnd锚点，⑤仍使用原材料末端。",
+        "recognition": "OCR",
+        "roi": [
+            384,
+            96,
+            186,
+            552
+        ],
+        "expected": [
+            "圣石",
+            "装备材料",
+            "^料理食材$"
         ]
     },
     "Arbitrage_Sell_Gold_Snapshot": {
@@ -5647,7 +5670,7 @@
         }
     },
     "Arbitrage_ShopBuy_Tuning_Csm": {
-        "desc": "【ShopBuy_Csm 2/4·数据·per端可覆盖(attach按key字典合并)】控制器行为参数：点击/验证延时、单页重试次数、星-名几何配对窗口。py读取，缺失回落py内置兜底。",
+        "desc": "收藏扫描行为参数：延时、有限重试、星名方向范围，以及基于星框[x,y,w,h]相加的name_roi_offset；名称只在星星右侧限定区域读取，不预设货架格数。",
         "enabled": false,
         "attach": {
             "click_delay": 1.5,
@@ -5655,11 +5678,17 @@
             "max_retries": 1,
             "bind_dx_min": 5,
             "bind_dx_max": 40,
-            "bind_dy_max": 15
+            "bind_dy_max": 15,
+            "name_roi_offset": [
+                25,
+                -6,
+                160,
+                12
+            ]
         }
     },
     "Arbitrage_ShopBuy_ReadNames_Csm": {
-        "desc": "【ShopBuy_Csm 3/4·识别·per端可覆盖】OCR商品名(py-ShopBuy引用)。attach.name_max_len=商品名最大中文字符数，滤除Toast长文本。",
+        "desc": "整页OCR供过滤后反查；Python在独立Context内以星框和name_roi_offset限定名称ROI。整页与局部识别共用过滤表和name_max_len，名称仅决定星星亮灭。",
         "recognition": "OCR",
         "roi": [
             390,
@@ -5689,357 +5718,382 @@
         }
     },
     "Arbitrage_ShopBuy_Pack_S1": {
-        "desc": "核对并调整S1:血骑士的采购收藏。由Arbitrage_Buy_Select_QC1_Clr通过JumpBack调用；agent/action/shop_buy_fav_controller.py的ShopBuyFavController读取本轮实际清单，核实后返回卡带流程，本节点不执行一键购买。",
+        "desc": "核对并调整S1:血骑士的采购收藏。由Arbitrage_Buy_Select_QC1_Clr通过JumpBack调用；agent/action/shop_buy_fav_controller.py的ShopBuyFavController读取本轮实际清单，核实后返回卡带流程，本节点不执行一键购买。 失败仅进入单卡出口，随后由Arbitrage_Buy_SharedEnd关闭当前入口并继续选卡。",
         "max_hit": 1,
         "recognition": "DirectHit",
         "action": "Custom",
         "custom_action": "ShopBuyFavController",
         "custom_action_param": "S1:血骑士",
+        "timeout": 2000,
         "on_error": [
-            "Arbitrage_ShopBuy_Abort"
+            "Arbitrage_ShopBuy_PackFailed"
         ]
     },
     "Arbitrage_ShopBuy_Pack_S2": {
-        "desc": "核对并调整S2:苍蓝魔女的采购收藏。由Arbitrage_Buy_Select_QC2_Clr通过JumpBack调用；agent/action/shop_buy_fav_controller.py的ShopBuyFavController读取本轮实际清单，核实后返回卡带流程，本节点不执行一键购买。",
+        "desc": "核对并调整S2:苍蓝魔女的采购收藏。由Arbitrage_Buy_Select_QC2_Clr通过JumpBack调用；agent/action/shop_buy_fav_controller.py的ShopBuyFavController读取本轮实际清单，核实后返回卡带流程，本节点不执行一键购买。 失败仅进入单卡出口，随后由Arbitrage_Buy_SharedEnd关闭当前入口并继续选卡。",
         "max_hit": 1,
         "recognition": "DirectHit",
         "action": "Custom",
         "custom_action": "ShopBuyFavController",
         "custom_action_param": "S2:苍蓝魔女",
+        "timeout": 2000,
         "on_error": [
-            "Arbitrage_ShopBuy_Abort"
+            "Arbitrage_ShopBuy_PackFailed"
         ]
     },
     "Arbitrage_ShopBuy_Pack_S3": {
-        "desc": "核对并调整S3:迷雾神射手的采购收藏。由Arbitrage_Buy_Select_QC3_Clr通过JumpBack调用；agent/action/shop_buy_fav_controller.py的ShopBuyFavController读取本轮实际清单，核实后返回卡带流程，本节点不执行一键购买。",
+        "desc": "核对并调整S3:迷雾神射手的采购收藏。由Arbitrage_Buy_Select_QC3_Clr通过JumpBack调用；agent/action/shop_buy_fav_controller.py的ShopBuyFavController读取本轮实际清单，核实后返回卡带流程，本节点不执行一键购买。 失败仅进入单卡出口，随后由Arbitrage_Buy_SharedEnd关闭当前入口并继续选卡。",
         "max_hit": 1,
         "recognition": "DirectHit",
         "action": "Custom",
         "custom_action": "ShopBuyFavController",
         "custom_action_param": "S3:迷雾神射手",
+        "timeout": 2000,
         "on_error": [
-            "Arbitrage_ShopBuy_Abort"
+            "Arbitrage_ShopBuy_PackFailed"
         ]
     },
     "Arbitrage_ShopBuy_Pack_S4": {
-        "desc": "核对并调整S4:眼镜与猫的采购收藏。由Arbitrage_Buy_Select_QC4_Clr通过JumpBack调用；agent/action/shop_buy_fav_controller.py的ShopBuyFavController读取本轮实际清单，核实后返回卡带流程，本节点不执行一键购买。",
+        "desc": "核对并调整S4:眼镜与猫的采购收藏。由Arbitrage_Buy_Select_QC4_Clr通过JumpBack调用；agent/action/shop_buy_fav_controller.py的ShopBuyFavController读取本轮实际清单，核实后返回卡带流程，本节点不执行一键购买。 失败仅进入单卡出口，随后由Arbitrage_Buy_SharedEnd关闭当前入口并继续选卡。",
         "max_hit": 1,
         "recognition": "DirectHit",
         "action": "Custom",
         "custom_action": "ShopBuyFavController",
         "custom_action_param": "S4:眼镜与猫",
+        "timeout": 2000,
         "on_error": [
-            "Arbitrage_ShopBuy_Abort"
+            "Arbitrage_ShopBuy_PackFailed"
         ]
     },
     "Arbitrage_ShopBuy_Pack_S5": {
-        "desc": "核对并调整S5:沙漠之花的采购收藏。由Arbitrage_Buy_Select_QC5_Clr通过JumpBack调用；agent/action/shop_buy_fav_controller.py的ShopBuyFavController读取本轮实际清单，核实后返回卡带流程，本节点不执行一键购买。",
+        "desc": "核对并调整S5:沙漠之花的采购收藏。由Arbitrage_Buy_Select_QC5_Clr通过JumpBack调用；agent/action/shop_buy_fav_controller.py的ShopBuyFavController读取本轮实际清单，核实后返回卡带流程，本节点不执行一键购买。 失败仅进入单卡出口，随后由Arbitrage_Buy_SharedEnd关闭当前入口并继续选卡。",
         "max_hit": 1,
         "recognition": "DirectHit",
         "action": "Custom",
         "custom_action": "ShopBuyFavController",
         "custom_action_param": "S5:沙漠之花",
+        "timeout": 2000,
         "on_error": [
-            "Arbitrage_ShopBuy_Abort"
+            "Arbitrage_ShopBuy_PackFailed"
         ]
     },
     "Arbitrage_ShopBuy_Pack_S6": {
-        "desc": "核对并调整S6:异教塔的采购收藏。由Arbitrage_Buy_Select_QC6_Clr通过JumpBack调用；agent/action/shop_buy_fav_controller.py的ShopBuyFavController读取本轮实际清单，核实后返回卡带流程，本节点不执行一键购买。",
+        "desc": "核对并调整S6:异教塔的采购收藏。由Arbitrage_Buy_Select_QC6_Clr通过JumpBack调用；agent/action/shop_buy_fav_controller.py的ShopBuyFavController读取本轮实际清单，核实后返回卡带流程，本节点不执行一键购买。 失败仅进入单卡出口，随后由Arbitrage_Buy_SharedEnd关闭当前入口并继续选卡。",
         "max_hit": 1,
         "recognition": "DirectHit",
         "action": "Custom",
         "custom_action": "ShopBuyFavController",
         "custom_action_param": "S6:异教塔",
+        "timeout": 2000,
         "on_error": [
-            "Arbitrage_ShopBuy_Abort"
+            "Arbitrage_ShopBuy_PackFailed"
         ]
     },
     "Arbitrage_ShopBuy_Pack_S7": {
-        "desc": "核对并调整S7:愤怒天使的采购收藏。由Arbitrage_Buy_Select_QC7_Clr通过JumpBack调用；agent/action/shop_buy_fav_controller.py的ShopBuyFavController读取本轮实际清单，核实后返回卡带流程，本节点不执行一键购买。",
+        "desc": "核对并调整S7:愤怒天使的采购收藏。由Arbitrage_Buy_Select_QC7_Clr通过JumpBack调用；agent/action/shop_buy_fav_controller.py的ShopBuyFavController读取本轮实际清单，核实后返回卡带流程，本节点不执行一键购买。 失败仅进入单卡出口，随后由Arbitrage_Buy_SharedEnd关闭当前入口并继续选卡。",
         "max_hit": 1,
         "recognition": "DirectHit",
         "action": "Custom",
         "custom_action": "ShopBuyFavController",
         "custom_action_param": "S7:愤怒天使",
+        "timeout": 2000,
         "on_error": [
-            "Arbitrage_ShopBuy_Abort"
+            "Arbitrage_ShopBuy_PackFailed"
         ]
     },
     "Arbitrage_ShopBuy_Pack_S8": {
-        "desc": "核对并调整S8:血之狂想曲的采购收藏。由Arbitrage_Buy_Select_QC8_Clr通过JumpBack调用；agent/action/shop_buy_fav_controller.py的ShopBuyFavController读取本轮实际清单，核实后返回卡带流程，本节点不执行一键购买。",
+        "desc": "核对并调整S8:血之狂想曲的采购收藏。由Arbitrage_Buy_Select_QC8_Clr通过JumpBack调用；agent/action/shop_buy_fav_controller.py的ShopBuyFavController读取本轮实际清单，核实后返回卡带流程，本节点不执行一键购买。 失败仅进入单卡出口，随后由Arbitrage_Buy_SharedEnd关闭当前入口并继续选卡。",
         "max_hit": 1,
         "recognition": "DirectHit",
         "action": "Custom",
         "custom_action": "ShopBuyFavController",
         "custom_action_param": "S8:血之狂想曲",
+        "timeout": 2000,
         "on_error": [
-            "Arbitrage_ShopBuy_Abort"
+            "Arbitrage_ShopBuy_PackFailed"
         ]
     },
     "Arbitrage_ShopBuy_Pack_S9": {
-        "desc": "核对并调整S9:铁假面的采购收藏。由Arbitrage_Buy_Select_QC9_Clr通过JumpBack调用；agent/action/shop_buy_fav_controller.py的ShopBuyFavController读取本轮实际清单，核实后返回卡带流程，本节点不执行一键购买。",
+        "desc": "核对并调整S9:铁假面的采购收藏。由Arbitrage_Buy_Select_QC9_Clr通过JumpBack调用；agent/action/shop_buy_fav_controller.py的ShopBuyFavController读取本轮实际清单，核实后返回卡带流程，本节点不执行一键购买。 失败仅进入单卡出口，随后由Arbitrage_Buy_SharedEnd关闭当前入口并继续选卡。",
         "max_hit": 1,
         "recognition": "DirectHit",
         "action": "Custom",
         "custom_action": "ShopBuyFavController",
         "custom_action_param": "S9:铁假面",
+        "timeout": 2000,
         "on_error": [
-            "Arbitrage_ShopBuy_Abort"
+            "Arbitrage_ShopBuy_PackFailed"
         ]
     },
     "Arbitrage_ShopBuy_Pack_S10": {
-        "desc": "核对并调整S10:霍尔蒙克斯的采购收藏。由Arbitrage_Buy_Select_QC10_Clr通过JumpBack调用；agent/action/shop_buy_fav_controller.py的ShopBuyFavController读取本轮实际清单，核实后返回卡带流程，本节点不执行一键购买。",
+        "desc": "核对并调整S10:霍尔蒙克斯的采购收藏。由Arbitrage_Buy_Select_QC10_Clr通过JumpBack调用；agent/action/shop_buy_fav_controller.py的ShopBuyFavController读取本轮实际清单，核实后返回卡带流程，本节点不执行一键购买。 失败仅进入单卡出口，随后由Arbitrage_Buy_SharedEnd关闭当前入口并继续选卡。",
         "max_hit": 1,
         "recognition": "DirectHit",
         "action": "Custom",
         "custom_action": "ShopBuyFavController",
         "custom_action_param": "S10:霍尔蒙克斯",
+        "timeout": 2000,
         "on_error": [
-            "Arbitrage_ShopBuy_Abort"
+            "Arbitrage_ShopBuy_PackFailed"
         ]
     },
     "Arbitrage_ShopBuy_Pack_S11": {
-        "desc": "核对并调整S11:虚假游戏的采购收藏。由Arbitrage_Buy_Select_QC11_Clr通过JumpBack调用；agent/action/shop_buy_fav_controller.py的ShopBuyFavController读取本轮实际清单，核实后返回卡带流程，本节点不执行一键购买。",
+        "desc": "核对并调整S11:虚假游戏的采购收藏。由Arbitrage_Buy_Select_QC11_Clr通过JumpBack调用；agent/action/shop_buy_fav_controller.py的ShopBuyFavController读取本轮实际清单，核实后返回卡带流程，本节点不执行一键购买。 失败仅进入单卡出口，随后由Arbitrage_Buy_SharedEnd关闭当前入口并继续选卡。",
         "max_hit": 1,
         "recognition": "DirectHit",
         "action": "Custom",
         "custom_action": "ShopBuyFavController",
         "custom_action_param": "S11:虚假游戏",
+        "timeout": 2000,
         "on_error": [
-            "Arbitrage_ShopBuy_Abort"
+            "Arbitrage_ShopBuy_PackFailed"
         ]
     },
     "Arbitrage_ShopBuy_Pack_S12": {
-        "desc": "核对并调整S12:黑羽毛的采购收藏。由Arbitrage_Buy_Select_QC12_Clr通过JumpBack调用；agent/action/shop_buy_fav_controller.py的ShopBuyFavController读取本轮实际清单，核实后返回卡带流程，本节点不执行一键购买。",
+        "desc": "核对并调整S12:黑羽毛的采购收藏。由Arbitrage_Buy_Select_QC12_Clr通过JumpBack调用；agent/action/shop_buy_fav_controller.py的ShopBuyFavController读取本轮实际清单，核实后返回卡带流程，本节点不执行一键购买。 失败仅进入单卡出口，随后由Arbitrage_Buy_SharedEnd关闭当前入口并继续选卡。",
         "max_hit": 1,
         "recognition": "DirectHit",
         "action": "Custom",
         "custom_action": "ShopBuyFavController",
         "custom_action_param": "S12:黑羽毛",
+        "timeout": 2000,
         "on_error": [
-            "Arbitrage_ShopBuy_Abort"
+            "Arbitrage_ShopBuy_PackFailed"
         ]
     },
     "Arbitrage_ShopBuy_Pack_S13": {
-        "desc": "核对并调整S13:雪之歌的采购收藏。由Arbitrage_Buy_Select_QC13_Clr通过JumpBack调用；agent/action/shop_buy_fav_controller.py的ShopBuyFavController读取本轮实际清单，核实后返回卡带流程，本节点不执行一键购买。",
+        "desc": "核对并调整S13:雪之歌的采购收藏。由Arbitrage_Buy_Select_QC13_Clr通过JumpBack调用；agent/action/shop_buy_fav_controller.py的ShopBuyFavController读取本轮实际清单，核实后返回卡带流程，本节点不执行一键购买。 失败仅进入单卡出口，随后由Arbitrage_Buy_SharedEnd关闭当前入口并继续选卡。",
         "max_hit": 1,
         "recognition": "DirectHit",
         "action": "Custom",
         "custom_action": "ShopBuyFavController",
         "custom_action_param": "S13:雪之歌",
+        "timeout": 2000,
         "on_error": [
-            "Arbitrage_ShopBuy_Abort"
+            "Arbitrage_ShopBuy_PackFailed"
         ]
     },
     "Arbitrage_ShopBuy_Pack_S14": {
-        "desc": "核对并调整S14:神圣审判的采购收藏。由Arbitrage_Buy_Select_QC14_Clr通过JumpBack调用；agent/action/shop_buy_fav_controller.py的ShopBuyFavController读取本轮实际清单，核实后返回卡带流程，本节点不执行一键购买。",
+        "desc": "核对并调整S14:神圣审判的采购收藏。由Arbitrage_Buy_Select_QC14_Clr通过JumpBack调用；agent/action/shop_buy_fav_controller.py的ShopBuyFavController读取本轮实际清单，核实后返回卡带流程，本节点不执行一键购买。 失败仅进入单卡出口，随后由Arbitrage_Buy_SharedEnd关闭当前入口并继续选卡。",
         "max_hit": 1,
         "recognition": "DirectHit",
         "action": "Custom",
         "custom_action": "ShopBuyFavController",
         "custom_action_param": "S14:神圣审判",
+        "timeout": 2000,
         "on_error": [
-            "Arbitrage_ShopBuy_Abort"
+            "Arbitrage_ShopBuy_PackFailed"
         ]
     },
     "Arbitrage_ShopBuy_Pack_S15": {
-        "desc": "核对并调整S15:复仇的誓言的采购收藏。由Arbitrage_Buy_Select_QC15_Clr通过JumpBack调用；agent/action/shop_buy_fav_controller.py的ShopBuyFavController读取本轮实际清单，核实后返回卡带流程，本节点不执行一键购买。",
+        "desc": "核对并调整S15:复仇的誓言的采购收藏。由Arbitrage_Buy_Select_QC15_Clr通过JumpBack调用；agent/action/shop_buy_fav_controller.py的ShopBuyFavController读取本轮实际清单，核实后返回卡带流程，本节点不执行一键购买。 失败仅进入单卡出口，随后由Arbitrage_Buy_SharedEnd关闭当前入口并继续选卡。",
         "max_hit": 1,
         "recognition": "DirectHit",
         "action": "Custom",
         "custom_action": "ShopBuyFavController",
         "custom_action_param": "S15:复仇的誓言",
+        "timeout": 2000,
         "on_error": [
-            "Arbitrage_ShopBuy_Abort"
+            "Arbitrage_ShopBuy_PackFailed"
         ]
     },
     "Arbitrage_ShopBuy_Pack_S16": {
-        "desc": "核对并调整S16:三国同盟的采购收藏。由Arbitrage_Buy_Select_QC16_Clr通过JumpBack调用；agent/action/shop_buy_fav_controller.py的ShopBuyFavController读取本轮实际清单，核实后返回卡带流程，本节点不执行一键购买。",
+        "desc": "核对并调整S16:三国同盟的采购收藏。由Arbitrage_Buy_Select_QC16_Clr通过JumpBack调用；agent/action/shop_buy_fav_controller.py的ShopBuyFavController读取本轮实际清单，核实后返回卡带流程，本节点不执行一键购买。 失败仅进入单卡出口，随后由Arbitrage_Buy_SharedEnd关闭当前入口并继续选卡。",
         "max_hit": 1,
         "recognition": "DirectHit",
         "action": "Custom",
         "custom_action": "ShopBuyFavController",
         "custom_action_param": "S16:三国同盟",
+        "timeout": 2000,
         "on_error": [
-            "Arbitrage_ShopBuy_Abort"
+            "Arbitrage_ShopBuy_PackFailed"
         ]
     },
     "Arbitrage_ShopBuy_Pack_S17": {
-        "desc": "核对并调整S17:试炼之路的采购收藏。由Arbitrage_Buy_Select_QC17_Clr通过JumpBack调用；agent/action/shop_buy_fav_controller.py的ShopBuyFavController读取本轮实际清单，核实后返回卡带流程，本节点不执行一键购买。",
+        "desc": "核对并调整S17:试炼之路的采购收藏。由Arbitrage_Buy_Select_QC17_Clr通过JumpBack调用；agent/action/shop_buy_fav_controller.py的ShopBuyFavController读取本轮实际清单，核实后返回卡带流程，本节点不执行一键购买。 失败仅进入单卡出口，随后由Arbitrage_Buy_SharedEnd关闭当前入口并继续选卡。",
         "max_hit": 1,
         "recognition": "DirectHit",
         "action": "Custom",
         "custom_action": "ShopBuyFavController",
         "custom_action_param": "S17:试炼之路",
+        "timeout": 2000,
         "on_error": [
-            "Arbitrage_ShopBuy_Abort"
+            "Arbitrage_ShopBuy_PackFailed"
         ]
     },
     "Arbitrage_ShopBuy_Pack_S18": {
-        "desc": "核对并调整S18:救赎的采购收藏。由Arbitrage_Buy_Select_QC18_Clr通过JumpBack调用；agent/action/shop_buy_fav_controller.py的ShopBuyFavController读取本轮实际清单，核实后返回卡带流程，本节点不执行一键购买。",
+        "desc": "核对并调整S18:救赎的采购收藏。由Arbitrage_Buy_Select_QC18_Clr通过JumpBack调用；agent/action/shop_buy_fav_controller.py的ShopBuyFavController读取本轮实际清单，核实后返回卡带流程，本节点不执行一键购买。 失败仅进入单卡出口，随后由Arbitrage_Buy_SharedEnd关闭当前入口并继续选卡。",
         "max_hit": 1,
         "recognition": "DirectHit",
         "action": "Custom",
         "custom_action": "ShopBuyFavController",
         "custom_action_param": "S18:救赎",
+        "timeout": 2000,
         "on_error": [
-            "Arbitrage_ShopBuy_Abort"
+            "Arbitrage_ShopBuy_PackFailed"
         ]
     },
     "Arbitrage_ShopBuy_Pack_S19": {
-        "desc": "核对并调整S19:被遗忘的战争的采购收藏。由Arbitrage_Buy_Select_QC19_Clr通过JumpBack调用；agent/action/shop_buy_fav_controller.py的ShopBuyFavController读取本轮实际清单，核实后返回卡带流程，本节点不执行一键购买。",
+        "desc": "核对并调整S19:被遗忘的战争的采购收藏。由Arbitrage_Buy_Select_QC19_Clr通过JumpBack调用；agent/action/shop_buy_fav_controller.py的ShopBuyFavController读取本轮实际清单，核实后返回卡带流程，本节点不执行一键购买。 失败仅进入单卡出口，随后由Arbitrage_Buy_SharedEnd关闭当前入口并继续选卡。",
         "max_hit": 1,
         "recognition": "DirectHit",
         "action": "Custom",
         "custom_action": "ShopBuyFavController",
         "custom_action_param": "S19:被遗忘的战争",
+        "timeout": 2000,
         "on_error": [
-            "Arbitrage_ShopBuy_Abort"
+            "Arbitrage_ShopBuy_PackFailed"
         ]
     },
     "Arbitrage_ShopBuy_Pack_R1": {
-        "desc": "核对并调整R1:杰登之门的采购收藏。由Arbitrage_Buy_Select_QR1_Clr通过JumpBack调用；agent/action/shop_buy_fav_controller.py的ShopBuyFavController读取本轮实际清单，核实后返回卡带流程，本节点不执行一键购买。",
+        "desc": "核对并调整R1:杰登之门的采购收藏。由Arbitrage_Buy_Select_QR1_Clr通过JumpBack调用；agent/action/shop_buy_fav_controller.py的ShopBuyFavController读取本轮实际清单，核实后返回卡带流程，本节点不执行一键购买。 失败仅进入单卡出口，随后由Arbitrage_Buy_SharedEnd关闭当前入口并继续选卡。",
         "max_hit": 1,
         "recognition": "DirectHit",
         "action": "Custom",
         "custom_action": "ShopBuyFavController",
         "custom_action_param": "R1:杰登之门",
+        "timeout": 2000,
         "on_error": [
-            "Arbitrage_ShopBuy_Abort"
+            "Arbitrage_ShopBuy_PackFailed"
         ]
     },
     "Arbitrage_ShopBuy_Pack_R2": {
-        "desc": "核对并调整R2:火晶片的采购收藏。由Arbitrage_Buy_Select_QR2_Clr通过JumpBack调用；agent/action/shop_buy_fav_controller.py的ShopBuyFavController读取本轮实际清单，核实后返回卡带流程，本节点不执行一键购买。",
+        "desc": "核对并调整R2:火晶片的采购收藏。由Arbitrage_Buy_Select_QR2_Clr通过JumpBack调用；agent/action/shop_buy_fav_controller.py的ShopBuyFavController读取本轮实际清单，核实后返回卡带流程，本节点不执行一键购买。 失败仅进入单卡出口，随后由Arbitrage_Buy_SharedEnd关闭当前入口并继续选卡。",
         "max_hit": 1,
         "recognition": "DirectHit",
         "action": "Custom",
         "custom_action": "ShopBuyFavController",
         "custom_action_param": "R2:火晶片",
+        "timeout": 2000,
         "on_error": [
-            "Arbitrage_ShopBuy_Abort"
+            "Arbitrage_ShopBuy_PackFailed"
         ]
     },
     "Arbitrage_ShopBuy_Pack_R3": {
-        "desc": "核对并调整R3:美丽无望的采购收藏。由Arbitrage_Buy_Select_QR3_Clr通过JumpBack调用；agent/action/shop_buy_fav_controller.py的ShopBuyFavController读取本轮实际清单，核实后返回卡带流程，本节点不执行一键购买。",
+        "desc": "核对并调整R3:美丽无望的采购收藏。由Arbitrage_Buy_Select_QR3_Clr通过JumpBack调用；agent/action/shop_buy_fav_controller.py的ShopBuyFavController读取本轮实际清单，核实后返回卡带流程，本节点不执行一键购买。 失败仅进入单卡出口，随后由Arbitrage_Buy_SharedEnd关闭当前入口并继续选卡。",
         "max_hit": 1,
         "recognition": "DirectHit",
         "action": "Custom",
         "custom_action": "ShopBuyFavController",
         "custom_action_param": "R3:美丽无望",
+        "timeout": 2000,
         "on_error": [
-            "Arbitrage_ShopBuy_Abort"
+            "Arbitrage_ShopBuy_PackFailed"
         ]
     },
     "Arbitrage_ShopBuy_Pack_R4": {
-        "desc": "核对并调整R4:大逃脱的采购收藏。由Arbitrage_Buy_Select_QR4_Clr通过JumpBack调用；agent/action/shop_buy_fav_controller.py的ShopBuyFavController读取本轮实际清单，核实后返回卡带流程，本节点不执行一键购买。",
+        "desc": "核对并调整R4:大逃脱的采购收藏。由Arbitrage_Buy_Select_QR4_Clr通过JumpBack调用；agent/action/shop_buy_fav_controller.py的ShopBuyFavController读取本轮实际清单，核实后返回卡带流程，本节点不执行一键购买。 失败仅进入单卡出口，随后由Arbitrage_Buy_SharedEnd关闭当前入口并继续选卡。",
         "max_hit": 1,
         "recognition": "DirectHit",
         "action": "Custom",
         "custom_action": "ShopBuyFavController",
         "custom_action_param": "R4:大逃脱",
+        "timeout": 2000,
         "on_error": [
-            "Arbitrage_ShopBuy_Abort"
+            "Arbitrage_ShopBuy_PackFailed"
         ]
     },
     "Arbitrage_ShopBuy_Pack_R5": {
-        "desc": "核对并调整R5:鲁的迷宫的采购收藏。由Arbitrage_Buy_Select_QR5_Clr通过JumpBack调用；agent/action/shop_buy_fav_controller.py的ShopBuyFavController读取本轮实际清单，核实后返回卡带流程，本节点不执行一键购买。",
+        "desc": "核对并调整R5:鲁的迷宫的采购收藏。由Arbitrage_Buy_Select_QR5_Clr通过JumpBack调用；agent/action/shop_buy_fav_controller.py的ShopBuyFavController读取本轮实际清单，核实后返回卡带流程，本节点不执行一键购买。 失败仅进入单卡出口，随后由Arbitrage_Buy_SharedEnd关闭当前入口并继续选卡。",
         "max_hit": 1,
         "recognition": "DirectHit",
         "action": "Custom",
         "custom_action": "ShopBuyFavController",
         "custom_action_param": "R5:鲁的迷宫",
+        "timeout": 2000,
         "on_error": [
-            "Arbitrage_ShopBuy_Abort"
+            "Arbitrage_ShopBuy_PackFailed"
         ]
     },
     "Arbitrage_ShopBuy_Pack_R6": {
-        "desc": "核对并调整R6:御剑传的采购收藏。由Arbitrage_Buy_Select_QR6_Clr通过JumpBack调用；agent/action/shop_buy_fav_controller.py的ShopBuyFavController读取本轮实际清单，核实后返回卡带流程，本节点不执行一键购买。",
+        "desc": "核对并调整R6:御剑传的采购收藏。由Arbitrage_Buy_Select_QR6_Clr通过JumpBack调用；agent/action/shop_buy_fav_controller.py的ShopBuyFavController读取本轮实际清单，核实后返回卡带流程，本节点不执行一键购买。 失败仅进入单卡出口，随后由Arbitrage_Buy_SharedEnd关闭当前入口并继续选卡。",
         "max_hit": 1,
         "recognition": "DirectHit",
         "action": "Custom",
         "custom_action": "ShopBuyFavController",
         "custom_action_param": "R6:御剑传",
+        "timeout": 2000,
         "on_error": [
-            "Arbitrage_ShopBuy_Abort"
+            "Arbitrage_ShopBuy_PackFailed"
         ]
     },
     "Arbitrage_ShopBuy_Pack_R7": {
-        "desc": "核对并调整R7:合约之战的采购收藏。由Arbitrage_Buy_Select_QR7_Clr通过JumpBack调用；agent/action/shop_buy_fav_controller.py的ShopBuyFavController读取本轮实际清单，核实后返回卡带流程，本节点不执行一键购买。",
+        "desc": "核对并调整R7:合约之战的采购收藏。由Arbitrage_Buy_Select_QR7_Clr通过JumpBack调用；agent/action/shop_buy_fav_controller.py的ShopBuyFavController读取本轮实际清单，核实后返回卡带流程，本节点不执行一键购买。 失败仅进入单卡出口，随后由Arbitrage_Buy_SharedEnd关闭当前入口并继续选卡。",
         "max_hit": 1,
         "recognition": "DirectHit",
         "action": "Custom",
         "custom_action": "ShopBuyFavController",
         "custom_action_param": "R7:合约之战",
+        "timeout": 2000,
         "on_error": [
-            "Arbitrage_ShopBuy_Abort"
+            "Arbitrage_ShopBuy_PackFailed"
         ]
     },
     "Arbitrage_ShopBuy_Pack_E1": {
-        "desc": "核对并调整E1:夏日骑士的采购收藏。由Arbitrage_Buy_Select_QE1_Clr通过JumpBack调用；agent/action/shop_buy_fav_controller.py的ShopBuyFavController读取本轮实际清单，核实后返回卡带流程，本节点不执行一键购买。",
+        "desc": "核对并调整E1:夏日骑士的采购收藏。由Arbitrage_Buy_Select_QE1_Clr通过JumpBack调用；agent/action/shop_buy_fav_controller.py的ShopBuyFavController读取本轮实际清单，核实后返回卡带流程，本节点不执行一键购买。 失败仅进入单卡出口，随后由Arbitrage_Buy_SharedEnd关闭当前入口并继续选卡。",
         "max_hit": 1,
         "recognition": "DirectHit",
         "action": "Custom",
         "custom_action": "ShopBuyFavController",
         "custom_action_param": "E1:夏日骑士",
+        "timeout": 2000,
         "on_error": [
-            "Arbitrage_ShopBuy_Abort"
+            "Arbitrage_ShopBuy_PackFailed"
         ]
     },
     "Arbitrage_ShopBuy_Pack_E2": {
-        "desc": "核对并调整E2:恶梦之冬的采购收藏。由Arbitrage_Buy_Select_QE2_Clr通过JumpBack调用；agent/action/shop_buy_fav_controller.py的ShopBuyFavController读取本轮实际清单，核实后返回卡带流程，本节点不执行一键购买。",
+        "desc": "核对并调整E2:恶梦之冬的采购收藏。由Arbitrage_Buy_Select_QE2_Clr通过JumpBack调用；agent/action/shop_buy_fav_controller.py的ShopBuyFavController读取本轮实际清单，核实后返回卡带流程，本节点不执行一键购买。 失败仅进入单卡出口，随后由Arbitrage_Buy_SharedEnd关闭当前入口并继续选卡。",
         "max_hit": 1,
         "recognition": "DirectHit",
         "action": "Custom",
         "custom_action": "ShopBuyFavController",
         "custom_action_param": "E2:恶梦之冬",
+        "timeout": 2000,
         "on_error": [
-            "Arbitrage_ShopBuy_Abort"
+            "Arbitrage_ShopBuy_PackFailed"
         ]
     },
     "Arbitrage_ShopBuy_Pack_E3": {
-        "desc": "核对并调整E3:海滨天使的采购收藏。由Arbitrage_Buy_Select_QE3_Clr通过JumpBack调用；agent/action/shop_buy_fav_controller.py的ShopBuyFavController读取本轮实际清单，核实后返回卡带流程，本节点不执行一键购买。",
+        "desc": "核对并调整E3:海滨天使的采购收藏。由Arbitrage_Buy_Select_QE3_Clr通过JumpBack调用；agent/action/shop_buy_fav_controller.py的ShopBuyFavController读取本轮实际清单，核实后返回卡带流程，本节点不执行一键购买。 失败仅进入单卡出口，随后由Arbitrage_Buy_SharedEnd关闭当前入口并继续选卡。",
         "max_hit": 1,
         "recognition": "DirectHit",
         "action": "Custom",
         "custom_action": "ShopBuyFavController",
         "custom_action_param": "E3:海滨天使",
+        "timeout": 2000,
         "on_error": [
-            "Arbitrage_ShopBuy_Abort"
+            "Arbitrage_ShopBuy_PackFailed"
         ]
     },
     "Arbitrage_ShopBuy_Pack_E4": {
-        "desc": "核对并调整E4:记忆边缘的采购收藏。由Arbitrage_Buy_Select_QE4_Clr通过JumpBack调用；agent/action/shop_buy_fav_controller.py的ShopBuyFavController读取本轮实际清单，核实后返回卡带流程，本节点不执行一键购买。",
+        "desc": "核对并调整E4:记忆边缘的采购收藏。由Arbitrage_Buy_Select_QE4_Clr通过JumpBack调用；agent/action/shop_buy_fav_controller.py的ShopBuyFavController读取本轮实际清单，核实后返回卡带流程，本节点不执行一键购买。 失败仅进入单卡出口，随后由Arbitrage_Buy_SharedEnd关闭当前入口并继续选卡。",
         "max_hit": 1,
         "recognition": "DirectHit",
         "action": "Custom",
         "custom_action": "ShopBuyFavController",
         "custom_action_param": "E4:记忆边缘",
+        "timeout": 2000,
         "on_error": [
-            "Arbitrage_ShopBuy_Abort"
+            "Arbitrage_ShopBuy_PackFailed"
         ]
     },
     "Arbitrage_ShopBuy_Pack_E5": {
-        "desc": "核对并调整E5:戏水女王的采购收藏。由Arbitrage_Buy_Select_QE5_Clr通过JumpBack调用；agent/action/shop_buy_fav_controller.py的ShopBuyFavController读取本轮实际清单，核实后返回卡带流程，本节点不执行一键购买。",
+        "desc": "核对并调整E5:戏水女王的采购收藏。由Arbitrage_Buy_Select_QE5_Clr通过JumpBack调用；agent/action/shop_buy_fav_controller.py的ShopBuyFavController读取本轮实际清单，核实后返回卡带流程，本节点不执行一键购买。 失败仅进入单卡出口，随后由Arbitrage_Buy_SharedEnd关闭当前入口并继续选卡。",
         "max_hit": 1,
         "recognition": "DirectHit",
         "action": "Custom",
         "custom_action": "ShopBuyFavController",
         "custom_action_param": "E5:戏水女王",
+        "timeout": 2000,
         "on_error": [
-            "Arbitrage_ShopBuy_Abort"
+            "Arbitrage_ShopBuy_PackFailed"
         ]
     },
     "Arbitrage_ShopBuy_Abort": {
-        "desc": "取消本轮常规采购，保留未确认收藏供下次核对。由采购准备、收藏核实或购买放行失败路径调用；agent/action/arbitrage_buy_list.py的ArbitrageBuyAbort关闭一键购买并清空收藏派发next，动作本身失败才停止套利任务。",
+        "desc": "采购配置或账号核对失败时结束②常规采购；空next返回阶段调度，不改派发next及购买开关，不停止整个套利任务。",
         "pre_delay": 0,
-        "action": "Custom",
-        "custom_action": "ArbitrageBuyAbort",
         "post_delay": 0,
-        "timeout": 2000,
-        "on_error": [
-            "Arbitrage_Replenish_Stop"
-        ],
-        "focus": "② 收藏未核实，本轮不进行常规购买"
+        "focus": "② 采购配置未就绪，结束常规采购并继续后续阶段"
     },
     "Arbitrage_BagStockScan": {
         "desc": "决定③阶段需要补查哪些食材库存。由Arbitrage_Cooking通过JumpBack调用；agent/action/arbitrage_flow.py的ArbitrageBagPrepare按本轮实际检查过的料理计算缺失库存，动态将next改为进背包、仅记录或直接结束。",
@@ -6622,16 +6676,21 @@
         "focus": "Arb.补买：当前柜台未找到目标，跳过本批"
     },
     "Arbitrage_Replenish_EnsureShop": {
-        "desc": "补买前置：关闭残留子页，已在商店则返回，否则借用原进店导航；Python在局部上下文切断总Hub回边。",
+        "desc": "补买及行情准备的商店恢复入口：关闭残留子页，通过JumpBack进店、主页寻路或回主页，以ShopReady确认出口；不经过Arbitrage_Start或总调度。Python局部选择砍价或不砍价入口。",
         "enabled": false,
         "pre_delay": 0,
+        "anchor": {
+            "PractiseBargaining_Per": "",
+            "Arbitrage_Replenish_ShopEntry": "Arbitrage_Merchant_Entry"
+        },
         "post_delay": 0,
         "timeout": 4000,
         "next": [
             "[JumpBack]Arbitrage_Sell_Item_Cancel",
             "Arbitrage_Replenish_ShopReady",
-            "[JumpBack]Arbitrage_Merchant_Entry",
-            "Arbitrage_Start"
+            "[JumpBack][Anchor]Arbitrage_Replenish_ShopEntry",
+            "[JumpBack]Arbitrage_HomePageOldCardMenu_Goin",
+            "[JumpBack]Global_ToHomePage"
         ],
         "on_error": [
             "Arbitrage_Replenish_ShopFailed"
@@ -7616,7 +7675,7 @@
         }
     },
     "Agt_Arbitrage_StageConfig": {
-        "desc": "保存套利进入商店前的导航候选，供ArbitrageStagePrepare及ensure_shop读取。主页寻路使用JumpBack，找到商人后返回调用方，再由Arbitrage_Merchant_Ico选择总调度或局部进店路线。",
+        "desc": "保存套利总入口的导航候选，供ArbitrageStagePrepare读取。主页寻路使用JumpBack，找到商人后返回总入口，再由Arbitrage_Merchant_Ico进入总调度。",
         "enabled": false,
         "attach": {
             "start_next": [
@@ -7688,6 +7747,9 @@
                 "Arbitrage_GlobalMarket_Ensure",
                 "Arbitrage_Sale_EnsureShop"
             ]
+        },
+        "anchor": {
+            "Arbitrage_Sell_ListEnd": "Arbitrage_Sell_Item_ListTraverse_End"
         },
         "post_delay": 0,
         "timeout": 4000,
@@ -7901,5 +7963,18 @@
             1
         ],
         "post_delay": 800
+    },
+    "Arbitrage_Buy_Select_Finished": {
+        "desc": "所有待扫描卡带均已尝试后的正常出口；不修改父节点next，空next逐层回到购买页继续购买。",
+        "recognition": "Custom",
+        "custom_recognition": "ArbitrageBuyScanFinished",
+        "pre_delay": 0,
+        "post_delay": 0
+    },
+    "Arbitrage_ShopBuy_PackFailed": {
+        "desc": "单卡收藏核对失败出口；Python已记录失败原因，不改整轮状态、派发next或购买开关，空next退回该卡带收尾。",
+        "pre_delay": 0,
+        "post_delay": 0,
+        "focus": "② 当前卡带收藏未核实，继续下一张"
     }
 }
