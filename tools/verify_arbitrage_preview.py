@@ -25,6 +25,11 @@ class Context:
     def __init__(self):
         self.tasker = SimpleNamespace(stopping=False)
         self.calls = []
+        self.anchors = {}
+
+    def set_anchor(self, name, target):
+        self.anchors[name] = target
+        return True
 
     def get_node_object(self, name):
         if name == "Arbitrage_ShopSell_Active":

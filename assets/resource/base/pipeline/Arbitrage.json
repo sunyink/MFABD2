@@ -2180,6 +2180,7 @@
             ]
         },
         "anchor": {
+            "Replenish_ShopEntry": "Arbitrage_Merchant_NoDiscount_Entry",
             "Arbitrage_Sell_ListEnd": "Arbitrage_Sell_Item_ListTraverse_End_Recipes"
         },
         "timeout": 4000,
@@ -2198,6 +2199,7 @@
         "enabled": true,
         "max_hit": 1,
         "anchor": {
+            "Replenish_ShopEntry": "Arbitrage_Merchant_NoDiscount_Entry",
             "Arbitrage_Sell_ListEnd": "Arbitrage_Sell_Item_ListTraverse_End_Recipes"
         },
         "next": [
@@ -3652,6 +3654,9 @@
         "pre_delay": 0,
         "action": "Custom",
         "custom_action": "ArbitrageCookingPrepare",
+        "anchor": {
+            "Replenish_ShopEntry": "Arbitrage_Merchant_Entry"
+        },
         "post_delay": 0,
         "timeout": 4000,
         "next": [
@@ -6676,19 +6681,18 @@
         "focus": "Arb.补买：当前柜台未找到目标，跳过本批"
     },
     "Arbitrage_Replenish_EnsureShop": {
-        "desc": "补买及行情准备的商店恢复入口：关闭残留子页，通过JumpBack进店、主页寻路或回主页，以ShopReady确认出口；不经过Arbitrage_Start或总调度。Python局部选择砍价或不砍价入口。",
-        "enabled": false,
+        "desc": "补买及行情准备的商店恢复入口：调用方先设置Replenish_ShopEntry，子流程沿用且不清理该锚点，允许JumpBack或Python再次调用；整轮出售正常结束才清锚。通过JumpBack进店、主页寻路或回主页，以ShopReady确认出口，不经过Arbitrage_Start或总调度。",
+        "enabled": true,
         "pre_delay": 0,
         "anchor": {
-            "PractiseBargaining_Per": "",
-            "Arbitrage_Replenish_ShopEntry": "Arbitrage_Merchant_Entry"
+            "PractiseBargaining_Per": ""
         },
         "post_delay": 0,
         "timeout": 4000,
         "next": [
             "[JumpBack]Arbitrage_Sell_Item_Cancel",
             "Arbitrage_Replenish_ShopReady",
-            "[JumpBack][Anchor]Arbitrage_Replenish_ShopEntry",
+            "[JumpBack][Anchor]Replenish_ShopEntry",
             "[JumpBack]Arbitrage_HomePageOldCardMenu_Goin",
             "[JumpBack]Global_ToHomePage"
         ],
@@ -7749,6 +7753,7 @@
             ]
         },
         "anchor": {
+            "Replenish_ShopEntry": "Arbitrage_Merchant_NoDiscount_Entry",
             "Arbitrage_Sell_ListEnd": "Arbitrage_Sell_Item_ListTraverse_End"
         },
         "post_delay": 0,

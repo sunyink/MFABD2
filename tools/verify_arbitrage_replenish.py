@@ -17,6 +17,7 @@ sys.path.insert(0, str(ROOT / "agent"))
 from action import arbitrage_buy_list as buy
 from action import arbitrage_replenish as replenish
 from action import arbitrage_replenish_buy as replenish_buy
+from action import arbitrage_result as result
 from action import arbitrage_sell_batch as sale
 from action import shop_buy_fav_controller as favorites
 from utils import arbitrage_purchase_lists as lists
@@ -34,6 +35,14 @@ class Reader:
     def __init__(self):
         self.nodes = deepcopy(PIPE)
         self.tasker = NS(stopping=False)
+        self.anchors = {}
+
+    def set_anchor(self, name, target):
+        self.anchors[name] = target
+        return True
+
+    def get_anchor(self, name):
+        return self.anchors.get(name)
 
     def get_node_object(self, name):
         return NS(attach=self.nodes[name].get("attach", {}))
@@ -166,6 +175,7 @@ class PurchaseSupplyTests(unittest.TestCase):
              patch.object(replenish, "execute_replenish_purchases", return_value={"status": "prepared"}):
             result = replenish.run_replenishment(self.context, 99, {"dry_run": True})
         self.assertEqual(result["status"], "prepared")
+        self.assertEqual(self.context.get_anchor("Replenish_ShopEntry"), "Arbitrage_Merchant_Entry")
         self.assertEqual(build.call_count, 2)
         self.assertTrue(all(call.kwargs["purchased_items"] == purchased for call in build.call_args_list))
 
@@ -222,26 +232,78 @@ class FavoriteAlignmentTests(unittest.TestCase):
 
 
 class ShopRecoveryTests(unittest.TestCase):
-    def test_local_recovery_preserves_total_entry_and_selects_bargaining(self):
+    def test_recovery_reuses_caller_anchor_after_success_and_failure(self):
         from unittest.mock import Mock
-        for bargain, entry in ((True, "Arbitrage_Merchant_Entry"),
-                               (False, "Arbitrage_Merchant_NoDiscount_Entry")):
-            with self.subTest(bargain=bargain):
+        self.assertIn("[JumpBack][Anchor]Replenish_ShopEntry", PIPE["Arbitrage_Replenish_EnsureShop"]["next"])
+        for entry in ("Arbitrage_Merchant_Entry", "Arbitrage_Merchant_NoDiscount_Entry"):
+            with self.subTest(entry=entry):
                 context = Reader()
+                context.set_anchor("Replenish_ShopEntry", entry)
                 local = Mock()
                 context.clone = lambda: local
                 local.clear_hit_count.return_value = True
                 local.run_task.return_value = NS(status=NS(succeeded=True),
                     nodes=[NS(name="Arbitrage_Replenish_ShopReady")])
-                replenish_buy.ensure_shop(context, bargain=bargain)
+                replenish_buy.ensure_shop(context)
+                replenish_buy.ensure_shop(context)
                 name, overrides = local.run_task.call_args.args
                 self.assertEqual(name, "Arbitrage_Replenish_EnsureShop")
-                self.assertFalse({"Arbitrage_Start", "Arbitrage_Merchant_Ico",
+                self.assertFalse({name, "Arbitrage_Start", "Arbitrage_Merchant_Ico",
                                   "Arbitrage_Action_Hub"} & overrides.keys())
-                self.assertEqual(overrides[name]["anchor"]["Arbitrage_Replenish_ShopEntry"], entry)
+                self.assertEqual(context.get_anchor("Replenish_ShopEntry"), entry)
                 local.run_task.return_value.nodes = [NS(name="Global_Null")]
                 with self.assertRaisesRegex(RuntimeError, "未确认商店列表"):
-                    replenish_buy.ensure_shop(context, bargain=bargain)
+                    replenish_buy.ensure_shop(context)
+                self.assertEqual(context.get_anchor("Replenish_ShopEntry"), entry)
+
+    def test_missing_caller_anchor_cannot_silently_choose_an_entry(self):
+        with self.assertRaisesRegex(RuntimeError, "调用方未设置"):
+            replenish_buy.ensure_shop(Reader())
+
+
+class ShopAnchorLifetimeTests(unittest.TestCase):
+    def setUp(self):
+        self.context = Reader()
+        self.anchor = "Replenish_ShopEntry"
+        self.context.set_anchor(self.anchor, "Arbitrage_Merchant_Entry")
+        self.controller = result.ArbitrageSellController()
+        sync = patch.object(result, "sync_from_context", return_value=True)
+        sync.start()
+        self.addCleanup(sync.stop)
+
+    def argv(self, mode="sell", scope="recipes"):
+        return NS(custom_action_param=json.dumps({"mode": mode, "sale_scope": scope}))
+
+    def test_each_sale_stage_overwrites_at_start_and_clears_after_whole_run(self):
+        for mode, scope in (("preview_possess", "recipes"), ("sell", "recipes"), ("sell", "materials")):
+            with self.subTest(mode=mode, scope=scope):
+                self.context.set_anchor(self.anchor, "Arbitrage_Merchant_Entry")
+
+                def selling(context, params):
+                    self.assertEqual(context.get_anchor(self.anchor), "Arbitrage_Merchant_NoDiscount_Entry")
+                    return True
+
+                with patch.object(self.controller, "_run", side_effect=selling):
+                    self.assertTrue(self.controller.run(self.context, self.argv(mode, scope)))
+                self.assertEqual(self.context.get_anchor(self.anchor), "")
+
+    def test_market_scan_does_not_clear_callers_anchor(self):
+        with patch.object(self.controller, "_run", return_value=True):
+            self.assertTrue(self.controller.run(self.context, self.argv("preview_all")))
+        self.assertEqual(self.context.get_anchor(self.anchor), "Arbitrage_Merchant_Entry")
+
+    def test_failed_stopped_or_exceptional_sale_keeps_anchor(self):
+        for outcome in (False, "stopped", "exception"):
+            with self.subTest(outcome=outcome):
+                self.context.tasker.stopping = outcome == "stopped"
+                with patch.object(self.controller, "_run", return_value=outcome is not False,
+                                  side_effect=RuntimeError("test") if outcome == "exception" else None):
+                    if outcome == "exception":
+                        with self.assertRaises(RuntimeError):
+                            self.controller.run(self.context, self.argv())
+                    else:
+                        self.controller.run(self.context, self.argv())
+                self.assertEqual(self.context.get_anchor(self.anchor), "Arbitrage_Merchant_NoDiscount_Entry")
 
 
 class SaleBoundaryTests(unittest.TestCase):

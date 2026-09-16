@@ -66,19 +66,16 @@ def _requests(plan):
     return list(merged.values())
 
 
-def ensure_shop(context, *, bargain=True):
-    """局部选择购买砍价或出售直入；不能重新进入Action_Hub或固定收藏购买。"""
+def ensure_shop(context):
+    """沿用调用方的进店锚点恢复商店；返回或失败均保留选路供再次调用。"""
     if context.tasker.stopping:
         raise RuntimeError("任务已停止")
+    if not context.get_anchor("Replenish_ShopEntry"):
+        raise RuntimeError("调用方未设置商店恢复入口")
     local = context.clone()
     if not local.clear_hit_count("Arbitrage_Sell_Item_Cancel"):
         raise RuntimeError("无法重置商店子页关闭计数")
-    entry = "Arbitrage_Merchant_Entry" if bargain else "Arbitrage_Merchant_NoDiscount_Entry"
     patch = {
-        "Arbitrage_Replenish_EnsureShop": {
-            "enabled": True,
-            "anchor": {"PractiseBargaining_Per": "", "Arbitrage_Replenish_ShopEntry": entry},
-        },
         "Arbitrage_Merchant_Egress": {"next": ["Arbitrage_Replenish_ShopReady"]},
     }
     result = local.run_task("Arbitrage_Replenish_EnsureShop", patch)
@@ -139,6 +136,8 @@ def execute_replenish_purchases(context, plan, *, bag_run_id, dry_run=True):
         report.update(status="stale_plan", changed_items=changed)
         return report
     try:
+        if not context.set_anchor("Replenish_ShopEntry", "Arbitrage_Merchant_Entry"):
+            raise RuntimeError("补买进店入口设置失败")
         ensure_shop(context)
     except Exception as exc:
         report.update(status="stopped", reason=str(exc))
@@ -279,6 +278,8 @@ def execute_replenish_purchases(context, plan, *, bag_run_id, dry_run=True):
             return report
         if result.get("return_ok") is False:
             try:
+                if not context.set_anchor("Replenish_ShopEntry", "Arbitrage_Merchant_Entry"):
+                    raise RuntimeError("补买恢复入口设置失败")
                 ensure_shop(context)
             except Exception as exc:
                 report.update(status="stopped", reason=f"购买后页面无法恢复：{exc}")

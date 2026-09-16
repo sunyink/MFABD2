@@ -161,7 +161,9 @@ class ArbitrageMarketEnsure(CustomAction):
                 return True
             # Pipeline负责全盘页面准备和计数清理；扫描退出后下一阶段自行恢复商店。
             local = context.clone()
-            ensure_shop(local, bargain=False)
+            if not local.set_anchor("Replenish_ShopEntry", "Arbitrage_Merchant_NoDiscount_Entry"):
+                raise RuntimeError("行情进店入口设置失败")
+            ensure_shop(local)
             result = local.run_task("Arbitrage_GlobalMarket_Entry")
             if (result is None or not result.status.succeeded
                     or not any(node.name == "Arbitrage_PriceList_Egress" for node in result.nodes)

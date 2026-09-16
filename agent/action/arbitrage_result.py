@@ -531,6 +531,20 @@ class ArbitrageSellController(CustomAction):
         mfaalog.info(f"[Arbitrage] 🚀 商店套利-出售主控器启动(mode={mode})")
         if not sync_from_context(context, where=f"ArbitrageSellController/{mode}"):
             return False
+        selling = mode != _MODE_PREVIEW_ALL
+        if selling and not context.set_anchor("Replenish_ShopEntry", "Arbitrage_Merchant_NoDiscount_Entry"):
+            mfaalog.error("[Arbitrage] 出售进店入口设置失败")
+            return False
+        completed = self._run(context, params)
+        # 整轮出售正常收尾才清锚；公共行情、子流程、失败及停止均保留选路。
+        if completed and selling and not context.tasker.stopping:
+            if not context.set_anchor("Replenish_ShopEntry", ""):
+                mfaalog.error("[Arbitrage] 出售结束后清理进店入口失败")
+                return False
+        return completed
+
+    def _run(self, context: Context, params: dict) -> bool:
+        mode = params["mode"]
         # 尾号救援可调参:JSON attach 覆盖 py 默认(缺则用默认)。每轮取副本,不写默认表。
         self._rescue_cfg = _load_rescue_cfg(context)
 

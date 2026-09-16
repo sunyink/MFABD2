@@ -133,6 +133,9 @@ def run_replenishment(context, task_id, config):
     if not plan["requests"]:
         mfaalog.info("[Replenish] 本轮无需补买")
         return {**report, "reason": "没有符合条件的补买需求"}
+    # 行情准备可能覆盖过入口；回到补买业务时明确恢复折扣商店选路。
+    if not context.set_anchor("Replenish_ShopEntry", "Arbitrage_Merchant_Entry"):
+        raise RuntimeError("补买预算进店入口设置失败")
     ensure_shop(context)
     available_gold = _gold(context)
     if store.market_day() != day:
