@@ -322,7 +322,8 @@ class DiscountPurchaseTests(unittest.TestCase):
             {name: 786, "虾": 39, "小麦": 7, "料酒": 120, "甜辣酱": 66}.items()]}
         supply = {**DATA, "shops": {"铁假面": DATA["shops"]["铁假面"]}}
         inventory = {"虾": 5259, "小麦": 16553, "料酒": 516, "甜辣酱": 0}
-        plan = build_replenish_plan([entry], inventory, market, supply, day=DAY, budget=10800, sell_names={name})
+        plan = build_replenish_plan([entry], inventory, market, supply, day=DAY, budget=10800, sell_names={name},
+                                    profit_surrender_percent=100)
         self.assertEqual(plan["cook_today_candidates"], [name])
         self.assertEqual((plan["requests"][0]["target"], plan["requests"][0]["max_unit_price"]), (100, 108))
         self.assertEqual((plan["estimated_spend"], plan["allocations"][0]["portions"],

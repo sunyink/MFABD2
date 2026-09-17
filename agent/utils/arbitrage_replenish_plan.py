@@ -3,6 +3,7 @@
 from datetime import date
 
 from .arbitrage_replenish_data import discounted_purchase_price
+from .arbitrage_replenish_profit import DEFAULT_PROFIT_SURRENDER_PERCENT, select_purchase, validate_profit_surrender_percent
 from .name_i18n import canon
 
 
@@ -19,6 +20,14 @@ def _name(value):
     if not isinstance(value, str) or not value.strip():
         raise ValueError("物品或柜台名称无效")
     return canon(value.strip())
+
+
+def order_purchase_requests(requests):
+    """材料沿计划首次出现顺序；同材料严格按柜台单价从低到高执行。"""
+    material_order = {}
+    for row in requests:
+        material_order.setdefault(row["item_name"], len(material_order))
+    return sorted(requests, key=lambda row: (material_order[row["item_name"]], row["max_unit_price"], row["shop_name"]))
 
 
 def _market_prices(market):
@@ -80,79 +89,46 @@ def _offers(data, observations, day, purchased_items):
     return offers, issues
 
 
-def _fill(offers, quantity):
-    lots = []
-    cost = 0
-    for offer in offers:
-        amount = min(quantity, offer["remaining"])
-        if amount:
-            lots.append({"shop_name": offer["shop_name"], "item_name": offer["item_name"],
-                         "quantity": amount, "unit_price": offer["unit_price"], "source": offer["source"]})
-            cost += amount * offer["unit_price"]
-            quantity -= amount
-        if not quantity:
-            break
-    if quantity:
-        raise ValueError("候选供给不足以填满计算出的数量")
-    return lots, cost
-
-
-def _candidate(recipe, material, available, prices, offers, budget, tonic_price):
+def _candidate(recipe, material, available, prices, offers, budget, tonic_price, percent):
     ingredients = recipe["ingredients"]
     needed_per = ingredients[material]
     owned = available[material]
     other_limits = [available[name] // count for name, count in ingredients.items() if name != material]
     if not other_limits:
-        return None, "no_other_material_bound"
-    other_limit = min(other_limits)
-    # 最便宜柜台先填充。同一材料可跨柜台凑足一份，不提前买无法成份的零头。
-    units, money = 0, budget
-    boundaries = {1}
-    for offer in offers:
-        amount = min(offer["remaining"], money // offer["unit_price"])
-        units += amount
-        money -= amount * offer["unit_price"]
-        boundary = (owned + units) // needed_per
-        boundaries.update((boundary, boundary + 1))
-    maximum = min(other_limit, (owned + units) // needed_per)
-    if maximum < 1:
-        return None, "insufficient_supply_or_budget"
-    boundaries.add(maximum)
-    best = None
-    # 利润在各价格档之间是线性的；只检查档位两侧及端点，不逐份枚举大库存。
-    for portions in sorted(n for n in boundaries if 1 <= n <= maximum):
-        purchase_quantity = portions * needed_per - owned
-        lots, cost = _fill(offers, purchase_quantity)
-        stock_used = {name: (owned if name == material else portions * count)
-                      for name, count in ingredients.items()}
-        stock_value = sum(count * prices[name] for name, count in stock_used.items())
-        tonic_count = portions * recipe["level"]
-        revenue = portions * prices[recipe["name"]]
-        gain = revenue - stock_value - cost - tonic_count * tonic_price
-        if cost > budget or gain <= 0:
-            continue
-        candidate = {"portions": portions, "stock_used": stock_used, "purchase_quantity": purchase_quantity,
-                     "lots": lots, "estimated_purchase_cost": cost, "estimated_stock_value": stock_value,
-                     "estimated_peak_revenue": revenue, "estimated_tonic_count": tonic_count,
-                     "estimated_tonic_cost": tonic_count * tonic_price, "estimated_gain": gain}
-        if best is None or (gain, portions) > (best["estimated_gain"], best["portions"]):
-            best = candidate
-    return (best, "") if best else (None, "nonpositive_purchase_gain")
+        return None, {"reason": "no_other_material_bound"}
+    base_gain = prices[recipe["name"]] - sum(count * prices[name] for name, count in ingredients.items()) - recipe["level"] * tonic_price
+    candidate, detail = select_purchase(
+        needed_per=needed_per, owned=owned, material_value=prices[material], base_gain=base_gain,
+        offers=offers, budget=budget, max_portions=min(other_limits), percent=percent)
+    if candidate is None:
+        return None, detail
+    portions = candidate["portions"]
+    stock_used = {name: (owned if name == material else portions * count) for name, count in ingredients.items()}
+    candidate.update(stock_used=stock_used,
+                     estimated_stock_value=sum(count * prices[name] for name, count in stock_used.items()),
+                     estimated_peak_revenue=portions * prices[recipe["name"]],
+                     estimated_tonic_count=portions * recipe["level"],
+                     estimated_tonic_cost=portions * recipe["level"] * tonic_price,
+                     profit_basis={"material": material, "needed_per": needed_per, "owned": owned,
+                                   "material_value": prices[material], "base_gain_per_portion": base_gain})
+    return candidate, {}
 
 
 def build_replenish_plan(entries, quantities, market, data, *, day, budget, sell_names,
-                         shop_observations=(), purchased_items=()):
+                         shop_observations=(), purchased_items=(),
+                         profit_surrender_percent=DEFAULT_PROFIT_SURRENDER_PERCENT):
     """按P1队列顺序规划第一版单种缺料补买。
 
     quantities必须来自本次有效库存读口。商店无本轮观察时按原价减60%生成候选，
     现场报价同样不得超过约定折扣价。执行层仍需复核价格/余量；max_unit_price
-    锁定本次计算使用的报价，不共享利润
-    余量给多个柜台涨价。返回的unallocated_inventory是模型预留余额，不能写回存档。
+    锁定本次计算使用的报价。每份补买溢价不得超过基准多赚的指定比例；跨柜台合计后
+    按制作份数折算，不重复让出额度。unallocated_inventory是模型预留余额，不能写回存档。
     cook_today_candidates是本轮预定补做名单，不要求今天出售；成品留待峰值日出售。
     采购结束按顺序尝试，缺料由制作链跳过。
     """
     date.fromisoformat(day)
     _integer(budget, "补买预算")
+    validate_profit_surrender_percent(profit_surrender_percent)
     if isinstance(sell_names, (str, bytes)):
         raise ValueError("待售菜谱必须为名称集合")
     sell_names = {_name(name) for name in sell_names}
@@ -164,6 +140,7 @@ def build_replenish_plan(entries, quantities, market, data, *, day, budget, sell
             raise ValueError(f"库存别名重复: {name}")
         available[name] = value
     result = {"status": "planned", "day": day, "budget": budget, "estimated_spend": 0,
+              "profit_surrender_percent": profit_surrender_percent,
               "budget_remaining": budget, "requests": [], "allocations": [], "skipped": [],
               "cook_today_candidates": [], "input_quantities": dict(available), "unallocated_inventory": dict(available)}
     if not isinstance(market, dict) or market.get("day") != day or market.get("complete") is not True:
@@ -223,9 +200,10 @@ def build_replenish_plan(entries, quantities, market, data, *, day, budget, sell
         if not candidates:
             skip("no_purchase_offer", material=material)
             continue
-        candidate, reason = _candidate(recipe, material, available, prices, candidates, result["budget_remaining"], tonic_price)
+        candidate, detail = _candidate(recipe, material, available, prices, candidates, result["budget_remaining"],
+                                       tonic_price, profit_surrender_percent)
         if candidate is None:
-            skip(reason, material=material)
+            skip(detail["reason"], material=material, **{key: value for key, value in detail.items() if key != "reason"})
             continue
         for lot in candidate["lots"]:
             key = (lot["shop_name"], material)
@@ -242,7 +220,7 @@ def build_replenish_plan(entries, quantities, market, data, *, day, budget, sell
         result["budget_remaining"] -= candidate["estimated_purchase_cost"]
         result["allocations"].append({"recipe": name, "entry": entry.entry, "kind": "replenish", **candidate})
         result["cook_today_candidates"].append(name)
-    result["requests"] = list(requests.values())
+    result["requests"] = order_purchase_requests(list(requests.values()))
     result["estimated_spend"] = budget - result["budget_remaining"]
     result["unallocated_inventory"] = available
     return result

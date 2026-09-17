@@ -10,16 +10,35 @@ from maa.custom_action import CustomAction
 from .arbitrage_buy_precise import parse_money
 from .arbitrage_replenish_buy import ensure_shop, execute_replenish_purchases
 from .arbitrage_replenish_cook import execute_replenish_cooking
-from .arbitrage_flow import cooking_stage_active, replenish_budget, replenishment_entries
+from .arbitrage_flow import cooking_stage_active, replenish_budget, replenish_profit_surrender, replenishment_entries
 from .bag_stock import get_bag_scan_run
 from utils import arbitrage_store as store, mfaalog
 from utils.account_sync import sync_from_context
 from utils.arbitrage_replenish_data import discounted_purchase_price, load_replenish_data
 from utils.arbitrage_replenish_plan import build_replenish_plan
+from utils.arbitrage_replenish_profit import DEFAULT_PROFIT_SURRENDER_PERCENT, validate_profit_surrender_percent
 from utils.arbitrage_purchase_lists import completed_purchase_items
 
 
 _RESULTS = OrderedDict()
+
+
+def _log_profit_decisions(plan):
+    percent = plan["profit_surrender_percent"]
+    def amount(value):
+        return f"{value:.2f}".rstrip("0").rstrip(".")
+    for row in plan["allocations"] + plan["skipped"]:
+        if "premium_cost" not in row:
+            continue
+        base = row["base_gain_per_portion"]
+        premium = row["premium_cost"] / row["portions"]
+        text = (f"[Replenish] [{row['recipe']}] 每份基准多赚{base}，允许让出{percent}%="
+                f"{amount(base * percent / 100)}，预计每份补买溢价{amount(premium)}金币")
+        if row.get("reason") == "profit_surrender_exceeded":
+            text += "；超过利润让出比例，跳过补买"
+        else:
+            text += f"；预计每份剩余多赚{amount(row['estimated_gain'] / row['portions'])}金币"
+        mfaalog.info(text)
 
 
 def _summary(report):
@@ -89,6 +108,7 @@ def run_replenishment(context, task_id, config):
     if not isinstance(config, dict):
         raise ValueError("补充主控参数必须为对象")
     budget = config.get("budget")
+    percent = validate_profit_surrender_percent(config.get("profit_surrender_percent", DEFAULT_PROFIT_SURRENDER_PERCENT))
     dry_run = config.get("dry_run", False)
     if budget is not None and (type(budget) is not int or budget < 0):
         raise ValueError("补买预算必须为非负整数或null（使用当前金币）")
@@ -132,9 +152,10 @@ def run_replenishment(context, task_id, config):
                   for shop in supply["shops"].values() for item in shop["items"].values())
     plan = build_replenish_plan(entries, inventory, market, supply, day=day,
                                 budget=ceiling if budget is None else budget, sell_names=sell_names,
-                                purchased_items=purchased_items)
+                                purchased_items=purchased_items, profit_surrender_percent=percent)
     report.update(day=day, bag_run_id=bag_run_id, plan=plan)
     if not plan["requests"]:
+        _log_profit_decisions(plan)
         mfaalog.info("[Replenish] 本轮无需补买")
         return {**report, "reason": "没有符合条件的补买需求"}
     # 行情准备可能覆盖过入口；回到补买业务时明确恢复折扣商店选路。
@@ -147,12 +168,13 @@ def run_replenishment(context, task_id, config):
     inventory = store.get_replenish_inventory(bag_run_id)["quantities"]
     plan = build_replenish_plan(entries, inventory, market, supply, day=day,
                                 budget=available_gold if budget is None else min(budget, available_gold),
-                                sell_names=sell_names, purchased_items=purchased_items)
+                                sell_names=sell_names, purchased_items=purchased_items, profit_surrender_percent=percent)
     report["plan"] = plan
     planned_cooking = tuple(plan["cook_today_candidates"])
+    _log_profit_decisions(plan)
     if plan["requests"]:
         mfaalog.info("[Replenish] 本轮补买计划（按原价减60%限价，数量与金额为预计值）：\n" + "\n".join(
-            f"[{row['shop_name']}] {row['item_name']} × {row['target']}，预计{row['budget']}金币"
+            f"[{row['shop_name']}] {row['item_name']} × {row['target']}，单价{row['max_unit_price']}，预计{row['budget']}金币"
             for row in plan["requests"]) + f"\n预计合计{plan['estimated_spend']}金币，本轮预算{plan['budget']}金币；"
             + "计划补做：" + ("、".join(planned_cooking) or "无"))
     else:
@@ -181,7 +203,8 @@ class ArbitrageReplenishController(CustomAction):
         try:
             raw = argv.custom_action_param
             config = raw if isinstance(raw, dict) else json.loads(str(raw))
-            config = {**config, "budget": replenish_budget(context)}
+            config = {**config, "budget": replenish_budget(context),
+                      "profit_surrender_percent": replenish_profit_surrender(context)}
             report = run_replenishment(context, task_id, config)
         except Exception as exc:
             report = {"status": "stopped", "return_ok": False, "reason": str(exc), "task_id": task_id}

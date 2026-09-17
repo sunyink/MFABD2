@@ -6951,7 +6951,7 @@
         "focus": "Arb.补买：未确认进入商店，本轮不派发购买"
     },
     "Arbitrage_Cooking_Replenish": {
-        "desc": "按缺料计划补买材料并尝试补做料理。由Arbitrage_Cooking通过JumpBack调用；agent/action/arbitrage_replenish.py的ArbitrageReplenishController接管计划、进店补买及补做，读取本节点attach中的支出上限，不受②④开关影响。",
+        "desc": "按缺料计划补买材料并尝试补做料理。由Arbitrage_Cooking通过JumpBack调用；ArbitrageReplenishController读取attach中的支出上限和每份料理利润让出比例，按约定折扣价规划并核对成交，不受②④开关影响。",
         "enabled": true,
         "max_hit": 1,
         "pre_delay": 0,
@@ -6969,7 +6969,8 @@
         "focus": "③ 缺料补买并补做",
         "attach": {
             "limit_budget": false,
-            "budget": 0
+            "budget": 0,
+            "profit_surrender_percent": 10
         }
     },
     "Arbitrage_Replenish_Stop": {

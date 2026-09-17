@@ -15,6 +15,7 @@ from utils.account_sync import sync_from_context
 from utils.arbitrage_purchase_lists import node_enabled
 from utils.arbitrage_recipe_catalog import discover_recipe_entries
 from utils.arbitrage_replenish_data import load_replenish_data
+from utils.arbitrage_replenish_profit import DEFAULT_PROFIT_SURRENDER_PERCENT, validate_profit_surrender_percent
 from utils.persistent_store import PersistentStore
 
 
@@ -79,6 +80,14 @@ def replenish_budget(context):
     if type(value) is not int or value < 0:
         raise ValueError("补买支出上限必须为非负整数")
     return value
+
+
+def replenish_profit_surrender(context):
+    flags = context.get_node_object("Arbitrage_Cooking_Replenish").attach
+    value = flags.get("profit_surrender_percent", DEFAULT_PROFIT_SURRENDER_PERCENT)
+    if isinstance(value, str) and value.isascii() and value.isdecimal():
+        value = int(value)
+    return validate_profit_surrender_percent(value)
 
 
 @AgentServer.custom_action("ArbitrageStagePrepare")
