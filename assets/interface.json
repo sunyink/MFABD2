@@ -248,6 +248,7 @@
         },
         {
             "name": "[执行]商店套利",
+            "label": "✨商店套利Opus",
             "entry": "Arbitrage_Start",
             "controller": [
                 "Adb",
