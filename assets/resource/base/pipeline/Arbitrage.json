@@ -2027,9 +2027,6 @@
         "next": [
             "Arbitrage_Buy_Cleanup"
         ],
-        "on_error": [
-            "Arbitrage_Buy_Cleanup"
-        ],
         "focus": "② 常规采购结束"
     },
     "Arbitrage_Buy_End": {
