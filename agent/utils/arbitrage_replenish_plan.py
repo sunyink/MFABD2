@@ -1,5 +1,6 @@
 """补买计划计算：纯输入输出，不读写存档、不操作界面、不把预测量写成实际量。"""
 
+from copy import deepcopy
 from datetime import date
 
 from .arbitrage_replenish_data import discounted_purchase_price
@@ -148,6 +149,8 @@ def build_replenish_plan(entries, quantities, market, data, *, day, budget, sell
         return result
     prices = _market_prices(market)
     offers, result["offer_issues"] = _offers(data, shop_observations, day, set(purchased_items))
+    # 保留分配前的合规供给，售罄后可在原料理目标内补位；不得从默认目录恢复已排除供给。
+    result["purchase_offers"] = deepcopy(list(offers.values()))
     tonic_price = _integer(data["tonic_unit_price"], "神药参考单价", 1)
     requests = {}
     seen = set()

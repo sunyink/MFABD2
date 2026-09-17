@@ -80,46 +80,56 @@ def select_purchase(*, needed_per, owned, material_value, base_gain, offers, bud
     return None, {"reason": "nonpositive_purchase_gain"}
 
 
-def revalidate_requests(plan, requests, confirmed, blocked, remaining_budget):
-    """成交变化后，仅缩减未执行请求；逐配方计入已付溢价，不借用其他配方的利润。"""
-    adjusted = deepcopy(requests)
-    allowed = {}
+def revalidate_requests(plan, requests, confirmed, blocked, remaining_budget, *, attempted=()):
+    """按实际成交重分配尚未尝试的合规供给；可扩列，但不扩大原料理目标或重复进同柜台商品。"""
+    source = plan.get("purchase_offers")
+    if source is None:
+        # 显式旧计划仅授权了请求内供给，不自行查默认目录扩列。
+        source = [{"shop_name": row["shop_name"], "item_name": row["item_name"],
+                   "unit_price": row["max_unit_price"], "remaining": row["target"]} for row in requests]
+    pool = {(row["shop_name"], row["item_name"]): deepcopy(row) for row in source
+            if (row["shop_name"], row["item_name"]) not in attempted}
+    pending = {}
+    money = remaining_budget
     decisions = []
     for allocation in plan["allocations"]:
         if allocation.get("kind") != "replenish":
             continue
         name = allocation["recipe"]
         basis = allocation["profit_basis"]
-        offers = []
-        for index, request in enumerate(requests):
-            quantity = sum(use["quantity"] for use in request["uses"] if use["recipe"] == name)
-            if quantity:
-                offers.append({"request_index": index, "shop_name": request["shop_name"],
-                               "item_name": request["item_name"], "unit_price": request["max_unit_price"],
-                               "remaining": quantity})
-        if not offers:
-            continue
         paid = confirmed.get(name, [])
+        paid_quantity = sum(lot["quantity"] for lot in paid)
+        target = allocation["portions"] * basis["needed_per"] - basis["owned"]
+        if paid_quantity >= target:
+            continue
+        offers = [row for row in pool.values() if row["item_name"] == basis["material"] and row["remaining"] > 0]
+        previous = {row["shop_name"]: sum(use["quantity"] for use in row["uses"] if use["recipe"] == name)
+                    for row in requests if any(use["recipe"] == name for use in row["uses"])}
         if name in blocked:
             candidate, detail = None, {"reason": "purchase_unconfirmed"}
         else:
             candidate, detail = select_purchase(
                 needed_per=basis["needed_per"], owned=basis["owned"], material_value=basis["material_value"],
                 base_gain=basis["base_gain_per_portion"], offers=offers,
-                budget=remaining_budget + sum(lot["quantity"] * lot["unit_price"] for lot in paid),
+                budget=money + sum(lot["quantity"] * lot["unit_price"] for lot in paid),
                 max_portions=allocation["portions"], percent=plan["profit_surrender_percent"], committed=paid)
-        kept = 0
+        allocated = {}
         if candidate is not None:
             for lot in candidate["lots"]:
-                allowed[(lot["request_index"], name)] = lot["quantity"]
-                kept += lot["quantity"]
-        previous = sum(row["remaining"] for row in offers)
-        if kept < previous:
-            decisions.append({"recipe": name, "before": previous, "after": kept,
-                              "material": basis["material"], "detail": detail or candidate})
-    for index, request in enumerate(adjusted):
-        request["uses"] = [{**use, "quantity": allowed[(index, use["recipe"])]}
-                           for use in request["uses"] if allowed.get((index, use["recipe"]), 0)]
-        request["target"] = sum(use["quantity"] for use in request["uses"])
-        request["budget"] = min(request["budget"], request["target"] * request["max_unit_price"])
-    return adjusted, decisions
+                key = (lot["shop_name"], lot["item_name"])
+                quantity = lot["quantity"]
+                pool[key]["remaining"] -= quantity
+                allocated[lot["shop_name"]] = quantity
+                row = pending.setdefault(key, {"shop_name": key[0], "item_name": key[1], "target": 0,
+                                               "max_unit_price": lot["unit_price"], "budget": 0, "uses": []})
+                row["target"] += quantity
+                row["budget"] += quantity * lot["unit_price"]
+                row["uses"].append({"recipe": name, "quantity": quantity})
+                money -= quantity * lot["unit_price"]
+        if not allocated and not detail:
+            detail = {"reason": "no_admissible_increment"}
+        if allocated != previous or not allocated:
+            decisions.append({"recipe": name, "before": sum(previous.values()), "after": sum(allocated.values()),
+                              "material": basis["material"], "added_shops": sorted(allocated.keys() - previous.keys()),
+                              "detail": detail or candidate})
+    return list(pending.values()), decisions

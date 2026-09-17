@@ -119,7 +119,7 @@ def execute_replenish_purchases(context, plan, *, bag_run_id, dry_run=True):
     """P4入口；bag_run_id必须由当前任务get_bag_scan_run取得，不能从旧存档猜。
 
     未知成交仅占用本批预算、作废受影响材料旧量；页面恢复后继续下一笔。
-    purchased只累计金币确认的买入；补做名单由采购前计划决定。
+    purchased只累计金币确认的买入；原料理目标不变，未尝试供给可重新分配并扩列。
     """
     if type(dry_run) is not bool:
         raise ValueError("dry_run必须为布尔值")
@@ -164,38 +164,51 @@ def execute_replenish_purchases(context, plan, *, bag_run_id, dry_run=True):
             return False
         return True
 
-    confirmed, blocked = {}, set()
-    needs_replan = False
-    for index in range(len(requests)):
+    confirmed, blocked, attempted = {}, set(), set()
+    reported_adjustments = set()
+    goals = {}
+    for row in requests:
+        for use in row["uses"]:
+            key = (use["recipe"], row["item_name"])
+            goals[key] = goals.get(key, 0) + use["quantity"]
+
+    def update_unfilled():
+        report["unfilled_uses"] = [
+            {"recipe": recipe, "item_name": item, "quantity": missing}
+            for (recipe, item), target in goals.items()
+            if (missing := target - sum(lot["quantity"] for lot in confirmed.get(recipe, []))) > 0]
+
+    while True:
         if context.tasker.stopping:
             report.update(status="stopped", reason="task_stopping")
             return report
         if store.market_day() != plan["day"]:
             report.update(status="expired", reason="market_day_changed")
             return report
-        if needs_replan and "profit_surrender_percent" in plan:
-            requests[index:], decisions = revalidate_requests(plan, requests[index:], confirmed, blocked,
-                                                               report["remaining_budget"])
+        if not dry_run and "profit_surrender_percent" in plan:
+            pending, decisions = revalidate_requests(plan, requests, confirmed, blocked,
+                                                     report["remaining_budget"], attempted=attempted)
+            requests = _requests({**plan, "requests": pending})
             for decision in decisions:
+                signature = (decision["recipe"], decision["before"], decision["after"],
+                             decision["detail"].get("reason"), tuple(decision["added_shops"]))
+                if signature in reported_adjustments:
+                    continue
+                reported_adjustments.add(signature)
                 report.setdefault("profit_adjustments", []).append(decision)
-                report["unfilled_uses"].append({"recipe": decision["recipe"], "item_name": decision["material"],
-                                               "quantity": decision["before"] - decision["after"]})
                 reasons = {"purchase_unconfirmed": "相关成交或库存未确认",
                            "insufficient_supply_or_budget": "剩余供给或预算不足以凑齐一份",
                            "nonpositive_purchase_gain": "预计已无正收益",
-                           "profit_surrender_exceeded": "每份补买溢价超过允许让出金额"}
-                reason = reasons.get(decision["detail"].get("reason"), "按每份料理允许让出金额缩减高价采购")
+                           "profit_surrender_exceeded": "每份补买溢价超过允许让出金额，不再派发更高价柜台",
+                           "no_admissible_increment": "剩余供给、预算或价格限制下无可执行增量"}
+                reason = reasons.get(decision["detail"].get("reason"), "按剩余缺口、预算和每份利润限制重新分配")
+                added = "；候补柜台：" + "、".join(decision["added_shops"]) if decision["added_shops"] else ""
                 mfaalog.info(f"[ReplenishBuy] [{decision['recipe']}] 成交变化后重新核算：{reason}；"
-                             f"后续{decision['material']}由{decision['before']}个缩减为{decision['after']}个")
-            needs_replan = False
-        original = requests[index]
-        if not original["target"]:
-            report["results"].append({"request": deepcopy(original), "result": {
-                "status": "skipped", "actual_quantity": 0, "actual_spent": 0,
-                "reason": "每份料理利润重新核算后取消本批"}})
-            report["failed_count"] += 1
-            report["pending_requests"] = deepcopy([row for row in requests[index + 1:] if row["target"]])
-            continue
+                             f"后续{decision['material']}由{decision['before']}个调整为{decision['after']}个{added}")
+            update_unfilled()
+        report["pending_requests"] = deepcopy(requests)
+        if not requests:
+            break
         try:
             latest = store.get_replenish_inventory(bag_run_id)["quantities"]
             changed = [name for name, value in current.items() if latest.get(name) != value]
@@ -205,6 +218,11 @@ def execute_replenish_purchases(context, plan, *, bag_run_id, dry_run=True):
         except Exception as exc:
             report.update(status="stopped", reason="inventory_context_changed", inventory_error=str(exc))
             return report
+        original = requests.pop(0)
+        key = (original["shop_name"], original["item_name"])
+        if key in attempted:
+            raise ValueError(f"补买重复派发柜台商品: {key}")
+        attempted.add(key)
         request = {**original, "budget": min(original["budget"], report["remaining_budget"]), "dry_run": dry_run}
         if original["item_name"] in current:
             request["expected_owned"] = current[original["item_name"]]
@@ -212,7 +230,7 @@ def execute_replenish_purchases(context, plan, *, bag_run_id, dry_run=True):
             report.update(status="partial", reason="budget_exhausted")
             mfaalog.warning("[ReplenishBuy] 本轮可用预算已用尽，跳过余下采购，继续计划补做")
             return report
-        mfaalog.info(f"[ReplenishBuy] {index + 1}/{len(requests)} [{request['shop_name']}] "
+        mfaalog.info(f"[ReplenishBuy] 第{len(attempted)}笔 [{request['shop_name']}] "
                      f"{request['item_name']}最多{request['target']}个，单价上限{request['max_unit_price']}，预算{request['budget']}")
         try:
             result = execute_buy(context, request)
@@ -235,12 +253,20 @@ def execute_replenish_purchases(context, plan, *, bag_run_id, dry_run=True):
                 result = {**result, "status": "unknown", "actual_quantity": None, "actual_spent": None,
                           "reason": str(exc)}
                 status = "unknown"
+        if amount:
+            remaining = amount
+            for use in original["uses"]:
+                assigned = min(remaining, use["quantity"])
+                remaining -= assigned
+                if assigned:
+                    confirmed.setdefault(use["recipe"], []).append({"quantity": assigned, "unit_price": result["unit_price"]})
+            update_unfilled()
         try:
             store.get_replenish_inventory(bag_run_id)
         except Exception as exc:
             # 保留旧任务已经拿到的回报，但绝不写入切换后的账号。
             report["results"].append({"request": deepcopy(request), "result": result})
-            report["pending_requests"] = deepcopy(requests[index + 1:])
+            report["pending_requests"] = deepcopy(requests)
             report["confirmed_spend"] += spent
             report["remaining_budget"] -= spent
             if status == "unknown" and not dry_run:
@@ -250,6 +276,8 @@ def execute_replenish_purchases(context, plan, *, bag_run_id, dry_run=True):
         allowed = {"prepared", "skipped", "not_found", "rejected", "stale"} if dry_run else {
             "confirmed", "partial", "skipped", "not_found", "rejected", "stale"}
         if status not in allowed:
+            result = {**result, "status": "unknown"}
+            status = "unknown"
             if not dry_run:
                 report["unconfirmed_count"] += 1
                 quoted = result.get("quoted_total")
@@ -260,7 +288,7 @@ def execute_replenish_purchases(context, plan, *, bag_run_id, dry_run=True):
                            {"shop_name": request["shop_name"], "result": result})
             amount = spent = 0
         report["results"].append({"request": deepcopy(request), "result": result})
-        report["pending_requests"] = deepcopy(requests[index + 1:])
+        report["pending_requests"] = deepcopy(requests)
         if status not in ("prepared", "confirmed"):
             report["failed_count"] += 1
         label = {"prepared": "仅调数", "confirmed": "购买成功", "partial": "部分买入", "skipped": "跳过",
@@ -301,19 +329,15 @@ def execute_replenish_purchases(context, plan, *, bag_run_id, dry_run=True):
                 current[name] = after
                 report["inventory_after"][name] = after
         if not dry_run:
-            remaining = amount
-            for use in original["uses"]:
-                assigned = min(remaining, use["quantity"])
-                remaining -= assigned
-                if assigned:
-                    confirmed.setdefault(use["recipe"], []).append({"quantity": assigned, "unit_price": result["unit_price"]})
-                if assigned < use["quantity"]:
-                    report["unfilled_uses"].append({"recipe": use["recipe"], "item_name": original["item_name"],
-                                                   "quantity": use["quantity"] - assigned})
+            wallet = result.get("gold_after") if amount else result.get("gold") if status in allowed else None
+            if type(wallet) is int and wallet >= 0:
+                report["remaining_budget"] = min(report["remaining_budget"], wallet)
             if status in ("unknown", "stale") or result.get("inventory_error"):
-                blocked.update(use["recipe"] for row in requests[index:]
+                blocked.update(use["recipe"] for row in [original, *requests]
                                if row["item_name"] == original["item_name"] for use in row["uses"])
-            needs_replan = amount != original["target"] or bool(blocked)
+                blocked.update(row["recipe"] for row in plan.get("allocations", [])
+                               if row.get("profit_basis", {}).get("material") == original["item_name"])
+            update_unfilled()
         if context.tasker.stopping:
             report.update(status="stopped", reason="task_stopping")
             return report
@@ -329,5 +353,8 @@ def execute_replenish_purchases(context, plan, *, bag_run_id, dry_run=True):
         if store.market_day() != plan["day"]:
             report.update(status="expired", reason="market_day_changed")
             return report
-    report["status"] = "prepared" if dry_run else "partial" if report["failed_count"] else "completed"
+    incomplete = (bool(report["unfilled_uses"]) or report["unconfirmed_count"]
+                  or any(row["result"].get("inventory_error") for row in report["results"])
+                  or (not goals and report["failed_count"]))
+    report["status"] = "prepared" if dry_run else "partial" if incomplete else "completed"
     return report
