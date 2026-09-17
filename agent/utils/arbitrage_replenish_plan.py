@@ -2,6 +2,7 @@
 
 from datetime import date
 
+from .arbitrage_replenish_data import discounted_purchase_price
 from .name_i18n import canon
 
 
@@ -49,14 +50,15 @@ def _offers(data, observations, day, purchased_items):
     for shop_name, shop in data["shops"].items():
         for material, item in shop["items"].items():
             key = (shop_name, material)
+            price_limit = discounted_purchase_price(item["price_reference"])
             observation = overrides.pop(key, None)
             if observation is None:
                 if key in purchased_items:
                     issues.append({"shop_name": shop_name, "item_name": material,
                                    "reason": "regular_purchase_completed"})
                     continue
-                price, remaining = item["price_reference"], item["daily_limit_reference"]
-                source = "reference"
+                price, remaining = price_limit, item["daily_limit_reference"]
+                source = "discounted_reference"
             else:
                 price, remaining = observation.get("unit_price"), observation.get("remaining")
                 source = "observed"
@@ -65,6 +67,11 @@ def _offers(data, observations, day, purchased_items):
                     continue
             if type(price) is not int or price <= 0 or type(remaining) is not int or remaining < 0:
                 issues.append({"shop_name": shop_name, "item_name": material, "reason": "unreadable_shop_offer"})
+                continue
+            if price > price_limit:
+                issues.append({"shop_name": shop_name, "item_name": material,
+                               "reason": "purchase_discount_not_met", "unit_price": price,
+                               "max_unit_price": price_limit})
                 continue
             if remaining:
                 offers[key] = {"shop_name": shop_name, "item_name": material, "unit_price": price,
@@ -137,8 +144,9 @@ def build_replenish_plan(entries, quantities, market, data, *, day, budget, sell
                          shop_observations=(), purchased_items=()):
     """按P1队列顺序规划第一版单种缺料补买。
 
-    quantities必须来自本次有效库存读口。商店无本轮观察时只生成参考报价候选，
-    执行层仍需复核价格/余量；max_unit_price锁定本次计算使用的报价，不共享利润
+    quantities必须来自本次有效库存读口。商店无本轮观察时按原价减60%生成候选，
+    现场报价同样不得超过约定折扣价。执行层仍需复核价格/余量；max_unit_price
+    锁定本次计算使用的报价，不共享利润
     余量给多个柜台涨价。返回的unallocated_inventory是模型预留余额，不能写回存档。
     cook_today_candidates是本轮预定补做名单，不要求今天出售；成品留待峰值日出售。
     采购结束按顺序尝试，缺料由制作链跳过。

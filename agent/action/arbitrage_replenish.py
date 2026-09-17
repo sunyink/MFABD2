@@ -14,7 +14,7 @@ from .arbitrage_flow import cooking_stage_active, replenish_budget, replenishmen
 from .bag_stock import get_bag_scan_run
 from utils import arbitrage_store as store, mfaalog
 from utils.account_sync import sync_from_context
-from utils.arbitrage_replenish_data import load_replenish_data
+from utils.arbitrage_replenish_data import discounted_purchase_price, load_replenish_data
 from utils.arbitrage_replenish_plan import build_replenish_plan
 from utils.arbitrage_purchase_lists import completed_purchase_items
 
@@ -128,7 +128,7 @@ def run_replenishment(context, task_id, config):
     if purchased_items:
         mfaalog.info(f"[Replenish] 按本轮最终采购名单排除已购供给：{len(purchased_items)}组柜台商品")
     # 仅用有限供给总额筛是否有需求；有请求后才进店，以实读金币重算正式预算。
-    ceiling = sum(item["price_reference"] * min(item["daily_limit_reference"], 99999)
+    ceiling = sum(discounted_purchase_price(item["price_reference"]) * min(item["daily_limit_reference"], 99999)
                   for shop in supply["shops"].values() for item in shop["items"].values())
     plan = build_replenish_plan(entries, inventory, market, supply, day=day,
                                 budget=ceiling if budget is None else budget, sell_names=sell_names,
@@ -151,7 +151,7 @@ def run_replenishment(context, task_id, config):
     report["plan"] = plan
     planned_cooking = tuple(plan["cook_today_candidates"])
     if plan["requests"]:
-        mfaalog.info("[Replenish] 本轮补买计划（数量与金额为预计值）：\n" + "\n".join(
+        mfaalog.info("[Replenish] 本轮补买计划（按原价减60%限价，数量与金额为预计值）：\n" + "\n".join(
             f"[{row['shop_name']}] {row['item_name']} × {row['target']}，预计{row['budget']}金币"
             for row in plan["requests"]) + f"\n预计合计{plan['estimated_spend']}金币，本轮预算{plan['budget']}金币；"
             + "计划补做：" + ("、".join(planned_cooking) or "无"))

@@ -5,11 +5,18 @@ from pathlib import Path
 
 
 DATA_FILE = Path(__file__).resolve().parents[1] / "data" / "arbitrage_replenish.json"
+PURCHASE_DISCOUNT_PERCENT = 60
 
 
 def _positive(value, label):
     if type(value) is not int or value <= 0:
         raise ValueError(f"{label}必须是正整数")
+
+
+def discounted_purchase_price(original_price):
+    """普通商品按约定砍价60%，先将单价向下取整，再乘购买数量。"""
+    _positive(original_price, "商品原价")
+    return original_price * (100 - PURCHASE_DISCOUNT_PERCENT) // 100
 
 
 def load_replenish_data(path=DATA_FILE):

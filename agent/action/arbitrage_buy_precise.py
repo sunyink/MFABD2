@@ -87,7 +87,9 @@ class BuyQuantityAdjuster(QuantityAdjuster):
         target = purchase_limit(self.request["target"], available, unit_price, gold,
                                 self.request["budget"], self.request["max_unit_price"])
         if not target:
-            return {"status": "skipped", "reason": "价格超限、余量不足或预算不足",
+            reason = (f"实际单价{unit_price}超过本批单价上限{self.request['max_unit_price']}"
+                      if unit_price > self.request["max_unit_price"] else "余量不足或预算不足")
+            return {"status": "skipped", "reason": reason,
                     "owned": owned, "available": available, "gold": gold, "unit_price": unit_price}
         # MAX可能还受持有金币限制，实际读上限，不能把背包拥有量用于购买选量。
         self.action("max_node")

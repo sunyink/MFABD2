@@ -9,19 +9,20 @@ from pathlib import Path
 import sys
 from types import SimpleNamespace as NS
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "agent"))
 
 from action import arbitrage_buy_list as buy
+from action.arbitrage_buy_precise import BuyQuantityAdjuster
 from action import arbitrage_replenish as replenish
 from action import arbitrage_replenish_buy as replenish_buy
 from action import arbitrage_result as result
 from action import arbitrage_sell_batch as sale
 from action import shop_buy_fav_controller as favorites
 from utils import arbitrage_purchase_lists as lists
-from utils.arbitrage_replenish_data import load_replenish_data
+from utils.arbitrage_replenish_data import discounted_purchase_price, load_replenish_data
 from utils.arbitrage_replenish_plan import build_replenish_plan
 from utils.persistent_store import PersistentStore
 
@@ -56,7 +57,7 @@ class Reader:
         return True
 
 
-def salt_plan(purchased=(), observations=()):
+def salt_plan(purchased=(), observations=(), budget=1000000):
     recipe = DATA["recipes"]["香草牛排"]
     inventory = {name: 100000 for name in recipe["ingredients"]}
     inventory["盐"] = 0
@@ -64,7 +65,7 @@ def salt_plan(purchased=(), observations=()):
     market = {"day": DAY, "complete": True, "items": [
         {"name": name, "peak_price": value["peak_reference"]}
         for name, value in {**DATA["materials"], **DATA["recipes"]}.items()]}
-    return build_replenish_plan([entry], inventory, market, DATA, day=DAY, budget=1000000,
+    return build_replenish_plan([entry], inventory, market, DATA, day=DAY, budget=budget,
                                 sell_names={entry.name}, purchased_items=purchased,
                                 shop_observations=observations)
 
@@ -227,6 +228,10 @@ class PurchaseSupplyTests(unittest.TestCase):
         self.assertEqual(result["status"], "prepared")
         self.assertEqual(self.context.get_anchor("Replenish_ShopEntry"), "Arbitrage_Merchant_Entry")
         self.assertEqual(build.call_count, 2)
+        ceiling = sum(discounted_purchase_price(item["price_reference"]) * min(item["daily_limit_reference"], 99999)
+                      for shop in DATA["shops"].values() for item in shop["items"].values())
+        self.assertEqual(build.call_args_list[0].kwargs["budget"], ceiling)
+        self.assertEqual(build.call_args_list[1].kwargs["budget"], 1000000)
         expected = set() if unavailable else purchased
         self.assertTrue(all(call.kwargs["purchased_items"] == expected for call in build.call_args_list))
 
@@ -235,6 +240,99 @@ class PurchaseSupplyTests(unittest.TestCase):
 
     def test_unavailable_purchase_evidence_does_not_stop_replenishment(self):
         self.check_controller_exclusions(unavailable=True)
+
+
+class DiscountPurchaseTests(unittest.TestCase):
+    PURCHASED = {(shop, "盐") for shop in ("三国同盟", "被遗忘的战争", "试炼之路")}
+
+    def test_reference_salt_plan_matches_six_discounted_receipts(self):
+        plan = salt_plan(self.PURCHASED)
+        self.assertEqual(sum(row["target"] for row in plan["requests"]), 2400)
+        self.assertEqual(plan["estimated_spend"], 19600)
+        self.assertEqual(len(plan["requests"]), 6)
+        for row in plan["requests"]:
+            with self.subTest(shop=row["shop_name"]):
+                unit = 14 if row["shop_name"] == "铁假面" else 7
+                self.assertEqual((row["target"], row["max_unit_price"], row["budget"]), (400, unit, 400 * unit))
+                self.assertEqual(row["quote_source"], "discounted_reference")
+        self.assertEqual(DATA["shops"]["沙漠之花"]["items"]["盐"]["price_reference"], 18)
+        self.assertEqual(DATA["shops"]["铁假面"]["items"]["盐"]["price_reference"], 36)
+
+    def test_budget_uses_discount_before_selecting_quantity(self):
+        for budget, quantity in ((19600, 2400), (2800, 400), (140, 20)):
+            with self.subTest(budget=budget):
+                plan = salt_plan(self.PURCHASED, budget=budget)
+                self.assertEqual(sum(row["target"] for row in plan["requests"]), quantity)
+                self.assertEqual(plan["estimated_spend"], budget)
+                self.assertEqual(plan["budget_remaining"], 0)
+
+    def test_round_unit_price_before_multiplying_quantity(self):
+        for original, expected in ((8, 3), (12, 4), (18, 7), (36, 14), (270, 108)):
+            with self.subTest(original=original):
+                self.assertEqual(discounted_purchase_price(original), expected)
+        for invalid in (True, 0, -18, 18.0, "18"):
+            with self.subTest(invalid=invalid), self.assertRaises(ValueError):
+                discounted_purchase_price(invalid)
+
+    def test_observed_price_is_not_discounted_twice(self):
+        for price in (7, 6):
+            observed = [{"shop_name": "沙漠之花", "item_name": "盐", "remaining": 400,
+                         "unit_price": price, "day": DAY}]
+            plan = salt_plan(self.PURCHASED, observed)
+            row = next(row for row in plan["requests"] if row["shop_name"] == "沙漠之花")
+            self.assertEqual((row["max_unit_price"], row["budget"]), (price, price * 400))
+            self.assertEqual(row["quote_source"], "observed")
+
+    def test_observation_cannot_raise_the_agreed_discount_limit(self):
+        for price in (8, 18):
+            observed = [{"shop_name": "沙漠之花", "item_name": "盐", "remaining": 400,
+                         "unit_price": price, "day": DAY}]
+            plan = salt_plan(self.PURCHASED, observed)
+            self.assertNotIn("沙漠之花", {row["shop_name"] for row in plan["requests"]})
+            issue = next(row for row in plan["offer_issues"] if row["shop_name"] == "沙漠之花")
+            self.assertEqual((issue["reason"], issue["max_unit_price"]), ("purchase_discount_not_met", 7))
+
+    def test_precise_buy_enforces_generated_discount_limit_before_selecting_max(self):
+        request = next(row for row in salt_plan(self.PURCHASED)["requests"] if row["shop_name"] == "沙漠之花")
+        for unit in (7, 8, 18):
+            with self.subTest(unit=unit):
+                adjuster = BuyQuantityAdjuster.__new__(BuyQuantityAdjuster)
+                adjuster.request = request
+                adjuster.check_running = Mock()
+                adjuster.action = Mock()
+                adjuster.adjust = Mock()
+                initial = (0, 400, 40000, unit)
+                adjuster.read = Mock(side_effect=[(initial, 1), (initial, 1), 400,
+                                                 ((0, 400, 40000, unit * 400), 400)])
+                result = adjuster.prepare()
+                if unit == 7:
+                    self.assertEqual((result["status"], result["selected"], result["quoted_total"]),
+                                     ("ready", 400, 2800))
+                else:
+                    self.assertEqual(result["status"], "skipped")
+                    self.assertIn(f"实际单价{unit}超过本批单价上限7", result["reason"])
+                    adjuster.action.assert_called_once_with("min_node")
+                    adjuster.adjust.assert_not_called()
+
+    def test_discounted_chili_unlocks_profitable_recipe(self):
+        name = "甜辣鲜虾"
+        entry = NS(name=name, enabled=True, reason="", entry="test_recipe")
+        market = {"day": DAY, "complete": True, "items": [
+            {"name": item, "peak_price": price} for item, price in
+            {name: 786, "虾": 39, "小麦": 7, "料酒": 120, "甜辣酱": 66}.items()]}
+        supply = {**DATA, "shops": {"铁假面": DATA["shops"]["铁假面"]}}
+        inventory = {"虾": 5259, "小麦": 16553, "料酒": 516, "甜辣酱": 0}
+        plan = build_replenish_plan([entry], inventory, market, supply, day=DAY, budget=10800, sell_names={name})
+        self.assertEqual(plan["cook_today_candidates"], [name])
+        self.assertEqual((plan["requests"][0]["target"], plan["requests"][0]["max_unit_price"]), (100, 108))
+        self.assertEqual((plan["estimated_spend"], plan["allocations"][0]["portions"],
+                          plan["allocations"][0]["estimated_gain"]), (10800, 50, 1300))
+        self.assertEqual(DATA["tonic_unit_price"], 45)
+
+    def test_regular_purchase_navigation_keeps_discount_entry(self):
+        for name in ("Arbitrage_Buy_Open", "Arbitrage_Buy_CurrentFavorites"):
+            self.assertIn("[JumpBack]Arbitrage_Merchant_Entry", PIPE[name]["next"])
+            self.assertNotIn("[JumpBack]Arbitrage_Merchant_NoDiscount_Entry", PIPE[name]["next"])
 
 
 class FavoriteAlignmentTests(unittest.TestCase):
