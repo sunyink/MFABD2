@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from . import mfaalog
 from .name_i18n import canon
 from .persistent_store import PersistentStore, SharedStore
+from .inventory_archive import commit_inventory, inventory_facts
 
 
 SCHEMA_VERSION = 2
@@ -186,6 +187,12 @@ def _inventory(data: dict) -> dict:
     return inventory
 
 
+def _save_inventory(data: dict, names=(), *, force=False) -> bool:
+    inventory = _inventory(data)
+    inventory["events"][-1]["item_facts"] = inventory_facts(inventory["items"], names)
+    return commit_inventory(data, inventory, PersistentStore, force=force)
+
+
 def save_possession_snapshot(scan: dict) -> bool:
     """记录价目表证明存在的物品；该页面没有数量，绝不补零或抹掉精确数量。"""
     observed_at = scan.get("observed_at") or utc_now()
@@ -229,8 +236,7 @@ def save_possession_snapshot(scan: dict) -> bool:
             "item_count": len(item_names),
             "peak_item_count": len(peak_names),
         })
-        _trim_list(inventory["events"], OBSERVATION_LIMIT)
-        return bool(PersistentStore.save(data))
+        return _save_inventory(data, item_names)
 
 
 def save_cooking_stock_observation(record: dict) -> bool:
@@ -288,10 +294,11 @@ def save_cooking_stock_observation(record: dict) -> bool:
             "recipe": recipe or None,
             "complete": attempt["complete"],
             "readable_item_names": readable_items,
+            "quantities": {name: current[name]["quantity"] for name in readable_items},
+            "unreadable_item_names": [name for name in material_names if name not in readable_items],
             "error_count": len(record.get("errors") or []),
         })
-        _trim_list(inventory["events"], OBSERVATION_LIMIT)
-        return bool(PersistentStore.save(data))
+        return _save_inventory(data, readable_items)
 
 
 def set_inventory_quantities(quantities: dict[str, int], reason: str,
@@ -329,8 +336,7 @@ def set_inventory_quantities(quantities: dict[str, int], reason: str,
         if reference:
             event["reference"] = copy.deepcopy(reference)
         inventory["events"].append(event)
-        _trim_list(inventory["events"], OBSERVATION_LIMIT)
-        return bool(PersistentStore.save(data))
+        return _save_inventory(data, normalized)
 
 
 def get_inventory_items() -> dict:
@@ -377,8 +383,7 @@ def save_bag_stock_summary(record: dict) -> bool:
             "absent_count": len(summary["absent_item_names"]),
             "unknown_item_names": summary["unknown_item_names"],
         })
-        _trim_list(inventory["events"], OBSERVATION_LIMIT)
-        return bool(PersistentStore.save(data))
+        return _save_inventory(data)
 
 
 def invalidate_inventory_quantities(names: list[str], reason: str,
@@ -417,8 +422,7 @@ def invalidate_inventory_quantities(names: list[str], reason: str,
         if reference:
             event["reference"] = copy.deepcopy(reference)
         inventory["events"].append(event)
-        _trim_list(inventory["events"], OBSERVATION_LIMIT)
-        return bool(PersistentStore.save(data))
+        return _save_inventory(data, normalized)
 
 
 def apply_inventory_delta(changes: dict[str, int], reason: str, reference: dict | None = None) -> dict:
@@ -439,7 +443,8 @@ def apply_inventory_delta(changes: dict[str, int], reason: str, reference: dict 
         for name, delta in normalized_changes.items():
             fact = _dict_child(current, name)
             quantity = fact.get("quantity")
-            if not isinstance(quantity, int) or isinstance(quantity, bool):
+            if (not isinstance(quantity, int) or isinstance(quantity, bool)
+                    or fact.get("quantity_status") != "known"):
                 fact["quantity_status"] = "unknown"
                 result["unknown"].append(name)
                 continue
@@ -467,7 +472,6 @@ def apply_inventory_delta(changes: dict[str, int], reason: str, reference: dict 
         if reference:
             event["reference"] = copy.deepcopy(reference)
         inventory["events"].append(event)
-        _trim_list(inventory["events"], OBSERVATION_LIMIT)
-        if not PersistentStore.save(data):
+        if not _save_inventory(data, normalized_changes):
             mfaalog.error("[ArbitrageStore] 库存变化写入失败")
     return result
