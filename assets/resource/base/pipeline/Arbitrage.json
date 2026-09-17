@@ -5820,7 +5820,7 @@
         "focus": "Arb.补做已返回选菜页"
     },
     "Arbitrage_Cooking_ERREND": {
-        "desc": "记录常规料理遍历已到达出口及本轮成功执行的节点。由Arbitrage_Cooking_Page1进入；agent/action/arbitrage_flow.py的ArbitrageCookingFinish保存后续补买补做可用的料理范围，周完成标记留到Arbitrage_Cooking_Complete写入。",
+        "desc": "记录常规料理遍历已到达出口及本轮遍历过的料理入口。由Arbitrage_Cooking_Page1进入；ArbitrageCookingFinish保存候选范围，后续仍按用户设置和材料保护过滤；缺料未点进配方或未做出料理不影响仓检补买。周完成标记留到Arbitrage_Cooking_Complete写入。",
         "action": "Custom",
         "custom_action": "ArbitrageCookingFinish",
         "timeout": 2000,

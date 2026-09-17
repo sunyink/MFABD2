@@ -30,12 +30,12 @@ def cooking_stage_active(task_id):
 
 
 def replenishment_entries(context, task_id):
-    """只为本轮实际打开过配方的料理补查、补买，不推测尚未解锁的配方。"""
+    """按本轮已遍历且仍获准的料理补查、补买，不要求成功点进配方或做出成品。"""
     completed = _NORMAL_COMPLETED.get(task_id, {})
     if completed.get("account_id") != PersistentStore._current_account_id:
         return []
-    selected = completed.get("selected", set())
-    return [replace(entry, enabled=entry.enabled and bool(selected.intersection(entry.selectors)))
+    visited = completed.get("visited_entries", set())
+    return [replace(entry, enabled=entry.enabled and entry.entry in visited)
             for entry in discover_recipe_entries(context)]
 
 
@@ -48,10 +48,12 @@ class ArbitrageCookingFinish(CustomAction):
         if not cooking_stage_active(task_id):
             return False
         if argv.node_name == "Arbitrage_Cooking_ERREND":
-            selected = {node.name for node in argv.task_detail.nodes
-                        if node.completed and node.action is not None and node.action.success}
+            # 缺料时选择节点可能因颜色条件不符而完全不执行；入口已遍历仍须查料。
+            # 不以completed/action.success判断入口：后继识别失败不撤销这次遍历。
+            visited = {node.name for node in argv.task_detail.nodes
+                       if node.name.startswith("Arbitrage_Cooking_") and node.name.endswith("_Entry")}
             _NORMAL_COMPLETED[task_id] = {"account_id": PersistentStore._current_account_id,
-                                        "selected": selected}
+                                        "visited_entries": visited}
             while len(_NORMAL_COMPLETED) > 16:
                 _NORMAL_COMPLETED.popitem(last=False)
             return True
@@ -110,6 +112,9 @@ class ArbitrageCookingPrepare(CustomAction):
         try:
             if not sync_from_context(context, where="ArbitrageCookingPrepare"):
                 return False
+            task_id = argv.task_detail.task_id
+            _COOKING_RUNS.pop(task_id, None)
+            _NORMAL_COMPLETED.pop(task_id, None)
             entries = [entry for entry in discover_recipe_entries(context) if entry.enabled]
             if not entries:
                 _patch(context, {"Arbitrage_Cooking": {"next": []}})
