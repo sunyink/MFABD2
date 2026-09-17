@@ -98,7 +98,7 @@ class ArbitrageStagePrepare(CustomAction):
         try:
             active = [index for index, name in enumerate(STAGES, 1) if node_enabled(context, name)]
             route = context.get_node_object("Agt_Arbitrage_StageConfig").attach["start_next"]
-            _patch(context, {"Arbitrage_Start": {"next": route if active else []}})
+            _patch(context, {"Arbitrage_Start": {"next": ["[JumpBack]Arbitrage_Archive_Begin", *route] if active else []}})
             mfaalog.info(f"[Arbitrage] 本轮阶段：{active}" if active else "[Arbitrage] 五个阶段全部关闭，直接结束")
             return True
         except Exception as exc:

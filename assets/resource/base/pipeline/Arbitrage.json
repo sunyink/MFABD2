@@ -1,6 +1,6 @@
 {
     "Arbitrage_Start": {
-        "desc": "读取五个阶段开关并准备套利入口。由interface任务入口调用；agent/action/arbitrage_flow.py的ArbitrageStagePrepare读取阶段配置，全部关闭时清空本节点next直接结束。",
+        "desc": "读取五个阶段开关并准备套利入口。ArbitrageStagePrepare在导航前插入库存位置A；全部关闭时清空next，不创建归档运行。",
         "pre_delay": 0,
         "action": "Custom",
         "custom_action": "ArbitrageStagePrepare",
@@ -14,6 +14,26 @@
         "on_error": [
             "Arbitrage_Replenish_Stop"
         ]
+    },
+    "Arbitrage_Archive_Begin": {
+        "desc": "任何买卖制作前捕获库存位置A并记录本轮开始；同日只保留首次A，归档异常不阻断业务。",
+        "max_hit": 1,
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "InventoryArchive",
+        "custom_action_param": {"series": "arbitrage", "position": "A", "keep": "first", "phase": "begin"},
+        "post_delay": 0
+    },
+    "Arbitrage_Archive_End": {
+        "desc": "五阶段返回且确认页面已收尾后捕获库存位置B；覆盖同日上次B并记录本轮正常结束，不声称库存完整或全部交易成功。",
+        "max_hit": 1,
+        "recognition": "Or",
+        "any_of": ["Global_ToSandBox_Enter"],
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "InventoryArchive",
+        "custom_action_param": {"series": "arbitrage", "position": "B", "keep": "last", "phase": "end"},
+        "post_delay": 0
     },
     "#1总控与进图寻路": {},
     "Arbitrage_HomePageOldCardMenu_Goin": {
@@ -200,7 +220,7 @@
     },
     "#2商人交互与分支总枢纽": {},
     "Arbitrage_Action_Hub": {
-        "desc": "按①开局出售、②常规采购、③料理制作、④收尾出售、⑤材料出售调度，再关闭商店。由进店链进入时清除两个Ensure的命中计数；各阶段JumpBack返回只重查next，不重复执行清计数动作。",
+        "desc": "按①开局出售、②常规采购、③料理制作、④收尾出售、⑤材料出售调度，再关闭商店并返回箱庭确认后记录库存位置B。进店时清除两个Ensure计数；阶段JumpBack返回不重复清计数。",
         "action": "Custom",
         "custom_action": "ClearNodeHitCount",
         "custom_action_param": {
@@ -217,8 +237,8 @@
             "[JumpBack]Arbitrage_SellMaterials",
             "[JumpBack]Arbitrage_Merchant_Close_Ck",
             "[JumpBack]Global_BackPageHub_Once",
-            "Global_ToSandBox",
-            "Global_ToSandBox_Enter"
+            "[JumpBack]Global_ToSandBox",
+            "Arbitrage_Archive_End"
         ]
     },
     "Arbitrage_Merchant_Entry": {
