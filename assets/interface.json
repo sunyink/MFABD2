@@ -248,7 +248,7 @@
         },
         {
             "name": "[执行]商店套利",
-            "label": "✨商店套利Opus",
+            "label": "✨商店套利 Opus",
             "entry": "Arbitrage_Start",
             "controller": [
                 "Adb",
@@ -1597,7 +1597,7 @@
         "料理制作周期": {
             "label": "料理制作周期（每周|每次）",
             "type": "switch",
-            "default_case": "No",
+            "default_case": "Yes",
             "description": "关闭（默认）：每周仅执行一次制作及缺料补买补做；开启：每次执行。<br><font color=\"Crimson\">每周模式下，本周后续运行会跳过制作；若同时开启⑤，部分尚未用于料理的材料可能作为多余库存出售。</font>",
             "cases": [
                 {
