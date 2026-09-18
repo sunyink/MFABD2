@@ -1,4 +1,11 @@
-"""Optional release branding. Failed operations leave the original files usable."""
+"""Optional release branding. Failed operations leave the original files usable.
+
+The exit code answers "could this script run at all", never "did the icon land": an icon
+that cannot be applied warns, reports status=degraded and exits 0 so the build continues,
+while anything else is fatal on purpose. Do not add continue-on-error on top of that — it
+would mute exactly the case that must stop the build. --check re-asserts an applied icon
+against the produced artifact and is fatal, so nothing half-applies in silence.
+"""
 
 import argparse
 import hashlib
@@ -18,6 +25,8 @@ RCEDIT_URL = "https://github.com/electron/rcedit/releases/download/v2.0.0/rcedit
 RCEDIT_SHA256 = "3e7801db1a5edbec91b49a24a094aad776cb4515488ea5a4ca2289c400eade2a"
 PROFILE_ICON = re.compile(r"(?m)^  icon: [^\r\n]+(?=\r?$)")
 MAX_PNG_BYTES = 8 * 1024 * 1024
+MAX_ICO_BYTES = 8 * 1024 * 1024
+RUNTIME_ICON = "resource/ui/title.png"
 
 
 def atomic_write(path: Path, data: bytes) -> None:
@@ -88,9 +97,9 @@ def apply_runtime(install: Path, branding: Path) -> None:
     png = validate_png(branding / "title.png")
     interface_path = install / "interface.json"
     interface = json.loads(interface_path.read_text(encoding="utf-8"))
-    interface["icon"] = "resource/ui/title.png"
+    interface["icon"] = RUNTIME_ICON
     updated_interface = (json.dumps(interface, ensure_ascii=False, indent=4) + "\n").encode()
-    image_path = install / "resource/ui/title.png"
+    image_path = install / RUNTIME_ICON
     previous_image = image_path.read_bytes() if image_path.exists() else None
     # Write the image first: no interface can point to a missing/partial new image.
     atomic_write(image_path, png)
@@ -105,10 +114,18 @@ def apply_runtime(install: Path, branding: Path) -> None:
 
 
 def ico_frames(path: Path) -> list[bytes]:
-    data = path.read_bytes()
+    """Every malformed input must surface as ValueError, never as struct.error."""
+    with path.open("rb") as handle:
+        data = handle.read(MAX_ICO_BYTES + 1)
+    if len(data) > MAX_ICO_BYTES:
+        raise ValueError(f"Branding ICO exceeds 8 MiB: {path}")
+    if len(data) < 6:
+        raise ValueError(f"Truncated Windows ICO header: {path}")
     reserved, kind, count = struct.unpack_from("<HHH", data)
     if reserved or kind != 1 or count != 7:
         raise ValueError("Expected the approved seven-size Windows ICO")
+    if len(data) < 6 + 16 * count:
+        raise ValueError(f"Truncated Windows ICO directory: {path}")
     frames, sizes = [], set()
     for index in range(count):
         width, height, _, _, _, depth, length, offset = struct.unpack_from("<BBBBHHII", data, 6 + index * 16)
@@ -173,7 +190,9 @@ def verify_windows_resources(path: Path, frames: list[bytes]) -> None:
                 continue
             actual = [read_resource(struct.unpack_from("<H", group, 6 + index * 14 + 12)[0], 3)
                       for index in range(count)]
-            if actual == frames:
+            # Order carries no meaning: ico_frames already pinned the size set, and a
+            # future rcedit may normalise the group's order. Compare the payloads only.
+            if sorted(actual) == sorted(frames):
                 return
         raise ValueError("EXE icon groups do not reference the approved seven images")
     finally:
@@ -222,15 +241,58 @@ def apply_android(profile: Path, work: Path, branding: Path) -> None:
     relative = Path(os.path.relpath(destination, profile.parent)).as_posix()
     updated = PROFILE_ICON.sub(lambda _: "  icon: " + json.dumps(relative), source)
     atomic_write(profile, updated.encode())
+    # The marker is written last and is what --restore keys on. The backup has to come
+    # first so a crash cannot lose the original, which makes "a backup exists" a wider
+    # condition than "the profile actually changed" — the retry must use the narrow one.
+    atomic_write(android_marker(work), b"")
+
+
+def android_marker(work: Path) -> Path:
+    return work / "branding/profile-icon-applied"
 
 
 def restore_android(profile: Path, work: Path) -> bool:
+    marker = android_marker(work)
     backup = work / "branding/profile-before-icons.yaml"
-    if not backup.is_file():
+    if not marker.is_file() or not backup.is_file():
         return False
     atomic_write(profile, backup.read_bytes())
     backup.unlink()
+    marker.unlink()
     return True
+
+
+def check_runtime(install: Path, branding: Path) -> None:
+    """Assert on the artifact, not on the return value of the step that built it."""
+    interface = json.loads((install / "interface.json").read_text(encoding="utf-8"))
+    if interface.get("icon") != RUNTIME_ICON:
+        raise ValueError(f"interface.json icon is {interface.get('icon')!r}, expected {RUNTIME_ICON!r}")
+    image = install / RUNTIME_ICON
+    if not image.is_file() or image.read_bytes() != (branding / "title.png").read_bytes():
+        raise ValueError(f"Packaged {RUNTIME_ICON} is missing or is not the branding image")
+
+
+def check_windows(install: Path, branding: Path) -> None:
+    verify_windows_resources(install / "MFAAvalonia.exe", ico_frames(branding / "app.ico"))
+
+
+def check_android(profile: Path, work: Path, branding: Path) -> None:
+    if not android_marker(work).is_file():
+        raise ValueError("Android icon was reported as applied but left no marker")
+    match = PROFILE_ICON.search(profile.read_text(encoding="utf-8"))
+    if not match:
+        raise ValueError("Expected exactly one app.icon in the Android profile")
+    image = profile.parent / json.loads(match[0].split(": ", 1)[1])
+    if not image.is_file() or image.read_bytes() != (branding / "android.png").read_bytes():
+        raise ValueError(f"Profile app.icon points at {image}, which is not the branding image")
+
+
+def publish_status(applied: bool) -> None:
+    """Gate for the workflow: a degraded run must not silently skip its verification."""
+    path = os.environ.get("GITHUB_OUTPUT")
+    if path:
+        with open(path, "a", encoding="utf-8") as handle:
+            handle.write(f"status={'applied' if applied else 'degraded'}\n")
 
 
 def report(name: str, error: Exception | None = None) -> None:
@@ -249,13 +311,14 @@ def report(name: str, error: Exception | None = None) -> None:
             print(f"Could not write icon summary: {exc}")
 
 
-def optional(name, action) -> None:
+def optional(name, action) -> bool:
     try:
         action()
     except Exception as exc:
         report(name, exc)
-    else:
-        report(name)
+        return False
+    report(name)
+    return True
 
 
 def main() -> None:
@@ -266,18 +329,29 @@ def main() -> None:
     parser.add_argument("--profile", type=Path, default=ROOT / "android/pi-profile.yaml")
     parser.add_argument("--work", type=Path, default=ROOT / "android-build")
     parser.add_argument("--restore", action="store_true")
+    parser.add_argument("--check", action="store_true",
+                        help="assert a reported-as-applied icon really landed; failure is fatal")
     args = parser.parse_args()
     if args.restore:
         # This command controls a build retry: missing/failed rollback must be fatal.
         if args.platform != "android" or not restore_android(args.profile, args.work):
             raise SystemExit("No prepared Android icon to roll back")
         report("Android launcher", RuntimeError("build failed; restored original icon for one retry"))
+    elif args.check:
+        if args.platform == "android":
+            check_android(args.profile, args.work, args.branding)
+        else:
+            check_runtime(args.install, args.branding)
+            if args.platform == "win":
+                check_windows(args.install, args.branding)
+        print("Applied application icons verified")
     elif args.platform == "android":
-        optional("Android launcher", lambda: apply_android(args.profile, args.work, args.branding))
+        publish_status(optional("Android launcher", lambda: apply_android(args.profile, args.work, args.branding)))
     else:
-        optional("MFAA runtime", lambda: apply_runtime(args.install, args.branding))
+        applied = optional("MFAA runtime", lambda: apply_runtime(args.install, args.branding))
         if args.platform == "win":
-            optional("Windows EXE", lambda: apply_windows(args.install, args.branding))
+            applied = optional("Windows EXE", lambda: apply_windows(args.install, args.branding)) and applied
+        publish_status(applied)
 
 
 if __name__ == "__main__":

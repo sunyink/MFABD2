@@ -133,9 +133,15 @@ class IconTests(unittest.TestCase):
                 icons.apply_windows(self.install, self.branding)
         self.assertEqual(self.executable.read_bytes(), b"original executable")
 
+    def start(self, patcher):
+        """addCleanup, not enterContext: the same source runs on the 3.10 build jobs."""
+        value = patcher.start()
+        self.addCleanup(patcher.stop)
+        return value
+
     def mock_tool(self):
-        self.enterContext(patch.object(icons, "RCEDIT_SHA256", icons.hashlib.sha256(b"test tool").hexdigest()))
-        self.enterContext(patch.object(icons.urllib.request, "urlopen", return_value=io.BytesIO(b"test tool")))
+        self.start(patch.object(icons, "RCEDIT_SHA256", icons.hashlib.sha256(b"test tool").hexdigest()))
+        self.start(patch.object(icons.urllib.request, "urlopen", return_value=io.BytesIO(b"test tool")))
 
     def test_tool_partial_write_failure_leaves_executable_untouched(self):
         self.mock_tool()
@@ -182,6 +188,77 @@ class IconTests(unittest.TestCase):
             icons.apply_android(self.profile, self.work, self.branding)
         icons.restore_android(self.profile, self.work)
         self.assertEqual(self.profile.read_bytes(), original)
+
+    def test_malformed_ico_errors_are_controlled(self):
+        valid = (self.branding / "app.ico").read_bytes()
+        entry = struct.pack("<BBBBHHII", 32, 32, 0, 0, 1, 32, 16, 6 + 16 * 7)
+        cases = {
+            "empty file": b"",
+            "short header": valid[:5],
+            "truncated directory": valid[:6] + valid[6:20],
+            "frame beyond file": valid[:6] + entry * 7,
+        }
+        for name, data in cases.items():
+            with self.subTest(name=name):
+                path = self.root / "malformed.ico"
+                path.write_bytes(data)
+                with self.assertRaises(ValueError):
+                    icons.ico_frames(path)
+
+    def test_oversized_ico_file_is_rejected_before_parsing(self):
+        path = self.root / "oversized.ico"
+        path.write_bytes(b"\0" * (icons.MAX_ICO_BYTES + 1))
+        with self.assertRaisesRegex(ValueError, "exceeds 8 MiB"):
+            icons.ico_frames(path)
+
+    def test_failed_profile_write_does_not_enable_retry(self):
+        original = self.profile.read_bytes()
+        write = icons.atomic_write
+
+        def fail_profile(path, data):
+            if path == self.profile:
+                raise OSError("profile write failed")
+            write(path, data)
+
+        with patch.object(icons, "atomic_write", side_effect=fail_profile):
+            with self.assertRaisesRegex(OSError, "profile write failed"):
+                icons.apply_android(self.profile, self.work, self.branding)
+        self.assertEqual(self.profile.read_bytes(), original)
+        # The backup is written before the profile on purpose, so it must not be the
+        # signal that burns a full --rerun-tasks rebuild.
+        self.assertTrue((self.work / "branding/profile-before-icons.yaml").is_file())
+        self.assertFalse(icons.restore_android(self.profile, self.work))
+
+    def test_check_rejects_a_runtime_icon_that_did_not_land(self):
+        icons.apply_runtime(self.install, self.branding)
+        icons.check_runtime(self.install, self.branding)
+        title = self.install / icons.RUNTIME_ICON
+        title.write_bytes(b"not the branding image")
+        with self.assertRaisesRegex(ValueError, "not the branding image"):
+            icons.check_runtime(self.install, self.branding)
+        title.unlink()
+        with self.assertRaises(ValueError):
+            icons.check_runtime(self.install, self.branding)
+        self.interface.write_bytes(self.original)
+        with self.assertRaisesRegex(ValueError, "interface.json icon"):
+            icons.check_runtime(self.install, self.branding)
+
+    def test_check_rejects_an_android_icon_that_did_not_land(self):
+        icons.apply_android(self.profile, self.work, self.branding)
+        icons.check_android(self.profile, self.work, self.branding)
+        (self.work / "branding/launcher.png").write_bytes(b"not the branding image")
+        with self.assertRaisesRegex(ValueError, "not the branding image"):
+            icons.check_android(self.profile, self.work, self.branding)
+        icons.android_marker(self.work).unlink()
+        with self.assertRaisesRegex(ValueError, "left no marker"):
+            icons.check_android(self.profile, self.work, self.branding)
+
+    def test_status_output_distinguishes_applied_from_degraded(self):
+        output = self.root / "step-output.txt"
+        with patch.dict(icons.os.environ, {"GITHUB_OUTPUT": str(output)}):
+            icons.publish_status(icons.optional("ok", lambda: None))
+            icons.publish_status(icons.optional("bad", lambda: icons.validate_png(self.root / "absent")))
+        self.assertEqual(output.read_text().split(), ["status=applied", "status=degraded"])
 
     def test_failure_reports_warning_and_allows_next_operation(self):
         summary = self.root / "summary.md"

@@ -220,15 +220,14 @@ jobs:
           # AGP 9 defaults to generating unit tests only for the debug build type.
           # This gate runs on the original profile; a test failure never retries.
           ./gradlew -Pandroid.onlyEnableUnitTestForTheTestedBuildType=false :app:testReleaseUnitTest --tests 'com.aliothmoon.maafw.update.Mfabd2*Test' --tests 'com.aliothmoon.maafw.di.UpdateModuleTest' --stacktrace
+      # 同 install.yml：脚本把「图标没贴上」降级成 status=degraded 并退出 0，
+      # 非零退出只剩「脚本跑不起来」，那种情况不该被 continue-on-error 盖掉。
       - name: Prepare optional Android icon
         id: icons
-        continue-on-error: true
         run: '"$BUILD_PYTHON" scripts/prepare_icons.py android'
-      - name: Report unavailable icon preparation
-        if: steps.icons.outcome == 'failure'
-        run: |
-          echo "::warning::Android icon preparation could not run; continuing with the original profile."
-          echo "- Android icon preparation unavailable; original profile retained." >> "$GITHUB_STEP_SUMMARY"
+      - name: Verify prepared Android icon
+        if: steps.icons.outputs.status == 'applied'
+        run: '"$BUILD_PYTHON" scripts/prepare_icons.py android --check'
       - name: Build signed ARM64 APK
         working-directory: android-upstream
         env:
@@ -241,8 +240,9 @@ jobs:
           KEY_ALIAS: ${{ steps.metadata.outputs.key_alias }}
         run: |
           if ! ./gradlew :app:assembleRelease --stacktrace; then
-            # Retry only when a custom icon was prepared. Roll back the profile first;
-            # this does not establish that the first failure was caused by the icon.
+            # Retry only when the profile really was rewritten (--restore keys on the
+            # applied marker, not on the backup). Roll back first; this does not
+            # establish that the first failure was caused by the icon.
             # A second assembly failure remains fatal; unit tests are never retried.
             "$BUILD_PYTHON" ../scripts/prepare_icons.py android --restore || exit 1
             rm -rf app/build/generated/profileRes
