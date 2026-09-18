@@ -497,9 +497,9 @@
         "custom_recognition": "ArbitrageBuyRecordReady",
         "pre_delay": 0,
         "post_delay": 0,
+        "timeout": 1,
         "next": [
-            "Arbitrage_Buy_CheckCycle",
-            "Global_Null"
+            "Arbitrage_Buy_CheckCycle"
         ]
     },
     "Arbitrage_Buy_CheckCycle": {
@@ -698,10 +698,10 @@
         "desc": "②购买尝试结束后的共用收尾。能识别商店则复用退店，否则空出口返回调用方；不再点击购买。",
         "pre_delay": 0,
         "post_delay": 0,
+        "timeout": 3000,
         "next": [
             "Arbitrage_Buy_End",
-            "Arbitrage_ShopOut",
-            "Global_Null"
+            "Arbitrage_ShopOut"
         ]
     },
     "Arbitrage_Buy_Select_QC1": {
