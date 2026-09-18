@@ -27,8 +27,6 @@
     "Arbitrage_OperationsMain_Sandplay": {
         "desc": "[PC覆盖·2026-07-23] 仅补on_error(base的Or识别/any_of/next/anchor全继承):箱庭确认命中后,next的找商人/传送导航候选若全miss(10:19实录:SeeMerchant旧模板0.588),20s超时无自定义on_error→MFA默认Global_Null兜底→流程SUCCEEDED假成功。挂同一重试垫,2次内整链重试,仍败则响亮失败。|[07-29二修·直开寻路] 找商人三场任务失手(含重试6+轮)根因=小地图未探明(灰底零POI,SeeMerchant的0.65~0.70全是灰箭头杂分),而SeeMerchant命中后干的事就是点寻路按钮=纯守门员,守的恰是不可靠的探明状态。PC覆盖next(base+SeeMerchant后插Arbitrage_NviGuide_Butt):寻路按钮不依赖探明(00:44失败帧实测0.898>阈0.7),直接开列表OCR商店;SeeMerchant命中时走原路等价,传送链留更后作fallback。前提假设=未探明时寻路列表仍列出商店,若假设错Merchant_Ocr会miss退回现状(已配套挂on_error防静默)。",
         "next": [
-            "[JumpBack]Arbitrage_Cooking_Weekly",
-            "[JumpBack]Arbitrage_Cooking",
             "[JumpBack]PVP_PerPetTask",
             "Arbitrage_Merchant_Ico",
             "Arbitrage_Sandplay_SeeMerchant",
@@ -1157,10 +1155,6 @@
             32
         ]
     },
-    "Arbitrage_Cooking_Weekly": {
-        "desc": "料理模块周次入口。|[PC覆盖] focus输出至MFA侧。",
-        "focus": "Arb.料理模块启动"
-    },
     "Arbitrage_Cooking_SetupToSkill": {
         "desc": "技能列表点'料理'进烹饪菜单。|[PC覆盖·2026-07-14帧校准] PC技能卡名字行实测720 y617-635,base roi[110,580,1053,33](y580-613)整体偏上漏读。roi改[80,600,1120,45]。|[08-07]补 on_error 逃生:借道全哑时按返回收场,防默认 Null 假成功掐死套利任务。",
         "roi": [
@@ -1180,12 +1174,8 @@
             50
         ]
     },
-    "Arbitrage_Cooking_Page2": {
-        "enabled": false
-    },
     "Arbitrage_Cooking_Swip_Page2": {
-        "desc": "翻到第2页。|PC料理列表不用拖动,还有14空位呢,disable",
-        "enabled": false,
+        "desc": "PC料理翻页滑动区域；是否翻页及料理队列沿用base。",
         "begin": [
             820,
             550,
@@ -1254,21 +1244,6 @@
                 ]
             },
             "Sub_<Arbitrage_Cooking>_Clr"
-        ]
-    },
-    "Arbitrage_Cooking_Hub": {
-        "next": [
-            "Arbitrage_Cooking_B8",
-            "Arbitrage_Cooking_B9",
-            "Arbitrage_Cooking_B10",
-            "Arbitrage_Cooking_B6",
-            "Arbitrage_Cooking_B7",
-            "Arbitrage_Cooking_A2",
-            "Arbitrage_Cooking_A3",
-            "Arbitrage_Cooking_A4",
-            "Arbitrage_Cooking_A5",
-            "Arbitrage_Cooking_A6",
-            "Arbitrage_Cooking_A1"
         ]
     },
     "Arbitrage_Cooking_B6": {
@@ -1385,25 +1360,6 @@
             "Sub_<Arbitrage_Cooking>_Clr"
         ]
     },
-    "Arbitrage_Cooking_A6": {
-        "desc": "菜品选择器。|[PC覆盖·2026-07-16离线校准] 菜品图标PC=安卓0.82~0.84倍(多尺度扫描,缩放后0.94~0.99),追加缩放版_PC模板(Or);菜格PC实测x480-1160/y80-580,base roi[592,103,596,598]漏掉左1~2列,改罩全格。色核Sub跨端存活(有色1652~2371px/置灰0px)不动。",
-        "all_of": [
-            {
-                "sub_name": "Templateroi",
-                "recognition": "TemplateMatch",
-                "roi": [
-                    480,
-                    80,
-                    690,
-                    510
-                ],
-                "template": [
-                    "Shop/cook_Sangria_PC.png"
-                ]
-            },
-            "Sub_<Arbitrage_Cooking>_Clr"
-        ]
-    },
     "Arbitrage_Cooking_A1": {
         "desc": "菜品选择器。|[PC覆盖·2026-07-16离线校准] 菜品图标PC=安卓0.82~0.84倍(多尺度扫描,缩放后0.94~0.99),追加缩放版_PC模板(Or);菜格PC实测x480-1160/y80-580,base roi[592,103,596,598]漏掉左1~2列,改罩全格。色核Sub跨端存活(有色1652~2371px/置灰0px)不动。",
         "all_of": [
@@ -1424,8 +1380,7 @@
         ]
     },
     "Arbitrage_Cooking_Menu_Reset": {
-        "desc": "页内复位:随机点菜品进子菜单再退。|PC料理无需滑动,亦不需复位",
-        "enabled": false,
+        "desc": "PC料理页内复位点击区域；复位判断与流程沿用base。",
         "target": [
             520,
             110,
@@ -1454,12 +1409,6 @@
             "立刻恢复",
             "個食物",
             "立即恢復"
-        ]
-    },
-    "Arbitrage_Cooking_Doing_OCR": {
-        "expected": [
-            "制作中",
-            "製作中"
         ]
     },
     "Arbitrage_Cooking_Menu_ReBack": {
