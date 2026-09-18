@@ -3197,16 +3197,9 @@
     "Arbitrage_ItemList_Swip": {
         "desc": "正在商店中.出售物品列表下滑；每轮最多命中15次，每次连续3次画面不变则返回失败。",
         "max_hit": 15,
-        "recognition": "OCR",
-        "roi": [
-            110,
-            92,
-            51,
-            149
-        ],
-        "expected": [
-            "购买",
-            "出售"
+        "recognition": "Or",
+        "any_of": [
+            "Arbitrage_Merchant_Egress"
         ],
         "action": "Custom",
         "custom_action": "SmartAction",
