@@ -4,9 +4,11 @@ import io
 import json
 from pathlib import Path
 import subprocess
+import struct
 import tempfile
 import unittest
 from unittest.mock import patch
+import zlib
 
 import prepare_icons as icons
 
@@ -56,6 +58,60 @@ class IconTests(unittest.TestCase):
             with self.assertRaises(OSError):
                 icons.apply_runtime(self.install, self.branding)
         self.assertEqual(self.interface.read_bytes(), self.original)
+
+    def test_failed_interface_write_removes_new_or_restores_existing_image(self):
+        title = self.install / "resource/ui/title.png"
+        title.parent.mkdir(parents=True)
+        write = icons.atomic_write
+
+        def fail_interface(path, data):
+            if path == self.interface:
+                raise OSError("interface write failed")
+            write(path, data)
+
+        for previous in (None, b"previous image"):
+            with self.subTest(previous=previous):
+                if previous is not None:
+                    title.write_bytes(previous)
+                with patch.object(icons, "atomic_write", side_effect=fail_interface):
+                    with self.assertRaisesRegex(OSError, "interface write failed"):
+                        icons.apply_runtime(self.install, self.branding)
+                self.assertEqual(self.interface.read_bytes(), self.original)
+                self.assertEqual(title.read_bytes() if title.exists() else None, previous)
+
+    @staticmethod
+    def png_chunks(*chunks):
+        return b"\x89PNG\r\n\x1a\n" + b"".join(
+            struct.pack(">I", len(body)) + kind + body + struct.pack(">I", zlib.crc32(kind + body))
+            for kind, body in chunks
+        )
+
+    def test_malformed_png_errors_are_controlled(self):
+        valid = (self.branding / "title.png").read_bytes()
+        header = struct.pack(">IIBBBBB", 1, 1, 8, 6, 0, 0, 0)
+        stream = zlib.compress(b"\0" * 5)
+        cases = {
+            "short chunk header": valid[:10],
+            "short chunk body": valid[:24],
+            "forged length": valid[:8] + struct.pack(">I", 0xffffffff) + valid[12:],
+            "wrong IHDR size": self.png_chunks((b"IHDR", b"bad"), (b"IEND", b"")),
+            "invalid deflate": self.png_chunks((b"IHDR", header), (b"IDAT", b"bad"), (b"IEND", b"")),
+            "unfinished deflate": self.png_chunks((b"IHDR", header), (b"IDAT", stream[:-1]), (b"IEND", b"")),
+            "extra deflate data": self.png_chunks((b"IHDR", header), (b"IDAT", stream + b"extra"), (b"IEND", b"")),
+            "oversized pixels": self.png_chunks((b"IHDR", header), (b"IDAT", zlib.compress(b"\0" * 100000)), (b"IEND", b"")),
+        }
+        for name, data in cases.items():
+            with self.subTest(name=name):
+                path = self.root / "malformed.png"
+                path.write_bytes(data)
+                with self.assertRaises(ValueError):
+                    icons.validate_png(path)
+
+    def test_oversized_png_file_is_rejected_before_parsing(self):
+        path = self.root / "oversized.png"
+        path.write_bytes(b"\x89PNG\r\n\x1a\n" + b"\0" * icons.MAX_PNG_BYTES)
+        with self.assertRaisesRegex(ValueError, "exceeds 8 MiB"):
+            icons.validate_png(path)
 
     def test_corrupt_png_is_rejected(self):
         source = bytearray((self.branding / "android.png").read_bytes())

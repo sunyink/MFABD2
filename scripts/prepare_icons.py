@@ -17,6 +17,7 @@ ROOT = Path(__file__).resolve().parents[1]
 RCEDIT_URL = "https://github.com/electron/rcedit/releases/download/v2.0.0/rcedit-x64.exe"
 RCEDIT_SHA256 = "3e7801db1a5edbec91b49a24a094aad776cb4515488ea5a4ca2289c400eade2a"
 PROFILE_ICON = re.compile(r"(?m)^  icon: [^\r\n]+(?=\r?$)")
+MAX_PNG_BYTES = 8 * 1024 * 1024
 
 
 def atomic_write(path: Path, data: bytes) -> None:
@@ -32,22 +33,35 @@ def atomic_write(path: Path, data: bytes) -> None:
 
 def validate_png(path: Path) -> bytes:
     """Validate our non-interlaced RGB/RGBA PNGs without a CI image dependency."""
-    data = path.read_bytes()
+    with path.open("rb") as handle:
+        data = handle.read(MAX_PNG_BYTES + 1)
+    if len(data) > MAX_PNG_BYTES:
+        raise ValueError(f"Branding PNG exceeds 8 MiB: {path}")
     if data[:8] != b"\x89PNG\r\n\x1a\n":
         raise ValueError(f"Invalid PNG: {path}")
     offset, compressed, header, ended = 8, bytearray(), None, False
     while offset < len(data):
+        if len(data) - offset < 12:
+            raise ValueError(f"Truncated PNG chunk: {path}")
         size = struct.unpack_from(">I", data, offset)[0]
+        if size > len(data) - offset - 12:
+            raise ValueError(f"PNG chunk extends beyond file: {path}")
         kind = data[offset + 4:offset + 8]
         body = data[offset + 8:offset + 8 + size]
         crc = struct.unpack_from(">I", data, offset + 8 + size)[0]
         if zlib.crc32(kind + body) != crc:
             raise ValueError(f"PNG checksum mismatch: {path}")
+        if offset == 8 and kind != b"IHDR":
+            raise ValueError(f"PNG must start with IHDR: {path}")
         if kind == b"IHDR":
+            if header is not None or size != 13:
+                raise ValueError(f"Invalid PNG IHDR: {path}")
             header = struct.unpack(">IIBBBBB", body)
         elif kind == b"IDAT":
             compressed.extend(body)
         elif kind == b"IEND":
+            if size or offset + 12 != len(data):
+                raise ValueError(f"Invalid PNG IEND: {path}")
             ended = True
         offset += size + 12
     if not ended or not header:
@@ -57,8 +71,15 @@ def validate_png(path: Path) -> bytes:
             and compression == filtering == interlace == 0):
         raise ValueError(f"Unsupported branding PNG layout: {path}")
     stride = width * (4 if color == 6 else 3) + 1
-    pixels = zlib.decompress(compressed)
-    if len(pixels) != stride * height or any(pixels[i] > 4 for i in range(0, len(pixels), stride)):
+    expected = stride * height
+    decoder = zlib.decompressobj()
+    try:
+        # One extra byte detects overflow without expanding an unbounded stream.
+        pixels = decoder.decompress(compressed, expected + 1)
+    except zlib.error as exc:
+        raise ValueError(f"Invalid PNG compressed stream: {path}") from exc
+    if (len(pixels) != expected or not decoder.eof or decoder.unused_data or decoder.unconsumed_tail
+            or any(pixels[i] > 4 for i in range(0, len(pixels), stride))):
         raise ValueError(f"Invalid PNG pixel data: {path}")
     return data
 
@@ -67,10 +88,20 @@ def apply_runtime(install: Path, branding: Path) -> None:
     png = validate_png(branding / "title.png")
     interface_path = install / "interface.json"
     interface = json.loads(interface_path.read_text(encoding="utf-8"))
-    # Write the image first: no interface can point to a missing/partial new image.
-    atomic_write(install / "resource/ui/title.png", png)
     interface["icon"] = "resource/ui/title.png"
-    atomic_write(interface_path, (json.dumps(interface, ensure_ascii=False, indent=4) + "\n").encode())
+    updated_interface = (json.dumps(interface, ensure_ascii=False, indent=4) + "\n").encode()
+    image_path = install / "resource/ui/title.png"
+    previous_image = image_path.read_bytes() if image_path.exists() else None
+    # Write the image first: no interface can point to a missing/partial new image.
+    atomic_write(image_path, png)
+    try:
+        atomic_write(interface_path, updated_interface)
+    except Exception:
+        if previous_image is None:
+            image_path.unlink(missing_ok=True)
+        else:
+            atomic_write(image_path, previous_image)
+        raise
 
 
 def ico_frames(path: Path) -> list[bytes]:

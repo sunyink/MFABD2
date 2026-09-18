@@ -39,10 +39,16 @@ bitmap supported by the pinned upstream, not an adaptive foreground/background
 resource set. No new image-generation service runs in CI.
 
 Each optional operation reports success or fallback in the Actions log and step
-summary. A failed operation keeps the prior/default icon and does not stop the
-release. If an Android build fails after icon preparation, CI restores the
-original profile and retries the tests and build once. A repeated build failure,
-signing failure, or APK verification failure remains fatal.
+summary. If the desktop interface update fails after copying the image, the
+previous image is restored or the newly added image is removed. PNG validation
+bounds chunk reads and decompression and rejects malformed input with a validation error.
+
+Android release unit tests run on the original profile before optional icon
+preparation; any test failure stops the job without retrying. If APK assembly
+fails after icon preparation, CI restores the original profile and retries only
+assembly once. This fallback does not prove that the first failure was caused by
+the icon. A repeated assembly failure, signing failure, or APK verification
+failure remains fatal.
 
 ## Local checks
 
