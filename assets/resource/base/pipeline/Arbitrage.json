@@ -2102,8 +2102,29 @@
             "node": "Agt_BuyQuantity_Gold_Ocr"
         },
         "next": [
-            "Arbitrage_Favorit_Buy_SubMenu"
+            "Arbitrage_Favorit_Buy_SubMenu",
+            "Arbitrage_Favorit_Buy_Empty"
         ]
+    },
+    "Arbitrage_Favorit_Buy_Empty": {
+        "desc": "识别一键购买后的中央无商品提示，直接收尾，不登记购买成功。",
+        "recognition": "OCR",
+        "roi": [
+            540,
+            150,
+            200,
+            32
+        ],
+        "expected": [
+            "[没沒]有可以[购購][买買]的商品"
+        ],
+        "only_rec": true,
+        "pre_delay": 0,
+        "post_delay": 0,
+        "next": [
+            "Arbitrage_Buy_Cleanup"
+        ],
+        "focus": "② 没有可以购买的商品，结束本轮常规采购"
     },
     "Arbitrage_Favorit_Buy_Again": {
         "max_hit": 5,
