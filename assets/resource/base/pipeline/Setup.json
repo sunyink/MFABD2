@@ -1494,6 +1494,7 @@
         ]
     },
     "Setup_Equip_Per": {
+        "desc": "背包界面-消耗品",
         "recognition": "OCR",
         "roi": [
             217,
