@@ -171,7 +171,7 @@
             30
         ]
     },
-    "Arbitrage_Merchant_Menu": {
+    "Arbitrage_Merchant_Egress": {
         "desc": "确认商店已开(认左栏'购买/出售'页签)。|PC 覆盖:base roi 左缘切掉了'购'字左侧,PC 按实帧重新框定页签区。注:本节点被 Arbitrage_Select_Swip 以 any_of 复用作滑动门卫,改 roi 会一并影响该处。",
         "roi": [
             85,
@@ -743,7 +743,7 @@
         ]
     },
     "Arbitrage_Select_Swip": {
-        "desc": "商店卡带列表滑动。|PC 覆盖:base swipe 落点在 PC 上位于商品格区(会滚错面板),移进侧栏;detect_roi 同步移侧栏,其余参数沿 base。|本节点的门卫 OCR('购买/出售'页签)不是自带字段,而是经 any_of 复用 Arbitrage_Merchant_Menu——该门卫的 roi 修复在那个节点上完成,此处无需也不该另配 roi。|[2026-08-23验尸] 上游bfde3d5(08-15)把base迁到SmartAction的proxy_override参数形,本PC覆盖仍是旧SmartSwipe形(顶层begin/end+retry_times+Custom_Proxy_Swipe);custom_action_param整字段替换→proxy_override被抹,代理节点无坐标,MaaFw在全屏框内随机取点滑(maafw实录begin[611,554]/[761,7]),diff=0.00即判到底.本次重写为新形:坐标入proxy_override(代理换Agt_Proxy_Blank并补post_delay1000),retry_times2→unchanged_streak3(=1+n,恰同base).",
+        "desc": "商店卡带列表滑动。|PC 覆盖:base swipe 落点在 PC 上位于商品格区(会滚错面板),移进侧栏;detect_roi 同步移侧栏,其余参数沿 base。|本节点的门卫 OCR('购买/出售'页签)不是自带字段,而是经 any_of 复用 Arbitrage_Merchant_Egress——该门卫的 roi 修复在那个节点上完成,此处无需也不该另配 roi。|[2026-08-23验尸] 上游bfde3d5(08-15)把base迁到SmartAction的proxy_override参数形,本PC覆盖仍是旧SmartSwipe形(顶层begin/end+retry_times+Custom_Proxy_Swipe);custom_action_param整字段替换→proxy_override被抹,代理节点无坐标,MaaFw在全屏框内随机取点滑(maafw实录begin[611,554]/[761,7]),diff=0.00即判到底.本次重写为新形:坐标入proxy_override(代理换Agt_Proxy_Blank并补post_delay1000),retry_times2→unchanged_streak3(=1+n,恰同base).",
         "custom_action_param": {
             "proxy_node": "Agt_Proxy_Blank",
             "proxy_override": {
@@ -821,13 +821,13 @@
             60
         ]
     },
-    "Arbitrage_Sell_PriceList": {
+    "Arbitrage_PriceList_Open_Entry": {
         "expected": [
             "价目表",
             "販售行情表"
         ]
     },
-    "Arbitrage_Sell_PriceList_Enter": {
+    "Arbitrage_PriceList_Open_Egress": {
         "roi": [
             271,
             150,
@@ -839,16 +839,25 @@
             "販售行情表"
         ]
     },
-    "Arbitrage_Sell_PackShopListSwich_OCR_Entry": {
+    "Arbitrage_PriceList_Sort_Entry": {
         "desc": "|[PC覆盖·07-17] 未排序守卫(首行非120%触发重排)。base roi[894,210,72,93]安卓坐标,PC首行%实测x851-905/y243-262(07-16帧),安卓roi仅擦到12px右缘→未排序日守卫失明,截断会漏。roi改罩PC首行%区。",
-        "roi": [
-            854,
-            235,
-            54,
-            40
+        "all_of": [
+            {
+                "recognition": "OCR",
+                "roi": [
+                    854,
+                    235,
+                    54,
+                    40
+                ],
+                "expected": [
+                    "^(?!120%$)\\d+(?:\\.\\d+)?%?$"
+                ]
+            },
+            "Arbitrage_PriceList_Open_Egress"
         ]
     },
-    "Arbitrage_Sell_PackShopListSwich_Butt": {
+    "Arbitrage_PriceList_Sort_Open": {
         "target": [
             933,
             176,
@@ -856,7 +865,7 @@
             20
         ]
     },
-    "Arbitrage_Sell_PackShopListSwich_Type_Enter": {
+    "Arbitrage_PriceList_Sort_Check": {
         "all_of": [
             {
                 "sub_name": "OCR",
@@ -875,7 +884,7 @@
             "Sub_SieveExpand_Yew_Clr"
         ]
     },
-    "Arbitrage_Sell_PackShopListSwich_Type_Change": {
+    "Arbitrage_PriceList_Sort_Select": {
         "roi": [
             706,
             209,
@@ -887,7 +896,7 @@
             "加價率"
         ]
     },
-    "Arbitrage_Sell_PackShopListSwich_Close": {
+    "Arbitrage_PriceList_Sort_Egress": {
         "target": [
             508,
             161,
@@ -895,7 +904,7 @@
             44
         ]
     },
-    "Arbitrage_Sell_PackShopListSwich_OnlyHave_NeedDisable": {
+    "Arbitrage_PriceList_Owned_Enable": {
         "all_of": [
             {
                 "sub_name": "Clr",
@@ -921,7 +930,8 @@
                     ]
                 ]
             },
-            "Rec_SliderSwitch_GryOff_Clr"
+            "Rec_SliderSwitch_GryOff_Clr",
+            "Arbitrage_PriceList_Open_Egress"
         ]
     },
     "Arbitrage_Sell_Col_Name": {
@@ -1068,7 +1078,7 @@
     "Arbitrage_ItemList_Swip": {
         "recognition": "Or",
         "any_of": [
-            "Arbitrage_Merchant_Menu"
+            "Arbitrage_Merchant_Egress"
         ]
     },
     "Arbitrage_Sell_Item_ListTraverse": {
@@ -1101,7 +1111,7 @@
             102
         ]
     },
-    "Arbitrage_Sell_Item_NumberSafety_ON": {
+    "Agt_SellQuantity_Min": {
         "target": [
             367,
             480,
@@ -1109,7 +1119,7 @@
             1
         ]
     },
-    "Arbitrage_Sell_Item_NumberSafety_OFF": {
+    "Agt_SellQuantity_Max": {
         "target": [
             599,
             480,
