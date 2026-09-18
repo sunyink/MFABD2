@@ -9,8 +9,14 @@
 改为链内埋两个动作节点：
 
 - **A `GoldSnapshot`** —— 挂在「物品已被 OCR 确认存在」之后、点击之前，记基准值。
-  靠 `[JumpBack]` + `max_hit: 1` 保证整个 `run_task` 内只跑一次，所以连续出售
+  「一轮只记一次」由**本模块**保证（已有基准就不覆盖），所以连续出售
   （`Item_Selling → ListTraverse` 那条回边）第二件起不会覆盖基准。
+
+  ⚠ **不要改用节点的 `max_hit: 1` 来实现这个保证**（2026-08-27 实测教训）：MaaFw 的
+  命中计数按**整个任务**计、**跨 `run_task` 不重置**，而主控是每件商品各调一次
+  `run_task`。用 max_hit 的结果是 A 只为全轮第一件记基准，第二件起被
+  `check_hit_count` 直接拦掉（maafw 日志可见 `max_hit reached ... current_hit=1`），
+  差额恒 `None` → 明明卖成了却被报「无法判断是否售出」并计入失败。
 - **B `GoldVerdict`** —— 挂在 `Arbitrage_Sell_End`（复位态确认）上，取终值算差额。
 
 两者只**测量**，不判"卖成没卖成" —— 判据归主控，它才知道还有没有别的候选要试。
@@ -163,8 +169,14 @@ class GoldSnapshot(CustomAction):
 
     def run(self, context: Context, argv: CustomAction.RunArg) -> bool:
         global _BASELINE
+        # 本轮已有基准就不覆盖：连续出售的回边（Item_Selling → ListTraverse）会再次
+        # 经过 A，而基准必须是「本轮第一次点击出售之前」的读数。跨轮的重置由主控的
+        # clear_verdict() 负责（它在每件商品的 run_task 之前调用）。
+        if _BASELINE is not None:
+            mfaalog.debug("[Gold] 📌 本轮基准已存在，跳过覆盖")
+            return True
         gold = _read_gold(context, _node_of(argv))
-        _BASELINE = {"gold": gold}        # 无条件覆盖，不做新鲜度判断
+        _BASELINE = {"gold": gold}
         mfaalog.info(
             f"[Gold] 📌 基准 {gold:,}" if gold is not None else "[Gold] 📌 基准读数不可用"
         )
