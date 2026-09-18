@@ -25,17 +25,7 @@
         "focus": "Arb.PC.插入PACK5卡带进箱庭"
     },
     "Arbitrage_OperationsMain_Sandplay": {
-        "desc": "[PC覆盖·2026-07-23] 仅补on_error(base的Or识别/any_of/next/anchor全继承):箱庭确认命中后,next的找商人/传送导航候选若全miss(10:19实录:SeeMerchant旧模板0.588),20s超时无自定义on_error→MFA默认Global_Null兜底→流程SUCCEEDED假成功。挂同一重试垫,2次内整链重试,仍败则响亮失败。|[07-29二修·直开寻路] 找商人三场任务失手(含重试6+轮)根因=小地图未探明(灰底零POI,SeeMerchant的0.65~0.70全是灰箭头杂分),而SeeMerchant命中后干的事就是点寻路按钮=纯守门员,守的恰是不可靠的探明状态。PC覆盖next(base+SeeMerchant后插Arbitrage_NviGuide_Butt):寻路按钮不依赖探明(00:44失败帧实测0.898>阈0.7),直接开列表OCR商店;SeeMerchant命中时走原路等价,传送链留更后作fallback。前提假设=未探明时寻路列表仍列出商店,若假设错Merchant_Ocr会miss退回现状(已配套挂on_error防静默)。",
-        "next": [
-            "[JumpBack]PVP_PerPetTask",
-            "Arbitrage_Merchant_Ico",
-            "Arbitrage_Sandplay_SeeMerchant",
-            "Arbitrage_NviGuide_Butt",
-            "[JumpBack]Collect_FindTeleporCircle0.9",
-            "[JumpBack]Collect_FindTeleporCircle",
-            "[JumpBack]Collect_ForceTeleporCircle",
-            "Collect_OperationsMain_ToAreaMap"
-        ],
+        "desc": "箱庭内寻路与定位出口沿用base；PC暂保留整链重试异常出口，后续专项复核。",
         "on_error": [
             "Arbitrage_Chain_Retry_PC"
         ]
@@ -741,7 +731,7 @@
         ]
     },
     "Arbitrage_Select_Swip": {
-        "desc": "商店卡带列表滑动。|PC 覆盖:base swipe 落点在 PC 上位于商品格区(会滚错面板),移进侧栏;detect_roi 同步移侧栏,其余参数沿 base。|本节点的门卫 OCR('购买/出售'页签)不是自带字段,而是经 any_of 复用 Arbitrage_Merchant_Egress——该门卫的 roi 修复在那个节点上完成,此处无需也不该另配 roi。|[2026-08-23验尸] 上游bfde3d5(08-15)把base迁到SmartAction的proxy_override参数形,本PC覆盖仍是旧SmartSwipe形(顶层begin/end+retry_times+Custom_Proxy_Swipe);custom_action_param整字段替换→proxy_override被抹,代理节点无坐标,MaaFw在全屏框内随机取点滑(maafw实录begin[611,554]/[761,7]),diff=0.00即判到底.本次重写为新形:坐标入proxy_override(代理换Agt_Proxy_Blank并补post_delay1000),retry_times2→unchanged_streak3(=1+n,恰同base).",
+        "desc": "PC商店卡带侧栏滑动，复用Arbitrage_Merchant_Egress识别。保留PC滑动起止点和变化检测区，其余行为参数对齐base。滑动后等待画面稳定500ms；post_wait_freezes.target暂沿用base，PC目标区域待实测校准。",
         "custom_action_param": {
             "proxy_node": "Agt_Proxy_Blank",
             "proxy_override": {
@@ -756,7 +746,15 @@
                 ],
                 "duration": 600,
                 "end_hold": 1000,
-                "post_delay": 1000
+                "post_wait_freezes": {
+                    "time": 500,
+                    "target": [
+                        195,
+                        107,
+                        128,
+                        41
+                    ]
+                }
             },
             "detect_roi": [
                 150,
@@ -1071,12 +1069,6 @@
                 ]
             },
             "Sub_SieveExpand_Yew_Clr"
-        ]
-    },
-    "Arbitrage_ItemList_Swip": {
-        "recognition": "Or",
-        "any_of": [
-            "Arbitrage_Merchant_Egress"
         ]
     },
     "Arbitrage_Sell_Item_ListTraverse": {
