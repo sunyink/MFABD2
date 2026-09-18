@@ -14,6 +14,7 @@ on:
       - ".github/workflows/android-check.yml"
       - "android/**"
       - "assets/**"
+      - "release/branding/**"
       - "**.py"
       # 内核版本是从这里钉住的 MFAAvalonia 里探测出来的，改它等于换内核。
       - "requirements.txt"
@@ -26,6 +27,7 @@ on:
       - ".github/workflows/android-check.yml"
       - "android/**"
       - "assets/**"
+      - "release/branding/**"
       - "**.py"
       - "requirements.txt"
   workflow_dispatch:
@@ -611,6 +613,19 @@ jobs:
             # 使用 bash 覆盖
             cp -rf MFA/* install/
           fi
+
+      - name: Apply optional application icons
+        id: icons
+        continue-on-error: true
+        shell: bash
+        run: python scripts/prepare_icons.py "${{ matrix.os }}"
+
+      - name: Report unavailable icon preparation
+        if: steps.icons.outcome == 'failure'
+        shell: bash
+        run: |
+          echo "::warning::Icon preparation could not run; continuing with existing icons."
+          echo "- Icon preparation unavailable; existing icons retained." >> "$GITHUB_STEP_SUMMARY"
 
       # [急救] 桌面端：下载指定版本内核（仅作拷贝源）
       - name: Download Override Core (Desktop)

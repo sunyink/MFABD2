@@ -44,6 +44,8 @@ on:
       - scripts/android_test_support.py
       - scripts/android_build.py
       - scripts/detect_maa_version.py
+      - scripts/prepare_icons.py
+      - release/branding/**
       - requirements.txt
 
 permissions:
@@ -205,6 +207,15 @@ jobs:
           with open(os.environ["GITHUB_ENV"], "a") as output:
               output.write(f"KEYSTORE_PATH={path}\n")
           PY
+      - name: Prepare optional Android icon
+        id: icons
+        continue-on-error: true
+        run: '"$BUILD_PYTHON" scripts/prepare_icons.py android'
+      - name: Report unavailable icon preparation
+        if: steps.icons.outcome == 'failure'
+        run: |
+          echo "::warning::Android icon preparation could not run; continuing with the original profile."
+          echo "- Android icon preparation unavailable; original profile retained." >> "$GITHUB_STEP_SUMMARY"
       - name: Build signed ARM64 APK
         working-directory: android-upstream
         env:
@@ -217,8 +228,17 @@ jobs:
           KEY_ALIAS: ${{ steps.metadata.outputs.key_alias }}
         run: |
           # AGP 9 defaults to generating unit tests only for the debug build type.
-          ./gradlew -Pandroid.onlyEnableUnitTestForTheTestedBuildType=false :app:testReleaseUnitTest --tests 'com.aliothmoon.maafw.update.Mfabd2*Test' --tests 'com.aliothmoon.maafw.di.UpdateModuleTest' --stacktrace
-          ./gradlew :app:assembleRelease --stacktrace
+          build_apk() {
+            ./gradlew -Pandroid.onlyEnableUnitTestForTheTestedBuildType=false :app:testReleaseUnitTest --tests 'com.aliothmoon.maafw.update.Mfabd2*Test' --tests 'com.aliothmoon.maafw.di.UpdateModuleTest' --stacktrace "$@" &&
+              ./gradlew :app:assembleRelease --stacktrace "$@"
+          }
+          if ! build_apk; then
+            # Retry only when a custom icon was prepared. Roll back the profile first;
+            # a second failure remains fatal, including all non-icon build failures.
+            "$BUILD_PYTHON" ../scripts/prepare_icons.py android --restore || exit 1
+            rm -rf app/build/generated/profileRes
+            build_apk --rerun-tasks
+          fi
       - name: Verify APK contents
         run: |
           apk="android-upstream/app/build/outputs/apk/release/app-release.apk"
