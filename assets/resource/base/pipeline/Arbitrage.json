@@ -2895,7 +2895,10 @@
     },
     "5#复用出售动作链(必须调用才能正常运行)": {},
     "Arbitrage_Sell_HUB": {
-        "desc": "可复用出售环节",
+        "desc": "单件出售选卡入口：设置选卡后进入出售列表等待；恢复与失败去向固定在出售侧，不影响补买。",
+        "anchor": {
+            "PackSelect_Next": "Arbitrage_Sell_PackShopSwich_Wait"
+        },
         "next": [
             "Arbitrage_Sell_Button_Ocr"
         ]
@@ -2938,6 +2941,17 @@
         ]
     },
     "Arbitrage_Sell_PackList": {
+        "desc": "开始本轮找卡，清除柜台回顶恢复次数及上轮复位出口；找卡滑动可重入，柜台恢复回跳不经过此处。",
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "ClearNodeHitCount",
+        "custom_action_param": {
+            "node_name": "Arbitrage_Sell_Item_ListReset_Recovery"
+        },
+        "anchor": {
+            "SellList_Return": ""
+        },
+        "post_delay": 0,
         "next": [
             "Arbitrage_Sell_PackShopSwich",
             "Arbitrage_Select_Swip"
@@ -2969,7 +2983,7 @@
         ]
     },
     "Arbitrage_Sell_PackShopSwich_Clr": {
-        "desc": "卡带是否选中色核",
+        "desc": "确认卡带选中，按入口锚点进入出售等待或补买查找。",
         "recognition": "ColorMatch",
         "roi": "Arbitrage_Sell_PackShopSwich",
         "roi_offset": [
@@ -2989,12 +3003,26 @@
             255
         ],
         "count": 100,
+        "timeout": 4000,
+        "next": [
+            "[Anchor]PackSelect_Next"
+        ]
+    },
+    "Arbitrage_Sell_PackShopSwich_Wait": {
+        "desc": "出售侧等待列表顶部；超时回跳尝试一次柜台复位，再检查PostOcr，恢复耗尽则报告失败。补买不经过此节点。",
+        "pre_delay": 0,
+        "post_delay": 0,
+        "timeout": 4000,
         "next": [
             "Arbitrage_Sell_PackShopSwich_PostOcr"
+        ],
+        "on_error": [
+            "[JumpBack]Arbitrage_Sell_Item_ListReset_Recovery",
+            "Arbitrage_Sell_Item_BatchExitFailed"
         ]
     },
     "Arbitrage_Sell_PackShopSwich_PostOcr": {
-        "desc": "切卡带后借用OCR确认商品列表已出现，并等待商品区域稳定；空动作且前后延迟为0。出售主控覆写本节点后续为排序及列表复位，补买覆写为DirectHit并取消稳定等待后查找商品。",
+        "desc": "出售选卡后确认商品列表顶部并等待稳定，再进入首次出售准备；识别超时由前方Wait有限次回顶恢复。",
         "recognition": "Or",
         "any_of": [
             "Arbitrage_Sell_Item_ListReset_PostOcr"
@@ -3012,11 +3040,24 @@
         },
         "post_delay": 0,
         "next": [
+            "Arbitrage_Sell_Item_Prepare"
+        ]
+    },
+    "Arbitrage_Sell_Item_Prepare": {
+        "desc": "首次出售准备：清除复位返回锚点，使用默认搜索出口并确认排序；已在顶部直接搜索，排序后离开顶部才切页签回顶。",
+        "pre_delay": 0,
+        "anchor": {
+            "SellList_Return": ""
+        },
+        "post_delay": 0,
+        "timeout": 4000,
+        "next": [
             "[JumpBack]Arbitrage_ItemList_Sorting_Entry",
-            "[Anchor]Sell_Bypass",
-            "Arbitrage_Sell_Item_ListTraverse",
-            "[Anchor]Arbitrage_Sell_ListEnd",
-            "[JumpBack]Arbitrage_ItemList_Swip"
+            "Arbitrage_Sell_Item_ListReset_PostOcr",
+            "Arbitrage_Sell_Item_ListReset"
+        ],
+        "on_error": [
+            "Arbitrage_Sell_Item_BatchExit"
         ]
     },
     "Arbitrage_ItemList_Sorting_Entry": {
@@ -3658,6 +3699,9 @@
         "custom_action": "GoldVerdict",
         "custom_action_param": {
             "node": "Arbitrage_Sell_GoldRead"
+        },
+        "anchor": {
+            "PackSelect_Next": ""
         },
         "post_delay": 0,
         "focus": "Arb.B.出售一轮循环结束"
@@ -6819,7 +6863,7 @@
         "desc": "精准出售入口"
     },
     "Arbitrage_PreciseBuy_Entry": {
-        "desc": "按明确请求复用出售HUB完成单批补买；默认只调数，不购买，未挂入日常流程。",
+        "desc": "按明确请求通过补买选卡入口完成单批补买；默认只调数，不购买，未挂入日常流程。",
         "pre_delay": 0,
         "action": "Custom",
         "custom_action": "ArbitrageBuyController",
@@ -6832,6 +6876,26 @@
             "dry_run": true
         },
         "post_delay": 0
+    },
+    "Arbitrage_PreciseBuy_PackEntry": {
+        "desc": "补买单批选卡入口：复用选卡动作，选中后直接查找商品；不进入出售顶部检查及柜台恢复。",
+        "pre_delay": 0,
+        "anchor": {
+            "PackSelect_Next": "Arbitrage_PreciseBuy_Search"
+        },
+        "post_delay": 0,
+        "next": [
+            "Arbitrage_Sell_Button_Ocr"
+        ]
+    },
+    "Arbitrage_PreciseBuy_Search": {
+        "desc": "补买选卡后的商品查找入口；保持原有直通行为，不要求出售列表顶部的食物标题。",
+        "pre_delay": 0,
+        "post_delay": 0,
+        "next": [
+            "Arbitrage_Sell_Item_ListTraverse",
+            "Arbitrage_PreciseBuy_NotFound"
+        ]
     },
     "Agt_BuyQuantity_Available_Ocr": {
         "desc": "购买子页的商店剩余可买数量，与背包拥有量分开。",
@@ -7033,6 +7097,9 @@
         "action": "Custom",
         "custom_action": "ArbitrageSaleMismatch",
         "custom_action_param": {},
+        "anchor": {
+            "SellList_Return": ""
+        },
         "post_delay": 0,
         "timeout": 4000,
         "next": [
@@ -7096,6 +7163,9 @@
             "Agt_SellList_Ready"
         ],
         "pre_delay": 0,
+        "anchor": {
+            "SellList_Return": ""
+        },
         "post_delay": 0,
         "timeout": 4000,
         "next": [
@@ -7106,8 +7176,29 @@
             "Arbitrage_Sell_Item_BatchExit"
         ]
     },
+    "Arbitrage_Sell_Item_ListReset_Recovery": {
+        "desc": "选卡后的出售顶部检查超时，当前找卡轮次最多恢复一次；成功或失败均按返回锚点退回Wait重查，不搜索、不交易。计数仅由PackList清除。",
+        "max_hit": 1,
+        "pre_delay": 0,
+        "anchor": {
+            "SellList_Return": "Arbitrage_Sell_Item_ListReset_Return"
+        },
+        "post_delay": 0,
+        "next": [
+            "Arbitrage_Sell_Item_ListReset"
+        ],
+        "focus": "Arb.选卡后列表未回顶，尝试一次柜台复位"
+    },
+    "Arbitrage_Sell_Item_ListReset_Return": {
+        "desc": "柜台恢复专用出口：清理本次返回锚点，空next退回Wait重新检查；不记作出售批次已正常收尾。",
+        "pre_delay": 0,
+        "anchor": {
+            "SellList_Return": ""
+        },
+        "post_delay": 0
+    },
     "Arbitrage_Sell_Item_ListReset": {
-        "desc": "当前柜台回顶：关闭残留子窗口，切购买再切出售；卡带保持不变。",
+        "desc": "公共柜台回顶：关闭残留子窗口，切购买再切出售；默认成功搜索、失败结束本批，调用方可用SellList_Return指定成功和失败均返回的出口。",
         "pre_delay": 0,
         "post_delay": 0,
         "timeout": 4000,
@@ -7117,6 +7208,7 @@
             "[JumpBack]Arbitrage_Buy_Button_Chg"
         ],
         "on_error": [
+            "[Anchor]SellList_Return",
             "Arbitrage_Sell_Item_BatchExit"
         ]
     },
@@ -7126,11 +7218,13 @@
         "any_of": [
             "Arbitrage_Buy_Button"
         ],
+        "timeout": 4000,
         "next": [
             "Arbitrage_Sell_Item_ListReset_Sell",
             "[JumpBack]Arbitrage_Sell_Item_ListReset_Sell_Chg"
         ],
         "on_error": [
+            "[Anchor]SellList_Return",
             "Arbitrage_Sell_Item_BatchExit"
         ]
     },
@@ -7140,10 +7234,12 @@
         "any_of": [
             "Arbitrage_Sell_Type_Clr"
         ],
+        "timeout": 4000,
         "next": [
             "Arbitrage_Sell_Item_ListReset_PostOcr"
         ],
         "on_error": [
+            "[Anchor]SellList_Return",
             "Arbitrage_Sell_Item_BatchExit"
         ]
     },
@@ -7163,7 +7259,7 @@
         "post_delay": 2000
     },
     "Arbitrage_Sell_Item_ListReset_PostOcr": {
-        "desc": "切换列表可能造成延迟,确认列表正常后再扫",
+        "desc": "确认柜台列表回顶并等待稳定；有返回锚点就退回，否则进入Search。末位滑动仅展示Python搜索内部的调用关系，前方Search恒命中，动作失败走其on_error，不会落到滑动；若改Search识别、enabled或max_hit，须重新检查此连线。供Or借用时仅提供识别。",
         "recognition": "OCR",
         "roi": [
             377,
@@ -7183,8 +7279,14 @@
                 406
             ]
         },
+        "timeout": 4000,
         "next": [
-            "Arbitrage_Sell_Item_Search"
+            "[Anchor]SellList_Return",
+            "Arbitrage_Sell_Item_Search",
+            "[JumpBack]Arbitrage_ItemList_Swip"
+        ],
+        "on_error": [
+            "Arbitrage_Sell_Item_BatchExit"
         ]
     },
     "Arbitrage_Sell_Item_Search": {
@@ -7219,12 +7321,16 @@
         ]
     },
     "Arbitrage_Sell_Item_BatchEnd": {
-        "desc": "本批已回到当前柜台出售列表；主控另判成交及下一批。",
+        "desc": "本批已回到当前柜台出售列表，清理选卡及复位出口锚点；主控另判成交及下一批，续批入口重新设置复位路由。",
         "recognition": "Or",
         "any_of": [
             "Agt_SellList_Ready"
         ],
         "pre_delay": 0,
+        "anchor": {
+            "PackSelect_Next": "",
+            "SellList_Return": ""
+        },
         "post_delay": 0
     },
     "Arbitrage_Sell_Item_BatchExitFailed": {

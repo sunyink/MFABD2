@@ -1,4 +1,4 @@
-"""按显式请求复用出售HUB补买；共用定位与调数，购买条件和结果单独核对。"""
+"""按显式请求复用商店选卡与调数；购买入口、条件和结果单独核对。"""
 
 import json
 import re
@@ -211,13 +211,9 @@ def buy_overrides(context, request):
     shop_expected = ("^" + re.escape(_clean(request["shop_name"])) + "$"
                      if request.get("shop_name") else _cart_expected(request["cartridge"]))
     patch.update({
-        "Arbitrage_Sell_HUB": {"anchor": {"Sell_Bypass": ""}},
         "Arbitrage_Sell_Type_Ocr": {"any_of": ["Arbitrage_Buy_Button_Chg"]},
         "Arbitrage_Sell_Type_Clr": {"roi": [118, 94, 36, 59]},
         "Arbitrage_Sell_PackShopSwich": {"expected": shop_expected},
-        "Arbitrage_Sell_PackShopSwich_PostOcr": {
-            "recognition": "DirectHit", "post_wait_freezes": 0,
-            "next": ["Arbitrage_Sell_Item_ListTraverse", "Arbitrage_PreciseBuy_NotFound"]},
         "Rec_<Arbitrage_Sell_Item_SellMenu>_Ocr_01": {"expected": [_BUY_BUTTON]},
         "Arbitrage_Sell_Item_Price_MaxCheck": {"roi": [810, 450, 222, 102], "expected": _BUY_BUTTON},
         _CONFIRM: {"expected": [_BUY_BUTTON], "action": "Custom",
@@ -247,7 +243,7 @@ def run_batch(context, request):
     error = None
     detail = None
     try:
-        detail = local.run_task("Arbitrage_Sell_HUB", buy_overrides(local, batch))
+        detail = local.run_task("Arbitrage_PreciseBuy_PackEntry", buy_overrides(local, batch))
     except Exception as exc:
         error = str(exc)
     finally:

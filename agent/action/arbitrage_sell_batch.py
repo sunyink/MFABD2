@@ -153,9 +153,6 @@ def _overrides(base, request):
     result = deepcopy(base)
     result.update({
         _QUANTITY: {"custom_action_param": request, "on_error": [_EXIT]},
-        "Arbitrage_Sell_HUB": {"anchor": {"Sell_Bypass": ""}},
-        "Arbitrage_Sell_PackShopSwich_PostOcr": {"next": [
-            "[JumpBack]Arbitrage_ItemList_Sorting_Entry", "Arbitrage_Sell_Item_ListReset"]},
         "Arbitrage_Sell_Item_Click": {"on_error": [_EXIT]},
         "Arbitrage_Sell_Item_SellMenu": {"on_error": [_EXIT]},
         _LIST: {**result.get(_LIST, {}), "timeout": 4000, "on_error": [_EXIT]},
