@@ -4,6 +4,13 @@ These files in `release/branding/` are build inputs. CI copies only the assets
 needed by each target, never this whole directory. Desktop and Android workflows
 watch `release/branding/**` for changes.
 
+The icons here and the fallback `ReadMe/logo.png` are covered by the
+[project identity and third-party materials statement](../../TRADEMARKS.md).
+Packaging always includes `TRADEMARKS.md`, including when icon preparation falls
+back to the previous icon. Desktop artifacts carry it at their root; Android
+carries it inside `assets/pi.zip`. The statement does not change the project's
+open-source licenses.
+
 | File          | Purpose                                                                  |
 | ------------- | ------------------------------------------------------------------------ |
 | `app.ico`     | Windows executable: approved 16/24/32/48/64/128/256 images, 32-bit alpha |

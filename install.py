@@ -190,6 +190,7 @@ def install_chores():
     shutil.copy2(working_dir / "LICENSE", install_path)
     shutil.copy2(working_dir / "LICENSE-APACHE", install_path)
     shutil.copy2(working_dir / "LICENSE-MIT", install_path)
+    shutil.copy2(working_dir / "TRADEMARKS.md", install_path)
     
     # 2. Mac 专属脚本处理
     if "mac" in target_os or "osx" in target_os:

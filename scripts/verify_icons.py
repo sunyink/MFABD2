@@ -9,8 +9,41 @@ import tempfile
 import unittest
 from unittest.mock import patch
 import zlib
+import zipfile
 
 import prepare_icons as icons
+import verify_branding as branding
+
+
+class BrandingDocumentTests(unittest.TestCase):
+    def test_directory_requires_current_statement(self):
+        with tempfile.TemporaryDirectory() as work:
+            root = Path(work)
+            with self.assertRaises(FileNotFoundError):
+                branding.verify_directory(root)
+            document = root / branding.DOCUMENT
+            document.write_bytes((branding.ROOT / branding.DOCUMENT).read_bytes())
+            branding.verify_directory(root)
+            document.write_bytes(b"outdated statement")
+            with self.assertRaises(ValueError):
+                branding.verify_directory(root)
+
+    def test_archive_requires_current_statement_and_allows_checkout_line_endings(self):
+        expected = (branding.ROOT / branding.DOCUMENT).read_bytes().replace(b"\r\n", b"\n")
+        for content, error in ((None, KeyError), (b"outdated statement", ValueError),
+                               (expected, None), (expected.replace(b"\n", b"\r\n"), None)):
+            with self.subTest(content=content and len(content)):
+                buffer = io.BytesIO()
+                with zipfile.ZipFile(buffer, "w") as archive:
+                    if content is not None:
+                        archive.writestr(branding.DOCUMENT, content)
+                buffer.seek(0)
+                with zipfile.ZipFile(buffer) as archive:
+                    if error:
+                        with self.assertRaises(error):
+                            branding.verify_archive(archive)
+                    else:
+                        branding.verify_archive(archive)
 
 
 class IconTests(unittest.TestCase):

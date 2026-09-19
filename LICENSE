@@ -12,3 +12,7 @@ This licensing change applies on a **file-by-file basis**, meaning:
 - You may use, modify, and distribute newer files under the terms of the Apache License, Version 2.0.
 
 For clarity, any contributions made after the licensing change (version 1.1.0 or later) are expected to be compatible with the Apache License, Version 2.0.
+
+## Project identity and third-party materials
+
+See [TRADEMARKS.md](./TRADEMARKS.md) for the statement on icons, third-party materials, and project identity. That statement does not modify the licenses above or restrict uses they permit, and does not grant rights in third-party materials that this project is not authorized to license.

@@ -15,6 +15,7 @@ on:
       - "android/**"
       - "assets/**"
       - "release/branding/**"
+      - "TRADEMARKS.md"
       - "**.py"
       # 内核版本是从这里钉住的 MFAAvalonia 里探测出来的，改它等于换内核。
       - "requirements.txt"
@@ -28,6 +29,7 @@ on:
       - "android/**"
       - "assets/**"
       - "release/branding/**"
+      - "TRADEMARKS.md"
       - "**.py"
       - "requirements.txt"
   workflow_dispatch:
@@ -817,6 +819,9 @@ jobs:
                   print(f'Removing redundant bin: {p}')
                   shutil.rmtree(p)
           "
+
+      - name: Verify packaged project identity statement
+        run: python scripts/verify_branding.py install
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
