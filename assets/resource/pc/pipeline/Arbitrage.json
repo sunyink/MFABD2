@@ -947,6 +947,14 @@
             288
         ]
     },
+    "Arbitrage_Sell_Col_Amount": {
+        "roi": [
+            790,
+            235,
+            64,
+            284
+        ]
+    },
     "Arbitrage_Sell_Col_Price": {
         "roi": [
             850,
