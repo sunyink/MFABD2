@@ -44,6 +44,8 @@ on:
       - scripts/android_test_support.py
       - scripts/android_build.py
       - scripts/detect_maa_version.py
+      - scripts/prepare_icons.py
+      - release/branding/**
       - requirements.txt
 
 permissions:
@@ -205,20 +207,47 @@ jobs:
           with open(os.environ["GITHUB_ENV"], "a") as output:
               output.write(f"KEYSTORE_PATH={path}\n")
           PY
+      - name: Test Android release before icon preparation
+        working-directory: android-upstream
+        env:
+          PI_PROFILE: ${{ github.workspace }}/android/pi-profile.yaml
+          BUILD_VERSION_NAME: ${{ steps.metadata.outputs.version_name }}
+          MFABD2_APP_LABEL: ${{ steps.metadata.outputs.label }}
+          KEYSTORE_PASSWORD: ${{ inputs.identity == 'release' && secrets.ANDROID_SIGNING_PASSWORD || secrets.ANDROID_CI_PASSWORD }}
+          KEY_PASSWORD: ${{ inputs.identity == 'release' && secrets.ANDROID_SIGNING_PASSWORD || secrets.ANDROID_CI_PASSWORD }}
+          KEY_ALIAS: ${{ steps.metadata.outputs.key_alias }}
+        run: |
+          # AGP 9 defaults to generating unit tests only for the debug build type.
+          # This gate runs on the original profile; a test failure never retries.
+          ./gradlew -Pandroid.onlyEnableUnitTestForTheTestedBuildType=false :app:testReleaseUnitTest --tests 'com.aliothmoon.maafw.update.Mfabd2*Test' --tests 'com.aliothmoon.maafw.di.UpdateModuleTest' --stacktrace
+      # 同 install.yml：脚本把「图标没贴上」降级成 status=degraded 并退出 0，
+      # 非零退出只剩「脚本跑不起来」，那种情况不该被 continue-on-error 盖掉。
+      - name: Prepare optional Android icon
+        id: icons
+        run: '"$BUILD_PYTHON" scripts/prepare_icons.py android'
+      - name: Verify prepared Android icon
+        if: steps.icons.outputs.status == 'applied'
+        run: '"$BUILD_PYTHON" scripts/prepare_icons.py android --check'
       - name: Build signed ARM64 APK
         working-directory: android-upstream
         env:
           PI_PROFILE: ${{ github.workspace }}/android/pi-profile.yaml
           BUILD_VERSION_NAME: ${{ steps.metadata.outputs.version_name }}
           MFABD2_APP_LABEL: ${{ steps.metadata.outputs.label }}
-          # 与上一步选的是同一把钥匙：identity 缺省（push 触发）即 ci。
+          # 与签名准备步骤选的是同一把钥匙：identity 缺省（push 触发）即 ci。
           KEYSTORE_PASSWORD: ${{ inputs.identity == 'release' && secrets.ANDROID_SIGNING_PASSWORD || secrets.ANDROID_CI_PASSWORD }}
           KEY_PASSWORD: ${{ inputs.identity == 'release' && secrets.ANDROID_SIGNING_PASSWORD || secrets.ANDROID_CI_PASSWORD }}
           KEY_ALIAS: ${{ steps.metadata.outputs.key_alias }}
         run: |
-          # AGP 9 defaults to generating unit tests only for the debug build type.
-          ./gradlew -Pandroid.onlyEnableUnitTestForTheTestedBuildType=false :app:testReleaseUnitTest --tests 'com.aliothmoon.maafw.update.Mfabd2*Test' --tests 'com.aliothmoon.maafw.di.UpdateModuleTest' --stacktrace
-          ./gradlew :app:assembleRelease --stacktrace
+          if ! ./gradlew :app:assembleRelease --stacktrace; then
+            # Retry only when the profile really was rewritten (--restore keys on the
+            # applied marker, not on the backup). Roll back first; this does not
+            # establish that the first failure was caused by the icon.
+            # A second assembly failure remains fatal; unit tests are never retried.
+            "$BUILD_PYTHON" ../scripts/prepare_icons.py android --restore || exit 1
+            rm -rf app/build/generated/profileRes
+            ./gradlew :app:assembleRelease --rerun-tasks --stacktrace
+          fi
       - name: Verify APK contents
         run: |
           apk="android-upstream/app/build/outputs/apk/release/app-release.apk"
