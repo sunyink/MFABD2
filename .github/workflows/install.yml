@@ -14,6 +14,8 @@ on:
       - ".github/workflows/android-check.yml"
       - "android/**"
       - "assets/**"
+      - "release/branding/**"
+      - "TRADEMARKS.md"
       - "**.py"
       # 内核版本是从这里钉住的 MFAAvalonia 里探测出来的，改它等于换内核。
       - "requirements.txt"
@@ -26,6 +28,8 @@ on:
       - ".github/workflows/android-check.yml"
       - "android/**"
       - "assets/**"
+      - "release/branding/**"
+      - "TRADEMARKS.md"
       - "**.py"
       - "requirements.txt"
   workflow_dispatch:
@@ -232,6 +236,10 @@ jobs:
             # 赋予执行权限，防止 Linux 下报错
             chmod +x ./check_resource.py
             python ./check_resource.py ./assets/
+
+      # install / android 两条构建链都 needs 本 job，所以图标脚本只在这里验一次。
+      - name: Check application icon preparation
+        run: python scripts/verify_icons.py
   install:
     needs: [meta, resource_check]
     # PR 只跑资源检查，不跑完整构建
@@ -612,6 +620,20 @@ jobs:
             cp -rf MFA/* install/
           fi
 
+      # 不要在这一步加 continue-on-error：脚本自己已经把「图标没贴上」降级成
+      # status=degraded + ::warning 并退出 0，非零退出只剩「脚本根本跑不起来」，
+      # 那种情况必须让构建停下来。
+      - name: Apply optional application icons
+        id: icons
+        shell: bash
+        run: python scripts/prepare_icons.py "${{ matrix.os }}"
+
+      # 声称贴上了就必须在产物里验得到，否则静默半成品会直接进发布包。
+      - name: Verify applied application icons
+        if: steps.icons.outputs.status == 'applied'
+        shell: bash
+        run: python scripts/prepare_icons.py "${{ matrix.os }}" --check
+
       # [急救] 桌面端：下载指定版本内核（仅作拷贝源）
       - name: Download Override Core (Desktop)
         if: env.MFA_CORE_TAG != ''
@@ -797,6 +819,9 @@ jobs:
                   print(f'Removing redundant bin: {p}')
                   shutil.rmtree(p)
           "
+
+      - name: Verify packaged project identity statement
+        run: python scripts/verify_branding.py install
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:

@@ -10,6 +10,7 @@ include:
   - tasks/**
   - README.md
   - LICENSE*
+  - TRADEMARKS.md
 exclude:
   - "**/*.mpe.json"
   - "**/test_*.py"

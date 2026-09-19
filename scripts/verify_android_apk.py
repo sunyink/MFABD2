@@ -8,6 +8,8 @@ import sys
 import zipfile
 from pathlib import Path
 
+from verify_branding import verify_archive
+
 
 def verify_options(interface: dict) -> None:
     """Match the pinned Android UI's explicit option-type requirement.
@@ -65,6 +67,7 @@ def verify(path: Path, metadata: dict | None = None, maafw: str | None = None) -
         if len(runtimes) != 1 or runtimes[0]["args"] != ["-u", "agent/main.py"]:
             raise ValueError("Unexpected agent launch descriptor")
         with zipfile.ZipFile(io.BytesIO(apk.read("assets/pi.zip"))) as payload:
+            verify_archive(payload)
             interface = json.loads(payload.read("interface.json"))
             verify_options(interface)
             controllers = interface.get("controller", [])
