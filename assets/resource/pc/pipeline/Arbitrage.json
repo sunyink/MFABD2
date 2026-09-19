@@ -817,6 +817,15 @@
             60
         ]
     },
+    "Agt_SellList_BuyReady": {
+        "desc": "PC购买页签选中亮色区域；补买与柜台回顶复用，避免只截到图标右缘。",
+        "roi": [
+            96,
+            80,
+            37,
+            60
+        ]
+    },
     "Arbitrage_PriceList_Open_Entry": {
         "expected": [
             "价目表",
