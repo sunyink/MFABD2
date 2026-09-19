@@ -21,18 +21,30 @@
         "pre_delay": 0,
         "action": "Custom",
         "custom_action": "InventoryArchive",
-        "custom_action_param": {"series": "arbitrage", "position": "A", "keep": "first", "phase": "begin"},
+        "custom_action_param": {
+            "series": "arbitrage",
+            "position": "A",
+            "keep": "first",
+            "phase": "begin"
+        },
         "post_delay": 0
     },
     "Arbitrage_Archive_End": {
         "desc": "五阶段返回且确认页面已收尾后捕获库存位置B；覆盖同日上次B并记录本轮正常结束，不声称库存完整或全部交易成功。",
         "max_hit": 1,
         "recognition": "Or",
-        "any_of": ["Global_ToSandBox_Enter"],
+        "any_of": [
+            "Global_ToSandBox_Enter"
+        ],
         "pre_delay": 0,
         "action": "Custom",
         "custom_action": "InventoryArchive",
-        "custom_action_param": {"series": "arbitrage", "position": "B", "keep": "last", "phase": "end"},
+        "custom_action_param": {
+            "series": "arbitrage",
+            "position": "B",
+            "keep": "last",
+            "phase": "end"
+        },
         "post_delay": 0
     },
     "#1总控与进图寻路": {},
@@ -3053,10 +3065,10 @@
         "post_wait_freezes": {
             "time": 500,
             "target": [
-                660,
-                145,
-                67,
-                406
+                772,
+                120,
+                55,
+                350
             ]
         },
         "post_delay": 0,
@@ -6659,7 +6671,7 @@
                     300,
                     50
                 ],
-                "expected": "^收集品"
+                "expected": "收集品$"
             }
         ],
         "next": [
@@ -6988,9 +7000,9 @@
         "desc": "购买页右上金币，位置不同于出售页，不沿用出售金币ROI。",
         "recognition": "OCR",
         "roi": [
-            1076,
+            1050,
             28,
-            121,
+            140,
             35
         ],
         "replace": [
@@ -7298,7 +7310,7 @@
             43
         ],
         "expected": [
-            "^食物$"
+            "食物$"
         ],
         "post_wait_freezes": {
             "time": 500,
