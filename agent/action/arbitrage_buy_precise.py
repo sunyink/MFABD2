@@ -17,7 +17,7 @@ from utils.arbitrage_quote import parse_money, parse_quote as parse_cost
 _QUANTITY = "Arbitrage_Sell_Item_Quantity"
 _EXIT = "Arbitrage_Sell_Item_Exit"
 _RESULTS = {}
-_BUY_BUTTON = r"^\s*[购購][买買]\s*$"
+_BUY_BUTTON_NODE = "Agt_BuyConfirm_Ocr"
 _CONFIRM = "Arbitrage_Sell_Item_Selling"
 
 
@@ -206,17 +206,17 @@ def buy_overrides(context, request):
     patch = _sell_item_override(context, request["item_name"])
     patch["Arbitrage_Sell_Item_ListTraverse"]["max_hit"] = 2
     config = dict(context.get_node_object(_QUANTITY).attach)
-    config.update(available_node="Agt_BuyQuantity_Available_Ocr", gold_node="Agt_BuyQuantity_Gold_Ocr",
+    config.update(price_node=_BUY_BUTTON_NODE, available_node="Agt_BuyQuantity_Available_Ocr",
+                  gold_node="Agt_BuyQuantity_Gold_Ocr",
                   cost_node="Agt_BuyQuantity_Cost_Ocr")
     shop_expected = ("^" + re.escape(_clean(request["shop_name"])) + "$"
                      if request.get("shop_name") else _cart_expected(request["cartridge"]))
     patch.update({
         "Arbitrage_Sell_Type_Ocr": {"any_of": ["Arbitrage_Buy_Button_Chg"]},
-        "Arbitrage_Sell_Type_Clr": {"roi": [118, 94, 36, 59]},
+        "Arbitrage_Sell_Type_Clr": {"recognition": "Or", "any_of": ["Agt_SellList_BuyReady"]},
         "Arbitrage_Sell_PackShopSwich": {"expected": shop_expected},
-        "Rec_<Arbitrage_Sell_Item_SellMenu>_Ocr_01": {"expected": [_BUY_BUTTON]},
-        "Arbitrage_Sell_Item_Price_MaxCheck": {"roi": [810, 450, 222, 102], "expected": _BUY_BUTTON},
-        _CONFIRM: {"expected": [_BUY_BUTTON], "action": "Custom",
+        "Rec_<Arbitrage_Sell_Item_SellMenu>_Ocr_01": {"recognition": "Or", "any_of": [_BUY_BUTTON_NODE]},
+        _CONFIRM: {"recognition": "Or", "any_of": [_BUY_BUTTON_NODE], "action": "Custom",
                    "custom_action": "ArbitrageBuyConfirm", "custom_action_param": request,
                    "post_delay": 0, "timeout": 4000, "next": [_EXIT], "on_error": [_EXIT]},
         "Arbitrage_Sell_Gold_Snapshot": {"action": "DoNothing"},
