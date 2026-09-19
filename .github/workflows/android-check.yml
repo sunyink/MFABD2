@@ -46,7 +46,7 @@ jobs:
     env:
       PYTHONUTF8: "1"
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
         with:
           ref: ${{ inputs.source_ref }}
           fetch-depth: 0
@@ -54,7 +54,7 @@ jobs:
       - name: Record checked source
         id: source
         run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         id: tools
         with:
           python-version: "3.11"
@@ -64,7 +64,7 @@ jobs:
         run: echo "BUILD_PYTHON=$INTERPRETER" >> "$GITHUB_ENV"
       # This is the only Android UI pin. APK builds use this job's checked SHA.
       - name: Checkout pinned Android UI
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
         with:
           repository: Aliothmoon/MaaFwApp
           ref: f4f6f220e21e3a1b7b0cf5df4bdbe0ec04c668f7
@@ -122,7 +122,7 @@ jobs:
           "$BUILD_PYTHON" scripts/verify_android_build.py
           "$BUILD_PYTHON" scripts/android_build.py requirements --maafw "$ANDROID_MAAFW" --output android-build/requirements.txt
       - name: Set up the Android agent's Python version
-        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         id: agent
         with:
           python-version: ${{ steps.agent_core.outputs.python_version }}
