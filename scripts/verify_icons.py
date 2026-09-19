@@ -59,6 +59,27 @@ class IconTests(unittest.TestCase):
                 icons.apply_runtime(self.install, self.branding)
         self.assertEqual(self.interface.read_bytes(), self.original)
 
+    def test_partial_write_failure_cleans_up_temporary_file(self):
+        factory = icons.tempfile.NamedTemporaryFile
+
+        def failing_file(*args, **kwargs):
+            handle = factory(*args, **kwargs)
+            write = handle.write
+
+            def fail(data):
+                write(data[:3])
+                raise OSError("partial write failed")
+
+            handle.write = fail
+            return handle
+
+        before = set(self.install.iterdir())
+        with patch.object(icons.tempfile, "NamedTemporaryFile", side_effect=failing_file):
+            with self.assertRaisesRegex(OSError, "partial write failed"):
+                icons.atomic_write(self.interface, b"new interface contents")
+        self.assertEqual(self.interface.read_bytes(), self.original)
+        self.assertEqual(set(self.install.iterdir()), before)
+
     def test_failed_interface_write_removes_new_or_restores_existing_image(self):
         title = self.install / "resource/ui/title.png"
         title.parent.mkdir(parents=True)
@@ -228,6 +249,50 @@ class IconTests(unittest.TestCase):
         # signal that burns a full --rerun-tasks rebuild.
         self.assertTrue((self.work / "branding/profile-before-icons.yaml").is_file())
         self.assertFalse(icons.restore_android(self.profile, self.work))
+
+    def test_failed_marker_write_restores_profile_before_reporting_fallback(self):
+        original = self.profile.read_bytes()
+        write = icons.atomic_write
+        output = self.root / "step-output.txt"
+
+        def fail_marker(path, data):
+            if path == icons.android_marker(self.work):
+                raise OSError("marker write failed")
+            write(path, data)
+
+        with patch.object(icons, "atomic_write", side_effect=fail_marker):
+            with patch.dict(icons.os.environ, {"GITHUB_OUTPUT": str(output)}):
+                with patch("sys.stdout", new_callable=io.StringIO) as log:
+                    icons.publish_status(icons.optional(
+                        "Android launcher", lambda: icons.apply_android(self.profile, self.work, self.branding)))
+        self.assertEqual(self.profile.read_bytes(), original)
+        self.assertFalse(icons.android_marker(self.work).exists())
+        self.assertFalse(icons.restore_android(self.profile, self.work))
+        self.assertEqual(output.read_text(), "status=degraded\n")
+        self.assertIn("kept default/previous icon", log.getvalue())
+
+    def test_failed_profile_restore_is_fatal_instead_of_reporting_fallback(self):
+        original = self.profile.read_bytes()
+        write = icons.atomic_write
+        output = self.root / "step-output.txt"
+
+        def fail_marker_and_restore(path, data):
+            if path == icons.android_marker(self.work):
+                raise OSError("marker write failed")
+            if path == self.profile and data == original:
+                raise OSError("profile restore failed")
+            write(path, data)
+
+        with patch.object(icons, "atomic_write", side_effect=fail_marker_and_restore):
+            with patch.dict(icons.os.environ, {"GITHUB_OUTPUT": str(output)}):
+                with patch("sys.stdout", new_callable=io.StringIO) as log:
+                    with self.assertRaisesRegex(icons.IconRollbackError, "Could not restore"):
+                        icons.publish_status(icons.optional(
+                            "Android launcher", lambda: icons.apply_android(self.profile, self.work, self.branding)))
+        self.assertNotEqual(self.profile.read_bytes(), original)
+        self.assertEqual((self.work / "branding/profile-before-icons.yaml").read_bytes(), original)
+        self.assertFalse(output.exists())
+        self.assertNotIn("kept default/previous icon", log.getvalue())
 
     def test_check_rejects_a_runtime_icon_that_did_not_land(self):
         icons.apply_runtime(self.install, self.branding)

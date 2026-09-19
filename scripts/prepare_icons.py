@@ -29,15 +29,21 @@ MAX_ICO_BYTES = 8 * 1024 * 1024
 RUNTIME_ICON = "resource/ui/title.png"
 
 
+class IconRollbackError(RuntimeError):
+    """The original icon could not be restored; packaging must stop."""
+
+
 def atomic_write(path: Path, data: bytes) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.NamedTemporaryFile(dir=path.parent, delete=False) as handle:
-        temporary = Path(handle.name)
-        handle.write(data)
+    temporary = None
     try:
+        with tempfile.NamedTemporaryFile(dir=path.parent, delete=False) as handle:
+            temporary = Path(handle.name)
+            handle.write(data)
         os.replace(temporary, path)
     finally:
-        temporary.unlink(missing_ok=True)
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
 
 
 def validate_png(path: Path) -> bytes:
@@ -244,7 +250,16 @@ def apply_android(profile: Path, work: Path, branding: Path) -> None:
     # The marker is written last and is what --restore keys on. The backup has to come
     # first so a crash cannot lose the original, which makes "a backup exists" a wider
     # condition than "the profile actually changed" — the retry must use the narrow one.
-    atomic_write(android_marker(work), b"")
+    try:
+        atomic_write(android_marker(work), b"")
+    except Exception:
+        # Without the marker neither --check nor --restore will run. Revert the
+        # profile now, before reporting an optional preparation failure.
+        try:
+            atomic_write(profile, original)
+        except Exception as exc:
+            raise IconRollbackError("Could not restore the Android profile after icon preparation failed") from exc
+        raise
 
 
 def android_marker(work: Path) -> Path:
@@ -314,6 +329,8 @@ def report(name: str, error: Exception | None = None) -> None:
 def optional(name, action) -> bool:
     try:
         action()
+    except IconRollbackError:
+        raise
     except Exception as exc:
         report(name, exc)
         return False
