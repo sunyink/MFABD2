@@ -4,6 +4,8 @@
 读数由内存界面提供，本脚本不验证真实 OCR 或按钮坐标。
 """
 
+import json
+import re
 import sys
 import unittest
 from contextlib import ExitStack
@@ -17,6 +19,7 @@ sys.path.insert(0, str(ROOT / "agent"))
 
 from action import arbitrage_sell_batch as dispatch
 from action import arbitrage_sell_quantity as quantity
+from action import arbitrage_buy_precise as buy
 
 
 class QuantityUI(quantity.SaleQuantityAdjuster):
@@ -66,6 +69,44 @@ class QuantityUI(quantity.SaleQuantityAdjuster):
 
 
 class StackQuantityTests(unittest.TestCase):
+    def test_purchase_recognition_uses_resources_without_overwriting_sale_quote(self):
+        pipeline = json.loads((ROOT / "assets/resource/base/pipeline/Arbitrage.json").read_text(encoding="utf-8"))
+        context = SimpleNamespace(get_node_object=lambda name: SimpleNamespace(attach=pipeline[name].get("attach", {})))
+        override = buy.buy_overrides(context, {"item_name": "蘑菇", "cartridge": "剧情游戏卡1"})
+        config = override["Arbitrage_Sell_Item_Quantity"]["attach"]
+        self.assertNotIn("Arbitrage_Sell_Item_Price_MaxCheck", override)
+        self.assertEqual(config["price_node"], "Agt_BuyConfirm_Ocr")
+        self.assertEqual(override["Arbitrage_Sell_Type_Clr"],
+                         {"recognition": "Or", "any_of": ["Agt_SellList_BuyReady"]})
+        for name in ("Rec_<Arbitrage_Sell_Item_SellMenu>_Ocr_01", "Arbitrage_Sell_Item_Selling"):
+            self.assertEqual(override[name]["any_of"], [config["price_node"]])
+            self.assertNotIn("roi", override[name])
+            self.assertNotIn("expected", override[name])
+
+    def test_purchase_button_and_available_count_match_separate_lines(self):
+        pipeline = json.loads((ROOT / "assets/resource/base/pipeline/Arbitrage.json").read_text(encoding="utf-8"))
+        button = pipeline["Agt_BuyConfirm_Ocr"]["expected"]
+        available = pipeline["Agt_BuyQuantity_Available_Ocr"]["expected"]
+        for label, count in (("购买", "可购买400个"), ("購買", "可購買400個")):
+            with self.subTest(label=label):
+                self.assertTrue(any(re.fullmatch(pattern, label) for pattern in button))
+                self.assertFalse(any(re.fullmatch(pattern, count) for pattern in button))
+                self.assertTrue(any(re.fullmatch(pattern, count) for pattern in available))
+                self.assertFalse(any(re.fullmatch(pattern, label) for pattern in available))
+                self.assertEqual(buy.parse_available([count]), 400)
+
+    def test_inventory_labels_from_simplified_and_pc_screens(self):
+        for text in ("拥有153,730个", "持有153,730個", "持有１５３，７３０個"):
+            with self.subTest(text=text):
+                self.assertEqual(quantity.parse_quantity([text], inventory=True), 153730)
+
+    def test_inventory_requires_a_complete_unambiguous_label(self):
+        for texts in (["持有153.7"], ["持有153,730"], ["可購買400個"],
+                      ["持有153,730個", "持有153,731個"]):
+            with self.subTest(texts=texts):
+                with self.assertRaises(ValueError):
+                    quantity.parse_quantity(texts, inventory=True)
+
     def test_real_run_stack_maxima_are_accepted(self):
         for inventory, maximum in [(329717, 29720), (171120, 71121), (534611, 97974)]:
             with self.subTest(inventory=inventory):

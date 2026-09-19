@@ -149,6 +149,7 @@ class RoutingTests(unittest.TestCase):
         for name, kind in {
             "Arbitrage_Buy_Button_Chg": "buy_label",
             "Arbitrage_Buy_Button": "buy_ready",
+            "Agt_SellList_BuyReady": "buy_ready",
             "Arbitrage_Sell_Item_ListReset_Sell_Chg": "sell_label",
             "Arbitrage_Sell_Type_Clr": "sell_ready",
             "Arbitrage_PackList_ResetEnter": "always",
@@ -180,9 +181,6 @@ class RoutingTests(unittest.TestCase):
                     owner.shop.top = owner.initial_top
                     owner.shop.tab = mode
                     cfg = buy.buy_overrides(local, REQUEST) if mode == "buy" else sale._overrides({}, REQUEST)
-                    if mode == "buy":
-                        cfg["Arbitrage_Sell_Type_Clr"] = {**cfg["Arbitrage_Sell_Type_Clr"],
-                            "custom_recognition_param": {"kind": "buy_ready"}}
                     detail = local.run_task(entry, cfg)
                     if detail is None:
                         owner.callback_errors.append("missing task detail")
