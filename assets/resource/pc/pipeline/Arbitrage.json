@@ -27,7 +27,8 @@
     "Arbitrage_OperationsMain_Sandplay": {
         "desc": "箱庭内寻路与定位出口沿用base；PC暂保留整链重试异常出口，后续专项复核。",
         "on_error": [
-            "Arbitrage_Chain_Retry_PC"
+            "Arbitrage_Chain_Retry_PC",
+            "Global_Null"
         ]
     },
     "Arbitrage_Sandplay_SeeMerchant": {
@@ -122,6 +123,14 @@
         ],
         "focus": "Arb.PC.商人交互态确认"
     },
+    "Arbitrage_Merchant_NoSkill": {
+        "target": [
+            1139,
+            545,
+            9,
+            16
+        ]
+    },
     "Arbitrage_Bargaining_SkillList": {
         "desc": "技能面板点'砍价'卡。|[PC覆盖·2026-07-14帧校准] PC砍价字实测720(98-127,616-634),base roi[108,582,857,51]左缘x108切'砍'字。roi扩[60,590,905,60]。",
         "roi": [
@@ -142,13 +151,32 @@
         ]
     },
     "Arbitrage_Bargaining_SkipAm": {
-        "desc": "跳过砍价动画(加速点击)。|[PC覆盖·2026-07-14实录·禁用] 终止条件=右上'天赋药图标'重现,PC无此图标→inverse:true永真→无限点(130,447)(00:17实录)。动画不跳过会自行播完,外层Msgbox_Ck循环每轮先轮询Merchant_Menu,菜单出现即前进——禁用仅慢几秒,安全。",
-        "enabled": false,
-        "roi": [
-            999,
-            22,
-            225,
-            32
+        "desc": "跳过砍价动画(加速点击)。|[PC覆盖·2026-07-14实录·] 终止条件=右上'天赋药图标',PC无此图标.|N.使用Not逻辑工具,既没有天赋字也没有商店字,就是中间阶段.",
+        "recognition": "And",
+        "all_of": [
+            {
+                "sub_name": "Custom",
+                "recognition": "Custom",
+                "custom_recognition": "NotRecognition",
+                "custom_recognition_param": {
+                    "node": "Arbitrage_Merchant_Dialog"
+                }
+            },
+            {
+                "sub_name": "Custom",
+                "recognition": "Custom",
+                "custom_recognition": "NotRecognition",
+                "custom_recognition_param": {
+                    "node": "Arbitrage_Merchant_Egress"
+                }
+            }
+        ],
+        "inverse": false,
+        "target": [
+            1,
+            1,
+            1,
+            1
         ]
     },
     "Arbitrage_Bargaining_Msgbox_NoMedicine": {
@@ -179,6 +207,26 @@
         "expected": [
             "关闭商店",
             "關閉商店"
+        ]
+    },
+    "Arbitrage_Buy_Button": {
+        "roi": [
+            94,
+            73,
+            38,
+            61
+        ]
+    },
+    "Arbitrage_Buy_Button_Chg": {
+        "roi": [
+            88,
+            70,
+            52,
+            135
+        ],
+        "expected": [
+            "购买",
+            "購買"
         ]
     },
     "Arbitrage_PackList_ResetEnter": {
@@ -691,48 +739,17 @@
             ]
         }
     },
-    "Arbitrage_Favorit_Buy_SubMenu_Closure": {
-        "desc": "购买收尾:识别售罄标确认买完。现方案=OCR 单字'售'+红色色核双条件(all_of)。⚠️ 售罄小红标仅约 20x10px,OCR 的 det 阶段就未必出得了框,识别不到是常态,故本节点当前实际收效有限、不可作为购买成败的判据——实购成功与否以金币扣款为准。",
-        "all_of": [
-            {
-                "sub_name": "OCR",
-                "recognition": "OCR",
-                "roi": [
-                    338,
-                    87,
-                    784,
-                    540
-                ],
-                "expected": [
-                    "售"
-                ]
-            },
-            {
-                "sub_name": "ColorMatch",
-                "recognition": "ColorMatch",
-                "roi": "OCR",
-                "method": 40,
-                "lower": [
-                    [
-                        0,
-                        207,
-                        121
-                    ]
-                ],
-                "upper": [
-                    [
-                        10,
-                        233,
-                        255
-                    ]
-                ],
-                "count": 10
-            }
-        ]
-    },
     "Arbitrage_Select_Swip": {
-        "desc": "PC商店卡带侧栏滑动，复用Arbitrage_Merchant_Egress识别。保留PC滑动起止点和变化检测区，其余行为参数对齐base。滑动后等待画面稳定500ms；post_wait_freezes.target暂沿用base，PC目标区域待实测校准。",
+        "desc": "PC商店卡带侧栏滑动，复用Arbitrage_Merchant_Egress识别。保留PC滑动起止点和变化检测区，其余行为参数对齐base。滑动后在卡带列表区域[157,81,129,42]等待画面稳定500ms。",
         "custom_action_param": {
+            "detect_roi": [
+                150,
+                104,
+                60,
+                120
+            ],
+            "on_changed": "next",
+            "on_unchanged": "error",
             "proxy_node": "Agt_Proxy_Blank",
             "proxy_override": {
                 "action": "Swipe",
@@ -740,32 +757,24 @@
                     200,
                     660
                 ],
+                "duration": 600,
                 "end": [
                     200,
                     135
                 ],
-                "duration": 600,
                 "end_hold": 1000,
                 "post_wait_freezes": {
-                    "time": 500,
                     "target": [
-                        195,
-                        107,
-                        128,
-                        41
-                    ]
+                        157,
+                        81,
+                        129,
+                        42
+                    ],
+                    "time": 500
                 }
             },
-            "detect_roi": [
-                150,
-                104,
-                60,
-                120
-            ],
-            "threshold": 3.0,
             "settle_delay": 500,
-            "on_changed": "next",
-            "on_unchanged": "error",
+            "threshold": 3.0,
             "unchanged_streak": 3
         }
     },
@@ -797,31 +806,10 @@
             "購買"
         ]
     },
-    "Arbitrage_Sell_Type_Ocr": {
-        "roi": [
-            66,
-            73,
-            84,
-            209
-        ],
-        "expected": [
-            "出售",
-            "販售"
-        ]
-    },
     "Arbitrage_Sell_Type_Clr": {
         "roi": [
             96,
             140,
-            37,
-            60
-        ]
-    },
-    "Agt_SellList_BuyReady": {
-        "desc": "PC购买页签选中亮色区域；补买与柜台回顶复用，避免只截到图标右缘。",
-        "roi": [
-            96,
-            80,
             37,
             60
         ]
@@ -848,6 +836,7 @@
         "desc": "|[PC覆盖·07-17] 未排序守卫(首行非120%触发重排)。base roi[894,210,72,93]安卓坐标,PC首行%实测x851-905/y243-262(07-16帧),安卓roi仅擦到12px右缘→未排序日守卫失明,截断会漏。roi改罩PC首行%区。",
         "all_of": [
             {
+                "sub_name": "OCR",
                 "recognition": "OCR",
                 "roi": [
                     854,
@@ -939,6 +928,36 @@
             "Arbitrage_PriceList_Open_Egress"
         ]
     },
+    "Arbitrage_PriceList_Owned_Disable": {
+        "all_of": [
+            {
+                "sub_name": "Clr",
+                "recognition": "ColorMatch",
+                "roi": [
+                    971,
+                    535,
+                    17,
+                    16
+                ],
+                "lower": [
+                    [
+                        0,
+                        0,
+                        0
+                    ]
+                ],
+                "upper": [
+                    [
+                        255,
+                        255,
+                        255
+                    ]
+                ]
+            },
+            "Rec_SliderSwitch_YewOn_Clr",
+            "Arbitrage_PriceList_Open_Egress"
+        ]
+    },
     "Arbitrage_Sell_Col_Name": {
         "roi": [
             505,
@@ -978,6 +997,20 @@
             234,
             82,
             289
+        ]
+    },
+    "Arbitrage_Swip_PriceList": {
+        "begin": [
+            653,
+            500,
+            1,
+            1
+        ],
+        "end": [
+            653,
+            200,
+            1,
+            1
         ]
     },
     "Arbitrage_Swip_Calibration_Down": {
@@ -1088,12 +1121,93 @@
             "Sub_SieveExpand_Yew_Clr"
         ]
     },
-    "Arbitrage_Sell_Item_ListTraverse": {
+    "Arbitrage_ItemList_Swip": {
+        "custom_action_param": {
+            "detect_roi": [
+                329,
+                123,
+                56,
+                202
+            ],
+            "loop_exhausted": "error",
+            "loop_limit": 3,
+            "on_changed": "next",
+            "on_unchanged": "loop",
+            "proxy_node": "Agt_Proxy_Blank",
+            "proxy_override": {
+                "action": "Swipe",
+                "begin": [
+                    569,
+                    606,
+                    1,
+                    1
+                ],
+                "duration": 800,
+                "end": [
+                    569,
+                    105,
+                    1,
+                    1
+                ],
+                "end_hold": 800,
+                "post_wait_freezes": {
+                    "target": [
+                        344,
+                        142,
+                        26,
+                        97
+                    ],
+                    "time": 500
+                }
+            },
+            "settle_delay": 500,
+            "threshold": 3.0
+        }
+    },
+    "Agt_<Sell_Item>_Ocr": {
         "roi": [
-            322,
-            81,
-            823,
-            559
+            392,
+            94,
+            789,
+            540
+        ]
+    },
+    "Agt_<Sell_Item>_Tmp": {
+        "roi": [
+            319,
+            94,
+            779,
+            540
+        ]
+    },
+    "Arbitrage_Sell_Item_ListTraverse_End": {
+        "roi": [
+            321,
+            84,
+            187,
+            553
+        ],
+        "expected": [
+            "圣石",
+            "聖石",
+            "装备材料",
+            "装備材料"
+        ]
+    },
+    "Arbitrage_Sell_Item_ListTraverse_End_Recipes": {
+        "roi": [
+            321,
+            84,
+            187,
+            553
+        ],
+        "expected": [
+            "圣石",
+            "聖石",
+            "装备材料",
+            "装備材料",
+            "^料理食材$",
+            "^料理食材$"
         ]
     },
     "Rec_<Arbitrage_Sell_Item_SellMenu>_Ocr_01": {
@@ -1118,12 +1232,36 @@
             102
         ]
     },
-    "Agt_SellQuantity_Min": {
-        "target": [
-            367,
-            480,
-            1,
-            1
+    "Arbitrage_Sell_Item_Quantity": {
+        "attach": {
+            "slider_range": [
+                376,
+                598
+            ]
+        }
+    },
+    "Agt_SellQuantity_Name_Ocr": {
+        "roi": [
+            322,
+            212,
+            281,
+            43
+        ]
+    },
+    "Agt_SellQuantity_Inventory_Ocr": {
+        "roi": [
+            330,
+            269,
+            151,
+            35
+        ]
+    },
+    "Agt_SellQuantity_Selected_Ocr": {
+        "roi": [
+            331,
+            392,
+            315,
+            36
         ]
     },
     "Agt_SellQuantity_Max": {
@@ -1134,11 +1272,95 @@
             1
         ]
     },
+    "Agt_SellQuantity_Min": {
+        "target": [
+            367,
+            480,
+            1,
+            1
+        ]
+    },
+    "Agt_SellQuantity_PlusOne": {
+        "target": [
+            625,
+            443,
+            2,
+            2
+        ]
+    },
+    "Agt_SellQuantity_MinusOne": {
+        "target": [
+            349,
+            444,
+            2,
+            2
+        ]
+    },
+    "Agt_SellQuantity_PlusTen": {
+        "target": [
+            521,
+            479,
+            2,
+            2
+        ]
+    },
+    "Agt_SellQuantity_MinusTen": {
+        "target": [
+            443,
+            481,
+            2,
+            2
+        ]
+    },
+    "Agt_SellQuantity_Slider": {
+        "target": [
+            487,
+            444,
+            1,
+            1
+        ]
+    },
     "Arbitrage_Sell_Item_Selling": {
+        "roi": [
+            796,
+            466,
+            168,
+            57
+        ],
         "expected": [
             "出售",
             "販售"
-        ]
+        ],
+        "post_wait_freezes": {
+            "target": [
+                728,
+                333,
+                252,
+                202
+            ]
+        }
+    },
+    "Arbitrage_Sell_Item_Exit_ResetSwip": {
+        "begin": [
+            200,
+            135,
+            1,
+            1
+        ],
+        "end": [
+            200,
+            660,
+            1,
+            1
+        ],
+        "post_wait_freezes": {
+            "target": [
+                157,
+                81,
+                129,
+                42
+            ]
+        }
     },
     "Arbitrage_PackList_ResetSwip": {
         "desc": "卡带列表复位下滑。|[PC覆盖·2026-07-14实录] base x285在PC落商品格区滑错面板;移侧栏x200(同Select_Swip)。",
@@ -1153,7 +1375,15 @@
             660,
             1,
             1
-        ]
+        ],
+        "post_wait_freezes": {
+            "target": [
+                157,
+                81,
+                129,
+                42
+            ]
+        }
     },
     "Arbitrage_Sell_GoldRead": {
         "desc": "[PC新增·2026-07-22]【Py引用·被动数据节点,不入任何流程】读右上角金币数,供出售主脑做卖出验证。背景:主脑原先只看 run_task(\"Arbitrage_Sell_HUB\") 的返回值判成败,而该返回值只表示链条\"正常结束\",链条在选卡带找不到目标、SmartSwipe 判触底 JumpOut 时同样返回 True→假报'售卖成功'(07-22实录:桑格利亚酒一件没卖仍报成功)。改为派发前后各读一次金币,增长才算真卖出。roi 自 07-22 出售界面实帧量取(金币串'6,393,080'位于 x1070~1140/y30~45),留宽到130px容纳8位数。读不到时主脑自动跳过验证、退回原行为,不阻断流程。",
@@ -1162,6 +1392,83 @@
             20,
             177,
             32
+        ]
+    },
+    "Arbitrage_SellB_Button": {
+        "roi": [
+            1062,
+            650,
+            114,
+            40
+        ],
+        "expected": [
+            "键出售",
+            "鍵販售"
+        ]
+    },
+    "Arbitrage_SellB_SubMenu": {
+        "roi": [
+            761,
+            555,
+            98,
+            42
+        ],
+        "expected": [
+            "溢价率",
+            "加價率"
+        ]
+    },
+    "Arbitrage_SellB_SubMenu_Rate": {
+        "roi": [
+            760,
+            587,
+            96,
+            45
+        ]
+    },
+    "Arbitrage_SellB_SubMenu_Rate_ChgMax": {
+        "roi": [
+            1125,
+            579,
+            69,
+            53
+        ]
+    },
+    "Arbitrage_SellB_SubMenu_SetFood": {
+        "all_of": [
+            {
+                "sub_name": "Clr",
+                "recognition": "ColorMatch",
+                "roi": [
+                    1048,
+                    511,
+                    17,
+                    17
+                ],
+                "lower": [
+                    [
+                        0,
+                        0,
+                        0
+                    ]
+                ],
+                "upper": [
+                    [
+                        255,
+                        255,
+                        255
+                    ]
+                ]
+            },
+            "Rec_SliderSwitch_GryOff_Clr"
+        ]
+    },
+    "Arbitrage_SellB_SubMenu_Send": {
+        "roi": [
+            1166,
+            662,
+            23,
+            18
         ]
     },
     "Arbitrage_Cooking_SetupToSkill": {
@@ -1181,6 +1488,90 @@
             8,
             106,
             50
+        ]
+    },
+    "Arbitrage_Cooking_MateProtec_B17": {
+        "roi": [
+            485,
+            74,
+            694,
+            595
+        ]
+    },
+    "Arbitrage_Cooking_MateProtec_B14": {
+        "any_of": [
+            {
+                "sub_name": "TemplateMatch",
+                "recognition": "TemplateMatch",
+                "roi": [
+                    485,
+                    74,
+                    694,
+                    595
+                ],
+                "template": [
+                    "Shop/RecipeList/料理_洛克菲勒生蚝.png"
+                ],
+                "green_mask": true
+            },
+            {
+                "sub_name": "TemplateMatch",
+                "recognition": "TemplateMatch",
+                "roi": [
+                    485,
+                    74,
+                    694,
+                    595
+                ],
+                "template": [
+                    "Shop/RecipeList/料理_橄榄油意面.png"
+                ],
+                "green_mask": true
+            },
+            {
+                "sub_name": "TemplateMatch",
+                "recognition": "TemplateMatch",
+                "roi": [
+                    485,
+                    74,
+                    694,
+                    595
+                ],
+                "template": [
+                    "Shop/RecipeList/料理_透明沙拉.png"
+                ],
+                "green_mask": true
+            },
+            {
+                "sub_name": "TemplateMatch",
+                "recognition": "TemplateMatch",
+                "roi": [
+                    485,
+                    74,
+                    694,
+                    595
+                ],
+                "template": [
+                    "Shop/RecipeList/料理_闪闪铁板虾.png"
+                ],
+                "green_mask": true
+            }
+        ]
+    },
+    "Arbitrage_Cooking_MateProtec_B10": {
+        "roi": [
+            485,
+            74,
+            694,
+            595
+        ]
+    },
+    "Arbitrage_Cooking_MateProtec_A2": {
+        "roi": [
+            485,
+            74,
+            694,
+            595
         ]
     },
     "Arbitrage_Cooking_Swip_Page2": {
@@ -1205,13 +1596,13 @@
                 "sub_name": "Templateroi",
                 "recognition": "TemplateMatch",
                 "roi": [
-                    480,
-                    80,
-                    690,
-                    510
+                    485,
+                    74,
+                    694,
+                    595
                 ],
                 "template": [
-                    "Shop/cook_Sparkling Griddle Shrimp_PC.png"
+                    "Shop/RecipeList/料理_闪闪铁板虾.png"
                 ]
             },
             "Sub_<Arbitrage_Cooking>_Clr"
@@ -1224,13 +1615,13 @@
                 "sub_name": "Templateroi",
                 "recognition": "TemplateMatch",
                 "roi": [
-                    480,
-                    80,
-                    690,
-                    510
+                    485,
+                    74,
+                    694,
+                    595
                 ],
                 "template": [
-                    "Shop/cook_Transparent Salad_PC.png"
+                    "Shop/RecipeList/料理_透明沙拉.png"
                 ]
             },
             "Sub_<Arbitrage_Cooking>_Clr"
@@ -1243,14 +1634,108 @@
                 "sub_name": "Templateroi",
                 "recognition": "TemplateMatch",
                 "roi": [
-                    480,
-                    80,
-                    690,
-                    510
+                    485,
+                    74,
+                    694,
+                    595
                 ],
                 "template": [
-                    "Shop/cook_Hellfire Gimbap_PC.png"
+                    "Shop/RecipeList/料理_地狱火紫菜包饭.png"
                 ]
+            },
+            "Sub_<Arbitrage_Cooking>_Clr"
+        ]
+    },
+    "Arbitrage_Cooking_B11": {
+        "all_of": [
+            {
+                "sub_name": "Templateroi",
+                "recognition": "TemplateMatch",
+                "roi": [
+                    485,
+                    74,
+                    694,
+                    595
+                ],
+                "template": [
+                    "Shop/RecipeList/料理_洛克菲勒生蚝.png"
+                ],
+                "green_mask": true
+            },
+            "Sub_<Arbitrage_Cooking>_Clr"
+        ]
+    },
+    "Arbitrage_Cooking_B12": {
+        "all_of": [
+            {
+                "sub_name": "Templateroi",
+                "recognition": "TemplateMatch",
+                "roi": [
+                    485,
+                    74,
+                    694,
+                    595
+                ],
+                "template": [
+                    "Shop/RecipeList/料理_冰镇甜点.png"
+                ],
+                "green_mask": true
+            },
+            "Sub_<Arbitrage_Cooking>_Clr"
+        ]
+    },
+    "Arbitrage_Cooking_B13": {
+        "all_of": [
+            {
+                "sub_name": "Templateroi",
+                "recognition": "TemplateMatch",
+                "roi": [
+                    485,
+                    74,
+                    694,
+                    595
+                ],
+                "template": [
+                    "Shop/RecipeList/料理_炸猪排盖饭.png"
+                ]
+            },
+            "Sub_<Arbitrage_Cooking>_Clr"
+        ]
+    },
+    "Arbitrage_Cooking_B14": {
+        "all_of": [
+            {
+                "sub_name": "Templateroi",
+                "recognition": "TemplateMatch",
+                "roi": [
+                    485,
+                    74,
+                    694,
+                    595
+                ],
+                "template": [
+                    "Shop/RecipeList/料理_橄榄油意面.png"
+                ],
+                "green_mask": true
+            },
+            "Sub_<Arbitrage_Cooking>_Clr"
+        ]
+    },
+    "Arbitrage_Cooking_B15": {
+        "all_of": [
+            {
+                "sub_name": "Templateroi",
+                "recognition": "TemplateMatch",
+                "roi": [
+                    485,
+                    74,
+                    694,
+                    595
+                ],
+                "template": [
+                    "Shop/RecipeList/料理_汉堡排便当.png"
+                ],
+                "green_mask": true
             },
             "Sub_<Arbitrage_Cooking>_Clr"
         ]
@@ -1262,13 +1747,13 @@
                 "sub_name": "Templateroi",
                 "recognition": "TemplateMatch",
                 "roi": [
-                    480,
-                    80,
-                    690,
-                    510
+                    485,
+                    74,
+                    694,
+                    595
                 ],
                 "template": [
-                    "Shop/cook_Lugas Ginseng Skewer_PC.png"
+                    "Shop/RecipeList/料理_卢戈山参烤串.png"
                 ]
             },
             "Sub_<Arbitrage_Cooking>_Clr"
@@ -1281,13 +1766,13 @@
                 "sub_name": "Templateroi",
                 "recognition": "TemplateMatch",
                 "roi": [
-                    480,
-                    80,
-                    690,
-                    510
+                    485,
+                    74,
+                    694,
+                    595
                 ],
                 "template": [
-                    "Shop/cook_Coal Cookies_PC.png"
+                    "Shop/RecipeList/料理_煤炭饼干.png"
                 ]
             },
             "Sub_<Arbitrage_Cooking>_Clr"
@@ -1300,13 +1785,13 @@
                 "sub_name": "Templateroi",
                 "recognition": "TemplateMatch",
                 "roi": [
-                    480,
-                    80,
-                    690,
-                    510
+                    485,
+                    74,
+                    694,
+                    595
                 ],
                 "template": [
-                    "Shop/cook_Honey Butter Almonds_PC.png"
+                    "Shop/RecipeList/料理_蜂蜜黄油杏仁.png"
                 ]
             },
             "Sub_<Arbitrage_Cooking>_Clr"
@@ -1319,13 +1804,13 @@
                 "sub_name": "Templateroi",
                 "recognition": "TemplateMatch",
                 "roi": [
-                    480,
-                    80,
-                    690,
-                    510
+                    485,
+                    74,
+                    694,
+                    595
                 ],
                 "template": [
-                    "Shop/cook_Mayo Triangle Rice Ball_PC.png"
+                    "Shop/RecipeList/料理_三角美乃滋饭团.png"
                 ]
             },
             "Sub_<Arbitrage_Cooking>_Clr"
@@ -1338,13 +1823,13 @@
                 "sub_name": "Templateroi",
                 "recognition": "TemplateMatch",
                 "roi": [
-                    480,
-                    80,
-                    690,
-                    510
+                    485,
+                    74,
+                    694,
+                    595
                 ],
                 "template": [
-                    "Shop/cook_Caviar Omurice_PC.png"
+                    "Shop/RecipeList/料理_鱼子酱蛋包饭.png"
                 ]
             },
             "Sub_<Arbitrage_Cooking>_Clr"
@@ -1357,13 +1842,13 @@
                 "sub_name": "Templateroi",
                 "recognition": "TemplateMatch",
                 "roi": [
-                    480,
-                    80,
-                    690,
-                    510
+                    485,
+                    74,
+                    694,
+                    595
                 ],
                 "template": [
-                    "Shop/cook_Fried Salmon Bento_PC.png"
+                    "Shop/RecipeList/料理_炸三文鱼便当.png"
                 ]
             },
             "Sub_<Arbitrage_Cooking>_Clr"
@@ -1376,13 +1861,199 @@
                 "sub_name": "Templateroi",
                 "recognition": "TemplateMatch",
                 "roi": [
-                    480,
-                    80,
-                    690,
-                    510
+                    485,
+                    74,
+                    694,
+                    595
                 ],
                 "template": [
-                    "Shop/cook_Honey Baked Apple_PC.png"
+                    "Shop/RecipeList/料理_烤蜂蜜苹果.png"
+                ]
+            },
+            "Sub_<Arbitrage_Cooking>_Clr"
+        ]
+    },
+    "Arbitrage_Cooking_B16": {
+        "all_of": [
+            {
+                "sub_name": "Templateroi",
+                "recognition": "TemplateMatch",
+                "roi": [
+                    485,
+                    74,
+                    694,
+                    595
+                ],
+                "template": [
+                    "Shop/RecipeList/料理_泰瑞丝派.png"
+                ],
+                "green_mask": true
+            },
+            "Sub_<Arbitrage_Cooking>_Clr"
+        ]
+    },
+    "Arbitrage_Cooking_B17": {
+        "all_of": [
+            {
+                "sub_name": "Templateroi",
+                "recognition": "TemplateMatch",
+                "roi": [
+                    485,
+                    74,
+                    694,
+                    595
+                ],
+                "template": [
+                    "Shop/RecipeList/料理_三明治便当.png"
+                ],
+                "green_mask": true
+            },
+            "Sub_<Arbitrage_Cooking>_Clr"
+        ]
+    },
+    "Arbitrage_Cooking_B18": {
+        "all_of": [
+            {
+                "sub_name": "Templateroi",
+                "recognition": "TemplateMatch",
+                "roi": [
+                    485,
+                    74,
+                    694,
+                    595
+                ],
+                "template": [
+                    "Shop/RecipeList/料理_手工蛋糕.png"
+                ],
+                "green_mask": true
+            },
+            "Sub_<Arbitrage_Cooking>_Clr"
+        ]
+    },
+    "Arbitrage_Cooking_B19": {
+        "all_of": [
+            {
+                "sub_name": "Templateroi",
+                "recognition": "TemplateMatch",
+                "roi": [
+                    485,
+                    74,
+                    694,
+                    595
+                ],
+                "template": [
+                    "Shop/RecipeList/料理_香甜马卡龙.png"
+                ],
+                "green_mask": true
+            },
+            "Sub_<Arbitrage_Cooking>_Clr"
+        ]
+    },
+    "Arbitrage_Cooking_B20": {
+        "all_of": [
+            {
+                "sub_name": "Templateroi",
+                "recognition": "TemplateMatch",
+                "roi": [
+                    485,
+                    74,
+                    694,
+                    595
+                ],
+                "template": [
+                    "Shop/RecipeList/料理_街头烤鸡肉串.png"
+                ],
+                "green_mask": true
+            },
+            "Sub_<Arbitrage_Cooking>_Clr"
+        ]
+    },
+    "Arbitrage_Cooking_B21": {
+        "all_of": [
+            {
+                "sub_name": "Templateroi",
+                "recognition": "TemplateMatch",
+                "roi": [
+                    485,
+                    74,
+                    694,
+                    595
+                ],
+                "template": [
+                    "Shop/RecipeList/料理_香草牛排.png"
+                ],
+                "green_mask": true
+            },
+            "Sub_<Arbitrage_Cooking>_Clr"
+        ]
+    },
+    "Arbitrage_Cooking_A7": {
+        "all_of": [
+            {
+                "sub_name": "Templateroi",
+                "recognition": "TemplateMatch",
+                "roi": [
+                    485,
+                    74,
+                    694,
+                    595
+                ],
+                "template": [
+                    "Shop/RecipeList/料理_火烤鱼板棒.png"
+                ]
+            },
+            "Sub_<Arbitrage_Cooking>_Clr"
+        ]
+    },
+    "Arbitrage_Cooking_A8": {
+        "all_of": [
+            {
+                "sub_name": "Templateroi",
+                "recognition": "TemplateMatch",
+                "roi": [
+                    485,
+                    74,
+                    694,
+                    595
+                ],
+                "template": [
+                    "Shop/RecipeList/料理_甜辣鲜虾.png"
+                ]
+            },
+            "Sub_<Arbitrage_Cooking>_Clr"
+        ]
+    },
+    "Arbitrage_Cooking_A9": {
+        "all_of": [
+            {
+                "sub_name": "Templateroi",
+                "recognition": "TemplateMatch",
+                "roi": [
+                    485,
+                    74,
+                    694,
+                    595
+                ],
+                "template": [
+                    "Shop/RecipeList/料理_三文鱼芥末寿司.png"
+                ]
+            },
+            "Sub_<Arbitrage_Cooking>_Clr"
+        ]
+    },
+    "Arbitrage_Cooking_A10": {
+        "all_of": [
+            {
+                "sub_name": "Templateroi",
+                "recognition": "TemplateMatch",
+                "roi": [
+                    485,
+                    74,
+                    694,
+                    595
+                ],
+                "template": [
+                    "Shop/RecipeList/料理_巧克力鸡尾酒.png"
                 ]
             },
             "Sub_<Arbitrage_Cooking>_Clr"
@@ -1404,6 +2075,26 @@
             45,
             140,
             45
+        ],
+        "expected": [
+            "所需材料$",
+            "需要的材料$"
+        ]
+    },
+    "Arbitrage_Cooking_Menu_Residue": {
+        "roi": [
+            816,
+            644,
+            129,
+            47
+        ]
+    },
+    "Rec_Cooking_Menu_Reset_True": {
+        "roi": [
+            490,
+            80,
+            675,
+            87
         ]
     },
     "Arbitrage_Cooking_SubMenu": {
@@ -1415,9 +2106,146 @@
         ],
         "expected": [
             "拥有",
+            "持有",
             "立刻恢复",
-            "個食物",
-            "立即恢復"
+            "立即恢復",
+            "個食物"
+        ]
+    },
+    "Arbitrage_Cooking_NubMenu_Max": {
+        "roi": [
+            340,
+            536,
+            221,
+            101
+        ]
+    },
+    "Arbitrage_Cooking_NubMenu_Doing": {
+        "roi": [
+            830,
+            615,
+            93,
+            97
+        ]
+    },
+    "Arbitrage_Cooking_ExMax": {
+        "roi": [
+            322,
+            617,
+            45,
+            32
+        ]
+    },
+    "Arbitrage_Cooking_MaterialInsufficient": {
+        "roi": [
+            322,
+            617,
+            45,
+            32
+        ]
+    },
+    "Agt_Cooking_Name_Ocr": {
+        "roi": [
+            144,
+            55,
+            371,
+            41
+        ]
+    },
+    "Agt_Cooking_Quantity_Ocr": {
+        "roi": [
+            282,
+            617,
+            129,
+            32
+        ]
+    },
+    "Agt_Cooking_Materials_Tpl": {
+        "roi": [
+            143,
+            463,
+            370,
+            83
+        ]
+    },
+    "Agt_Cooking_Material1_Ocr": {
+        "roi": [
+            153,
+            519,
+            63,
+            16
+        ]
+    },
+    "Agt_Cooking_Slot1_Clr": {
+        "roi": [
+            155,
+            476,
+            5,
+            5
+        ]
+    },
+    "Agt_Cooking_Material2_Ocr": {
+        "roi": [
+            223,
+            520,
+            63,
+            15
+        ]
+    },
+    "Agt_Cooking_Slot2_Clr": {
+        "roi": [
+            226,
+            476,
+            5,
+            5
+        ]
+    },
+    "Agt_Cooking_Material3_Ocr": {
+        "roi": [
+            293,
+            519,
+            64,
+            16
+        ]
+    },
+    "Agt_Cooking_Slot3_Clr": {
+        "roi": [
+            298,
+            476,
+            5,
+            5
+        ]
+    },
+    "Agt_Cooking_Material4_Ocr": {
+        "roi": [
+            364,
+            520,
+            64,
+            16
+        ]
+    },
+    "Agt_Cooking_Slot4_Clr": {
+        "roi": [
+            369,
+            477,
+            5,
+            5
+        ]
+    },
+    "Agt_Cooking_Material5_Ocr": {
+        "roi": [
+            434,
+            518,
+            65,
+            17
+        ]
+    },
+    "Agt_Cooking_Slot5_Clr": {
+        "roi": [
+            439,
+            477,
+            5,
+            5
         ]
     },
     "Arbitrage_Cooking_Menu_ReBack": {
@@ -1430,16 +2258,32 @@
         ],
         "expected": [
             "所需材料$",
-            "需要的材料"
+            "需要的材料$"
         ]
+    },
+    "Arbitrage_ShopBuy_Tuning_Csm": {
+        "attach": {
+            "name_roi_offset": [
+                25,
+                -6,
+                120,
+                12
+            ]
+        }
     },
     "Arbitrage_ShopBuy_ReadNames_Csm": {
         "desc": "【Py引用】商品名OCR。|[PC覆盖·2026-07-14] 商品格实测x335-1190起于y85,base roi[390,93]切首列星标区,扩[330,85,810,545]。",
         "roi": [
             330,
             85,
-            810,
+            839,
             545
+        ],
+        "replace": [
+            [
+                "^蘿萄嬰$",
+                "蘿蔔嬰"
+            ]
         ]
     },
     "Arbitrage_ShopBuy_FindStars_Csm": {
@@ -1453,6 +2297,391 @@
         "template": [
             "Shop/star_gray_PC.png"
         ]
+    },
+    "Arbitrage_BagStockScan_Entry_Main": {
+        "roi": [
+            201,
+            619,
+            92,
+            86
+        ]
+    },
+    "Arbitrage_BagStockScan_Sort_Menu": {
+        "roi": [
+            938,
+            54,
+            246,
+            235
+        ],
+        "expected": [
+            "优先",
+            "優先",
+            "排序"
+        ]
+    },
+    "Arbitrage_BagStockScan_Sort_Menu_Swipe": {
+        "begin": [
+            1053,
+            254,
+            1,
+            1
+        ],
+        "end": [
+            1053,
+            69,
+            1,
+            1
+        ],
+        "post_wait_freezes": {
+            "target": [
+                1019,
+                61,
+                85,
+                215
+            ]
+        }
+    },
+    "Arbitrage_BagStockScan_Sort_Menu_Set": {
+        "roi": [
+            938,
+            54,
+            246,
+            235
+        ],
+        "expected": [
+            "料理食材优先",
+            "料理食材優先",
+            "按料理食材数量从高到低排序",
+            "料理食材由多至少排序"
+        ]
+    },
+    "Arbitrage_BagStockScan_Sort_Egress": {
+        "expected": [
+            "按料理食材数量从低到高排序",
+            "料理食材由少至多排序"
+        ],
+        "target": [
+            384,
+            83,
+            18,
+            17
+        ]
+    },
+    "Arbitrage_Bag_TabReset_Coll": {
+        "all_of": [
+            {
+                "sub_name": "ColorMatch",
+                "recognition": "ColorMatch",
+                "roi": [
+                    113,
+                    297,
+                    8,
+                    7
+                ],
+                "method": 40,
+                "lower": [
+                    [
+                        0,
+                        0,
+                        230
+                    ]
+                ],
+                "upper": [
+                    [
+                        180,
+                        30,
+                        255
+                    ]
+                ]
+            },
+            {
+                "sub_name": "OCR",
+                "recognition": "OCR",
+                "roi": [
+                    155,
+                    8,
+                    217,
+                    51
+                ],
+                "expected": [
+                    "收集品$",
+                    "收藏品$"
+                ]
+            }
+        ]
+    },
+    "Arbitrage_Bag_TabReset_Coll_Act": {
+        "target": [
+            110,
+            289,
+            13,
+            14
+        ]
+    },
+    "Arbitrage_Bag_TabReset_Cons": {
+        "all_of": [
+            {
+                "sub_name": "ColorMatch",
+                "recognition": "ColorMatch",
+                "roi": [
+                    114,
+                    104,
+                    5,
+                    7
+                ],
+                "method": 40,
+                "lower": [
+                    [
+                        0,
+                        0,
+                        230
+                    ]
+                ],
+                "upper": [
+                    [
+                        180,
+                        30,
+                        255
+                    ]
+                ]
+            },
+            {
+                "sub_name": "OCR",
+                "recognition": "OCR",
+                "roi": [
+                    183,
+                    10,
+                    179,
+                    51
+                ],
+                "expected": [
+                    "^消耗品"
+                ]
+            }
+        ]
+    },
+    "Arbitrage_Bag_TabReset_Cons_Act": {
+        "target": [
+            109,
+            99,
+            14,
+            16
+        ]
+    },
+    "Arbitrage_BagStockScan_Swipe": {
+        "post_wait_freezes": {
+            "target": [
+                992,
+                61,
+                60,
+                238
+            ]
+        }
+    },
+    "Agt_BagStock_List_Ready": {
+        "all_of": [
+            "Arbitrage_Bag_TabReset_Cons",
+            {
+                "sub_name": "OCR",
+                "recognition": "OCR",
+                "roi": [
+                    929,
+                    8,
+                    224,
+                    41
+                ],
+                "expected": [
+                    "^料理食材[优優]先$"
+                ]
+            }
+        ]
+    },
+    "Agt_BagStock_Item_Tpl": {
+        "roi": [
+            475,
+            50,
+            676,
+            600
+        ]
+    },
+    "Agt_BagStock_Name_Ocr": {
+        "roi": [
+            318,
+            213,
+            216,
+            43
+        ]
+    },
+    "Agt_BagStock_Quantity_Ocr": {
+        "roi": [
+            322,
+            272,
+            281,
+            34
+        ]
+    },
+    "Agt_BagStock_End_Tpl": {
+        "roi": [
+            475,
+            50,
+            676,
+            600
+        ]
+    },
+    "Agt_BuyQuantity_Available_Ocr": {
+        "roi": [
+            783,
+            444,
+            180,
+            77
+        ]
+    },
+    "Agt_BuyQuantity_Cost_White": {
+        "roi": [
+            320,
+            392,
+            324,
+            38
+        ]
+    },
+    "Agt_BuyQuantity_Cost_Ocr": {
+        "roi": [
+            320,
+            392,
+            324,
+            38
+        ]
+    },
+    "Agt_BuyConfirm_Ocr": {
+        "roi": [
+            783,
+            444,
+            180,
+            77
+        ]
+    },
+    "Agt_BuyQuantity_Gold_Ocr": {
+        "roi": [
+            1061,
+            26,
+            139,
+            26
+        ]
+    },
+    "Arbitrage_Replenish_ShopReady": {
+        "all_of": [
+            "Arbitrage_Merchant_Egress",
+            {
+                "sub_name": "ActiveTab",
+                "recognition": "ColorMatch",
+                "roi": [
+                    95,
+                    78,
+                    37,
+                    118
+                ],
+                "method": 40,
+                "lower": [
+                    [
+                        0,
+                        0,
+                        188
+                    ]
+                ],
+                "upper": [
+                    [
+                        30,
+                        2,
+                        255
+                    ]
+                ],
+                "count": 30
+            }
+        ]
+    },
+    "Agt_SellList_BuyTab": {
+        "roi": [
+            68,
+            73,
+            93,
+            61
+        ]
+    },
+    "Agt_SellList_BuyReady": {
+        "desc": "PC购买页签选中亮色区域；补买与柜台回顶复用，避免只截到图标右缘。",
+        "roi": [
+            96,
+            80,
+            37,
+            60
+        ]
+    },
+    "Arbitrage_Sell_Item_ListReset_Sell_Chg": {
+        "roi": [
+            79,
+            137,
+            65,
+            63
+        ],
+        "expected": [
+            "出售",
+            "販售"
+        ]
+    },
+    "Arbitrage_Sell_Item_ListReset_PostOcr": {
+        "roi": [
+            322,
+            79,
+            101,
+            44
+        ],
+        "expected": [
+            "食物$",
+            "料理$"
+        ],
+        "post_wait_freezes": {
+            "target": [
+                551,
+                127,
+                55,
+                338
+            ]
+        }
+    },
+    "Arbitrage_Sale_Shop_PostOcr": {
+        "post_wait_freezes": {
+            "target": [
+                551,
+                127,
+                55,
+                338
+            ]
+        }
+    },
+    "Arbitrage_Sale_Shop_Reset": {
+        "begin": [
+            200,
+            135,
+            1,
+            1
+        ],
+        "end": [
+            200,
+            660,
+            1,
+            1
+        ],
+        "post_wait_freezes": {
+            "target": [
+                157,
+                81,
+                129,
+                42
+            ]
+        }
+    },
+    "Arbitrage_Favorit_Buy_SubMenu_Closure": {
+        "desc": "购买收尾:识别售罄标确认买完。现方案=OCR 单字'售'+红色色核双条件(all_of)。⚠️ 售罄小红标仅约 20x10px,OCR 的 det 阶段就未必出得了框,识别不到是常态,故本节点当前实际收效有限、不可作为购买成败的判据——实购成功与否以金币扣款为准。"
     },
     "Arbitrage_Chain_Retry_PC": {
         "desc": "[PC新增·2026-07-23] 套利进图链超时救援垫。07-23 09:06/09:14两轮实录:插卡成功进商队城镇后Sandplay识别断腿(安卓pin模板PC城镇0.604<0.7),Card5#_Goin的next全miss超时→无自定义on_error→MFA默认Global_Null兜底恒命中→流程SUCCEEDED,'找不到商人'被翻译成任务完成。本节点DirectHit恒中,回Global_BackToPve_Anc整链重试;max_hit 2耗尽后不再命中→流程以失败终止(自定义on_error覆盖默认Null,MFA #1219语义)。",
