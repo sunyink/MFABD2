@@ -118,7 +118,8 @@ class BagScanner:
                     continue
                 texts, _, _ = _read_texts(self.context, self.config["quantity_node"], image,
                                          retry=bool(attempt))
-                quantity = _unique_parsed(texts, r"[拥擁]有" + _NUMBER + r"[个個]")
+                # 简体实机为“拥有…个”，繁体实机为“持有…個”。
+                quantity = _unique_parsed(texts, r"(?:[拥擁]有|持有)" + _NUMBER + r"[个個]")
                 if quantity is not None:
                     return quantity[0]
             return None
