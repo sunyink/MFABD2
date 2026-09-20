@@ -12,6 +12,7 @@ from .arbitrage_sell_quantity import QuantityAdjuster, parse_quantity, _clean, _
 from .gold_verify import clear_verdict, get_baseline
 from utils import mfaalog
 from utils.arbitrage_quote import parse_money, parse_quote as parse_cost
+from utils.arbitrage_purchase_lists import load_purchase_catalog
 
 
 _QUANTITY = "Arbitrage_Sell_Item_Quantity"
@@ -201,6 +202,24 @@ class ArbitrageBuyConfirm(CustomAction):
             return False
 
 
+def _shop_expected(context, shop_name):
+    """复用当前资源包的采购选卡词，柜台本地化及 OCR 容错由资源维护。"""
+    selectors = [definition["selector"] for key, definition in load_purchase_catalog().items()
+                 if key.partition(":")[2] == shop_name.strip()]
+    if len(selectors) != 1:
+        raise ValueError(f"补买柜台没有唯一采购选择节点: {shop_name}")
+    node = context.get_node_data(selectors[0])
+    recognition = node.get("recognition") if isinstance(node, dict) else None
+    if not isinstance(recognition, dict) or recognition.get("type") != "OCR":
+        raise ValueError(f"补买柜台选择节点不是有效 OCR: {selectors[0]}")
+    params = recognition.get("param")
+    expected = params.get("expected") if isinstance(params, dict) else None
+    if (not isinstance(expected, list) or not expected
+            or any(not isinstance(value, str) or not value.strip() for value in expected)):
+        raise ValueError(f"补买柜台选择节点缺少有效 expected: {selectors[0]}")
+    return list(expected)
+
+
 def buy_overrides(context, request):
     from .arbitrage_result import _sell_item_override, _cart_expected
     patch = _sell_item_override(context, request["item_name"])
@@ -209,7 +228,7 @@ def buy_overrides(context, request):
     config.update(price_node=_BUY_BUTTON_NODE, available_node="Agt_BuyQuantity_Available_Ocr",
                   gold_node="Agt_BuyQuantity_Gold_Ocr",
                   cost_node="Agt_BuyQuantity_Cost_Ocr")
-    shop_expected = ("^" + re.escape(_clean(request["shop_name"])) + "$"
+    shop_expected = (_shop_expected(context, request["shop_name"])
                      if request.get("shop_name") else _cart_expected(request["cartridge"]))
     patch.update({
         "Arbitrage_Sell_Type_Ocr": {"any_of": ["Arbitrage_Buy_Button_Chg"]},

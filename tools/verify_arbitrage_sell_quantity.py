@@ -69,6 +69,49 @@ class QuantityUI(quantity.SaleQuantityAdjuster):
 
 
 class StackQuantityTests(unittest.TestCase):
+    def test_purchase_shop_patterns_follow_loaded_resources(self):
+        base = json.loads((ROOT / "assets/resource/base/pipeline/Arbitrage.json").read_text(encoding="utf-8"))
+        pc_path = ROOT / "assets/resource/pc/pipeline/Arbitrage.json"
+        overlays = [{}]
+        if pc_path.exists():
+            overlays.append(json.loads(pc_path.read_text(encoding="utf-8")))
+        shops = json.loads((ROOT / "agent/data/arbitrage_replenish.json").read_text(encoding="utf-8"))["shops"]
+        catalog = buy.load_purchase_catalog()
+        selectors = {key.split(":", 1)[1]: value["selector"] for key, value in catalog.items()}
+        for overlay in overlays:
+            for shop in shops:
+                selector = selectors[shop]
+                node = {**base[selector], **overlay.get(selector, {})}
+                data = {"enabled": False, "max_hit": 0,
+                        "recognition": {"type": "OCR", "param": {"expected": node["expected"]}}}
+                context = SimpleNamespace(
+                    get_node_data=lambda name: data if name == selector else None,
+                    get_node_object=lambda name: SimpleNamespace(attach=base[name].get("attach", {})))
+                with self.subTest(shop=shop, pc=bool(overlay)):
+                    override = buy.buy_overrides(context, {"item_name": "蘑菇", "shop_name": shop})
+                    self.assertEqual(override["Arbitrage_Sell_PackShopSwich"]["expected"], node["expected"])
+
+    def test_purchase_shop_patterns_preserve_runtime_regex_and_partial_names(self):
+        expected = ["国同盟", "國同盟", "[魯鲁]的迷[宮宫]", "新资源名称"]
+        context = SimpleNamespace(get_node_data=lambda name: {
+            "recognition": {"type": "OCR", "param": {"expected": expected}}})
+        actual = buy._shop_expected(context, "三国同盟")
+        for text in ("三国同盟", "三國同盟", "魯的迷宮", "新资源名称"):
+            self.assertTrue(any(re.search(pattern, text) for pattern in actual))
+        self.assertEqual(actual, expected)
+        self.assertIsNot(actual, expected)
+
+    def test_purchase_shop_patterns_reject_missing_or_invalid_configuration(self):
+        for node in (None, {}, {"recognition": {"type": "TemplateMatch"}},
+                     *({"recognition": {"type": "OCR", "param": {"expected": expected}}}
+                       for expected in (None, [], "血骑士", [""], [" "], [123]))):
+            with self.subTest(node=node):
+                context = SimpleNamespace(get_node_data=lambda name: node)
+                with self.assertRaises(ValueError):
+                    buy._shop_expected(context, "血骑士")
+        with self.assertRaises(ValueError):
+            buy._shop_expected(context, "未收录柜台")
+
     def test_purchase_recognition_uses_resources_without_overwriting_sale_quote(self):
         pipeline = json.loads((ROOT / "assets/resource/base/pipeline/Arbitrage.json").read_text(encoding="utf-8"))
         context = SimpleNamespace(get_node_object=lambda name: SimpleNamespace(attach=pipeline[name].get("attach", {})))
