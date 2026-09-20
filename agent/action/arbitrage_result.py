@@ -14,7 +14,7 @@ from utils.arbitrage_store import (
     save_market_snapshot,
     save_possession_snapshot,
 )
-from utils.name_i18n import canon
+from utils.name_i18n import canon, name_variants
 from utils.arbitrage_material_policy import read_material_reserve_policy
 from action.arbitrage_sell_batch import execute_sale_item
 
@@ -59,7 +59,7 @@ SCORE_MIN = 0.6      # 卡带选中组组分低于此=低置信,打WRN(实录错
 def _sell_item_override(context: Context, item_name: str) -> dict:
     """每次派发同时更新OCR和模板；无模板时父Or只走OCR，不沿用上一件的图。"""
     result = {
-        _SELL_ITEM_OCR: {"expected": "^" + re.escape(item_name) + "$"},
+        _SELL_ITEM_OCR: {"expected": ["^" + re.escape(name) + "$" for name in name_variants(item_name)]},
         _SELL_ITEM_LIST: {"any_of": [_SELL_ITEM_OCR]},
     }
     try:
@@ -742,7 +742,7 @@ class ArbitrageSellController(CustomAction):
                 continue
 
             # 卡带识别质量轻告警(#B):低置信或上下分歧只提示,不阻断——读错最坏进错柜台当没卖掉,
-            # 真相由下面的金币验证承担。派发链的 expected 沿用 OCR 原文(繁体端须同语言匹配菜单)。
+            # 真相由下面的金币验证承担。商品 expected 由共用派发函数展开简繁名称。
             if target.get("cart_score", 1.0) < SCORE_MIN or target.get("cart_conflict"):
                 mfaalog.warning(
                     f"[Arbitrage]   ⚠️ 卡带识别可疑(组分{target.get('cart_score', 0):.2f}"

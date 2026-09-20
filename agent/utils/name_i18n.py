@@ -19,10 +19,10 @@ BD2DB(souseha) 站点全量道具（简繁双射、跨项零碰撞，详见项�
     canon("三文鱼") -> "三文鱼"   # 恒等
     canon("某未收录名") -> 原样返回  # 兜底不误伤
 
-【关键差异·调用方须知】
-    - 买入侧：名字只用于「是否目标」判定 + 按坐标点星，归一化后随便用。
-    - 卖出侧：OCR 名要回填给售卖链 expected 去匹配同语言 UI，**只能归一化用于白名单
-      核对的副本**，回填给链条的必须保持 OCR 原文，否则繁体端卖不掉。
+【输入与输出】
+    - 内部比较、计划和记账用 canon() 统一为简体物品名。
+    - 回填界面 OCR 匹配词时用 name_variants() 展开简繁名称，无需判断客户端语言。
+    - 原始 OCR 名仍可保存作观测证据；未收录名称保留原文，不猜测翻译。
 """
 
 import json
@@ -65,3 +65,13 @@ def canon(name: str) -> str:
 def canon_set(names) -> set:
     """批量归一化为规范简体集合（供 attach 清单一次性转换）。"""
     return {canon(n) for n in names}
+
+
+def name_variants(name: str) -> list[str]:
+    """返回同一物品的规范简体、输入原文和已收录繁体名，去重并保留顺序。"""
+    if not name:
+        return []
+    canonical = canon(name)
+    return list(dict.fromkeys([canonical, name, *(
+        traditional for traditional, simplified in _load().items() if simplified == canonical
+    )]))

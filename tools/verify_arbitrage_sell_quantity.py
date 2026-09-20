@@ -69,6 +69,15 @@ class QuantityUI(quantity.SaleQuantityAdjuster):
 
 
 class StackQuantityTests(unittest.TestCase):
+    def test_purchase_item_dispatch_matches_simplified_and_traditional(self):
+        pipeline = json.loads((ROOT / "assets/resource/base/pipeline/Arbitrage.json").read_text(encoding="utf-8"))
+        context = SimpleNamespace(get_node_object=lambda name: SimpleNamespace(attach=pipeline[name].get("attach", {})))
+        for name in ("三文鱼", "鮭魚"):
+            override = buy.buy_overrides(context, {"item_name": name, "cartridge": "剧情游戏卡1"})
+            patterns = override["Agt_<Sell_Item>_Ocr"]["expected"]
+            for target in ("三文鱼", "鮭魚"):
+                self.assertTrue(any(re.fullmatch(pattern, target) for pattern in patterns))
+
     def test_purchase_shop_patterns_follow_loaded_resources(self):
         base = json.loads((ROOT / "assets/resource/base/pipeline/Arbitrage.json").read_text(encoding="utf-8"))
         pc_path = ROOT / "assets/resource/pc/pipeline/Arbitrage.json"

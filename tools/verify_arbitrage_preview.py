@@ -1,6 +1,7 @@
 """启动变现预览模式回归检查；不连接游戏、不读写真实存档。"""
 
 import json
+import re
 import sys
 import unittest
 from pathlib import Path
@@ -12,6 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "agent"))
 
 import action.arbitrage_result as ar
+from utils import name_i18n
 
 
 PIPELINE = json.loads((ROOT / "assets/resource/base/pipeline/Arbitrage.json").read_text(encoding="utf-8"))
@@ -62,6 +64,38 @@ def item(name, is_max=True, cart="剧情游戏卡17", current_rate=120):
 
 
 class ArbitragePreviewTests(unittest.TestCase):
+    def test_item_dispatch_matches_both_languages_from_either_input(self):
+        pairs = [("三文鱼", "鮭魚"), ("黄油", "奶油"), ("香草", "草藥"),
+                 ("天赋神药", "天賦特效藥")]
+        for simplified, traditional in pairs:
+            for source in (simplified, traditional):
+                with self.subTest(source=source):
+                    override = ar._sell_item_override(Context(), source)
+                    patterns = override["Agt_<Sell_Item>_Ocr"]["expected"]
+                    for target in (simplified, traditional):
+                        self.assertTrue(any(re.search(pattern, target) for pattern in patterns))
+                    for target in ("其他物品", simplified + "汤", "大" + traditional):
+                        self.assertFalse(any(re.search(pattern, target) for pattern in patterns))
+                    self.assertEqual(name_i18n.canon(source), simplified)
+
+    def test_item_variants_cover_dictionary_without_changing_identity(self):
+        for traditional, simplified in name_i18n._load().items():
+            variants = name_i18n.name_variants(simplified)
+            self.assertIn(traditional, variants)
+            self.assertEqual(len(variants), len(set(variants)))
+            self.assertEqual({name_i18n.canon(name) for name in variants}, {simplified})
+
+    def test_unknown_item_and_missing_dictionary_preserve_literal_name(self):
+        for dictionary in (None, {}):
+            with patch.object(name_i18n, "_NORM", dictionary):
+                name = "未知物品(甲)+."
+                patterns = ar._sell_item_override(Context(), name)["Agt_<Sell_Item>_Ocr"]["expected"]
+                self.assertEqual(name_i18n.name_variants(name), [name])
+                self.assertTrue(any(re.search(pattern, name) for pattern in patterns))
+                self.assertFalse(any(re.search(pattern, "未知物品甲甲X") for pattern in patterns))
+        with patch.object(name_i18n, "_NORM", {}):
+            self.assertEqual(name_i18n.name_variants("鮭魚"), ["鮭魚"])
+
     def setUp(self):
         ar._RECIPE_NAMES = None
         self.sync = patch.object(ar, "sync_from_context", return_value=True)
@@ -114,7 +148,9 @@ class ArbitragePreviewTests(unittest.TestCase):
         execute.assert_called_once()
         self.assertEqual(execute.call_args.args[:2], (context, "烤蜂蜜苹果"))
         override = execute.call_args.args[2]
-        self.assertEqual(override["Agt_<Sell_Item>_Ocr"]["expected"], "^烤蜂蜜苹果$")
+        patterns = override["Agt_<Sell_Item>_Ocr"]["expected"]
+        for name in ("烤蜂蜜苹果", "烤蜂蜜蘋果"):
+            self.assertTrue(any(re.fullmatch(pattern, name) for pattern in patterns))
         self.assertEqual(override["Arbitrage_Sell_Item_Price_MaxCheck"]["expected"], "118%")
         self.assertEqual(execute.call_args.kwargs, {"reserve": 0})
 
