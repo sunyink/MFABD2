@@ -991,13 +991,46 @@
         ]
     },
     "Arbitrage_Sell_Cart_RescueNum": {
-        "desc": "【SellCtrl·尾号救援·参数全无量纲(相对实检类型框),故两端可共用】py按类型锚算roi后override跑only_rec把漏检的尾号读回;本节点承载可调参,py读取缺项回落内置默认。尺度:H=类高中位数、W=类型块宽、yb=类型下缘。min_score=号rec置信下限;narrow_frac=窄roi宽占W比例(右对齐值带避字底);pad_frac=宽roi横向外扩占W比例;h_frac=号roi高占H比例;y_shifts=带顶相对yb的纵向位移(单位=H,多档集成含下移躲字底)。选择器:候选投票→score,详见py注释。",
+        "desc": "PC价目表卡带救援几何与繁体显示用词；识别、裁剪和结果判断沿用共用逻辑。",
         "roi": [
             908,
             234,
             82,
             289
-        ]
+        ],
+        "attach": {
+            "narrow_frac": 0.3,
+            "number_height": 12,
+            "number_right_pad": 9,
+            "type_height": 12,
+            "type_height_range": [
+                8,
+                22
+            ],
+            "type_labels": {
+                "character": "角色遊戲卡帶",
+                "event": "活動遊戲卡帶",
+                "manager": "店長遊戲卡帶",
+                "story": "故事遊戲卡帶"
+            }
+        }
+    },
+    "Agt_PriceList_Swip": {
+        "custom_action_param": {
+            "detect_roi": [
+                505,
+                234,
+                105,
+                288
+            ],
+            "loop_exhausted": "next",
+            "loop_limit": 3,
+            "on_changed": "next",
+            "on_unchanged": "loop",
+            "proxy_node": "Arbitrage_Swip_PriceList",
+            "settle_delay": 300,
+            "threshold": 3.0
+        }
     },
     "Arbitrage_Swip_PriceList": {
         "begin": [
@@ -2271,11 +2304,6 @@
             "需要的材料$"
         ]
     },
-    "Arbitrage_ShopBuy_Data_Csm": {
-        "attach": {
-            "ocr_exclude": "材料,食材,食物,购买,購買,出售,販售,初始化,还剩,重置,剩下"
-        }
-    },
     "Arbitrage_ShopBuy_Tuning_Csm": {
         "attach": {
             "name_roi_offset": [
@@ -2721,5 +2749,10 @@
             "Global_BackToPve_Anc"
         ],
         "focus": "Arb.PC.进图链超时!重回复位整链重试"
+    },
+    "Arbitrage_ShopBuy_Data_Csm": {
+        "attach": {
+            "ocr_exclude": "材料,食材,食物,购买,購買,出售,販售,初始化,还剩,重置,剩下"
+        }
     }
 }
