@@ -2729,6 +2729,27 @@
             "Arbitrage_ShopOut"
         ]
     },
+    "Arbitrage_Sell_Name_Rescue": {
+        "desc": "数据节点：未知或有歧义的商品名称局部重读；由共用名称名录救援调用，不进入导航。",
+        "recognition": "OCR",
+        "roi": "Arbitrage_Sell_Col_Name",
+        "only_rec": true
+    },
+    "Arbitrage_Sell_Amount_Rescue": {
+        "desc": "数据节点：单页金额一致性检查失败后，按白字动态范围救援；base与PC共用逻辑，参数每次读取副本。",
+        "recognition": "OCR",
+        "roi": "Arbitrage_Sell_Col_Amount",
+        "only_rec": true,
+        "attach": {
+            "initial_min_score": 0.8,
+            "rescue_min_score": 0.6,
+            "white_min": 180,
+            "white_chroma": 40,
+            "white_column_pixels": 3,
+            "pad_fraction": 0.12,
+            "rounding_tolerance": 1.0
+        }
+    },
     "Arbitrage_Sell_Col_Name": {
         "desc": "数据节点:出售解析·商品名列带(py首跑查询roi后缓存,不入流程;x/w即列带范围,#380)",
         "recognition": "OCR",
@@ -2782,7 +2803,7 @@
         ]
     },
     "Arbitrage_Sell_Cart_RescueNum": {
-        "desc": "NK【SellCtrl·尾号救援·base/ADB端】节点存在性用于消除ADB(base-only)侧get_node_data找不到节点的WRN/ERR;参数无量纲、义同pc覆盖层同名节点(py默认已纸面校验覆盖ADB)。min_score=号rec置信下限;narrow_frac=窄roi宽占W比例;pad_frac=宽roi横向外扩占W比例;h_frac=号roi高占H比例;y_shifts=带顶相对yb的纵向位移(单位=H,多档集成含下移躲字底)。",
+        "desc": "价目表卡带救援：类型与编号分开判断；正常框整体平移，压界裁短，大框重检后可按默认高度扫描。attach为双端共用规则及ADB默认几何，PC仅覆盖几何与显示用词。",
         "recognition": "OCR",
         "roi": [
             960,
@@ -2793,6 +2814,8 @@
         "only_rec": true,
         "attach": {
             "min_score": 0.6,
+            "initial_min_score": 0.85,
+            "score_drop": 0.25,
             "narrow_frac": 0.5,
             "pad_frac": 0.1,
             "h_frac": 1.2,
@@ -2800,8 +2823,61 @@
                 -0.2,
                 0.0,
                 0.2
-            ]
+            ],
+            "type_height_range": [
+                10,
+                25
+            ],
+            "type_height": 17,
+            "number_height": 16,
+            "number_left_frac": 0.6,
+            "number_right_pad": 10,
+            "scan_step": 3,
+            "max_scan_windows": 24,
+            "number_ranges": {
+                "story": [
+                    1,
+                    19
+                ],
+                "character": [
+                    1,
+                    7
+                ],
+                "event": [
+                    1,
+                    7
+                ],
+                "manager": []
+            },
+            "type_labels": {
+                "story": "剧情游戏卡",
+                "character": "角色游戏卡",
+                "event": "活动游戏卡",
+                "manager": "店长游戏卡"
+            }
         }
+    },
+    "Agt_PriceList_Swip": {
+        "desc": "py独占，勿挂进管路：价目表翻页及微调后等待300ms再比较商品区；最多尝试3次，无变化交回py复核判底。空on_error确保截图等异常向调用方返回失败。",
+        "action": "Custom",
+        "custom_action": "SmartAction",
+        "custom_action_param": {
+            "proxy_node": "Arbitrage_Swip_PriceList",
+            "detect_roi": [
+                478,
+                209,
+                132,
+                344
+            ],
+            "threshold": 3.0,
+            "settle_delay": 300,
+            "on_changed": "next",
+            "on_unchanged": "loop",
+            "loop_limit": 3,
+            "loop_exhausted": "next"
+        },
+        "timeout": 1,
+        "on_error": []
     },
     "Arbitrage_Swip_PriceList": {
         "desc": "【非孤立节点】由Agent调用,价目表下滑Runtask入口",
