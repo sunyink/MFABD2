@@ -434,8 +434,16 @@
         "expected": [
             "关闭商店"
         ],
-        "pre_delay": 500,
-        "action": "Click"
+        "action": "Click",
+        "post_wait_freezes": {
+            "time": 500,
+            "target": [
+                750,
+                401,
+                104,
+                92
+            ]
+        }
     },
     "#3购买流程": {},
     "Arbitrage_BuyItem": {
@@ -459,25 +467,31 @@
     },
     "Arbitrage_Buy_Button": {
         "desc": "验证类型-购买",
-        "recognition": "ColorMatch",
-        "roi": [
-            118,
-            96,
-            37,
-            60
+        "recognition": "And",
+        "all_of": [
+            {
+                "recognition": "ColorMatch",
+                "roi": [
+                    118,
+                    96,
+                    37,
+                    60
+                ],
+                "method": 40,
+                "lower": [
+                    0,
+                    0,
+                    188
+                ],
+                "upper": [
+                    30,
+                    2,
+                    255
+                ],
+                "count": 30
+            },
+            "Arbitrage_Merchant_Egress"
         ],
-        "method": 40,
-        "lower": [
-            0,
-            0,
-            188
-        ],
-        "upper": [
-            30,
-            2,
-            255
-        ],
-        "count": 30,
         "next": [
             "[JumpBack]Arbitrage_Buy_CheckCycle_Entry",
             "[JumpBack]Arbitrage_Buy_ToSelect",
@@ -3110,7 +3124,7 @@
             255,
             255
         ],
-        "count": 100,
+        "count": 80,
         "timeout": 4000,
         "next": [
             "[Anchor]PackSelect_Next"
@@ -3817,6 +3831,10 @@
     },
     "Arbitrage_PackList_ResetSwip": {
         "desc": "商店卡带列表滑动",
+        "recognition": "Or",
+        "any_of": [
+            "Arbitrage_Merchant_Egress"
+        ],
         "action": "Swipe",
         "begin": [
             285,
