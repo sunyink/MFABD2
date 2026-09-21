@@ -1523,6 +1523,36 @@
             8,
             106,
             50
+        ],
+        "next": [
+            "[JumpBack]Arbitrage_Cooking_Err_At_Sandbox",
+            "[JumpBack]Arbitrage_Cooking_MateProtec",
+            "[JumpBack]Arbitrage_Cooking_B10_Entry",
+            "[JumpBack]Arbitrage_Cooking_B9_Entry",
+            "[JumpBack]Arbitrage_Cooking_B8_Entry",
+            "[JumpBack]Arbitrage_Cooking_B7_Entry",
+            "[JumpBack]Arbitrage_Cooking_B6_Entry",
+            "[JumpBack]Arbitrage_Cooking_B21_Entry",
+            "[JumpBack]Arbitrage_Cooking_B11_Entry",
+            "[JumpBack]Arbitrage_Cooking_B14_Entry",
+            "[JumpBack]Arbitrage_Cooking_B20_Entry",
+            "[JumpBack]Arbitrage_Cooking_B15_Entry",
+            "[JumpBack]Arbitrage_Cooking_B12_Entry",
+            "[JumpBack]Arbitrage_Cooking_B19_Entry",
+            "[JumpBack]Arbitrage_Cooking_B17_Entry",
+            "[JumpBack]Arbitrage_Cooking_B18_Entry",
+            "[JumpBack]Arbitrage_Cooking_B16_Entry",
+            "[JumpBack]Arbitrage_Cooking_B13_Entry",
+            "[JumpBack]Arbitrage_Cooking_A2_Entry",
+            "[JumpBack]Arbitrage_Cooking_A1_Entry",
+            "[JumpBack]Arbitrage_Cooking_A7_Entry",
+            "[JumpBack]Arbitrage_Cooking_A4_Entry",
+            "[JumpBack]Arbitrage_Cooking_A8_Entry",
+            "[JumpBack]Arbitrage_Cooking_A3_Entry",
+            "[JumpBack]Arbitrage_Cooking_A9_Entry",
+            "[JumpBack]Arbitrage_Cooking_A5_Entry",
+            "[JumpBack]Arbitrage_Cooking_A10_Entry",
+            "[Anchor]Cooking_Exit"
         ]
     },
     "Arbitrage_Cooking_MateProtec_B17": {
@@ -1646,7 +1676,8 @@
                 ],
                 "template": [
                     "Shop/RecipeList/料理_闪闪铁板虾.png"
-                ]
+                ],
+                "threshold": 0.9
             },
             "Sub_<Arbitrage_Cooking>_Clr"
         ]
@@ -1665,7 +1696,8 @@
                 ],
                 "template": [
                     "Shop/RecipeList/料理_透明沙拉.png"
-                ]
+                ],
+                "threshold": 0.9
             },
             "Sub_<Arbitrage_Cooking>_Clr"
         ]
@@ -1684,7 +1716,8 @@
                 ],
                 "template": [
                     "Shop/RecipeList/料理_地狱火紫菜包饭.png"
-                ]
+                ],
+                "threshold": 0.9
             },
             "Sub_<Arbitrage_Cooking>_Clr"
         ]
@@ -1703,7 +1736,8 @@
                 "template": [
                     "Shop/RecipeList/料理_洛克菲勒生蚝.png"
                 ],
-                "green_mask": true
+                "green_mask": true,
+                "threshold": 0.9
             },
             "Sub_<Arbitrage_Cooking>_Clr"
         ]
@@ -1722,7 +1756,8 @@
                 "template": [
                     "Shop/RecipeList/料理_冰镇甜点.png"
                 ],
-                "green_mask": true
+                "green_mask": true,
+                "threshold": 0.9
             },
             "Sub_<Arbitrage_Cooking>_Clr"
         ]
@@ -1740,7 +1775,8 @@
                 ],
                 "template": [
                     "Shop/RecipeList/料理_炸猪排盖饭.png"
-                ]
+                ],
+                "threshold": 0.9
             },
             "Sub_<Arbitrage_Cooking>_Clr"
         ]
@@ -1759,7 +1795,8 @@
                 "template": [
                     "Shop/RecipeList/料理_橄榄油意面.png"
                 ],
-                "green_mask": true
+                "green_mask": true,
+                "threshold": 0.9
             },
             "Sub_<Arbitrage_Cooking>_Clr"
         ]
@@ -1778,7 +1815,8 @@
                 "template": [
                     "Shop/RecipeList/料理_汉堡排便当.png"
                 ],
-                "green_mask": true
+                "green_mask": true,
+                "threshold": 0.9
             },
             "Sub_<Arbitrage_Cooking>_Clr"
         ]
@@ -1797,7 +1835,8 @@
                 ],
                 "template": [
                     "Shop/RecipeList/料理_卢戈山参烤串.png"
-                ]
+                ],
+                "threshold": 0.9
             },
             "Sub_<Arbitrage_Cooking>_Clr"
         ]
@@ -1816,7 +1855,8 @@
                 ],
                 "template": [
                     "Shop/RecipeList/料理_煤炭饼干.png"
-                ]
+                ],
+                "threshold": 0.9
             },
             "Sub_<Arbitrage_Cooking>_Clr"
         ]
@@ -1835,7 +1875,8 @@
                 ],
                 "template": [
                     "Shop/RecipeList/料理_蜂蜜黄油杏仁.png"
-                ]
+                ],
+                "threshold": 0.9
             },
             "Sub_<Arbitrage_Cooking>_Clr"
         ]
@@ -1854,7 +1895,8 @@
                 ],
                 "template": [
                     "Shop/RecipeList/料理_三角美乃滋饭团.png"
-                ]
+                ],
+                "threshold": 0.9
             },
             "Sub_<Arbitrage_Cooking>_Clr"
         ]
@@ -1873,7 +1915,8 @@
                 ],
                 "template": [
                     "Shop/RecipeList/料理_鱼子酱蛋包饭.png"
-                ]
+                ],
+                "threshold": 0.9
             },
             "Sub_<Arbitrage_Cooking>_Clr"
         ]
@@ -1892,7 +1935,8 @@
                 ],
                 "template": [
                     "Shop/RecipeList/料理_炸三文鱼便当.png"
-                ]
+                ],
+                "threshold": 0.9
             },
             "Sub_<Arbitrage_Cooking>_Clr"
         ]
@@ -1911,7 +1955,8 @@
                 ],
                 "template": [
                     "Shop/RecipeList/料理_烤蜂蜜苹果.png"
-                ]
+                ],
+                "threshold": 0.9
             },
             "Sub_<Arbitrage_Cooking>_Clr"
         ]
@@ -1930,7 +1975,8 @@
                 "template": [
                     "Shop/RecipeList/料理_泰瑞丝派.png"
                 ],
-                "green_mask": true
+                "green_mask": true,
+                "threshold": 0.9
             },
             "Sub_<Arbitrage_Cooking>_Clr"
         ]
@@ -1949,7 +1995,8 @@
                 "template": [
                     "Shop/RecipeList/料理_三明治便当.png"
                 ],
-                "green_mask": true
+                "green_mask": true,
+                "threshold": 0.9
             },
             "Sub_<Arbitrage_Cooking>_Clr"
         ]
@@ -1968,7 +2015,8 @@
                 "template": [
                     "Shop/RecipeList/料理_手工蛋糕.png"
                 ],
-                "green_mask": true
+                "green_mask": true,
+                "threshold": 0.9
             },
             "Sub_<Arbitrage_Cooking>_Clr"
         ]
@@ -1987,7 +2035,8 @@
                 "template": [
                     "Shop/RecipeList/料理_香甜马卡龙.png"
                 ],
-                "green_mask": true
+                "green_mask": true,
+                "threshold": 0.9
             },
             "Sub_<Arbitrage_Cooking>_Clr"
         ]
@@ -2006,7 +2055,8 @@
                 "template": [
                     "Shop/RecipeList/料理_街头烤鸡肉串.png"
                 ],
-                "green_mask": true
+                "green_mask": true,
+                "threshold": 0.9
             },
             "Sub_<Arbitrage_Cooking>_Clr"
         ]
@@ -2025,7 +2075,8 @@
                 "template": [
                     "Shop/RecipeList/料理_香草牛排.png"
                 ],
-                "green_mask": true
+                "green_mask": true,
+                "threshold": 0.9
             },
             "Sub_<Arbitrage_Cooking>_Clr"
         ]
@@ -2043,7 +2094,8 @@
                 ],
                 "template": [
                     "Shop/RecipeList/料理_火烤鱼板棒.png"
-                ]
+                ],
+                "threshold": 0.9
             },
             "Sub_<Arbitrage_Cooking>_Clr"
         ]
@@ -2061,7 +2113,8 @@
                 ],
                 "template": [
                     "Shop/RecipeList/料理_甜辣鲜虾.png"
-                ]
+                ],
+                "threshold": 0.9
             },
             "Sub_<Arbitrage_Cooking>_Clr"
         ]
@@ -2079,7 +2132,8 @@
                 ],
                 "template": [
                     "Shop/RecipeList/料理_三文鱼芥末寿司.png"
-                ]
+                ],
+                "threshold": 0.9
             },
             "Sub_<Arbitrage_Cooking>_Clr"
         ]
@@ -2097,7 +2151,8 @@
                 ],
                 "template": [
                     "Shop/RecipeList/料理_巧克力鸡尾酒.png"
-                ]
+                ],
+                "threshold": 0.9
             },
             "Sub_<Arbitrage_Cooking>_Clr"
         ]
@@ -2209,7 +2264,8 @@
             463,
             370,
             83
-        ]
+        ],
+        "threshold": 0.83
     },
     "Agt_Cooking_Material1_Ocr": {
         "roi": [
