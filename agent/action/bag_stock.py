@@ -10,7 +10,7 @@ from maa.agent.agent_server import AgentServer
 from maa.context import Context
 from maa.custom_action import CustomAction
 
-from .cooking_stock import _clean, _read_texts, _unique_parsed, _NUMBER, get_cooking_scan_start
+from .cooking_stock import _read_texts, _unique_parsed, _NUMBER, get_cooking_scan_start
 from utils import mfaalog
 from utils.account_sync import sync_from_context
 from utils.arbitrage_store import (
@@ -18,6 +18,7 @@ from utils.arbitrage_store import (
     set_inventory_quantities, save_bag_stock_summary, utc_now,
 )
 from utils.name_i18n import canon
+from utils.ocr_item_name import resolve_ocr_name
 
 
 _REASON_TEXT = {
@@ -108,13 +109,35 @@ class BagScanner:
             raise RuntimeError("背包页签复位未完成")
         return self.list_image()
 
+    def read_names(self, image):
+        result = self.recognize(self.config["name_node"], image)
+        if not result.hit:
+            return []
+        items = getattr(result, "filtered_results", None) or getattr(result, "all_results", None) or []
+        return [(str(item.get("text", "")), float(item.get("score", 0))) if isinstance(item, dict)
+                else (str(getattr(item, "text", "")), float(getattr(item, "score", 0)))
+                for item in items]
+
     def inspect(self, name, box):
         self.action(self.config["click_node"], box)
         try:
             for attempt in range(2):
                 image = self.capture()
-                names, _, _ = _read_texts(self.context, self.config["name_node"], image)
-                if {canon(_clean(text)) for text in names} != {name}:
+                names = self.read_names(image)
+                rereads = None
+                def reread():
+                    nonlocal image, rereads
+                    if rereads is None:
+                        rereads = []
+                        for _ in range(2):
+                            image = self.capture()
+                            rereads.extend(self.read_names(image))
+                    return rereads
+                resolved = [resolve_ocr_name(text, score, reread) for text, score in names]
+                # Resolve against the full catalog before comparing the target; never
+                # narrow the candidates to the item whose template was clicked.
+                if (not resolved or any(not item["confirmed"] for item in resolved)
+                        or {item["name"] for item in resolved} != {name}):
                     continue
                 texts, _, _ = _read_texts(self.context, self.config["quantity_node"], image,
                                          retry=bool(attempt))
