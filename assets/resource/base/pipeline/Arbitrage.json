@@ -4026,7 +4026,7 @@
         "focus": "③ 料理制作"
     },
     "Arbitrage_Cooking_MenuPatch": {
-        "desc": "记录本轮料理库存扫描起点，并借用Setup技能管路进入烹饪菜单。由Arbitrage_Cooking_Run进入；agent/action/cooking_stock.py的CookingInventoryBoundary执行begin，本节点设置技能菜单出口锚点。",
+        "desc": "常规制作与补做共用的菜单准备：记录本轮库存扫描起点，并借用Setup技能管路进入烹饪菜单。两侧Run入口自行设置Cooking_Exit；本节点仅设置技能导航锚点，不改料理出口。",
         "action": "Custom",
         "custom_action": "CookingInventoryBoundary",
         "custom_action_param": {
@@ -4744,7 +4744,7 @@
         "focus": "Arb.料理制作:[5级]汉堡排便当"
     },
     "Arbitrage_Cooking_Page1": {
-        "desc": "第一页非五星料理，兼页内HUB。首位先做页内复位，复位链经[Anchor]Cooking_Menu_Reset回到本节点派活；其余各位是各料理入口，按多赚/配方最大单项用量降序，靠前优先，同分保留原有料理在前。全灭时经on_error首位打完成标记跳出。",
+        "desc": "第一页非五星料理，兼页内HUB。首位先做页内复位，复位链经[Anchor]Cooking_Menu_Reset回到本节点派活；其余各位是各料理入口，按多赚/配方最大单项用量降序，靠前优先，同分保留原有料理在前。队列耗尽时经on_error首位的Cooking_Exit进入调用方选择的常规或补做出口。",
         "max_hit": 1,
         "anchor": {
             "Cooking": "Arbitrage_Cooking_Page1",
@@ -4765,7 +4765,7 @@
             "[JumpBack]Arbitrage_Cooking_A10_Entry"
         ],
         "on_error": [
-            "Arbitrage_Cooking_ERREND",
+            "[Anchor]Cooking_Exit",
             "Global_Null_Exception",
             "Global_Null_Panic"
         ]
@@ -5981,21 +5981,27 @@
         "focus": "Arb.料理菜单已返回"
     },
     "Arbitrage_Cooking_Replenish_End": {
-        "desc": "补做专用出口：确认已返回选菜页，不写周常完成标记；名单是否已遍历由补做主控核对。",
+        "desc": "补做专用出口：确认已返回选菜页，成功后清理Cooking_Exit，不写常规遍历或周常完成记录；名单是否已遍历由补做主控核对。",
         "recognition": "Or",
         "any_of": [
             "Arbitrage_Cooking_Menu_ReBack"
         ],
         "pre_delay": 0,
         "action": "DoNothing",
+        "anchor": {
+            "Cooking_Exit": ""
+        },
         "post_delay": 0,
         "next": [],
         "focus": "Arb.补做已返回选菜页"
     },
     "Arbitrage_Cooking_ERREND": {
-        "desc": "记录常规料理遍历已到达出口及本轮遍历过的料理入口。由Arbitrage_Cooking_Page1进入；ArbitrageCookingFinish保存候选范围，后续仍按用户设置和材料保护过滤；缺料未点进配方或未做出料理不影响仓检补买。周完成标记留到Arbitrage_Cooking_Complete写入。",
+        "desc": "常规料理遍历出口，由Cooking_Exit选入。ArbitrageCookingFinish保存本轮已遍历入口，后续仍按用户设置和材料保护过滤；缺料未点进配方或未做出料理不影响仓检补买。成功后清理出口锚点；周完成标记留到Arbitrage_Cooking_Complete写入。",
         "action": "Custom",
         "custom_action": "ArbitrageCookingFinish",
+        "anchor": {
+            "Cooking_Exit": ""
+        },
         "timeout": 2000,
         "on_error": [
             "Arbitrage_Replenish_Stop"
@@ -8277,11 +8283,36 @@
         ]
     },
     "Arbitrage_Cooking_Run": {
-        "desc": "执行一轮常规料理制作。由Arbitrage_Cooking通过JumpBack调用，经Arbitrage_Cooking_MenuPatch进入菜单；常规遍历出口返回后继续仓检及补买补做。",
+        "desc": "常规料理入口：设置Cooking_Exit为常规遍历出口，与补做入口共用MenuPatch及各端原有料理队列。由Arbitrage_Cooking通过JumpBack调用，返回后继续仓检及补买补做。",
         "max_hit": 1,
+        "anchor": {
+            "Cooking_Exit": "Arbitrage_Cooking_ERREND"
+        },
         "next": [
             "Arbitrage_Cooking_MenuPatch"
         ]
+    },
+    "Arbitrage_Cooking_Replenish_Run": {
+        "desc": "补做入口：设置Cooking_Exit为补做出口，在调用方克隆的局部上下文内关闭重复材料保护检查，不登记还原点。Python只传入动态名单的enabled覆盖并清命中计数；next与常规Run一致，不重排菜单或追加分页。",
+        "max_hit": 1,
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "PatchPipeline",
+        "custom_action_param": {
+            "target": "Arbitrage_Cooking_MateProtec",
+            "patch": {
+                "enabled": false
+            },
+            "backup": false
+        },
+        "anchor": {
+            "Cooking_Exit": "Arbitrage_Cooking_Replenish_End"
+        },
+        "post_delay": 0,
+        "next": [
+            "Arbitrage_Cooking_MenuPatch"
+        ],
+        "focus": "③ 补做：沿料理队列检查计划目标"
     },
     "Arbitrage_Cooking_Complete": {
         "desc": "确认常规制作到达出口后，记录整个③阶段本周已完成。由Arbitrage_Cooking在制作、仓检及补买补做返回后调用；agent/action/arbitrage_flow.py的ArbitrageCookingFinish检查阶段记录，再委托MarkComplete写周标记。",
