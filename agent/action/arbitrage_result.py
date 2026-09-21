@@ -15,7 +15,24 @@ from utils.arbitrage_store import (
     save_possession_snapshot,
 )
 from utils.name_i18n import canon, name_variants
+from utils.arbitrage_pricelist import (
+    read_name as _read_item_name,
+    read_prices as _read_prices,
+    load_config as _load_price_cfg,
+    confirm_prices as _confirm_prices,
+    price_issues as _price_issues,
+    money_value as _parse_money_value,
+)
 from utils.arbitrage_material_policy import read_material_reserve_policy
+from utils.arbitrage_cartridge import (
+    DEFAULT_CONFIG as _RESCUE_CFG,
+    RESCUE_NODE as _RESCUE_NODE,
+    classify_type as _classify_cart_type,
+    load_config as _load_rescue_cfg,
+    read_current as _read_cartridge,
+    rescue_rois as _rescue_rois,
+    rescue_tail_num as _rescue_tail_num,
+)
 from action.arbitrage_sell_batch import execute_sale_item
 
 # ==========================================
@@ -158,55 +175,6 @@ _VALID_MODES = {_MODE_SELL, _MODE_PREVIEW_ALL, _MODE_PREVIEW_POSSESS}
 _ITEM_DATA_FILE = Path(__file__).resolve().parent.parent / "data" / "bd2_item_names_i18n.json"
 _RECIPE_NAMES = None
 
-_RESCUE_NODE = "Arbitrage_Sell_Cart_RescueNum"
-# 救援可调参:全部无量纲(相对"实检类型 det 框"的比例)——尺度锚定 H=类高中位数、W=类型块宽、yb=类型下缘,
-# 故字号/布局不同的两端(PC 繁体小字、ADB 简体大字)可共用同一份配置。可被 _RESCUE_NODE.attach 覆盖,缺项回落此默认。
-# 【调参指南】改值一律落 _RESCUE_NODE.attach(JSON)、不动 py;先看落图 vision/*_Sell_Cart_RescueNum_*.jpg 的红框对症:
-#   · 救援总失败(全档低分/不合理=号没框住):号被切顶/切底 → 增/移 y_shifts 档 或 调大 h_frac;
-#     号被左侧类型字底带出前缀(0021/=—/e 之类) → 调小 narrow_frac(值带更窄、更靠右缘,躲开字底)。
-#   · 救出怪值且被选中:调高 min_score(更严),或删掉最易蹭字底的 y_shifts 档(候选变少→误读面变小)。
-#   · 换端/换分辨率:参数是"相对类型框"的比例,一般无需改;仅当号高占比或号横向位置占比本身变了,才分别动 h_frac / narrow_frac。
-#   · 人工核对:每条救援日志都带名锚(商品名·子行),对照 vision/ 落图逐行核。
-_RESCUE_CFG = {
-    "min_score": 0.6,           # 号 rec 置信下限:集成里最优的合理号仍低于此=糊读,判救援失败
-    "narrow_frac": 0.5,         # 窄 roi 宽 = narrow_frac*W(右对齐值带,避左侧类型字底)
-    "pad_frac": 0.10,           # 宽 roi 横向外扩 = pad_frac*W(左右各;宽 = W+2*pad)
-    "h_frac": 1.2,              # 号 roi 高 = h_frac*H
-    "y_shifts": [-0.2, 0.0, 0.2],  # 带顶相对 yb 的纵向位移(单位=H);含下移档以躲开类型字底残笔
-}
-
-
-def _load_rescue_cfg(context) -> dict:
-    """从 _RESCUE_NODE.attach 生成**本轮**救援参数副本(缺项/坏值各自回落 py 默认)。run 起始调一次。
-
-    上面的 _RESCUE_CFG 是只读默认表,本函数绝不写它——早先的原地覆盖写法有两个坑:
-      · 半覆盖:逐项转型时中途抛异常被 except 兜住,前面几项已经写进全局了,而日志却报
-        "沿用内置默认",照着日志查会以为全是默认值;
-      · 粘滞:PatchPipeline 能改 attach,任务结束框架撤销它自己那半边 override,但这个
-        全局 dict 框架不知道(同 pipeline_manager 的 _LEDGERS 处境),上一轮的覆盖值会
-        一直留着——下一轮 attach 里没这个 key 了,也回不到 py 默认。
-    改为每轮取副本后,坏值只影响它自己那一项,默认表恒定。
-    """
-    cfg = dict(_RESCUE_CFG)
-    try:
-        node = context.get_node_object(_RESCUE_NODE)
-        attach = getattr(node, "attach", None) if node else None
-        if not attach:
-            return cfg
-        for k in _RESCUE_CFG:
-            if k in attach:
-                try:
-                    cfg[k] = type(_RESCUE_CFG[k])(attach[k])
-                except (TypeError, ValueError):
-                    mfaalog.warning(
-                        f"[Arbitrage] ⚠️ 救援可调参 {k}={attach[k]!r} 非法"
-                        f"(应为 {type(_RESCUE_CFG[k]).__name__}),该项回落默认 {_RESCUE_CFG[k]!r}"
-                    )
-    except Exception as e:
-        mfaalog.warning(f"[Arbitrage] ⚠️ 救援可调参读取异常({e}),整份沿用内置默认")
-    return cfg
-
-
 def _tail_num(s: str) -> str:
     """整串尾部连续数字(尾号);无则空串。"""
     m = re.search(r'(\d+)\s*$', s)
@@ -215,108 +183,19 @@ def _tail_num(s: str) -> str:
 
 def _money_token_value(text: str) -> int | None:
     """价目表整数金额：允许边缘图标杂字，不合并多个数字段或猜测残缺数字。"""
-    text = unicodedata.normalize("NFKC", text).strip()
-    pct = RE_PCT.search(text)
-    if pct:
-        # 兼容4.416120%之类粘连；百分比后的另一个数字不能悄悄丢弃。
-        if re.search(r"[0-9%]", text[pct.end():]):
-            return None
-        text = text[:pct.start()]
-    # 金币图标可能被识别成•、字母等。仅清理一个完整数字段两侧的杂字，
-    # 保留逗点/符号的语法意义：-7、7/8、17 20、1O0均不能抽数字后拼接。
-    edge = r"[^0-9.,%/+\-−–—]*"
-    match = re.fullmatch(edge + r"([0-9]+(?:[,.][0-9]+)*)" + edge, text)
-    if not match or not RE_MONEY.fullmatch(match[1]):
-        return None
-    value = int(re.sub(r"[,.]", "", match[1]))
-    return value if value > 0 else None
+    return _parse_money_value(text)
 
 
 def _max_price_verdict(top_money: set[int], bot_money: set[int],
                        top_pct: set[str], bot_pct: set[str]) -> tuple[bool, str]:
     """金额证据优先；两侧金额都读到但矛盾时，不允许溢价率把它覆盖。"""
     if top_money and bot_money:
-        return len(top_money) == 1 and len(bot_money) == 1 and top_money == bot_money, "amount"
+        if len(top_money) != 1 or len(bot_money) != 1:
+            return False, "unconfirmed_amount"
+        return top_money == bot_money, "amount"
     if top_pct and bot_pct:
         return bool(top_pct & bot_pct), "rate_fallback"
     return False, "unreadable"
-
-
-def _rescue_rois(type_dets: list, cfg: dict) -> list:
-    """尾号救援候选 roi(绝对坐标)。尺度全锚定实检类型框:H=类高中位数(自适应端字号)、W=类型块宽、
-    yb=类型下缘。横向宽/窄互补(宽=类型同宽+外扩取上下文;窄=右对齐值带避左侧字底);纵向按 ±%H 多位移
-    (含下移档躲类型字底残笔)。候选 = {宽,窄} × y_shifts。cfg 由 _load_rescue_cfg 逐轮生成。"""
-    left = min(d["x"] for d in type_dets)
-    right = max(d["x"] + d["w"] for d in type_dets)
-    yb = max(d["y"] + d["h"] for d in type_dets)
-    hs = sorted(d["h"] for d in type_dets)
-    H = hs[len(hs) // 2]                                    # 类高中位数 = 尺度单位
-    W = max(1, right - left)
-    pad = max(1, int(round(cfg["pad_frac"] * W)))
-    nw = max(1, int(round(cfg["narrow_frac"] * W)))
-    h = max(1, int(round(cfg["h_frac"] * H)))
-    rois = []
-    for s in cfg["y_shifts"]:
-        top = max(0, int(round(yb + s * H)))
-        rois.append([max(0, left - pad), top, W + 2 * pad, h])   # 宽
-        rois.append([max(0, right - nw), top, nw + pad, h])       # 窄
-    return rois
-
-
-def _rescue_tail_num(context, screenshot, type_dets: list, cfg: dict, bounds,
-                     number_dets=()) -> tuple:
-    """不同裁剪读取编号；当前区域内至少两次一致且没有高置信度分歧才接受。"""
-    if not type_dets:
-        return "", 0.0
-    votes = {}   # num -> [票数, 最高 score]
-    seen_rois = set()
-    for roi in _rescue_rois(type_dets, cfg):
-        roi = [int(v) for v in roi]
-        left, top, right, bottom = bounds
-        # 已检测到的编号必须完整入框；纵向偏移不能把11切成1后参与投票。
-        x1 = max(min([roi[0]] + [d['x'] for d in number_dets]), left)
-        y1 = max(min([roi[1]] + [d['y'] for d in number_dets]), top)
-        x2 = min(max([roi[0] + roi[2]] + [d['x'] + d['w'] for d in number_dets]), right)
-        y2 = min(max([roi[1] + roi[3]] + [d['y'] + d['h'] for d in number_dets]), bottom)
-        if any(d['x'] < x1 or d['y'] < y1 or d['x'] + d['w'] > x2 or d['y'] + d['h'] > y2
-               for d in number_dets):
-            continue
-        roi = [int(x1), int(y1), int(x2 - x1), int(y2 - y1)]
-        if roi[2] <= 0 or roi[3] <= 0 or tuple(roi) in seen_rois:
-            continue
-        seen_rois.add(tuple(roi))
-        try:
-            reco = context.run_recognition(
-                _RESCUE_NODE, screenshot,
-                pipeline_override={_RESCUE_NODE: {"recognition": "OCR", "roi": roi, "only_rec": True}},
-            )
-        except Exception as e:
-            mfaalog.warning(f"[Arbitrage] ⚠️ 尾号救援 OCR 异常({e})")
-            continue
-        cand = (getattr(reco, "filtered_results", None)
-                or getattr(reco, "all_results", None) or [])
-        if not cand:
-            continue
-        top = max(cand, key=lambda r: getattr(r, "score", 0.0))
-        sc = getattr(top, "score", 0.0)
-        num = re.sub(r'\s', '', unicodedata.normalize("NFKC", getattr(top, "text", "") or ""))
-        if not re.fullmatch(r'[1-9]\d?', num):   # 只收合理号,挡 0021/」/=— 噪声
-            continue
-        if sc < cfg["min_score"]:
-            continue
-        v = votes.setdefault(num, [0, 0.0])
-        v[0] += 1
-        v[1] = max(v[1], sc)
-    if not votes:
-        return "", 0.0
-    if len(votes) != 1 or next(iter(votes.values()))[0] < 2:
-        # 不同裁剪仍在9/19之间分歧时，不用最高分猜是否漏了1。
-        return "", 0.0
-    best_num = next(iter(votes))
-    best_sc = votes[best_num][1]
-    if best_sc < cfg["min_score"]:
-        return "", 0.0
-    return best_num, best_sc
 
 
 def _cart_groups(carts):
@@ -397,32 +276,45 @@ def _cart_regions(carts, current_y, monthly_y, next_y, column_roi, *, split_y=No
 
 
 def _current_cart(dets, context, screenshot, cfg, bounds, label):
-    """换行编号即使已读到合法尾号，也复查可能丢失的十位；只使用当前区域。"""
-    text, score = _cart_group(dets)
-    if not text or bounds is None:
-        return "", 0.0, "unreadable_region"
-    typed = [d for d in dets if re.search(r'[^\W\d_]', d['text'])]
-    numbers = [d for d in dets if re.fullmatch(r'\s*[0-9]+\s*', d['text'])]
-    if not typed:
-        return "", 0.0, "missing_type"
-    original = _tail_num(text)
-    wrapped = any(n['cy'] > max(t['cy'] for t in typed) + min(t['h'] for t in typed) / 2
-                  for n in numbers)
-    wrapped = wrapped or any(t['h'] > (bounds[3] - bounds[1]) * 0.65 for t in typed)
-    if original and re.fullmatch(r'[1-9][0-9]?', original) and not wrapped and score >= cfg['min_score']:
-        return text, score, "current_row"
-    # 去掉已检测出的编号，避免原读9与补读19拼成919。
-    type_only = [{**d, 'text': re.sub(r'[0-9]+\s*$', '', d['text'])} for d in typed]
-    body, body_score = _cart_group(type_only)
-    if wrapped and not numbers:
-        return body, body_score, "multiline_box_needs_split"
-    number, number_score = _rescue_tail_num(context, screenshot, type_only, cfg, bounds, numbers)
-    if number and (not original or original == number or
-                   len(original) == 1 and len(number) == 2 and number.endswith(original)):
-        mfaalog.info(f"[Arbitrage] 当前编号复核: {label} {original or '缺号'}→{number}")
-        return body + number, min(body_score, number_score), "current_number_rechecked"
-    mfaalog.warning(f"[Arbitrage] 当前编号未确认: {label}，原读{original or '缺号'}，不借用月度编号")
-    return body, body_score, "unconfirmed_current_number"
+    """Compatibility entry for standalone cartridge checks."""
+    return _read_cartridge(dets, context, screenshot, cfg, bounds, label)[:3]
+
+
+def _merge_cartridge_observation(saved, fresh):
+    """Merge compatible observations, preserving conflicts and earlier good reads."""
+    if saved.get("cart_conflict"):
+        return
+    for field in ("current_price", "peak_price", "current_rate", "peak_rate"):
+        if saved.get(field) is not None and fresh.get(field) is not None and saved[field] != fresh[field]:
+            saved.update(price_read_basis="observation_conflict", is_max_price=False,
+                         max_price_basis="unconfirmed_amount")
+            return
+    if saved.get("price_read_basis") != "observation_conflict":
+        for field in ("base_price", "current_price", "peak_price", "current_rate", "peak_rate"):
+            if saved.get(field) is None and fresh.get(field) is not None:
+                saved[field] = fresh[field]
+        if fresh.get("price_read_basis") in ("initial_consistent", "local_rescue", "merged_consistent"):
+            if not _price_issues(saved):
+                saved.update(price_read_basis="merged_consistent", price_evidence=fresh.get("price_evidence", {}))
+                _confirm_prices(saved)
+    def signature(item):
+        raw = item.get("target_cartridge", "")
+        kind, complete = _classify_cart_type(raw)
+        number = _tail_num(raw)
+        return (kind, number) if kind and complete and number else None
+    old, new = signature(saved), signature(fresh)
+    if not new:
+        return
+    if old and old != new:
+        saved.update(target_cartridge="", current_cartridge="", alt_cartridge="",
+                     cart_conflict=True, cartridge_read_basis="observation_conflict")
+        return
+    if old:
+        return
+    for field in ("target_cartridge", "current_cartridge", "current_cartridge_raw", "cart_score",
+                  "cartridge_read_basis", "cartridge_evidence"):
+        if field in fresh:
+            saved[field] = fresh[field]
 
 
 def _action_params(argv) -> dict:
@@ -547,6 +439,7 @@ class ArbitrageSellController(CustomAction):
         mode = params["mode"]
         # 尾号救援可调参:JSON attach 覆盖 py 默认(缺则用默认)。每轮取副本,不写默认表。
         self._rescue_cfg = _load_rescue_cfg(context)
+        self._price_cfg = _load_price_cfg(context)
 
         # 翻页上限:业务可传,但不允许缺省成"无限"。
         try:
@@ -679,8 +572,12 @@ class ArbitrageSellController(CustomAction):
             if stored:
                 mfaalog.info(
                     f"[Arbitrage] 💾 当前存档可售持有物观察已保存"
-                    f"({len(scan['items'])}项，其中峰值{len(peak_items)}项，数量未知)"
+                    f"({len(scan['items'])}项，其中峰值{len(peak_items)}项，数量未知，"
+                    f"覆盖={'完整' if scan['complete'] else '未完成'})"
                 )
+            if context.tasker.stopping:
+                mfaalog.info("[Arbitrage] 扫描已停止，已观察结果保留")
+                return True
             whitelist_set = preview_recipe_names if preview_recipe_names is not None else _load_recipe_names()
             mfaalog.info("[Arbitrage] 🍳 启动变现只允许料理类别，材料与其他物品一律不卖")
         else:
@@ -696,7 +593,7 @@ class ArbitrageSellController(CustomAction):
 
         targets_to_sell = [
             {
-                "name": item.get("raw_name") or item["name"],
+                "name": item["name"],
                 "cartridge_raw": item.get("target_cartridge", ""),
                 "cart_score": item.get("cart_score", 0.0),
                 "cart_conflict": item.get("cart_conflict", False),
@@ -706,13 +603,17 @@ class ArbitrageSellController(CustomAction):
                 "reserve": reserves.get(canon(item["name"])),
             }
             for item in peak_items
-            if canon(item["name"]) in reserves
+            if canon(item["name"]) in reserves and item.get("name_confirmed", True)
+            and item.get("price_read_basis") not in ("unconfirmed_price", "observation_conflict")
         ]
 
         # ==========================================
         # 3. 派发阶段：循环注入并执行售卖节点链
         # ==========================================
         if not targets_to_sell:
+            if not scan.get("prices_complete", True) or not scan.get("names_complete", True):
+                mfaalog.warning("[Arbitrage] 仍有未确认商品或金额，不能认定今日没有峰值目标")
+                return False
             mfaalog.info("[Arbitrage] 💤 今日无符合条件的最高价商品，收工！")
             return True
 
@@ -815,7 +716,7 @@ class ArbitrageSellController(CustomAction):
                          stop_below_rate: int | None = None) -> dict:
         """扫描价目表；已有物可在公共行情推导出的安全倍率边界处提前结束。"""
         scan = _new_scan(stop_below_rate)
-        seen_items = set()
+        seen_items = {}
         prev_page_key = None
         page_count = 1
         boundary_safe = stop_below_rate is not None
@@ -855,6 +756,11 @@ class ArbitrageSellController(CustomAction):
                 break
 
             page_key = frozenset(canon(item["name"]) for item in page_results)
+            # The last repeated page may contain the first usable read of an item.
+            for item in page_results:
+                previous = seen_items.get(canon(item["name"]))
+                if previous is not None:
+                    _merge_cartridge_observation(previous, item)
             if prev_page_key is not None and page_key == prev_page_key:
                 scan["complete"] = True
                 scan["sale_candidates_complete"] = True
@@ -897,7 +803,7 @@ class ArbitrageSellController(CustomAction):
                             )
                         else:
                             last_new_rate = rate
-                    seen_items.add(item_key)
+                    seen_items[item_key] = item
                     scan["items"].append(item)
 
             if reached_boundary:
@@ -920,7 +826,9 @@ class ArbitrageSellController(CustomAction):
                 break
 
             mfaalog.info("[Arbitrage] ⏬ 下滑翻页...")
-            swip_detail = context.run_task("Arbitrage_Swip_PriceList")
+            # CustomAction callbacks need a recognition result in MaaFw 5.12.2.
+            # The wrapper uses an empty on_error so actual failures stay failed.
+            swip_detail = context.run_task("Agt_PriceList_Swip")
             if swip_detail is None:
                 scan["termination_reason"] = "swipe_not_started"
                 mfaalog.warning("[Arbitrage] ⚠️ 翻页任务未能启动（节点缺失或正在停止），停止扫描。")
@@ -931,6 +839,21 @@ class ArbitrageSellController(CustomAction):
                 break
             page_count += 1
 
+        missing = [item["name"] for item in scan["items"]
+                   if not _tail_num(item.get("target_cartridge", "")) or item.get("cart_conflict")]
+        scan["cartridges_complete"] = not missing
+        scan["unconfirmed_cartridges"] = missing
+        for quality, field, bad in (("names", "name_confirmed", lambda value: value is False),
+                                    ("prices", "price_read_basis", lambda value: value in
+                                     ("unconfirmed_price", "observation_conflict"))):
+            unresolved = [item["name"] for item in scan["items"] if bad(item.get(field))]
+            scan[quality + "_complete"] = not unresolved
+            scan["unconfirmed_" + quality] = unresolved
+            if unresolved:
+                label = "商品名" if quality == "names" else "金额"
+                mfaalog.warning(f"[Arbitrage] 价目表{label}未确认{len(unresolved)}项：{', '.join(unresolved)}")
+        if missing:
+            mfaalog.warning(f"[Arbitrage] 价目表覆盖完成={scan['complete']}，卡带未确认{len(missing)}项：{', '.join(missing)}")
         return scan
 
     # ==========================================
@@ -946,6 +869,7 @@ class ArbitrageSellController(CustomAction):
 
         # run 起始已按本轮 attach 取好副本；单测/直调本方法时回落只读默认表。
         rescue_cfg = getattr(self, "_rescue_cfg", None) or dict(_RESCUE_CFG)
+        price_cfg = getattr(self, "_price_cfg", None) or _load_price_cfg(context)
 
         def _col(node):
             """跑某列窄 roi OCR,取 filtered → [{text,cx,cy}, ...](窄 roi 已圈好列,无需 cx 过滤分列)。"""
@@ -963,6 +887,8 @@ class ArbitrageSellController(CustomAction):
         prices = _col(_COL_PRICE)
         carts = _col(_COL_CART)
         cart_roi = list(context.get_node_object(_COL_CART).recognition.param.roi)
+        price_columns = {key: list(context.get_node_object(node).recognition.param.roi)
+                         for key, node in (("name", _COL_NAME), ("amount", _COL_AMOUNT), ("rate", _COL_PRICE))}
 
         # 名锚:名列内非数字文本 = 各商品行(与上子行同高),按 y 升序、近距去重
         anchors = []
@@ -970,7 +896,8 @@ class ArbitrageSellController(CustomAction):
             cleaned = re.sub(r'[^\w一-龥]', '', t["text"])
             if cleaned and not cleaned.isdigit():
                 if not any(abs(t["cy"] - a["cy"]) < 30 for a in anchors):
-                    anchors.append({"name": cleaned, "cy": t["cy"]})
+                    identified = _read_item_name(context, screenshot, {**t, "text": cleaned})
+                    anchors.append({"name": identified["name"], "cy": t["cy"], "identity": identified})
         if not anchors:
             return []
         # 商品行距中位数:供末行下子行搜索上界(无下一名锚时的兜底跨度)
@@ -1003,6 +930,9 @@ class ArbitrageSellController(CustomAction):
         for i, row in enumerate(anchors):
             item_data = {
                 "name": row["name"],
+                "raw_name": row["identity"]["raw"],
+                "name_confirmed": row["identity"]["confirmed"],
+                "name_evidence": row["identity"],
                 "is_max_price": False,
                 "max_price_basis": "unreadable",
                 "current_price": None,
@@ -1043,9 +973,15 @@ class ArbitrageSellController(CustomAction):
                 item_data["current_rate"] = int(next(iter(top_pct)))
             if len(bot_pct) == 1:
                 item_data["peak_rate"] = int(next(iter(bot_pct)))
-            item_data["is_max_price"], item_data["max_price_basis"] = _max_price_verdict(
-                top_money, bot_money, top_pct, bot_pct
-            )
+            current_dets = [d for d in amounts if abs(d["cy"] - ny) <= SUBROW_TOL]
+            monthly_dets = [d for d in amounts if mon_y is not None and abs(d["cy"] - mon_y) <= SUBROW_TOL]
+            bases = [d for d in names if ny + SUBROW_TOL < d["cy"] < next_ny
+                     and _money_token_value(d["text"]) is not None]
+            current_centers = [d["cy"] for d in prices if abs(d["cy"] - ny) <= SUBROW_TOL
+                               and RE_PCT.search(d["text"])]
+            quote_y = sum(current_centers) / len(current_centers) if current_centers else ny
+            _read_prices(context, screenshot, item_data, current=current_dets, monthly=monthly_dets,
+                         bases=bases, centers=(quote_y, mon_y), columns=price_columns, cfg=price_cfg)
 
             split_y = _cart_split_y(names, amounts, ny, mon_y, next_ny)
             if len(anchors) == 1 and split_y is not None:
@@ -1060,13 +996,14 @@ class ArbitrageSellController(CustomAction):
                     previous_monthly_y=previous_monthly_y)
             previous_monthly_y = mon_y if mon_y is not None else (
                 2 * split_y - ny if split_y is not None else None)
-            day_cart, day_score, basis = _current_cart(
+            day_cart, day_score, basis, evidence = _read_cartridge(
                 day_dets, context, screenshot, rescue_cfg, bounds, row['name'])
             item_data["target_cartridge"] = day_cart
             item_data["current_cartridge"] = day_cart
             item_data["current_cartridge_raw"] = _cart_group(day_dets)[0]
             item_data["monthly_cartridge"] = _cart_group(month_dets)[0]
             item_data["cartridge_read_basis"] = basis
+            item_data["cartridge_evidence"] = {key: value for key, value in evidence.items() if key != "attempts"}
             item_data["cart_score"] = day_score
 
             results.append(item_data)

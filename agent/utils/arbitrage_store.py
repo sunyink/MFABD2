@@ -11,7 +11,7 @@ from .inventory_archive import commit_inventory, inventory_facts
 
 
 SCHEMA_VERSION = 2
-MARKET_PARSER_VERSION = 3
+MARKET_PARSER_VERSION = 5
 MARKET_RETENTION_DAYS = 62
 OBSERVATION_LIMIT = 200
 
@@ -98,6 +98,11 @@ def _trim_list(items: list, limit: int) -> None:
 def _normalized_market_items(items: list[dict]) -> list[dict]:
     normalized = {}
     optional = (
+        "base_price",
+        "name_confirmed",
+        "name_evidence",
+        "price_read_basis",
+        "price_evidence",
         "current_price",
         "peak_price",
         "current_rate",
@@ -111,6 +116,7 @@ def _normalized_market_items(items: list[dict]) -> list[dict]:
         "current_cartridge_raw",
         "monthly_cartridge",
         "cartridge_read_basis",
+        "cartridge_evidence",
     )
     for item in items:
         if not isinstance(item, dict):
@@ -120,8 +126,9 @@ def _normalized_market_items(items: list[dict]) -> list[dict]:
         if not name:
             continue
         saved = {"name": name, "is_max_price": bool(item.get("is_max_price"))}
-        if raw_name != name:
-            saved["raw_name"] = raw_name
+        observed_name = item.get("raw_name") or raw_name
+        if observed_name != name:
+            saved["raw_name"] = observed_name
         for key in optional:
             if key in item and item[key] not in (None, ""):
                 saved[key] = copy.deepcopy(item[key])
@@ -136,7 +143,9 @@ def get_market_snapshot(day: str | None = None) -> dict | None:
         days = _dict_child(_dict_child(_root(data), "market"), "days")
         snapshot = days.get(day or market_day())
         if (not isinstance(snapshot, dict) or not snapshot.get("complete")
-                or snapshot.get("parser_version") != MARKET_PARSER_VERSION):
+                or snapshot.get("parser_version") != MARKET_PARSER_VERSION
+                or not snapshot.get("names_complete", True)
+                or not snapshot.get("prices_complete", True)):
             return None
         return copy.deepcopy(snapshot)
 
@@ -152,13 +161,23 @@ def save_market_snapshot(scan: dict, day: str | None = None) -> bool:
         "termination_reason": scan.get("termination_reason", "unknown"),
         "pages_scanned": int(scan.get("pages_scanned", 0)),
         "items": _normalized_market_items(scan.get("items") or []),
+        "cartridges_complete": bool(scan.get("cartridges_complete", False)),
+        "unconfirmed_cartridges": list(scan.get("unconfirmed_cartridges") or []),
+        "names_complete": bool(scan.get("names_complete", True)),
+        "prices_complete": bool(scan.get("prices_complete", True)),
+        "unconfirmed_names": list(scan.get("unconfirmed_names") or []),
+        "unconfirmed_prices": list(scan.get("unconfirmed_prices") or []),
     }
     with _LOCK:
         data = SharedStore.load()
         market = _dict_child(_root(data), "market")
         days = _dict_child(market, "days")
         previous = days.get(snapshot["day"])
-        if not (isinstance(previous, dict) and previous.get("complete") and not snapshot["complete"]):
+        previous_usable = (isinstance(previous, dict) and previous.get("complete")
+                           and previous.get("parser_version") == MARKET_PARSER_VERSION
+                           and previous.get("names_complete", True) and previous.get("prices_complete", True))
+        fresh_usable = snapshot["complete"] and snapshot["names_complete"] and snapshot["prices_complete"]
+        if not (previous_usable and not fresh_usable):
             days[snapshot["day"]] = snapshot
         attempts = _list_child(market, "attempts")
         attempts.append({
@@ -202,12 +221,15 @@ def save_possession_snapshot(scan: dict) -> bool:
         inventory = _inventory(data)
         current = inventory["items"]
         for item in items:
+            if not item.get("name_confirmed", True):
+                continue
             fact = _dict_child(current, item["name"])
             fact["present"] = True
             fact["presence_observed_at"] = observed_at
             fact["presence_source"] = "sell_price_list"
-        item_names = [item["name"] for item in items]
-        peak_names = [item["name"] for item in items if item.get("is_max_price")]
+        item_names = [item["name"] for item in items if item.get("name_confirmed", True)]
+        peak_names = [item["name"] for item in items
+                      if item.get("is_max_price") and item.get("name_confirmed", True)]
         coverage = {
             "observed_at": observed_at,
             "complete": bool(scan.get("complete")),
@@ -215,6 +237,12 @@ def save_possession_snapshot(scan: dict) -> bool:
                 "sale_candidates_complete", scan.get("complete")
             )),
             "full_list_complete": bool(scan.get("full_list_complete", False)),
+            "cartridges_complete": bool(scan.get("cartridges_complete", False)),
+            "unconfirmed_cartridges": list(scan.get("unconfirmed_cartridges") or []),
+            "names_complete": bool(scan.get("names_complete", True)),
+            "prices_complete": bool(scan.get("prices_complete", True)),
+            "unconfirmed_names": list(scan.get("unconfirmed_names") or []),
+            "unconfirmed_prices": list(scan.get("unconfirmed_prices") or []),
             "termination_reason": scan.get("termination_reason", "unknown"),
             "pages_scanned": int(scan.get("pages_scanned", 0)),
             "target_rate_floor": scan.get("target_rate_floor"),
