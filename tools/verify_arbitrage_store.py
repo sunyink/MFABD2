@@ -72,6 +72,52 @@ class ArbitrageStoreTests(unittest.TestCase):
         self.assertTrue(store.save_market_snapshot(self.scan(False, "蜂蜜"), day))
         self.assertEqual(store.get_market_snapshot(day)["items"][0]["name"], "烤蜂蜜苹果")
 
+    def test_market_keeps_coverage_separate_from_cartridge_quality(self):
+        scan = self.scan()
+        scan.update(cartridges_complete=False, unconfirmed_cartridges=["烤蜂蜜苹果"])
+        scan["items"][0].update(target_cartridge="剧情游戏卡",
+                               cartridge_evidence={"type_basis": "known_prefix", "number_basis": "number_conflict"})
+        self.assertTrue(store.save_market_snapshot(scan, "today"))
+        snapshot = store.get_market_snapshot("today")
+        self.assertTrue(snapshot["complete"])
+        self.assertFalse(snapshot["cartridges_complete"])
+        self.assertEqual(snapshot["unconfirmed_cartridges"], ["烤蜂蜜苹果"])
+        self.assertEqual(snapshot["items"][0]["cartridge_evidence"]["number_basis"], "number_conflict")
+
+    def test_previous_cartridge_parser_cache_requires_new_scan(self):
+        scan = self.scan()
+        self.assertTrue(store.save_market_snapshot(scan, "today"))
+        for version in (3, 4):
+            MemorySharedStore.data["arbitrage"]["market"]["days"]["today"]["parser_version"] = version
+            self.assertIsNone(store.get_market_snapshot("today"))
+
+    def test_unconfirmed_names_or_prices_are_saved_but_not_reused_as_complete_market(self):
+        for flag in ("names_complete", "prices_complete"):
+            MemorySharedStore.data = {}
+            scan = self.scan()
+            scan[flag] = False
+            self.assertTrue(store.save_market_snapshot(scan, "today"))
+            self.assertTrue(MemorySharedStore.data["arbitrage"]["market"]["days"]["today"]["complete"])
+            self.assertIsNone(store.get_market_snapshot("today"))
+
+    def test_corrected_name_is_stored_canonically_with_original_evidence(self):
+        scan = self.scan(name="萝卜缨")
+        scan["items"][0].update(raw_name="蘿萄嬰", name_confirmed=True,
+                                name_evidence={"basis": "one_character"})
+        store.save_market_snapshot(scan, "today")
+        row = store.get_market_snapshot("today")["items"][0]
+        self.assertEqual(row["name"], "萝卜缨")
+        self.assertEqual(row["raw_name"], "蘿萄嬰")
+
+    def test_unknown_name_does_not_create_an_inventory_item(self):
+        scan = self.scan(name="未确认错字")
+        scan["items"][0]["name_confirmed"] = False
+        scan.update(names_complete=False, unconfirmed_names=["未确认错字"])
+        store.save_possession_snapshot(scan)
+        inventory = MemoryAccountStore.data["arbitrage"]["inventory"]
+        self.assertNotIn("未确认错字", inventory["items"])
+        self.assertEqual(inventory["latest"]["possession"]["unconfirmed_names"], ["未确认错字"])
+
     def test_possession_observation_never_invents_or_erases_quantity(self):
         MemoryAccountStore.data = {
             "Pack_01@g_weekly": "2026-09-01 08:00:00",
