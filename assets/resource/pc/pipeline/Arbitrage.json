@@ -204,7 +204,16 @@
     "Arbitrage_Merchant_Close_Ck": {
         "expected": [
             "[关關][闭閉]商店"
-        ]
+        ],
+        "post_wait_freezes": {
+            "time": 500,
+            "target": [
+                745,
+                396,
+                78,
+                77
+            ]
+        }
     },
     "Arbitrage_Buy_Button": {
         "roi": [
@@ -705,8 +714,7 @@
             85,
             200,
             89
-        ],
-        "only_rec": false
+        ]
     },
     "Arbitrage_Favorit_Buy_SubMenu": {
         "roi": [
@@ -1211,7 +1219,8 @@
             94,
             779,
             540
-        ]
+        ],
+        "threshold": 0.83
     },
     "Arbitrage_Sell_Item_ListTraverse_End": {
         "roi": [
@@ -2805,10 +2814,5 @@
             "Global_BackToPve_Anc"
         ],
         "focus": "Arb.PC.进图链超时!重回复位整链重试"
-    },
-    "Arbitrage_ShopBuy_Data_Csm": {
-        "attach": {
-            "ocr_exclude": "材料,食材,食物,购买,購買,出售,販售,初始化,还剩,重置,剩下"
-        }
     }
 }
