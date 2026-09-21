@@ -47,6 +47,7 @@ _COL_PRICE = "Arbitrage_Sell_Col_Price"
 _COL_CART = "Arbitrage_Sell_Col_Cart"
 _SELL_ITEM_LIST = "Arbitrage_Sell_Item_ListTraverse"
 _SELL_ITEM_OCR = "Agt_<Sell_Item>_Ocr"
+_SELL_ITEM_OCR_SCORE = "Agt_<Sell_Item>_OcrScore"
 _SELL_ITEM_TEMPLATE = "Agt_<Sell_Item>_Tmp"
 _SELL_QUANTITY = "Arbitrage_Sell_Item_Quantity"
 
@@ -74,10 +75,10 @@ SCORE_MIN = 0.6      # 卡带选中组组分低于此=低置信,打WRN(实录错
 
 
 def _sell_item_override(context: Context, item_name: str) -> dict:
-    """每次派发同时更新OCR和模板；无模板时父Or只走OCR，不沿用上一件的图。"""
+    """商品全名OCR按置信度择优，未命中才试模板；不改变卡带匹配顺序。"""
     result = {
         _SELL_ITEM_OCR: {"expected": ["^" + re.escape(name) + "$" for name in name_variants(item_name)]},
-        _SELL_ITEM_LIST: {"any_of": [_SELL_ITEM_OCR]},
+        _SELL_ITEM_LIST: {"any_of": [_SELL_ITEM_OCR_SCORE]},
     }
     try:
         node = context.get_node_object(_SELL_ITEM_TEMPLATE)
