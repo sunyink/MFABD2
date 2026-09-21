@@ -4,12 +4,12 @@ from .cooking_stock import get_cooking_stock
 from utils.account_sync import sync_from_context
 from utils import arbitrage_store as store, mfaalog
 from utils.arbitrage_recipe_catalog import (
-    REPLENISH_END, discover_recipe_entries, build_replenish_selection, build_replenish_routes,
+    REPLENISH_END, discover_recipe_entries, build_replenish_selection,
 )
 from utils.name_i18n import canon
 
 
-_START = "Arbitrage_Cooking_MenuPatch"
+_START = "Arbitrage_Cooking_Replenish_Run"
 _MENU = "Arbitrage_Cooking_Menu_Reset_SubOut"
 _UNLIMITED = 2 ** 32 - 1
 
@@ -66,9 +66,8 @@ def execute_replenish_cooking(context, planned_names, *, day, bag_run_id, callba
             return {**report, "status": "skipped", "reason": "cooking_entry_disabled"}
         local = context.clone()
         overrides = dict(selection.pipeline_override)
-        overrides.update(build_replenish_routes(context, selection))
         resets = list(selection.clear_hit_nodes)
-        # 菜谱祖先清单只包含实际需要的菜单；仅五星目标不再经过第一页。
+        # 保留资源包原有菜单路径；清理实际可达菜单和目标料理的命中计数。
         # clone隔离节点覆盖但共享命中计数，只在启动前清理一次。
         for node_name in (_START,):
             node = context.get_node_data(node_name)
@@ -93,12 +92,13 @@ def execute_replenish_cooking(context, planned_names, *, day, bag_run_id, callba
                                       if row not in previous_observations]
         if detail is not None:
             report["task_id"] = detail.task_id
-            nodes = [node for node in detail.nodes if node.completed]
+            nodes = detail.nodes
             names = {node.name for node in nodes}
+            completed = {node.name for node in nodes if node.completed}
             report["visited"] = [entry.name for entry in selection.recipes if entry.entry in names]
             selected = {node.name for node in nodes if node.action is not None and node.action.success}
             report["selected"] = [entry.name for entry in selection.recipes if selected.intersection(entry.selectors)]
-            report["queue_completed"] = bool(detail.status.succeeded and REPLENISH_END in names
+            report["queue_completed"] = bool(detail.status.succeeded and REPLENISH_END in completed
                                               and len(report["visited"]) == len(selection.recipes))
         if context.tasker.stopping:
             return {**report, "status": "stopped", "reason": "task_stopping"}
