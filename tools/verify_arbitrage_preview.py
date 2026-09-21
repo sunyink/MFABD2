@@ -131,7 +131,7 @@ class ArbitragePreviewTests(unittest.TestCase):
         context = Context()
         controller = ar.ArbitrageSellController()
         controller._parse_current_page = lambda ctx: [
-            item("烤蜂蜜苹果", current_rate=118),
+            {**item("烤蜂蜜苹果", current_rate=118), "raw_name": "烤蜂蜜苹杲", "name_confirmed": True},
             item("蜂蜜", cart="故事游戏卡12", current_rate=118),
             item("盐", False, current_rate=118),
         ]
@@ -206,7 +206,7 @@ class ArbitragePreviewTests(unittest.TestCase):
         self.assertEqual(scan["termination_reason"], "repeated_page")
         self.assertTrue(scan["full_list_complete"])
         self.assertFalse(scan["rate_order_safe"])
-        self.assertEqual([name for name, _ in context.calls], ["Arbitrage_Swip_PriceList"])
+        self.assertEqual([name for name, _ in context.calls], ["Agt_PriceList_Swip"])
 
     def test_no_peak_recipe_skips_possession_scan(self):
         context = Context()
@@ -275,8 +275,90 @@ class ArbitragePreviewTests(unittest.TestCase):
         self.assertEqual(PIPELINE["Arbitrage_Sell_Col_Amount"]["roi"], [817, 209, 79, 344])
 
 
+class PriceListSwipeTests(unittest.TestCase):
+    def scan_with_swipes(self, params, missed=0, screenshot_failure=False, not_started=False):
+        import numpy as np
+        from action import smart_action
+
+        context = Context()
+        controller = ar.ArbitrageSellController()
+        state = {"page": 0, "swipes": 0, "captures": 0}
+        events = []
+
+        def capture():
+            state["captures"] += 1
+            events.append("capture")
+            image = None if screenshot_failure and state["captures"] == 2 else np.full(
+                (720, 1280, 3), state["page"] * 100, dtype=np.uint8
+            )
+            return SimpleNamespace(wait=lambda: SimpleNamespace(get=lambda: image))
+
+        def swipe(node, override=None):
+            self.assertEqual(node, "Arbitrage_Swip_PriceList")
+            self.assertEqual(PIPELINE[node]["next"], ["Arbitrage_Swip_Calibration_Hub"])
+            self.assertIsNone(override)
+            state["swipes"] += 1
+            events.append("swipe_and_calibrate")
+            if state["swipes"] > missed:
+                state["page"] = 1
+            return Detail()
+
+        def task(node, pipeline_override=None):
+            if node != "Agt_PriceList_Swip":
+                return swipe(node, pipeline_override)
+            if not_started:
+                return None
+            argv = SimpleNamespace(node_name=node, custom_action_param=params)
+            return SimpleNamespace(status=SimpleNamespace(
+                succeeded=smart_action.SmartAction().run(context, argv)
+            ))
+
+        context.tasker.controller = SimpleNamespace(post_screencap=capture)
+        context.run_task = task
+        controller._parse_current_page = lambda ctx: [item("炒蘑菇" if state["page"] == 0 else "咖啡豆")]
+
+        def settle(seconds):
+            self.assertEqual(seconds, .3)
+            events.append("settle")
+
+        with patch.object(smart_action.time, "sleep", side_effect=settle):
+            scan = controller._scan_price_list(context, max_scan_pages=8, stop_at_non_max=False)
+        self.assertEqual(events, ["capture", "swipe_and_calibrate", "settle", "capture"] * state["swipes"])
+        return scan, state["swipes"]
+
+    def test_transient_misses_retry_without_skipping_pages_and_bottom_is_bounded(self):
+        resources = [PIPELINE]
+        pc_path = ROOT / "assets/resource/pc/pipeline/Arbitrage.json"
+        if pc_path.is_file():
+            resources.append(json.loads(pc_path.read_text(encoding="utf-8")))
+        for resource in resources:
+            params = resource["Agt_PriceList_Swip"]["custom_action_param"]
+            for missed in (0, 1, 2):
+                with self.subTest(roi=params["detect_roi"], missed=missed):
+                    scan, count = self.scan_with_swipes(params, missed=missed)
+                    self.assertEqual([row["name"] for row in scan["items"]], ["炒蘑菇", "咖啡豆"])
+                    self.assertEqual(count, missed + 1 + 3)
+                    self.assertEqual(scan["termination_reason"], "repeated_page")
+                    self.assertTrue(scan["full_list_complete"])
+
+    def test_screenshot_failure_does_not_confirm_bottom(self):
+        params = PIPELINE["Agt_PriceList_Swip"]["custom_action_param"]
+        scan, count = self.scan_with_swipes(params, screenshot_failure=True)
+        self.assertEqual(count, 1)
+        self.assertEqual(scan["termination_reason"], "swipe_failed")
+        self.assertFalse(scan["complete"])
+        self.assertFalse(scan["full_list_complete"])
+
+    def test_missing_action_does_not_confirm_bottom(self):
+        params = PIPELINE["Agt_PriceList_Swip"]["custom_action_param"]
+        scan, count = self.scan_with_swipes(params, not_started=True)
+        self.assertEqual(count, 0)
+        self.assertEqual(scan["termination_reason"], "swipe_not_started")
+        self.assertFalse(scan["full_list_complete"])
+
+
 if __name__ == "__main__":
     result = unittest.TextTestRunner(verbosity=2).run(
-        unittest.defaultTestLoader.loadTestsFromTestCase(ArbitragePreviewTests)
+        unittest.defaultTestLoader.loadTestsFromModule(sys.modules[__name__])
     )
     raise SystemExit(0 if result.wasSuccessful() else 1)
