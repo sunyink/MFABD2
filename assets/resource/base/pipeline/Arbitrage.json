@@ -3331,15 +3331,23 @@
         "focus": "滑动出售物品列表"
     },
     "Arbitrage_Sell_Item_ListTraverse": {
-        "desc": "出售物品双入口；Python向子OCR传名称、向子模板传路径，无对应模板时仅使用OCR。",
+        "desc": "出售物品双入口；先从全名OCR候选中选置信度最高者，未命中才试模板。Python向源OCR传名称、向子模板传路径，无对应模板时仅使用OCR。",
         "recognition": "Or",
         "any_of": [
-            "Agt_<Sell_Item>_Ocr",
+            "Agt_<Sell_Item>_OcrScore",
             "Agt_<Sell_Item>_Tmp"
         ],
         "next": [
             "Arbitrage_Sell_Gold_Snapshot"
         ]
+    },
+    "Agt_<Sell_Item>_OcrScore": {
+        "desc": "商品全名OCR置信度优选；沿用源节点ROI、匹配词和阈值，同分保留原序。仅用于商品查找，不接管卡带号识别。",
+        "recognition": "Custom",
+        "custom_recognition": "OCRBestScore",
+        "custom_recognition_param": {
+            "node": "Agt_<Sell_Item>_Ocr"
+        }
     },
     "Agt_<Sell_Item>_Ocr": {
         "desc": "出售物品OCR入口",
