@@ -132,8 +132,9 @@
             81
         ],
         "template": [
-            "Binary/UI_AutoBattle_BIn.png",
-            "Binary/UI_AutoBattle_BIn2.png"
+            "Binary/UI_AutoBattle_Bin1.png",
+            "Binary/UI_AutoBattle_Bin2.png",
+            "Binary/UI_AutoBattle_Bin3.png"
         ]
     },
     "AutoBattle_Settlement_Victory": {

@@ -44,9 +44,8 @@ Release 头部草稿 · 注入目标：GitHub Release Notes 顶部
 ---target: all---
 > 159 Moons of Grace , And miles to go with you.
 
-> 原资源过旧，直接下发公测。激进好过死定。
+Android 4.4.4，一个功能够用、规矩还没那么多的好时代。借这个吉利版号，MFABD2 正式推出 APK。至于测试嘛，也致敬一下那个自由的年代：不让测试限制发布 o.O ~
 ---end---
 
 ---target: stable---
-> 4.4.0附近版本,当前会激进更新,直到相关功能重新恢复稳定。
 ---end---

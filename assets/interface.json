@@ -16,12 +16,30 @@
             "type": "Win32",
             "win32": {
                 "class_regex": "UnityWndClass",
-                "screencap": "FramePool",
+                "window_regex": "^BrownDust II$",
+                "screencap": "PrintWindow",
                 "mouse": "PostMessageWithWindowPos",
                 "keyboard": "PostMessageWithWindowPos"
             },
             "permission_required": true,
             "display_short_side": 720
+        }
+    ],
+    "pretask": [
+        {
+            "name": "PC游戏启动准备",
+            "label": "PC游戏启动准备",
+            "description": "游戏未运行时自动拉起官方启动器，等到游戏主窗口出现、再多等约 3 秒让它就绪。<br>窗口分辨率与最小化改在任务开始时处理，不在这一步，因此这里不需要任何选项。<br>游戏本来就在运行时，本步骤瞬间完成。",
+            "controller": [
+                "PC客户端"
+            ],
+            "exec": "../../../.venv/Scripts/python.exe",
+            "args": [
+                "-u",
+                "-X",
+                "utf8=1",
+                "../../../agent/pc_bootstrap.py"
+            ]
         }
     ],
     "resource": [
@@ -55,6 +73,8 @@
         }
     ],
     "global_option": [
+        "PC窗口分辨率",
+        "PC启动最小化",
         "前置助手",
         "存档名称"
     ],
@@ -104,6 +124,7 @@
             "default_check": true,
             "description": "依次执行：<b>N稀有短剑打造</b> → <b>强化</b>与<b>分解</b> → <b>精炼</b>。<br>精炼仅以 SR 或 UR 稀有度装备为对象；首次运行无需提前锁定装备，非正常锁定的装备可能导致流程失败。<br><span style=\"background-color:rgba(255,160,0,0.2)\"><b>组合技：</b>同时启用<精炼等级上限过滤>与<精炼排序>，可构造低等级优先强化队列——当前首位装备超出等级限制后，自动推进到下一优先装备。</span>",
             "option": [
+                "装备日常-强制重跑",
                 "精炼装备阶级",
                 "仅精炼<17 或 <10",
                 "精炼按自定义标志排序",
@@ -144,6 +165,7 @@
                 "PlayCover"
             ],
             "option": [
+                "赛季-强制只跑指定子项",
                 "赛季活动快速战斗难度",
                 "魔兽初始等级"
             ],
@@ -166,6 +188,7 @@
                 "PlayCover"
             ],
             "option": [
+                "周常-强制只跑指定子项",
                 "末日之书",
                 "小屋点赞",
                 "周常钓鱼"
@@ -181,6 +204,7 @@
                 "PlayCover"
             ],
             "option": [
+                "日常-强制只跑指定子项",
                 "餐馆领装饰币",
                 "餐馆自动升级",
                 "广场每日祈求",
@@ -310,7 +334,343 @@
         }
     ],
     "option": {
+        "PC窗口分辨率": {
+            "type": "select",
+            "label": "PC窗口分辨率",
+            "controller": [
+                "PC客户端"
+            ],
+            "default_case": "720p",
+            "description": "调整游戏窗口内部画面的尺寸：720p 为 1280×720，1080p 为 1920×1080。<br>每个任务开始时自动校正（连接之后、第一次识别之前），无需重新连接。识别坐标仍由框架按短边 720 缩放。<br>若游戏拒绝调整、但窗口长宽比仍是 16:9，识别不受影响，任务会带一条提示继续执行；只有长宽比明显偏离 16:9 才会停止当前任务，下个任务重新检查。",
+            "cases": [
+                {
+                    "name": "720p",
+                    "label": "720p（1280×720）",
+                    "pipeline_override": {
+                        "StartGame_PCWindowOptions": {
+                            "attach": {
+                                "resolution": "720p"
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "1080p",
+                    "label": "1080p（1920×1080）",
+                    "pipeline_override": {
+                        "StartGame_PCWindowOptions": {
+                            "attach": {
+                                "resolution": "1080p"
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        "PC启动最小化": {
+            "type": "switch",
+            "label": "PC启动后最小化",
+            "controller": [
+                "PC客户端"
+            ],
+            "default_case": "No",
+            "description": "每个任务开始时先校正分辨率、再最小化游戏，减少后台操作时窗口跳动的干扰。<br>最小化后框架仍能截图：它会把窗口设为透明并开启点击穿透，这是 MaaFramework 自身的后台截图机制；想查看画面，点任务栏中的游戏即可恢复。任务结束或停止时，框架可能自动恢复窗口。<br>下一个任务开始时生效。",
+            "cases": [
+                {
+                    "name": "No",
+                    "pipeline_override": {
+                        "StartGame_PCWindowOptions": {
+                            "attach": {
+                                "minimize": false
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "StartGame_PCWindowOptions": {
+                            "attach": {
+                                "minimize": true
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        "日常-强制只跑指定子项": {
+            "label": "[手动开关]-强制只跑指定子项",
+            "type": "switch",
+            "default_case": "No",
+            "description": "<span style=\"color:Crimson\"><b>开启后本任务默认什么都不跑</b>，只执行下面展开的清单里勾选的子项，且勾选的子项<b>无视存档记录</b>强制执行——一项都不勾就等于整个任务空跑。</span><br>关闭时（默认）各子项按<b>存档记录</b>执行：当天已经做过的自动跳过，中断后重跑不会重做。<br>本项用于「今天只想补一个公会签到」这类场景。<br>完成记录按游戏日计（每日 08:00 刷新），存于 <code>agent_save_data.json</code>。",
+            "cases": [
+                {
+                    "name": "No"
+                },
+                {
+                    "name": "Yes",
+                    "option": [
+                        "日常-指定子项"
+                    ],
+                    "pipeline_override": {
+                        "Daily_Union_Hub": {
+                            "enabled": false
+                        },
+                        "Daily_VisitCabin_Hub": {
+                            "enabled": false
+                        },
+                        "Daily_Busin_Hub": {
+                            "enabled": false
+                        },
+                        "Daily_Intimacy_HUB": {
+                            "enabled": false
+                        },
+                        "Daily_Square_Switch": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "日常-指定子项": {
+            "label": "手控开关",
+            "type": "checkbox",
+            "default_case": [],
+            "description": "勾选的子项无视存档记录强制执行，当天做过也会再做一遍；未勾选的一律不跑。<br>注意：被<b>功能开关</b>（如〈亲密度谈心〉选 No）关掉的子项，在这里勾了也不会跑。",
+            "cases": [
+                {
+                    "name": "公会签到",
+                    "pipeline_override": {
+                        "Daily_Union_Hub": {
+                            "enabled": true
+                        },
+                        "Daily_Union_Switch": {
+                            "recognition": "DirectHit"
+                        }
+                    }
+                },
+                {
+                    "name": "小屋访问",
+                    "pipeline_override": {
+                        "Daily_VisitCabin_Hub": {
+                            "enabled": true
+                        },
+                        "Daily_VisitCabin_Hub_Post": {
+                            "recognition": "DirectHit"
+                        }
+                    }
+                },
+                {
+                    "name": "餐馆日结",
+                    "pipeline_override": {
+                        "Daily_Busin_Hub": {
+                            "enabled": true
+                        },
+                        "Daily_Busin_Switch": {
+                            "recognition": "DirectHit"
+                        }
+                    }
+                },
+                {
+                    "name": "亲密度谈心",
+                    "pipeline_override": {
+                        "Daily_Intimacy_HUB": {
+                            "enabled": true
+                        },
+                        "Daily_Intimacy_Switch": {
+                            "recognition": "DirectHit"
+                        }
+                    }
+                },
+                {
+                    "name": "广场祈求",
+                    "pipeline_override": {
+                        "Daily_Square_Switch": {
+                            "enabled": true,
+                            "recognition": "DirectHit"
+                        }
+                    }
+                }
+            ]
+        },
+        "周常-强制只跑指定子项": {
+            "label": "[手动开关]-强制只跑指定子项",
+            "type": "switch",
+            "default_case": "No",
+            "description": "<span style=\"color:Crimson\"><b>开启后本任务默认什么都不跑</b>，只执行下面展开的清单里勾选的子项，且勾选的子项<b>无视存档记录</b>强制执行——一项都不勾就等于整个任务空跑。</span><br>关闭时（默认）各子项按<b>存档记录</b>执行：本周已经做过的自动跳过。<br>完成记录按游戏周计（每周一 08:00 刷新）。",
+            "cases": [
+                {
+                    "name": "No"
+                },
+                {
+                    "name": "Yes",
+                    "option": [
+                        "周常-指定子项"
+                    ],
+                    "pipeline_override": {
+                        "Weekly_Arcade_Hub": {
+                            "enabled": false
+                        },
+                        "Weekly_VisitCabin_Hub": {
+                            "enabled": false
+                        },
+                        "Weekly_LastNight_Hub": {
+                            "enabled": false
+                        },
+                        "Weekly_Flishing_Hub": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "周常-指定子项": {
+            "label": "手控开关",
+            "type": "checkbox",
+            "default_case": [],
+            "description": "勾选的子项无视存档记录强制执行，本周做过也会再做一遍；未勾选的一律不跑。<br>注意：被<b>功能开关</b>（如〈末日之书〉选 No）关掉的子项，在这里勾了也不会跑。",
+            "cases": [
+                {
+                    "name": "街机游戏",
+                    "pipeline_override": {
+                        "Weekly_Arcade_Hub": {
+                            "enabled": true
+                        },
+                        "Weekly_Arcade_Start": {
+                            "action": "DoNothing"
+                        }
+                    }
+                },
+                {
+                    "name": "小屋点赞",
+                    "pipeline_override": {
+                        "Weekly_VisitCabin_Hub": {
+                            "enabled": true
+                        },
+                        "Weekly_VisitCabin_Start": {
+                            "action": "DoNothing"
+                        }
+                    }
+                },
+                {
+                    "name": "末日之书",
+                    "pipeline_override": {
+                        "Weekly_LastNight_Hub": {
+                            "enabled": true
+                        },
+                        "Weekly_LastNight_Start": {
+                            "action": "DoNothing"
+                        }
+                    }
+                },
+                {
+                    "name": "周常钓鱼",
+                    "pipeline_override": {
+                        "Weekly_Flishing_Hub": {
+                            "enabled": true
+                        },
+                        "Weekly_Fishing_Start": {
+                            "recognition": "DirectHit"
+                        }
+                    }
+                }
+            ]
+        },
+        "赛季-强制只跑指定子项": {
+            "label": "[手动开关]-强制只跑指定子项",
+            "type": "switch",
+            "default_case": "No",
+            "description": "<span style=\"color:Crimson\"><b>开启后本任务默认什么都不跑</b>，只执行下面展开的清单里勾选的子项——一项都不勾就等于整个任务空跑。</span><br>本任务里只有<b>战场探索</b>带存档记录（当天刷完自动跳过，勾选后无视记录重刷）；15战与魔兽讨伐的完成态是 AP 耗尽、而 AP 会随时间恢复，回归魔兽与魔兽讨伐共用收尾链无法区分，这三项<b>不做按日跳过</b>，勾选与否只决定跑不跑。",
+            "cases": [
+                {
+                    "name": "No"
+                },
+                {
+                    "name": "Yes",
+                    "option": [
+                        "赛季-指定子项"
+                    ],
+                    "pipeline_override": {
+                        "Event_Battle_Hub": {
+                            "enabled": false
+                        },
+                        "Event_Mamono_Hub": {
+                            "enabled": false
+                        },
+                        "Event_MiniGame_Hub": {
+                            "enabled": false
+                        },
+                        "SeasonEvent_ReMamono_Hub": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "赛季-指定子项": {
+            "label": "手控开关",
+            "type": "checkbox",
+            "default_case": [],
+            "description": "勾选的子项才执行，未勾选的一律不跑。<br><b>战场探索</b>勾选后额外无视存档记录，当天刷过也会再刷一遍。",
+            "cases": [
+                {
+                    "name": "剧情15战",
+                    "pipeline_override": {
+                        "Event_Battle_Hub": {
+                            "enabled": true
+                        }
+                    }
+                },
+                {
+                    "name": "魔兽讨伐",
+                    "pipeline_override": {
+                        "Event_Mamono_Hub": {
+                            "enabled": true
+                        }
+                    }
+                },
+                {
+                    "name": "战场探索",
+                    "pipeline_override": {
+                        "Event_MiniGame_Hub": {
+                            "enabled": true
+                        },
+                        "Event_MiniGame_Switch": {
+                            "recognition": "DirectHit"
+                        }
+                    }
+                },
+                {
+                    "name": "回归魔兽",
+                    "pipeline_override": {
+                        "SeasonEvent_ReMamono_Hub": {
+                            "enabled": true
+                        }
+                    }
+                }
+            ]
+        },
+        "装备日常-强制重跑": {
+            "type": "switch",
+            "default_case": "No",
+            "description": "关：本任务按<b>存档记录</b>执行——当天已经跑完的话直接结束，中断后重跑不会重做。<br>开：无视存档记录，每次运行都完整执行一遍。<br>完成记录按游戏日计（每日 08:00 刷新），存于 <code>agent_save_data.json</code>。",
+            "cases": [
+                {
+                    "name": "No",
+                    "pipeline_override": {}
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "Equip_Daily_Switch": {
+                            "recognition": "DirectHit"
+                        }
+                    }
+                }
+            ]
+        },
         "前置助手": {
+            "type": "select",
             "description": "自动配置工具所需的前置设置（主设置、装备管理、快捷技能）。<br>初次使用或清档重下后，建议先选<b>强制启用</b>一次，再切回<b>按需</b>。",
             "cases": [
                 {
@@ -435,6 +795,7 @@
             ]
         },
         "圣石洞穴属性": {
+            "type": "select",
             "description": "选择圣石洞穴的刷取属性。<br><b>补短：</b>自动打当前存量最少的属性。<br><b>均衡：</b>每种属性各打2次，确保火把用完。",
             "cases": [
                 {
@@ -620,6 +981,7 @@
             ]
         },
         "章节图策略": {
+            "type": "select",
             "description": "目标刷取资源，中期一般缺木，后期一般缺矿。",
             "cases": [
                 {
@@ -815,6 +1177,7 @@
             ]
         },
         "仅精炼<17 或 <10": {
+            "type": "select",
             "label": "精炼等级上限过滤",
             "description": "仅对精炼等级低于阈值的装备执行精炼，等级达标的跳过。<br>配合<精炼排序>可实现按优先级逐步推进的强化队列。",
             "cases": [
@@ -1356,7 +1719,7 @@
                 {
                     "name": "No",
                     "pipeline_override": {
-                        "Daily_Square_Hub": {
+                        "Daily_Square_Switch": {
                             "enabled": false
                         }
                     }
@@ -7565,7 +7928,7 @@
     },
     "interface_version": 2,
     "name": "MFABD2",
-    "title": "MFABD2 | 棕色尘埃2自动化助手(sunyink/MFABD2)v0.0.20 | 游戏版本：20260829 ( Untamed )",
+    "title": "MFABD2 | 棕色尘埃2自动化助手(sunyink/MFABD2)v0.0.20 | 游戏版本：20260910 ( Chained Soldier2 )",
     "github": "https://github.com/sunyink/MFABD2",
     "mirrorchyan_rid": "MFABD2",
     "mirrorchyan_multiplatform": true,

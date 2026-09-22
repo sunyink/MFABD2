@@ -2,6 +2,20 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "MFABD2 PC启动准备（独立运行）",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/agent/pc_bootstrap.py",
+            "python": "${workspaceFolder}/.venv/Scripts/python.exe",
+            "pythonArgs": [
+                "-u",
+                "-X",
+                "utf8=1"
+            ],
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal"
+        },
+        {
             "name": "MFABD2 Agent",
             "type": "debugpy",
             "request": "launch",

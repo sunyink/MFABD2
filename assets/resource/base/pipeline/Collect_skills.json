@@ -46,15 +46,9 @@
     },
     "Collect_Skill3_1": {
         "desc": "技能1设定为探查。识别位，技能环左1",
-        "recognition": "TemplateMatch",
-        "roi": [
-            970,
-            620,
-            66,
-            67
-        ],
-        "template": [
-            "Skill1-1.png"
+        "recognition": "Or",
+        "any_of": [
+            "Rec_<Setup_SkillScan_Skill1>_Tpl"
         ],
         "action": "Click",
         "target": [

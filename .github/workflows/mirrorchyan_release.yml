@@ -33,9 +33,6 @@ jobs:
           - os: linux
             arch: aarch64
             filename: 'MFABD2-*-linux-aarch64.zip'
-          - os: android
-            arch: aarch64
-            filename: 'MFABD2-*-android-arm64.zip'
 
     steps:
       - uses: MirrorChyan/uploading-action@v1
