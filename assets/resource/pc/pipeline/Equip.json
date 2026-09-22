@@ -445,14 +445,15 @@
     "Equip_Refining": {
         "roi": [
             880,
-            477,
+            439,
             58,
-            27
+            92
         ],
         "expected": [
             "精炼",
             "煉製"
-        ]
+        ],
+        "only_rec": false
     },
     "Equip_Overdrive_RefLvMax": {
         "expected": [
