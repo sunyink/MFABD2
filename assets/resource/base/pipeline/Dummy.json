@@ -2,6 +2,10 @@
     "Fishing_NiceBoat": {
         "focus": "占位符.需要正确的资源选择."
     },
+    "Anc": {
+        "desc": "占位,消除报错",
+        "anchor": {"Sell_Bypass": ""}
+    },
     "Custom_Proxy_Swipe": {
         "desc": "不要使用,不要删除。这是旧 SmartSwipe 的滑动代理节点,自带 post_delay:1000。仅剩 Collect_LocatePackFrame_Smart_Swip 在用,该处迁到 SmartAction 后连同 smart_scroller.py 一起删。新写请用 Agt_Proxy_Blank。",
         "action": "Swipe",

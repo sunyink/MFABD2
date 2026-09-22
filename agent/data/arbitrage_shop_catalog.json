@@ -1,0 +1,520 @@
+{
+    "source": "https://browndust2-db.souseha.com/cn/shops",
+    "observed_on": "2026-09-03",
+    "cartridges": {
+        "S1:血骑士": {
+            "items": [
+                "蘑菇",
+                "胡萝卜",
+                "小麦",
+                "米",
+                "甜辣酱",
+                "甜椒",
+                "樱桃"
+            ],
+            "custom_node": "Agt_BuySelect_S1",
+            "selector": "Arbitrage_Buy_Select_QC1",
+            "callback": "Arbitrage_ShopBuy_Pack_S1"
+        },
+        "S2:苍蓝魔女": {
+            "items": [
+                "土豆",
+                "大麦",
+                "黄油",
+                "啤酒花",
+                "牛奶",
+                "白糖",
+                "小麦",
+                "鸡蛋"
+            ],
+            "custom_node": "Agt_BuySelect_S2",
+            "selector": "Arbitrage_Buy_Select_QC2",
+            "callback": "Arbitrage_ShopBuy_Pack_S2"
+        },
+        "S3:迷雾神射手": {
+            "items": [
+                "苹果",
+                "葡萄",
+                "虾",
+                "蜂蜜",
+                "白糖",
+                "香草",
+                "蘑菇",
+                "土豆",
+                "番茄",
+                "黄油",
+                "橄榄油",
+                "初级天赋技能书",
+                "进阶天赋技能书"
+            ],
+            "custom_node": "Agt_BuySelect_S3",
+            "selector": "Arbitrage_Buy_Select_QC3",
+            "callback": "Arbitrage_ShopBuy_Pack_S3"
+        },
+        "S4:眼镜与猫": {
+            "items": [
+                "咖啡豆",
+                "三文鱼",
+                "番茄",
+                "豆子",
+                "牛奶",
+                "橄榄油",
+                "香草",
+                "洋葱",
+                "米",
+                "小麦",
+                "甜椒",
+                "甜辣酱",
+                "凯洛药材"
+            ],
+            "custom_node": "Agt_BuySelect_S4",
+            "selector": "Arbitrage_Buy_Select_QC4",
+            "callback": "Arbitrage_ShopBuy_Pack_S4"
+        },
+        "S5:沙漠之花": {
+            "items": [
+                "哈密瓜",
+                "苹果",
+                "白糖",
+                "葡萄",
+                "香草",
+                "盐",
+                "藏红花",
+                "姜黄"
+            ],
+            "custom_node": "Agt_BuySelect_S5",
+            "selector": "Arbitrage_Buy_Select_QC5",
+            "callback": "Arbitrage_ShopBuy_Pack_S5"
+        },
+        "S6:异教塔": {
+            "items": [
+                "洋葱",
+                "米",
+                "甜椒",
+                "奶酪",
+                "香草",
+                "鸡蛋",
+                "小麦",
+                "橄榄油",
+                "藏红花"
+            ],
+            "custom_node": "Agt_BuySelect_S6",
+            "selector": "Arbitrage_Buy_Select_QC6",
+            "callback": "Arbitrage_ShopBuy_Pack_S6"
+        },
+        "S7:愤怒天使": {
+            "items": [
+                "三文鱼",
+                "小麦",
+                "番茄",
+                "芥末",
+                "吐司",
+                "米",
+                "奶酪",
+                "萝卜缨",
+                "雷瓦汀火腿"
+            ],
+            "custom_node": "Agt_BuySelect_S7",
+            "selector": "Arbitrage_Buy_Select_QC7",
+            "callback": "Arbitrage_ShopBuy_Pack_S7"
+        },
+        "S8:血之狂想曲": {
+            "items": [
+                "玉米",
+                "豆子",
+                "土豆",
+                "三文鱼",
+                "奶酪",
+                "小麦",
+                "洋葱",
+                "料酒",
+                "橄榄油",
+                "胡萝卜",
+                "甜椒",
+                "萝卜缨",
+                "大蒜"
+            ],
+            "custom_node": "Agt_BuySelect_S8",
+            "selector": "Arbitrage_Buy_Select_QC8",
+            "callback": "Arbitrage_ShopBuy_Pack_S8"
+        },
+        "S9:铁假面": {
+            "items": [
+                "虾",
+                "土豆",
+                "西蓝花",
+                "小麦",
+                "胡萝卜",
+                "盐",
+                "料酒",
+                "甜辣酱"
+            ],
+            "custom_node": "Agt_BuySelect_S9",
+            "selector": "Arbitrage_Buy_Select_QC9",
+            "callback": "Arbitrage_ShopBuy_Pack_S9"
+        },
+        "S10:霍尔蒙克斯": {
+            "items": [
+                "杏仁",
+                "袋装鸡胸肉",
+                "葡萄",
+                "蜂蜜",
+                "蘑菇",
+                "香草",
+                "黄油",
+                "盐",
+                "凯洛药材",
+                "白糖",
+                "肉桂",
+                "高手天赋技能书"
+            ],
+            "custom_node": "Agt_BuySelect_S10",
+            "selector": "Arbitrage_Buy_Select_QC10",
+            "callback": "Arbitrage_ShopBuy_Pack_S10"
+        },
+        "S11:虚假游戏": {
+            "items": [
+                "洋葱",
+                "米",
+                "甜椒",
+                "奶酪",
+                "香草",
+                "鸡蛋",
+                "小麦",
+                "橄榄油",
+                "藏红花",
+                "樱桃"
+            ],
+            "custom_node": "Agt_BuySelect_S11",
+            "selector": "Arbitrage_Buy_Select_QC11",
+            "callback": "Arbitrage_ShopBuy_Pack_S11"
+        },
+        "S12:黑羽毛": {
+            "items": [
+                "咖啡豆",
+                "三文鱼",
+                "番茄",
+                "豆子",
+                "牛奶",
+                "橄榄油",
+                "香草",
+                "洋葱",
+                "米",
+                "小麦",
+                "甜椒",
+                "甜辣酱",
+                "凯洛药材",
+                "大蒜",
+                "胡椒"
+            ],
+            "custom_node": "Agt_BuySelect_S12",
+            "selector": "Arbitrage_Buy_Select_QC12",
+            "callback": "Arbitrage_ShopBuy_Pack_S12"
+        },
+        "S13:雪之歌": {
+            "items": [
+                "苹果",
+                "葡萄",
+                "虾",
+                "蜂蜜",
+                "白糖",
+                "香草",
+                "蘑菇",
+                "土豆",
+                "番茄",
+                "黄油",
+                "橄榄油",
+                "初级天赋技能书",
+                "进阶天赋技能书"
+            ],
+            "custom_node": "Agt_BuySelect_S13",
+            "selector": "Arbitrage_Buy_Select_QC13",
+            "callback": "Arbitrage_ShopBuy_Pack_S13"
+        },
+        "S14:神圣审判": {
+            "items": [
+                "杏仁",
+                "袋装鸡胸肉",
+                "葡萄",
+                "蜂蜜",
+                "蘑菇",
+                "香草",
+                "黄油",
+                "盐",
+                "凯洛药材",
+                "白糖",
+                "生蚝",
+                "高手天赋技能书"
+            ],
+            "custom_node": "Agt_BuySelect_S14",
+            "selector": "Arbitrage_Buy_Select_QC14",
+            "callback": "Arbitrage_ShopBuy_Pack_S14"
+        },
+        "S15:复仇的誓言": {
+            "items": [
+                "蘑菇",
+                "胡萝卜",
+                "苹果",
+                "香草",
+                "洋葱",
+                "番茄",
+                "芥末",
+                "甜椒",
+                "甜辣酱"
+            ],
+            "custom_node": "Agt_BuySelect_S15",
+            "selector": "Arbitrage_Buy_Select_QC15",
+            "callback": "Arbitrage_ShopBuy_Pack_S15"
+        },
+        "S16:三国同盟": {
+            "items": [
+                "虾",
+                "三文鱼",
+                "盐",
+                "料酒",
+                "奶酪",
+                "咖啡豆",
+                "藏红花",
+                "白糖",
+                "姜黄",
+                "生蚝"
+            ],
+            "custom_node": "Agt_BuySelect_S16",
+            "selector": "Arbitrage_Buy_Select_QC16",
+            "callback": "Arbitrage_ShopBuy_Pack_S16"
+        },
+        "S17:试炼之路": {
+            "items": [
+                "杏仁",
+                "豆子",
+                "啤酒花",
+                "盐",
+                "白糖",
+                "小麦",
+                "米",
+                "凯洛药材",
+                "初级天赋技能书",
+                "进阶天赋技能书"
+            ],
+            "custom_node": "Agt_BuySelect_S17",
+            "selector": "Arbitrage_Buy_Select_QC17",
+            "callback": "Arbitrage_ShopBuy_Pack_S17"
+        },
+        "S18:救赎": {
+            "items": [
+                "玉米",
+                "土豆",
+                "苹果",
+                "鸡蛋",
+                "小麦",
+                "米",
+                "大麦",
+                "牛奶",
+                "吐司"
+            ],
+            "custom_node": "Agt_BuySelect_S18",
+            "selector": "Arbitrage_Buy_Select_QC18",
+            "callback": "Arbitrage_ShopBuy_Pack_S18"
+        },
+        "S19:被遗忘的战争": {
+            "items": [
+                "盐",
+                "咖啡豆",
+                "藏红花",
+                "黄油",
+                "白糖",
+                "奶酪",
+                "香草",
+                "葡萄",
+                "高手天赋技能书"
+            ],
+            "custom_node": "Agt_BuySelect_S19",
+            "selector": "Arbitrage_Buy_Select_QC19",
+            "callback": "Arbitrage_ShopBuy_Pack_S19"
+        },
+        "R1:杰登之门": {
+            "items": [
+                "巧克力",
+                "金枪鱼罐头",
+                "吐司",
+                "袋装鸡胸肉",
+                "牛奶",
+                "黄油",
+                "鸡蛋"
+            ],
+            "custom_node": "Agt_BuySelect_R1",
+            "selector": "Arbitrage_Buy_Select_QR1",
+            "callback": "Arbitrage_ShopBuy_Pack_R1"
+        },
+        "R2:火晶片": {
+            "items": [
+                "水果罐头",
+                "辣椒",
+                "白糖",
+                "雷瓦汀火腿",
+                "巧克力",
+                "辣椒素",
+                "牛奶"
+            ],
+            "custom_node": "Agt_BuySelect_R2",
+            "selector": "Arbitrage_Buy_Select_QR2",
+            "callback": "Arbitrage_ShopBuy_Pack_R2"
+        },
+        "R3:美丽无望": {
+            "items": [
+                "巧克力",
+                "鱼子酱罐头",
+                "土豆",
+                "白糖",
+                "牛奶",
+                "鸡蛋",
+                "黄油",
+                "盐",
+                "奶酪",
+                "松露油"
+            ],
+            "custom_node": "Agt_BuySelect_R3",
+            "selector": "Arbitrage_Buy_Select_QR3",
+            "callback": "Arbitrage_ShopBuy_Pack_R3"
+        },
+        "R4:大逃脱": {
+            "items": [
+                "米",
+                "袋装鸡胸肉",
+                "调味海苔",
+                "甜椒",
+                "辣椒",
+                "蛋黄酱",
+                "小麦",
+                "辣椒素"
+            ],
+            "custom_node": "Agt_BuySelect_R4",
+            "selector": "Arbitrage_Buy_Select_QR4",
+            "callback": "Arbitrage_ShopBuy_Pack_R4"
+        },
+        "R5:鲁的迷宫": {
+            "items": [
+                "苹果",
+                "葡萄",
+                "虾",
+                "蜂蜜",
+                "白糖",
+                "香草",
+                "蘑菇",
+                "土豆",
+                "番茄",
+                "黄油",
+                "橄榄油"
+            ],
+            "custom_node": "Agt_BuySelect_R5",
+            "selector": "Arbitrage_Buy_Select_QR5",
+            "callback": "Arbitrage_ShopBuy_Pack_R5"
+        },
+        "R6:御剑传": {
+            "items": [
+                "苹果",
+                "葡萄",
+                "虾",
+                "蜂蜜",
+                "白糖",
+                "香草",
+                "蘑菇",
+                "土豆",
+                "番茄",
+                "黄油",
+                "橄榄油"
+            ],
+            "custom_node": "Agt_BuySelect_R6",
+            "selector": "Arbitrage_Buy_Select_QR6",
+            "callback": "Arbitrage_ShopBuy_Pack_R6"
+        },
+        "R7:合约之战": {
+            "items": [
+                "巧克力",
+                "金枪鱼罐头",
+                "吐司",
+                "袋装鸡胸肉",
+                "牛奶",
+                "黄油",
+                "鸡蛋"
+            ],
+            "custom_node": "Agt_BuySelect_R7",
+            "selector": "Arbitrage_Buy_Select_QR7",
+            "callback": "Arbitrage_ShopBuy_Pack_R7"
+        },
+        "E1:夏日骑士": {
+            "items": [
+                "巧克力",
+                "金枪鱼罐头",
+                "吐司",
+                "袋装鸡胸肉",
+                "牛奶",
+                "黄油",
+                "鸡蛋"
+            ],
+            "custom_node": "Agt_BuySelect_E1",
+            "selector": "Arbitrage_Buy_Select_QE1",
+            "callback": "Arbitrage_ShopBuy_Pack_E1"
+        },
+        "E2:恶梦之冬": {
+            "items": [
+                "水果罐头",
+                "辣椒",
+                "白糖",
+                "雷瓦汀火腿",
+                "巧克力",
+                "辣椒素",
+                "牛奶"
+            ],
+            "custom_node": "Agt_BuySelect_E2",
+            "selector": "Arbitrage_Buy_Select_QE2",
+            "callback": "Arbitrage_ShopBuy_Pack_E2"
+        },
+        "E3:海滨天使": {
+            "items": [
+                "巧克力",
+                "鱼子酱罐头",
+                "土豆",
+                "白糖",
+                "牛奶",
+                "鸡蛋",
+                "黄油",
+                "盐",
+                "奶酪",
+                "松露油"
+            ],
+            "custom_node": "Agt_BuySelect_E3",
+            "selector": "Arbitrage_Buy_Select_QE3",
+            "callback": "Arbitrage_ShopBuy_Pack_E3"
+        },
+        "E4:记忆边缘": {
+            "items": [
+                "水果罐头",
+                "辣椒",
+                "白糖",
+                "雷瓦汀火腿",
+                "巧克力",
+                "辣椒素",
+                "牛奶"
+            ],
+            "custom_node": "Agt_BuySelect_E4",
+            "selector": "Arbitrage_Buy_Select_QE4",
+            "callback": "Arbitrage_ShopBuy_Pack_E4"
+        },
+        "E5:戏水女王": {
+            "items": [
+                "巧克力",
+                "咖啡豆",
+                "水果罐头",
+                "吐司",
+                "袋装鸡胸肉",
+                "牛奶",
+                "金枪鱼罐头",
+                "鱼子酱罐头"
+            ],
+            "custom_node": "Agt_BuySelect_E5",
+            "selector": "Arbitrage_Buy_Select_QE5",
+            "callback": "Arbitrage_ShopBuy_Pack_E5"
+        }
+    }
+}

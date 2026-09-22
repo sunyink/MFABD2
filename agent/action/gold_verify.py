@@ -9,8 +9,8 @@
 改为链内埋两个动作节点：
 
 - **A `GoldSnapshot`** —— 挂在「物品已被 OCR 确认存在」之后、点击之前，记基准值。
-  靠 `[JumpBack]` + `max_hit: 1` 保证整个 `run_task` 内只跑一次，所以连续出售
-  （`Item_Selling → ListTraverse` 那条回边）第二件起不会覆盖基准。
+  每次执行都清除旧基准和结论，再覆盖记录新基准；读数失败也不会留下旧基准。
+  重试回边应放在基准节点之后，不能在成交后重新记录购前值。
 - **B `GoldVerdict`** —— 挂在 `Arbitrage_Sell_End`（复位态确认）上，取终值算差额。
 
 两者只**测量**，不判"卖成没卖成" —— 判据归主控，它才知道还有没有别的候选要试。
@@ -28,6 +28,61 @@
 
 B 未执行（链条中途断了、没走到复位态）时 `take_verdict()` 返回 None，主控按
 「无法判断」处理 —— 当作没卖成功，有候选就换候选，但不拿同样的参数重跑一遍。
+
+## Pipeline 直接接入
+
+- action GoldSnapshot：custom_action_param.node 可选，默认 Arbitrage_Sell_GoldRead。
+  每次覆盖基准并清旧结论；读取失败仍返回 True，但后续金币识别不会命中。
+- recognition GoldVerdict：custom_recognition_param.node 同上；direction 必填，
+  decrease 表示金币减少（购买），increase 表示金币增加（出售）。
+  使用本次识别画面；无基准、读不到或方向不符均不命中。不消耗基准、不写结论。
+- action GoldClear：无参数，清除基准和结论；重复清除无害。
+- 原 action GoldVerdict 保留给出售主控：消费基准、保存差额，恒返回 True。
+  与 recognition GoldVerdict 名称相同，但由不同字段选择，勿混用。
+
+下面是购买弹窗已打开后的接线示例，复用项目现有确认按钮识别和购买金币 ROI。
+Example_Gold_Snapshot 只进一次；金币未变化时继续等待，超时清除后结束，不打标。
+金币减少只能证明发生支出，不能单独证明全部收藏已买空或页面已经恢复。
+清除放在成功节点的 action 和放弃出口，避免下一笔误用旧基准；不要放在识别器内部。
+示例的成功 next 接现有打标节点；页面恢复沿用该节点后续流程。
+
+{
+    "Example_Gold_Snapshot": {
+        "action": "Custom",
+        "custom_action": "GoldSnapshot",
+        "custom_action_param": {"node": "Agt_BuyQuantity_Gold_Ocr"},
+        "next": ["Example_Gold_Confirm"]
+    },
+    "Example_Gold_Confirm": {
+        "recognition": "Or",
+        "any_of": ["Arbitrage_Favorit_Buy_SubMenu_BuyAction"],
+        "action": "Click",
+        "post_delay": 5000,
+        "timeout": 10000,
+        "next": ["Example_Gold_Purchased"],
+        "on_error": ["Example_Gold_Abort"]
+    },
+    "Example_Gold_Purchased": {
+        "recognition": "Custom",
+        "custom_recognition": "GoldVerdict",
+        "custom_recognition_param": {
+            "node": "Agt_BuyQuantity_Gold_Ocr",
+            "direction": "decrease"
+        },
+        "action": "Custom",
+        "custom_action": "GoldClear",
+        "next": ["Arbitrage_Buy_Select_End"]
+    },
+    "Example_Gold_Abort": {
+        "action": "Custom",
+        "custom_action": "GoldClear",
+        "focus": "购买成交未确认，本轮结束"
+    }
+}
+
+出售侧识别用法：将 direction 改为 increase，并换成出售金币节点和自己的 next。
+使用 action GoldVerdict 的旧主控仍用 clear_verdict() / take_verdict() 交接，
+不要在主控领取结论前执行 GoldClear；识别器不会为 take_verdict() 生成结论。
 """
 
 import json
@@ -37,15 +92,16 @@ from typing import Optional
 from maa.agent.agent_server import AgentServer
 from maa.context import Context
 from maa.custom_action import CustomAction
+from maa.custom_recognition import CustomRecognition
 
 from utils import mfaalog
 
-# 金币读数节点。base/pc 各有一份 roi（右上角金币串），本模块只借它的 recognition+roi。
+# 默认出售金币读数节点；购买侧通过 node 参数指定自己的 ROI。
 _GOLD_NODE_DEFAULT = "Arbitrage_Sell_GoldRead"
 # 位数上界：超过这个位数不可能是真金币，是把别的元素也吃进来了。
 _GOLD_MAX_DIGITS = 12
 
-# A 写、B 一次性消费。
+# Snapshot 覆盖；动作 Verdict 消费，识别 Verdict 只读，Clear 清除。
 _BASELINE: Optional[dict] = None
 # B 写、主控一次性消费。
 _VERDICT: Optional[dict] = None
@@ -69,7 +125,7 @@ def _node_of(argv) -> str:
     return _GOLD_NODE_DEFAULT
 
 
-def _read_gold(context: Context, node: str = _GOLD_NODE_DEFAULT) -> Optional[int]:
+def _read_gold(context: Context, node: str = _GOLD_NODE_DEFAULT, *, image=None) -> Optional[int]:
     """读金币数。读不到 / 读数不合理 → None。
 
     返回 None 而不是 0：0 得留给「玩家真的没钱」。旧写法用 0 兼做「读不到」的哨兵，
@@ -87,7 +143,7 @@ def _read_gold(context: Context, node: str = _GOLD_NODE_DEFAULT) -> Optional[int
       取最大就取到碎片了。
     """
     try:
-        ss = context.tasker.controller.post_screencap().wait().get()
+        ss = image if image is not None else context.tasker.controller.post_screencap().wait().get()
         if ss is None:
             mfaalog.warning("[Gold] ⚠️ 截图失败，本次读数作废")
             return None
@@ -136,7 +192,7 @@ def _read_gold(context: Context, node: str = _GOLD_NODE_DEFAULT) -> Optional[int
 # 主控侧接口
 # ==========================================
 def clear_verdict() -> None:
-    """发包前清槽。不清的话，链条这轮没走到 B 时会读到上一轮的残留结论。"""
+    """清除基准和结论；纯 Pipeline 可调用 GoldClear 动作。"""
     global _BASELINE, _VERDICT
     _BASELINE = None
     _VERDICT = None
@@ -154,6 +210,11 @@ def take_verdict() -> Optional[dict]:
     return verdict
 
 
+def get_baseline() -> Optional[int]:
+    """只读本批金币基准，供需要精确报价确认的出售入口检查。"""
+    return _BASELINE.get("gold") if _BASELINE is not None else None
+
+
 # ==========================================
 # 链内测量点
 # ==========================================
@@ -163,8 +224,10 @@ class GoldSnapshot(CustomAction):
 
     def run(self, context: Context, argv: CustomAction.RunArg) -> bool:
         global _BASELINE
+        clear_verdict()
         gold = _read_gold(context, _node_of(argv))
-        _BASELINE = {"gold": gold}        # 无条件覆盖，不做新鲜度判断
+        if gold is not None:
+            _BASELINE = {"gold": gold}
         mfaalog.info(
             f"[Gold] 📌 基准 {gold:,}" if gold is not None else "[Gold] 📌 基准读数不可用"
         )
@@ -173,17 +236,69 @@ class GoldSnapshot(CustomAction):
         return True
 
 
+@AgentServer.custom_action("GoldClear")
+class GoldClear(CustomAction):
+    """成功或放弃本轮测量时清除基准和结论。"""
+
+    def run(self, context: Context, argv: CustomAction.RunArg) -> bool:
+        clear_verdict()
+        return True
+
+
+@AgentServer.custom_recognition("GoldVerdict")
+class GoldVerdictRecognition(CustomRecognition):
+    """按金币增减识别；只读本轮基准，不消费或写入测量状态。"""
+
+    def analyze(self, context, argv):
+        try:
+            raw = argv.custom_recognition_param
+            params = raw if isinstance(raw, dict) else json.loads(raw or "{}")
+            if not isinstance(params, dict):
+                raise ValueError("参数必须为对象")
+            direction = params.get("direction")
+            if direction not in ("decrease", "increase"):
+                raise ValueError("direction 必须为 decrease 或 increase")
+            expected = params.get("expected_delta")
+            if "expected_delta" in params and (
+                    type(expected) is not int or expected == 0
+                    or (expected > 0) != (direction == "increase")):
+                raise ValueError("expected_delta 必须是与 direction 同方向的非零整数")
+            node = params.get("node", _GOLD_NODE_DEFAULT)
+            if not isinstance(node, str) or not node.strip():
+                raise ValueError("node 必须为非空识别节点名")
+            baseline = _BASELINE
+            if baseline is None or baseline.get("gold") is None:
+                return None
+            if argv.image is None:
+                return None
+            before = baseline["gold"]
+            after = _read_gold(context, node.strip(), image=argv.image)
+            if after is None:
+                return None
+            delta = after - before
+            if expected is not None and delta != expected:
+                return None
+            if (direction == "decrease" and delta < 0) or (direction == "increase" and delta > 0):
+                return CustomRecognition.AnalyzeResult(
+                    box=(0, 0, 1, 1),
+                    detail={"before": before, "after": after, "delta": delta, "direction": direction},
+                )
+            return None
+        except Exception as exc:
+            mfaalog.warning(f"[Gold] 金币差额识别失败：{exc}")
+            return None
+
+
 @AgentServer.custom_action("GoldVerdict")
 class GoldVerdict(CustomAction):
     """B：取终值算差额，落槽位交主控。挂在 `Arbitrage_Sell_End`（复位态确认）上。
 
-    只算不判 —— `delta` 该按 `> 0` 还是 `!= 0` 解释，取决于是出售还是购买，主控定。
+    只算不判 —— 出售通常按 delta > 0、购买按 delta < 0，具体判据由主控定。
     """
 
     def run(self, context: Context, argv: CustomAction.RunArg) -> bool:
         global _BASELINE, _VERDICT
-        # 一次性消费：基准取走即清。链条若在 A 之后、B 之前断掉，残留的基准不会被
-        # 下一轮的 B 拿去跟不相干的终值比。
+        # 一次性消费：基准取走即清。A之后断链时仍须由放弃出口或下一轮入口清理。
         baseline, _BASELINE = _BASELINE, None
         before = baseline.get("gold") if baseline else None
         after = _read_gold(context, _node_of(argv))

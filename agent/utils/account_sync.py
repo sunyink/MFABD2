@@ -13,12 +13,12 @@ task 运行时这个节点上的 account_id 都已是最新值，**无需该节�
 （内核 get_node_data 先查 override 表再查资源，见 Context.cpp）。
 
 而 PersistentStore 只可能被 py 调用，py 只在 CustomAction/CustomRecognition 里跑
-⇒ 存档的任何读写都必然发生在某个 custom 内部。所以在这些入口各同步一次，
+⇒ 存档的任何读写都必然发生在某个 custom 内部。所以在各业务入口同步一次，
 就覆盖了全部存档读写，不碰 custom 的 task 也不碰存档，漏了无妨。
 
 两条路共用本模块，互相幂等：
   · push —— `Env_AccountSave_Switch` 被执行时（StartGame 链首，早期同步 + 日志）
-  · pull —— cartridge_lib 的三个 custom 入口，每次读写存档前
+  · pull —— cartridge_lib、arbitrage_result、cooking_stock 的 custom 入口，每次读写账号存档前
 
 幂等由 PersistentStore.switch_account 保证：它按值比较，相同则什么都不做，
 不打日志、不重挂路径。所以"每次都同步"的成本约等于零。

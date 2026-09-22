@@ -2,8 +2,6 @@
 """
 pipeline_manager 重构 —— pipeline JSON 调用点迁移脚本
 
-契约：G:\\MFABD2-priv\\doc\\agent\\pipeline_manager\\pipeline_manager_重构设计.md
-
 把 pipe 侧的旧动作调用改写为新 API：
 
     PatchNode / PatchBatch / PatchByRegex / PatchAndClick  ->  PatchPipeline
