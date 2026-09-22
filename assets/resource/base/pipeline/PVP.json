@@ -704,7 +704,7 @@
         "focus": "PM.PVP-AP不足以执行计划"
     },
     "PVP_AutoBattle_APShortage_Depleted": {
-        "desc": "此时AP为零,结束",
+        "desc": "此时AP为零,结束。数量统一去除额外库存(+数字)与空白,兼容ADB的0/40和PC的0/40 +668。",
         "recognition": "OCR",
         "roi": [
             1040,
@@ -723,6 +723,14 @@
             [
                 "O",
                 "0"
+            ],
+            [
+                "\\+.*$",
+                ""
+            ],
+            [
+                "\\s+",
+                ""
             ]
         ],
         "action": "Click",
@@ -735,7 +743,7 @@
         ]
     },
     "PVP_AutoBattle_APShortage_Remaining": {
-        "desc": "还有残余AP但是不够刷满目标倍数,改到1刷完",
+        "desc": "还有残余AP但是不够刷满目标倍数,改到1刷完。数量统一去除额外库存(+数字)与空白,兼容ADB的10/40和PC的10/40 +668。",
         "recognition": "OCR",
         "roi": [
             1040,
@@ -754,6 +762,14 @@
             [
                 "O",
                 "0"
+            ],
+            [
+                "\\+.*$",
+                ""
+            ],
+            [
+                "\\s+",
+                ""
             ]
         ],
         "action": "Click",
