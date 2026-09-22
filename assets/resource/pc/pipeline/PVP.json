@@ -305,20 +305,6 @@
             25,
             120,
             27
-        ],
-        "replace": [
-            [
-                "o",
-                "0"
-            ],
-            [
-                "O",
-                "0"
-            ],
-            [
-                "\\+.*$",
-                ""
-            ]
         ]
     },
     "PVP_AutoBattle_APShortage_Remaining": {
@@ -327,20 +313,6 @@
             25,
             120,
             27
-        ],
-        "replace": [
-            [
-                "o",
-                "0"
-            ],
-            [
-                "O",
-                "0"
-            ],
-            [
-                "\\+.*$",
-                ""
-            ]
         ]
     },
     "PVP_PerOperationsMain_Error_Processing": {
