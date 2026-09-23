@@ -168,21 +168,6 @@
             32,
             43
         ],
-        "method": 40,
-        "lower": [
-            [
-                0,
-                0,
-                174
-            ]
-        ],
-        "upper": [
-            [
-                40,
-                24,
-                255
-            ]
-        ],
         "count": 300
     },
     "PVP_Multiplier_Verify": {
