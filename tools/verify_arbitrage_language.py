@@ -13,6 +13,9 @@ from types import SimpleNamespace as NS
 import unittest
 from unittest.mock import patch
 
+import numpy as np
+from maa.custom_action import CustomAction
+from maa.custom_recognition import CustomRecognition
 from maa.library import Library
 from maa.resource import Resource
 from maa.tasker import Tasker
@@ -30,13 +33,16 @@ with patch.object(AgentServer, "custom_action", return_value=lambda cls: cls), \
     from action.arbitrage_buy_precise import buy_overrides
     from action.arbitrage_sell_quantity import parse_quantity
     from action.shop_buy_fav_controller import ShopBuyFavController
+    from verify_arbitrage_purchase_cycle import OfflineController
 from utils import arbitrage_cartridge as cart
 from utils.name_i18n import canon
 from utils.ocr_item_name import item_aliases
 
 
 BASE = json.loads((ROOT / "assets/resource/base/pipeline/Arbitrage.json").read_text("utf-8"))
-PC = json.loads((ROOT / "assets/resource/pc/pipeline/Arbitrage.json").read_text("utf-8"))
+PC_PATH = ROOT / "assets/resource/pc/pipeline/Arbitrage.json"
+PC = json.loads(PC_PATH.read_text("utf-8")) if PC_PATH.exists() else {}
+HAS_PC = bool(PC)
 # Real UI wording and known translations, independent of the patterns under test.
 UI_CASES = {
     "Arbitrage_NviGuide_CKMsgBox_Ocr": ["确认", "確認"],
@@ -80,6 +86,11 @@ COMPOSITES = {
     "Arbitrage_Bag_TabReset_Cons": (1, ["消耗品"]),
     "Agt_BagStock_List_Ready": (1, ["料理食材优先", "料理食材優先"]),
 }
+BOX_DEPENDENCIES = {
+    "Arbitrage_Favorit_Buy": "Sub_Ocr_Enable_Clr",
+    "Arbitrage_PriceList_Sort_Check": "Sub_SieveExpand_Yew_Clr",
+    "Arbitrage_ItemList_Sorting_Reverse": "Sub_SieveExpand_Yew_Clr",
+}
 SHOPS = {
     "QC": ["血骑士|血騎士", "苍蓝魔女|蒼藍魔女", "迷雾神射手|迷霧神射手", "眼镜与猫|眼鏡與貓",
            "沙漠之花", "异教塔|異教塔", "愤怒天使|憤怒的天使", "血之狂想曲", "铁假面|鐵面具",
@@ -104,7 +115,7 @@ class LanguageTests(unittest.TestCase):
         Tasker.set_log_dir(cls.logs.name)
         Tasker.set_stdout_level(LoggingLevelEnum.Off)
         cls.resources = []
-        for pc in (False, True):
+        for pc in (False, True) if HAS_PC else (False,):
             resource = Resource()
             assert resource.post_bundle(ROOT / "assets/resource/base").wait().succeeded
             if pc:
@@ -130,20 +141,71 @@ class LanguageTests(unittest.TestCase):
                     with self.subTest(pc=pc, node=node, text=text):
                         self.assertTrue(matches(patterns, text))
 
-    def test_composite_recognition_uses_shared_words_with_platform_roi(self):
+    def test_composite_recognition_keeps_inline_names_words_and_platform_roi(self):
         for parent, (index, samples) in COMPOSITES.items():
             helper = f"Rec_<{parent}>_Ocr"
+            self.assertNotIn(helper, BASE)
+            if HAS_PC:
+                self.assertNotIn(helper, PC)
+                self.assertEqual(BASE[parent]["all_of"][index]["expected"],
+                                 PC[parent]["all_of"][index]["expected"])
             for pc, resource in enumerate(self.resources):
                 children = resource.get_node_data(parent)["recognition"]["param"]["all_of"]
-                self.assertEqual(children[index], helper)
-                params = resource.get_node_data(helper)["recognition"]["param"]
-                self.assertEqual(params["roi"], (PC.get(helper) if pc else BASE[helper])["roi"])
+                child = children[index]
+                self.assertEqual(child["sub_name"], "OCR")
+                self.assertEqual(child["type"], "OCR")
+                params = child["param"]
+                self.assertEqual(params["roi"], (PC if pc else BASE)[parent]["all_of"][index]["roi"])
                 for text in samples:
                     self.assertTrue(matches(params["expected"], text), (parent, pc, text))
-            self.assertNotIn("next", BASE[helper])
-            self.assertNotIn("on_error", BASE[helper])
 
-    def test_pc_does_not_override_language_fields(self):
+    def test_native_color_uses_current_inline_box_instead_of_stale_type_cache(self):
+        state = {}
+
+        class TextBox(CustomRecognition):
+            def analyze(self, context, argv):
+                return self.AnalyzeResult(box=state["box"] if state["text_hit"] else None, detail={})
+
+        class Probe(CustomAction):
+            def run(self, context, argv):
+                context.run_recognition("OCR", state["image"], {
+                    "OCR": {"recognition": "DirectHit", "roi": [10, 10, 40, 16]}})
+                result = context.run_recognition(state["parent"], state["image"], {
+                    state["parent"]: {"all_of": [
+                        {"sub_name": state["sub_name"], "recognition": "Custom",
+                         "custom_recognition": "test_language_text_box"}, state["consumer"]]}})
+                state["hit"] = result.hit
+                return True
+
+        for pc, resource in enumerate(self.resources):
+            self.assertTrue(resource.register_custom_recognition("test_language_text_box", TextBox()))
+            self.assertTrue(resource.register_custom_action("test_language_box_probe", Probe()))
+            controller = OfflineController()
+            self.assertTrue(controller.post_connection().wait().succeeded)
+            tasker = Tasker()
+            self.assertTrue(tasker.bind(resource, controller))
+            for parent, consumer in BOX_DEPENDENCIES.items():
+                child = resource.get_node_data(parent)["recognition"]["param"]["all_of"][0]
+                x, y, _, _ = child["param"]["roi"]
+                color = [240, 240, 240] if consumer == "Sub_Ocr_Enable_Clr" else [50, 177, 240]
+                for text_hit, current_color, stale_color in [(True, True, False), (True, False, True),
+                                                           (False, True, True)]:
+                    pixels = np.zeros((720, 1280, 3), dtype=np.uint8)
+                    if current_color:
+                        pixels[y + 2:y + 18, x + 2:x + 42] = color
+                    if stale_color:
+                        pixels[10:26, 10:50] = color
+                    state.update(parent=parent, consumer=consumer, sub_name=child["sub_name"],
+                                 box=[x + 2, y + 2, 40, 16], image=pixels, text_hit=text_hit, hit=None)
+                    self.assertTrue(tasker.post_task("test_language_box_probe", {"test_language_box_probe": {
+                        "action": "Custom", "custom_action": "test_language_box_probe",
+                        "next": [], "on_error": [], "pre_delay": 0, "post_delay": 0}}).wait().succeeded)
+                    with self.subTest(pc=pc, parent=parent, text=text_hit, color=current_color, stale=stale_color):
+                        self.assertEqual(state["hit"], text_hit and current_color)
+            del tasker, controller
+
+    @unittest.skipUnless(HAS_PC, "PC Arbitrage overlay is not present on this branch")
+    def test_pc_has_no_divergent_language_rules(self):
         def walk(value):
             if isinstance(value, dict):
                 for key, child in value.items():
@@ -154,7 +216,13 @@ class LanguageTests(unittest.TestCase):
             elif isinstance(value, list):
                 for child in value:
                     walk(child)
-        walk(PC)
+        overlay = deepcopy(PC)
+        # A list override must repeat the inline recognizer, including the shared words.
+        for parent, (index, _) in COMPOSITES.items():
+            self.assertEqual(overlay[parent]["all_of"][index]["expected"],
+                             BASE[parent]["all_of"][index]["expected"])
+            overlay[parent]["all_of"][index].pop("expected")
+        walk(overlay)
         for resource in self.resources:
             config = resource.get_node_data(cart.RESCUE_NODE)["attach"]
             self.assertEqual(config["type_patterns"], cart.DEFAULT_CONFIG["type_patterns"])

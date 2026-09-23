@@ -556,6 +556,23 @@
     },
     "Arbitrage_Favorit_Buy": {
         "desc": "点'一键购买全部收藏'。|[PC覆盖·2026-07-14帧校准] PC按钮文字实测720(900-1015,662-680),base子OCR roi[809,624,186,70]右缘x995切'藏'字。子OCR roi改[875,648,190,45];Enable_Clr色核沿用。",
+        "all_of": [
+            {
+                "sub_name": "OCR",
+                "recognition": "OCR",
+                "roi": [
+                    875,
+                    648,
+                    190,
+                    45
+                ],
+                "expected": [
+                    "[购購][买買]全部收藏",
+                    "[键鍵][购購][买買]全部收藏"
+                ]
+            },
+            "Sub_Ocr_Enable_Clr"
+        ],
         "focus": "Arb.PC.执行一键购买全部收藏"
     },
     "Arbitrage_Favorit_Buy_Empty": {
@@ -2219,7 +2236,20 @@
                     ]
                 ]
             },
-            "Rec_<Arbitrage_Bag_TabReset_Coll>_Ocr"
+            {
+                "sub_name": "OCR",
+                "recognition": "OCR",
+                "roi": [
+                    155,
+                    8,
+                    217,
+                    51
+                ],
+                "expected": [
+                    "收集品$",
+                    "收藏品$"
+                ]
+            }
         ]
     },
     "Arbitrage_Bag_TabReset_Coll_Act": {
@@ -2257,7 +2287,19 @@
                     ]
                 ]
             },
-            "Rec_<Arbitrage_Bag_TabReset_Cons>_Ocr"
+            {
+                "sub_name": "OCR",
+                "recognition": "OCR",
+                "roi": [
+                    183,
+                    10,
+                    179,
+                    51
+                ],
+                "expected": [
+                    "^消耗品"
+                ]
+            }
         ]
     },
     "Arbitrage_Bag_TabReset_Cons_Act": {
@@ -2466,60 +2508,68 @@
         ],
         "focus": "Arb.PC.进图链超时!重回复位整链重试"
     },
-    "Rec_<Arbitrage_Favorit_Buy>_Ocr": {
-        "roi": [
-            875,
-            648,
-            190,
-            45
-        ]
-    },
-    "Rec_<Arbitrage_PriceList_Sort_Check>_Ocr": {
-        "roi": [
-            732,
-            213,
-            191,
-            46
-        ]
-    },
-    "Rec_<Arbitrage_ItemList_Sorting_Reverse>_Ocr": {
-        "roi": [
-            958,
-            70,
-            211,
-            45
-        ]
-    },
-    "Rec_<Arbitrage_Bag_TabReset_Coll>_Ocr": {
-        "roi": [
-            155,
-            8,
-            217,
-            51
-        ]
-    },
-    "Rec_<Arbitrage_Bag_TabReset_Cons>_Ocr": {
-        "roi": [
-            183,
-            10,
-            179,
-            51
-        ]
-    },
-    "Rec_<Agt_BagStock_List_Ready>_Ocr": {
-        "roi": [
-            929,
-            8,
-            224,
-            41
-        ]
-    },
     "Rec_<Arbitrage_Merchant_Dialog>_Ocr": {
         "roi": [
             40,
             440,
             140,
             55
+        ]
+    },
+    "Arbitrage_PriceList_Sort_Check": {
+        "all_of": [
+            {
+                "sub_name": "OCR",
+                "recognition": "OCR",
+                "roi": [
+                    732,
+                    213,
+                    191,
+                    46
+                ],
+                "expected": [
+                    "[从從]高到低",
+                    "降序"
+                ]
+            },
+            "Sub_SieveExpand_Yew_Clr"
+        ]
+    },
+    "Arbitrage_ItemList_Sorting_Reverse": {
+        "all_of": [
+            {
+                "sub_name": "OCR",
+                "recognition": "OCR",
+                "roi": [
+                    958,
+                    70,
+                    211,
+                    45
+                ],
+                "expected": [
+                    "[从從]高到低",
+                    "降序"
+                ]
+            },
+            "Sub_SieveExpand_Yew_Clr"
+        ]
+    },
+    "Agt_BagStock_List_Ready": {
+        "all_of": [
+            "Arbitrage_Bag_TabReset_Cons",
+            {
+                "sub_name": "OCR",
+                "recognition": "OCR",
+                "roi": [
+                    929,
+                    8,
+                    224,
+                    41
+                ],
+                "expected": [
+                    "^料理食材[优優]先$"
+                ]
+            }
         ]
     }
 }
