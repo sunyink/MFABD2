@@ -204,6 +204,7 @@
         ]
     },
     "Arbitrage_Bargaining_SkillList": {
+        "desc": "砍价.商店列表",
         "recognition": "OCR",
         "roi": [
             108,
