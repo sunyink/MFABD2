@@ -17,6 +17,29 @@ assert SPEC.loader is not None
 SPEC.loader.exec_module(INSTALL)
 
 
+class DistributionDocumentTest(unittest.TestCase):
+    def test_packaging_copies_statement_for_all_targets(self):
+        for target in ("win", "linux", "macos", "android"):
+            with self.subTest(target=target), tempfile.TemporaryDirectory() as work:
+                output = Path(work)
+                with patch.multiple(INSTALL, install_path=output, target_os=target):
+                    with patch("sys.stdout", new_callable=io.StringIO):
+                        INSTALL.install_chores()
+                self.assertEqual((output / "TRADEMARKS.md").read_bytes(),
+                                 (ROOT / "TRADEMARKS.md").read_bytes())
+
+    def test_missing_statement_stops_packaging(self):
+        with tempfile.TemporaryDirectory() as work:
+            root = Path(work)
+            output = root / "install"
+            output.mkdir()
+            for name in ("README.md", "LICENSE", "LICENSE-APACHE", "LICENSE-MIT"):
+                (root / name).write_text("fixture", encoding="utf-8")
+            with patch.multiple(INSTALL, working_dir=root, install_path=output):
+                with self.assertRaises(FileNotFoundError):
+                    INSTALL.install_chores()
+
+
 class AndroidInterfaceFilterTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
