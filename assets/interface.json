@@ -380,7 +380,9 @@
             "entry": "Practise_Start",
             "controller": [
                 "Adb",
-                "PlayCover"
+                "PlayCover",
+                "PC客户端",
+                "PC客户端(Cursor)"
             ],
             "option": [
                 "选择要刷取的技能"

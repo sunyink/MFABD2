@@ -1,0 +1,56 @@
+{
+    "Practise_Merchant_Menu_Return": {
+        "target": [
+            110,
+            30,
+            1,
+            1
+        ]
+    },
+    "Practise_Skill_Bargaining_Verify_Err": {
+        "roi": [
+            90,
+            603,
+            75,
+            32
+        ],
+        "expected": [
+            "偷窃",
+            "偷竊"
+        ]
+    },
+    "Practise_Skill_Bargaining_Until": {
+        "expected": [
+            "新手",
+            "进阶",
+            "進階",
+            "高手",
+            "达人",
+            "達人"
+        ]
+    },
+    "Practise_Skill_Bargaining_Succeed": {
+        "expected": [
+            "传说",
+            "傳說"
+        ]
+    },
+    "Practise_Skill_Bargaining_Upgrade_Ck": {
+        "all_of": [
+            {
+                "sub_name": "OCR",
+                "recognition": "OCR",
+                "roi": [
+                    951,
+                    643,
+                    195,
+                    38
+                ],
+                "expected": [
+                    "升星"
+                ]
+            },
+            "Sub_Ocr_Enable_Clr"
+        ]
+    }
+}
