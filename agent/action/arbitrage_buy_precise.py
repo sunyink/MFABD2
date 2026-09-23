@@ -222,6 +222,7 @@ def _shop_expected(context, shop_name):
 
 def buy_overrides(context, request):
     from .arbitrage_result import _sell_item_override, _cart_expected
+    from utils.arbitrage_cartridge import load_config
     patch = _sell_item_override(context, request["item_name"])
     patch["Arbitrage_Sell_Item_ListTraverse"]["max_hit"] = 2
     config = dict(context.get_node_object(_QUANTITY).attach)
@@ -229,7 +230,7 @@ def buy_overrides(context, request):
                   gold_node="Agt_BuyQuantity_Gold_Ocr",
                   cost_node="Agt_BuyQuantity_Cost_Ocr")
     shop_expected = (_shop_expected(context, request["shop_name"])
-                     if request.get("shop_name") else _cart_expected(request["cartridge"]))
+                     if request.get("shop_name") else _cart_expected(request["cartridge"], load_config(context)))
     patch.update({
         "Arbitrage_Sell_Type_Ocr": {"any_of": ["Arbitrage_Buy_Button_Chg"]},
         "Arbitrage_Sell_Type_Clr": {"recognition": "Or", "any_of": ["Agt_SellList_BuyReady"]},
