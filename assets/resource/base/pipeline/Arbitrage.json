@@ -180,7 +180,7 @@
             135
         ],
         "expected": [
-            "确认"
+            "[确確][认認]"
         ],
         "action": "Click",
         "post_delay": 1000,
@@ -330,7 +330,8 @@
             51
         ],
         "expected": [
-            "砍价"
+            "砍[价價]",
+            "[讨討][价價][还還][价價]"
         ],
         "action": "Click",
         "post_wait_freezes": 500,
@@ -350,7 +351,8 @@
             82
         ],
         "expected": [
-            "砍价"
+            "砍[价價]",
+            "[讨討][价價][还還][价價]"
         ],
         "action": "Click",
         "post_delay": 500,
@@ -412,8 +414,9 @@
             149
         ],
         "expected": [
-            "购买",
-            "出售"
+            "出售",
+            "[购購][买買]",
+            "[贩販]售"
         ],
         "anchor": {
             "Merchant_Bypass": ""
@@ -432,7 +435,7 @@
             66
         ],
         "expected": [
-            "关闭商店"
+            "[关關][闭閉]商店"
         ],
         "action": "Click",
         "post_wait_freezes": {
@@ -510,7 +513,7 @@
             149
         ],
         "expected": [
-            "购买"
+            "[购購][买買]"
         ],
         "pre_delay": 500,
         "action": "Click",
@@ -605,7 +608,8 @@
             72
         ],
         "expected": [
-            "血骑士"
+            "血骑士",
+            "血騎士"
         ],
         "next": [
             "Arbitrage_Buy_Select_Str"
@@ -740,7 +744,8 @@
             630
         ],
         "expected": [
-            "血骑士"
+            "血骑士",
+            "血騎士"
         ],
         "action": "Click",
         "anchor": "CurCard",
@@ -783,7 +788,7 @@
             630
         ],
         "expected": [
-            "苍蓝魔女"
+            "[苍蒼][蓝藍]魔女"
         ],
         "action": "Click",
         "anchor": "CurCard",
@@ -826,7 +831,8 @@
             630
         ],
         "expected": [
-            "迷雾神射手"
+            "迷雾神射手",
+            "迷霧神射手"
         ],
         "action": "Click",
         "anchor": "CurCard",
@@ -869,7 +875,7 @@
             630
         ],
         "expected": [
-            "眼镜与猫"
+            "眼[镜鏡][与與][猫貓]"
         ],
         "action": "Click",
         "anchor": "CurCard",
@@ -955,7 +961,8 @@
             630
         ],
         "expected": [
-            "异教塔"
+            "异教塔",
+            "異教塔"
         ],
         "action": "Click",
         "anchor": "CurCard",
@@ -998,7 +1005,8 @@
             630
         ],
         "expected": [
-            "愤怒天使"
+            "[愤憤]怒天使",
+            "[愤憤]怒的天使"
         ],
         "action": "Click",
         "anchor": "CurCard",
@@ -1084,7 +1092,8 @@
             630
         ],
         "expected": [
-            "铁假面"
+            "[铁鐵]假面",
+            "[铁鐵]面具"
         ],
         "action": "Click",
         "anchor": "CurCard",
@@ -1127,7 +1136,8 @@
             630
         ],
         "expected": [
-            "霍尔蒙克斯"
+            "霍尔蒙克斯",
+            "霍爾蒙克斯"
         ],
         "action": "Click",
         "anchor": "CurCard",
@@ -1170,7 +1180,7 @@
             630
         ],
         "expected": [
-            "虚假游戏"
+            "[虚虛]假[游遊][戏戲]"
         ],
         "action": "Click",
         "anchor": "CurCard",
@@ -1299,7 +1309,7 @@
             630
         ],
         "expected": [
-            "神圣审判"
+            "神[圣聖][审審]判"
         ],
         "action": "Click",
         "anchor": "CurCard",
@@ -1342,7 +1352,8 @@
             630
         ],
         "expected": [
-            "复仇的誓言"
+            "[复復]仇的誓言",
+            "[复復]仇的誓[约約]"
         ],
         "action": "Click",
         "anchor": "CurCard",
@@ -1385,7 +1396,8 @@
             630
         ],
         "expected": [
-            "国同盟"
+            "国同盟",
+            "國同盟"
         ],
         "action": "Click",
         "anchor": "CurCard",
@@ -1428,7 +1440,7 @@
             630
         ],
         "expected": [
-            "试炼之路"
+            "[试試][炼煉]之路"
         ],
         "action": "Click",
         "anchor": "CurCard",
@@ -1471,7 +1483,8 @@
             630
         ],
         "expected": [
-            "救赎"
+            "救赎",
+            "救贖"
         ],
         "action": "Click",
         "anchor": "CurCard",
@@ -1514,7 +1527,7 @@
             630
         ],
         "expected": [
-            "被遗忘的战争"
+            "被[遗遺]忘的[战戰][争爭]"
         ],
         "action": "Click",
         "anchor": "CurCard",
@@ -1557,7 +1570,7 @@
             630
         ],
         "expected": [
-            "杰登之门"
+            "[杰傑]登之[门門]"
         ],
         "action": "Click",
         "anchor": "CurCard",
@@ -1600,7 +1613,8 @@
             630
         ],
         "expected": [
-            "火晶片"
+            "火晶片",
+            "火片"
         ],
         "action": "Click",
         "anchor": "CurCard",
@@ -1643,7 +1657,8 @@
             630
         ],
         "expected": [
-            "美丽无望"
+            "美[丽麗][无無]望",
+            "不可能的美[丽麗]"
         ],
         "action": "Click",
         "anchor": "CurCard",
@@ -1686,7 +1701,8 @@
             630
         ],
         "expected": [
-            "大逃脱"
+            "大逃脱",
+            "大逃脫"
         ],
         "action": "Click",
         "anchor": "CurCard",
@@ -1729,7 +1745,7 @@
             630
         ],
         "expected": [
-            "鲁的迷宫"
+            "[魯鲁]的迷[宮宫]"
         ],
         "action": "Click",
         "anchor": "CurCard",
@@ -1772,7 +1788,8 @@
             630
         ],
         "expected": [
-            "御剑传"
+            "御[剑劍][传傳]",
+            "[剑劍][传傳]"
         ],
         "action": "Click",
         "anchor": "CurCard",
@@ -1815,7 +1832,7 @@
             630
         ],
         "expected": [
-            "合约之战"
+            "合[约約]之[战戰]"
         ],
         "action": "Click",
         "anchor": "CurCard",
@@ -1858,7 +1875,8 @@
             630
         ],
         "expected": [
-            "夏日骑士"
+            "夏日[骑騎]士",
+            "夏天[骑騎]士"
         ],
         "action": "Click",
         "anchor": "CurCard",
@@ -1901,7 +1919,8 @@
             630
         ],
         "expected": [
-            "恶梦之冬"
+            "[恶惡][梦夢]之冬",
+            "[梦夢].冬季"
         ],
         "action": "Click",
         "anchor": "CurCard",
@@ -1944,7 +1963,8 @@
             630
         ],
         "expected": [
-            "海滨天使"
+            "海[滨濱]天使",
+            "海[边邊]天使"
         ],
         "action": "Click",
         "anchor": "CurCard",
@@ -1988,7 +2008,7 @@
             630
         ],
         "expected": [
-            "记忆边缘"
+            "[记記][忆憶][边邊][缘緣]"
         ],
         "action": "Click",
         "anchor": "CurCard",
@@ -2032,7 +2052,8 @@
             630
         ],
         "expected": [
-            "戏水女"
+            "[戏戲]水女",
+            "[戏戲]水女王"
         ],
         "action": "Click",
         "anchor": "CurCard",
@@ -2091,19 +2112,7 @@
         "max_hit": 1,
         "recognition": "And",
         "all_of": [
-            {
-                "sub_name": "OCR",
-                "recognition": "OCR",
-                "roi": [
-                    809,
-                    624,
-                    186,
-                    70
-                ],
-                "expected": [
-                    "购买全部收藏"
-                ]
-            },
+            "Rec_<Arbitrage_Favorit_Buy>_Ocr",
             "Sub_Ocr_Enable_Clr"
         ],
         "action": "Click",
@@ -2170,7 +2179,7 @@
             99
         ],
         "expected": [
-            "购买全部收藏"
+            "[购購][买買]全部收藏"
         ],
         "post_wait_freezes": {
             "target": [
@@ -2197,7 +2206,7 @@
             126
         ],
         "expected": [
-            "确认"
+            "[确確][认認]"
         ],
         "action": "Click",
         "post_wait_freezes": {
@@ -2352,7 +2361,7 @@
             48
         ],
         "expected": [
-            "购买"
+            "[购購][买買]"
         ],
         "pre_delay": 500,
         "action": "Click",
@@ -2460,7 +2469,8 @@
             125
         ],
         "expected": [
-            "价目表"
+            "[价價]目表",
+            "[贩販]售行情表"
         ],
         "action": "Click",
         "post_wait_freezes": {
@@ -2487,7 +2497,8 @@
             145
         ],
         "expected": [
-            "价目表"
+            "[价價]目表",
+            "[贩販]售行情表"
         ]
     },
     "Arbitrage_PriceList_Sort_Entry": {
@@ -2531,18 +2542,7 @@
     "Arbitrage_PriceList_Sort_Check": {
         "recognition": "And",
         "all_of": [
-            {
-                "recognition": "OCR",
-                "roi": [
-                    745,
-                    189,
-                    250,
-                    45
-                ],
-                "expected": [
-                    "从高到低"
-                ]
-            },
+            "Rec_<Arbitrage_PriceList_Sort_Check>_Ocr",
             "Sub_SieveExpand_Yew_Clr"
         ],
         "next": [
@@ -2558,7 +2558,8 @@
             299
         ],
         "expected": [
-            "溢价率"
+            "溢[价價]率",
+            "加[价價]率"
         ],
         "action": "Click",
         "post_delay": 800,
@@ -2817,7 +2818,7 @@
         ]
     },
     "Arbitrage_Sell_Cart_RescueNum": {
-        "desc": "价目表卡带救援：类型与编号分开判断；正常框整体平移，压界裁短，大框重检后可按默认高度扫描。attach为双端共用规则及ADB默认几何，PC仅覆盖几何与显示用词。",
+        "desc": "价目表卡带救援：类型与编号分开判断；共用简繁匹配规则及规范名称，平台仅覆盖裁剪几何。",
         "recognition": "OCR",
         "roi": [
             960,
@@ -2868,6 +2869,21 @@
                 "character": "角色游戏卡",
                 "event": "活动游戏卡",
                 "manager": "店长游戏卡"
+            },
+            "type_patterns": {
+                "story": [
+                    "[剧劇]情[游遊][戏戲]卡(?:[带帶])?",
+                    "故事[游遊][戏戲]卡(?:[带帶])?"
+                ],
+                "character": [
+                    "角色[游遊][戏戲]卡(?:[带帶])?"
+                ],
+                "event": [
+                    "活[动動][游遊][戏戲]卡(?:[带帶])?"
+                ],
+                "manager": [
+                    "店[长長][游遊][戏戲]卡(?:[带帶])?"
+                ]
             }
         }
     },
@@ -3220,7 +3236,8 @@
             264
         ],
         "expected": [
-            "溢价率"
+            "溢[价價]率",
+            "加[价價]率"
         ],
         "action": "Click",
         "post_delay": 800,
@@ -3258,18 +3275,7 @@
         "desc": "确认从高到低排序已选中后，写入当前账号的每日排序完成标记。",
         "recognition": "And",
         "all_of": [
-            {
-                "recognition": "OCR",
-                "roi": [
-                    895,
-                    90,
-                    249,
-                    44
-                ],
-                "expected": [
-                    "从高到低"
-                ]
-            },
+            "Rec_<Arbitrage_ItemList_Sorting_Reverse>_Ocr",
             "Sub_SieveExpand_Yew_Clr"
         ],
         "action": "Custom",
@@ -3466,7 +3472,8 @@
         ],
         "expected": [
             "圣石",
-            "装备材料"
+            "聖石",
+            "[装裝][备備]材料"
         ]
     },
     "Arbitrage_Sell_Item_ListTraverse_End_Recipes": {
@@ -3480,8 +3487,9 @@
         ],
         "expected": [
             "圣石",
-            "装备材料",
-            "^料理食材$"
+            "^料理食材$",
+            "聖石",
+            "[装裝][备備]材料"
         ]
     },
     "Arbitrage_Sell_Gold_Snapshot": {
@@ -3534,7 +3542,8 @@
             102
         ],
         "expected": [
-            "出售"
+            "出售",
+            "[贩販]售"
         ]
     },
     "Rec_<Arbitrage_Sell_Item_SellMenu>_Ocr_02": {
@@ -3719,7 +3728,8 @@
             102
         ],
         "expected": [
-            "出售$"
+            "出售$",
+            "[贩販]售$"
         ],
         "action": "Click",
         "post_wait_freezes": {
@@ -3888,7 +3898,8 @@
             39
         ],
         "expected": [
-            "键出售"
+            "[键鍵]出售",
+            "[键鍵][贩販]售"
         ],
         "action": "Click",
         "post_delay": 800,
@@ -3918,7 +3929,10 @@
             94,
             43
         ],
-        "expected": "溢价率",
+        "expected": [
+            "溢[价價]率",
+            "加[价價]率"
+        ],
         "next": [
             "Arbitrage_SellB_SubMenu_Rate",
             "[JumpBack]Arbitrage_SellB_SubMenu_Rate_ChgMax"
@@ -5467,7 +5481,8 @@
             56
         ],
         "expected": [
-            "所需材料$"
+            "所需材料$",
+            "需要的材料$"
         ],
         "focus": "Arb.返回料理菜单\n\n页内复位完成"
     },
@@ -5518,8 +5533,11 @@
             80
         ],
         "expected": [
-            "拥有",
-            "立刻恢复"
+            "[拥擁]有",
+            "持有",
+            "立刻恢[复復]",
+            "立即恢[复復]",
+            "[个個]食物"
         ],
         "next": [
             "Arbitrage_Cooking_MaterialInsufficient",
@@ -5994,7 +6012,8 @@
             56
         ],
         "expected": [
-            "所需材料$"
+            "所需材料$",
+            "需要的材料$"
         ],
         "focus": "Arb.料理菜单已返回"
     },
@@ -6060,7 +6079,7 @@
             "E3:海滨天使": "奶酪,巧克力,牛奶,白糖,鱼子酱罐头,鸡蛋,黄油",
             "E4:记忆边缘": "巧克力,水果罐头,牛奶,白糖,辣椒,辣椒素",
             "E5:戏水女王": "吐司,咖啡豆,巧克力,水果罐头,牛奶,袋装鸡胸肉,金枪鱼罐头,鱼子酱罐头",
-            "ocr_exclude": "材料,食材,食物,购买,購買,出售,販售,初始化,还剩,重置,剩下",
+            "ocr_exclude": "材料,食材,食物,购买,購買,出售,販售,初始化,还剩,重置,剩下,購买,购買,贩售,還剩",
             "S9:铁假面": ""
         }
     },
@@ -6090,6 +6109,12 @@
             93,
             735,
             529
+        ],
+        "replace": [
+            [
+                "^蘿萄嬰$",
+                "蘿蔔嬰"
+            ]
         ],
         "attach": {
             "name_max_len": 7
@@ -6672,7 +6697,7 @@
         "expected": [
             "优先",
             "排序",
-            "排序"
+            "優先"
         ],
         "next": [
             "Arbitrage_BagStockScan_Sort_Egress",
@@ -6712,7 +6737,9 @@
         ],
         "expected": [
             "料理食材优先",
-            "按料理食材数量从高到低排序"
+            "料理食材優先",
+            "按料理食材[数數]量[从從]高到低排序",
+            "料理食材由多至少排序"
         ],
         "action": "Click",
         "post_delay": 1000
@@ -6726,7 +6753,8 @@
             264
         ],
         "expected": [
-            "按料理食材数量从低到高排序"
+            "按料理食材[数數]量[从從]低到高排序",
+            "料理食材由少至多排序"
         ],
         "action": "Click",
         "target": [
@@ -6770,16 +6798,7 @@
                     255
                 ]
             },
-            {
-                "recognition": "OCR",
-                "roi": [
-                    215,
-                    15,
-                    300,
-                    50
-                ],
-                "expected": "收集品$"
-            }
+            "Rec_<Arbitrage_Bag_TabReset_Coll>_Ocr"
         ],
         "next": [
             "Arbitrage_Bag_TabReset_Cons",
@@ -6821,16 +6840,7 @@
                     255
                 ]
             },
-            {
-                "recognition": "OCR",
-                "roi": [
-                    215,
-                    15,
-                    300,
-                    50
-                ],
-                "expected": "^消耗品"
-            }
+            "Rec_<Arbitrage_Bag_TabReset_Cons>_Ocr"
         ],
         "next": [
             "Arbitrage_Bag_TabReset_Egress"
@@ -6912,16 +6922,7 @@
         "recognition": "And",
         "all_of": [
             "Arbitrage_Bag_TabReset_Cons",
-            {
-                "recognition": "OCR",
-                "roi": [
-                    850,
-                    15,
-                    300,
-                    40
-                ],
-                "expected": "^料理食材[优優]先$"
-            }
+            "Rec_<Agt_BagStock_List_Ready>_Ocr"
         ]
     },
     "Agt_BagStock_Item_Tpl": {
@@ -7040,7 +7041,8 @@
             102
         ],
         "expected": [
-            "^\\s*可(?:购买|購買)\\s*[0-9][0-9,，\\s]*[个個]\\s*$"
+            "^\\s*可(?:购买|購買)\\s*[0-9][0-9,，\\s]*[个個]\\s*$",
+            "^\\s*可[购購][买買]\\s*[0-9][0-9,，\\s]*[个個]\\s*$"
         ]
     },
     "Agt_BuyQuantity_Cost_White": {
@@ -7093,7 +7095,8 @@
             102
         ],
         "expected": [
-            "^\\s*(?:购买|購買)\\s*$"
+            "^\\s*(?:购买|購買)\\s*$",
+            "^\\s*[购購][买買]\\s*$"
         ]
     },
     "Agt_BuyConfirm_Click": {
@@ -7402,7 +7405,8 @@
             123
         ],
         "expected": [
-            "出售"
+            "出售",
+            "[贩販]售"
         ],
         "action": "Click",
         "post_delay": 2000
@@ -7417,7 +7421,8 @@
             43
         ],
         "expected": [
-            "食物$"
+            "食物$",
+            "料理$"
         ],
         "post_wait_freezes": {
             "time": 500,
@@ -8551,5 +8556,95 @@
         "pre_delay": 0,
         "post_delay": 0,
         "focus": "② 当前卡带收藏未核实，继续下一张"
+    },
+    "Rec_<Arbitrage_Favorit_Buy>_Ocr": {
+        "desc": "共用简繁文字识别；平台覆盖仅调整识别区域。",
+        "recognition": "OCR",
+        "roi": [
+            809,
+            624,
+            186,
+            70
+        ],
+        "expected": [
+            "[购購][买買]全部收藏",
+            "[键鍵][购購][买買]全部收藏"
+        ]
+    },
+    "Rec_<Arbitrage_PriceList_Sort_Check>_Ocr": {
+        "desc": "共用简繁文字识别；平台覆盖仅调整识别区域。",
+        "recognition": "OCR",
+        "roi": [
+            745,
+            189,
+            250,
+            45
+        ],
+        "expected": [
+            "[从從]高到低",
+            "降序"
+        ]
+    },
+    "Rec_<Arbitrage_ItemList_Sorting_Reverse>_Ocr": {
+        "desc": "共用简繁文字识别；平台覆盖仅调整识别区域。",
+        "recognition": "OCR",
+        "roi": [
+            895,
+            90,
+            249,
+            44
+        ],
+        "expected": [
+            "[从從]高到低",
+            "降序"
+        ]
+    },
+    "Rec_<Arbitrage_Bag_TabReset_Coll>_Ocr": {
+        "desc": "共用简繁文字识别；平台覆盖仅调整识别区域。",
+        "recognition": "OCR",
+        "roi": [
+            215,
+            15,
+            300,
+            50
+        ],
+        "expected": [
+            "收集品$",
+            "收藏品$"
+        ]
+    },
+    "Rec_<Arbitrage_Bag_TabReset_Cons>_Ocr": {
+        "desc": "共用简繁文字识别；平台覆盖仅调整识别区域。",
+        "recognition": "OCR",
+        "roi": [
+            215,
+            15,
+            300,
+            50
+        ],
+        "expected": [
+            "^消耗品"
+        ]
+    },
+    "Rec_<Agt_BagStock_List_Ready>_Ocr": {
+        "desc": "共用简繁文字识别；平台覆盖仅调整识别区域。",
+        "recognition": "OCR",
+        "roi": [
+            850,
+            15,
+            300,
+            40
+        ],
+        "expected": [
+            "^料理食材[优優]先$"
+        ]
+    },
+    "Rec_<Arbitrage_Merchant_Dialog>_Ocr": {
+        "desc": "商人交互态文字识别；当前由PC交互入口使用，语言规则两端共用。",
+        "recognition": "OCR",
+        "expected": [
+            "天赋技能",
+            "天賦技能"
+        ]
     }
 }

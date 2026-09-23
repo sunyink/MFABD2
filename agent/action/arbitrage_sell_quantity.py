@@ -48,7 +48,7 @@ def parse_quantity(texts, inventory=False):
     for raw in texts:
         text = _clean(raw)
         if inventory:
-            match = re.fullmatch(r"(?:拥有|持有)(" + _COUNT + r")[个個]", text)
+            match = re.fullmatch(r"(?:[拥擁]有|持有)(" + _COUNT + r")[个個]", text)
             matches = [match] if match else []
         else:
             matches = re.finditer(r"(?<![\w,.+−-])(" + _COUNT + r")[个個]", text)

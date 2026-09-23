@@ -82,9 +82,6 @@
             385,
             93,
             186
-        ],
-        "expected": [
-            "[确確][认認]"
         ]
     },
     "Arbitrage_NviGuide_Onfoot_Loop": {
@@ -109,16 +106,9 @@
     },
     "Arbitrage_Merchant_Dialog": {
         "desc": "确认已在商人交互态。|PC 覆盖:base 认右上'天赋药图标',PC 该位置只有货币栏、无此图标→门卫恒关致技能列表永不评估,故 PC 改用 OCR 认左下'天赋技能'面板标签。",
-        "recognition": "OCR",
-        "roi": [
-            40,
-            440,
-            140,
-            55
-        ],
-        "expected": [
-            "天赋技能",
-            "天賦技能"
+        "recognition": "Or",
+        "any_of": [
+            "Rec_<Arbitrage_Merchant_Dialog>_Ocr"
         ],
         "focus": "Arb.PC.商人交互态确认"
     },
@@ -137,16 +127,6 @@
             590,
             905,
             60
-        ],
-        "expected": [
-            "砍[价價]",
-            "[讨討][价價][还還][价價]"
-        ]
-    },
-    "Arbitrage_Bargaining_Msgbox_Ck": {
-        "expected": [
-            "砍[价價]",
-            "[讨討][价價][还還][价價]"
         ]
     },
     "Arbitrage_Bargaining_SkipAm": {
@@ -194,17 +174,9 @@
             66,
             120
         ],
-        "expected": [
-            "[购購][买買]",
-            "出售",
-            "[贩販]售"
-        ],
         "focus": "Arb.PC.商店已开(砍价后)"
     },
     "Arbitrage_Merchant_Close_Ck": {
-        "expected": [
-            "[关關][闭閉]商店"
-        ],
         "post_wait_freezes": {
             "time": 500,
             "target": [
@@ -229,9 +201,6 @@
             70,
             52,
             135
-        ],
-        "expected": [
-            "[购購][买買]"
         ]
     },
     "Arbitrage_PackList_ResetEnter": {
@@ -241,10 +210,6 @@
             85,
             105,
             49
-        ],
-        "expected": [
-            "血骑士",
-            "血騎士"
         ]
     },
     "Arbitrage_Buy_Select_QC1": {
@@ -254,10 +219,6 @@
             85,
             170,
             610
-        ],
-        "expected": [
-            "血骑士",
-            "血騎士"
         ]
     },
     "Arbitrage_Buy_Select_QC1_Clr": {
@@ -269,9 +230,6 @@
             85,
             170,
             610
-        ],
-        "expected": [
-            "[苍蒼][蓝藍]魔女"
         ]
     },
     "Arbitrage_Buy_Select_QC2_Clr": {
@@ -283,10 +241,6 @@
             85,
             170,
             610
-        ],
-        "expected": [
-            "迷雾神射手",
-            "迷霧神射手"
         ]
     },
     "Arbitrage_Buy_Select_QC3_Clr": {
@@ -298,9 +252,6 @@
             85,
             170,
             610
-        ],
-        "expected": [
-            "眼[镜鏡][与與][猫貓]"
         ]
     },
     "Arbitrage_Buy_Select_QC4_Clr": {
@@ -323,10 +274,6 @@
             85,
             170,
             610
-        ],
-        "expected": [
-            "异教塔",
-            "異教塔"
         ]
     },
     "Arbitrage_Buy_Select_QC6_Clr": {
@@ -338,10 +285,6 @@
             85,
             170,
             610
-        ],
-        "expected": [
-            "[愤憤]怒天使",
-            "[愤憤]怒的天使"
         ]
     },
     "Arbitrage_Buy_Select_QC7_Clr": {
@@ -364,10 +307,6 @@
             85,
             170,
             610
-        ],
-        "expected": [
-            "[铁鐵]假面",
-            "[铁鐵]面具"
         ]
     },
     "Arbitrage_Buy_Select_QC9_Clr": {
@@ -379,10 +318,6 @@
             85,
             170,
             610
-        ],
-        "expected": [
-            "霍尔蒙克斯",
-            "霍爾蒙克斯"
         ]
     },
     "Arbitrage_Buy_Select_QC10_Clr": {
@@ -394,9 +329,6 @@
             85,
             170,
             610
-        ],
-        "expected": [
-            "[虚虛]假[游遊][戏戲]"
         ]
     },
     "Arbitrage_Buy_Select_QC11_Clr": {
@@ -430,9 +362,6 @@
             85,
             170,
             610
-        ],
-        "expected": [
-            "神[圣聖][审審]判"
         ]
     },
     "Arbitrage_Buy_Select_QC14_Clr": {
@@ -444,10 +373,6 @@
             85,
             170,
             610
-        ],
-        "expected": [
-            "[复復]仇的誓言",
-            "[复復]仇的誓[约約]"
         ]
     },
     "Arbitrage_Buy_Select_QC15_Clr": {
@@ -459,10 +384,6 @@
             85,
             170,
             610
-        ],
-        "expected": [
-            "国同盟",
-            "國同盟"
         ]
     },
     "Arbitrage_Buy_Select_QC16_Clr": {
@@ -474,9 +395,6 @@
             85,
             170,
             610
-        ],
-        "expected": [
-            "[试試][炼煉]之路"
         ]
     },
     "Arbitrage_Buy_Select_QC17_Clr": {
@@ -488,10 +406,6 @@
             85,
             170,
             610
-        ],
-        "expected": [
-            "救赎",
-            "救贖"
         ]
     },
     "Arbitrage_Buy_Select_QC18_Clr": {
@@ -503,9 +417,6 @@
             85,
             170,
             610
-        ],
-        "expected": [
-            "被[遗遺]忘的[战戰][争爭]"
         ]
     },
     "Arbitrage_Buy_Select_QC19_Clr": {
@@ -517,9 +428,6 @@
             85,
             170,
             610
-        ],
-        "expected": [
-            "[杰傑]登之[门門]"
         ]
     },
     "Arbitrage_Buy_Select_QR1_Clr": {
@@ -531,10 +439,6 @@
             85,
             170,
             610
-        ],
-        "expected": [
-            "火晶片",
-            "火片"
         ]
     },
     "Arbitrage_Buy_Select_QR2_Clr": {
@@ -546,10 +450,6 @@
             85,
             170,
             610
-        ],
-        "expected": [
-            "美[丽麗][无無]望",
-            "不可能的美[丽麗]"
         ]
     },
     "Arbitrage_Buy_Select_QR3_Clr": {
@@ -561,10 +461,6 @@
             85,
             170,
             610
-        ],
-        "expected": [
-            "大逃脱",
-            "大逃脫"
         ]
     },
     "Arbitrage_Buy_Select_QR4_Clr": {
@@ -576,9 +472,6 @@
             85,
             170,
             610
-        ],
-        "expected": [
-            "[魯鲁]的迷[宮宫]"
         ]
     },
     "Arbitrage_Buy_Select_QR5_Clr": {
@@ -590,10 +483,6 @@
             85,
             170,
             610
-        ],
-        "expected": [
-            "御[剑劍][传傳]",
-            "[剑劍][传傳]"
         ]
     },
     "Arbitrage_Buy_Select_QR6_Clr": {
@@ -605,9 +494,6 @@
             85,
             170,
             610
-        ],
-        "expected": [
-            "合[约約]之[战戰]"
         ]
     },
     "Arbitrage_Buy_Select_QR7_Clr": {
@@ -619,10 +505,6 @@
             85,
             170,
             610
-        ],
-        "expected": [
-            "夏日[骑騎]士",
-            "夏天[骑騎]士"
         ]
     },
     "Arbitrage_Buy_Select_QE1_Clr": {
@@ -634,10 +516,6 @@
             85,
             170,
             610
-        ],
-        "expected": [
-            "[恶惡][梦夢]之冬",
-            "[梦夢].冬季"
         ]
     },
     "Arbitrage_Buy_Select_QE2_Clr": {
@@ -649,10 +527,6 @@
             85,
             170,
             610
-        ],
-        "expected": [
-            "海[滨濱]天使",
-            "海[边邊]天使"
         ]
     },
     "Arbitrage_Buy_Select_QE3_Clr": {
@@ -664,9 +538,6 @@
             85,
             170,
             610
-        ],
-        "expected": [
-            "[记記][忆憶][边邊][缘緣]"
         ]
     },
     "Arbitrage_Buy_Select_QE4_Clr": {
@@ -678,10 +549,6 @@
             85,
             170,
             632
-        ],
-        "expected": [
-            "[戏戲]水女",
-            "[戏戲]水女王"
         ]
     },
     "Arbitrage_Buy_Select_QE5_Clr": {
@@ -689,23 +556,6 @@
     },
     "Arbitrage_Favorit_Buy": {
         "desc": "点'一键购买全部收藏'。|[PC覆盖·2026-07-14帧校准] PC按钮文字实测720(900-1015,662-680),base子OCR roi[809,624,186,70]右缘x995切'藏'字。子OCR roi改[875,648,190,45];Enable_Clr色核沿用。",
-        "all_of": [
-            {
-                "sub_name": "OCR",
-                "recognition": "OCR",
-                "roi": [
-                    875,
-                    648,
-                    190,
-                    45
-                ],
-                "expected": [
-                    "[购購][买買]全部收藏",
-                    "[键鍵][购購][买買]全部收藏"
-                ]
-            },
-            "Sub_Ocr_Enable_Clr"
-        ],
         "focus": "Arb.PC.执行一键购买全部收藏"
     },
     "Arbitrage_Favorit_Buy_Empty": {
@@ -722,15 +572,9 @@
             218,
             221,
             100
-        ],
-        "expected": [
-            "[购購][买買]全部收藏"
         ]
     },
     "Arbitrage_Favorit_Buy_SubMenu_BuyAction": {
-        "expected": [
-            "[确確][认認]"
-        ],
         "post_wait_freezes": {
             "target": [
                 618,
@@ -801,9 +645,6 @@
             464,
             82,
             49
-        ],
-        "expected": [
-            "[购購][买買]"
         ]
     },
     "Arbitrage_Sell_Type_Clr": {
@@ -815,10 +656,6 @@
         ]
     },
     "Arbitrage_PriceList_Open_Entry": {
-        "expected": [
-            "[价價]目表",
-            "[贩販]售行情表"
-        ],
         "post_wait_freezes": {
             "target": [
                 456,
@@ -834,10 +671,6 @@
             150,
             170,
             63
-        ],
-        "expected": [
-            "[价價]目表",
-            "[贩販]售行情表"
         ]
     },
     "Arbitrage_PriceList_Sort_Entry": {
@@ -867,35 +700,12 @@
             20
         ]
     },
-    "Arbitrage_PriceList_Sort_Check": {
-        "all_of": [
-            {
-                "sub_name": "OCR",
-                "recognition": "OCR",
-                "roi": [
-                    732,
-                    213,
-                    191,
-                    46
-                ],
-                "expected": [
-                    "[从從]高到低",
-                    "降序"
-                ]
-            },
-            "Sub_SieveExpand_Yew_Clr"
-        ]
-    },
     "Arbitrage_PriceList_Sort_Select": {
         "roi": [
             706,
             209,
             234,
             235
-        ],
-        "expected": [
-            "溢[价價]率",
-            "加[价價]率"
         ]
     },
     "Arbitrage_PriceList_Sort_Egress": {
@@ -999,7 +809,7 @@
         ]
     },
     "Arbitrage_Sell_Cart_RescueNum": {
-        "desc": "PC价目表卡带救援几何与繁体显示用词；识别、裁剪和结果判断沿用共用逻辑。",
+        "desc": "PC价目表卡带救援几何；类型、规范名称和简繁匹配均继承base。",
         "roi": [
             908,
             234,
@@ -1014,13 +824,7 @@
             "type_height_range": [
                 8,
                 22
-            ],
-            "type_labels": {
-                "character": "角色遊戲卡帶",
-                "event": "活動遊戲卡帶",
-                "manager": "店長遊戲卡帶",
-                "story": "故事遊戲卡帶"
-            }
+            ]
         }
     },
     "Agt_PriceList_Swip": {
@@ -1137,29 +941,6 @@
             64,
             240,
             237
-        ],
-        "expected": [
-            "溢[价價]率",
-            "加[价價]率"
-        ]
-    },
-    "Arbitrage_ItemList_Sorting_Reverse": {
-        "all_of": [
-            {
-                "sub_name": "OCR",
-                "recognition": "OCR",
-                "roi": [
-                    958,
-                    70,
-                    211,
-                    45
-                ],
-                "expected": [
-                    "[从從]高到低",
-                    "降序"
-                ]
-            },
-            "Sub_SieveExpand_Yew_Clr"
         ]
     },
     "Arbitrage_ItemList_Swip": {
@@ -1228,13 +1009,6 @@
             84,
             187,
             553
-        ],
-        "expected": [
-            "圣石",
-            "聖石",
-            "装备材料",
-            "装備材料",
-            "[装裝][备備]材料"
         ]
     },
     "Arbitrage_Sell_Item_ListTraverse_End_Recipes": {
@@ -1243,21 +1017,6 @@
             84,
             187,
             553
-        ],
-        "expected": [
-            "圣石",
-            "聖石",
-            "装备材料",
-            "装備材料",
-            "[装裝][备備]材料",
-            "^料理食材$",
-            "^料理食材$"
-        ]
-    },
-    "Rec_<Arbitrage_Sell_Item_SellMenu>_Ocr_01": {
-        "expected": [
-            "出售",
-            "[贩販]售"
         ]
     },
     "Rec_<Arbitrage_Sell_Item_SellMenu>_Ocr_02": {
@@ -1371,10 +1130,6 @@
             168,
             57
         ],
-        "expected": [
-            "出售",
-            "[贩販]售"
-        ],
         "post_wait_freezes": {
             "target": [
                 728,
@@ -1444,10 +1199,6 @@
             650,
             114,
             40
-        ],
-        "expected": [
-            "[键鍵]出售",
-            "[键鍵][贩販]售"
         ]
     },
     "Arbitrage_SellB_SubMenu": {
@@ -1456,10 +1207,6 @@
             555,
             98,
             42
-        ],
-        "expected": [
-            "溢[价價]率",
-            "加[价價]率"
         ]
     },
     "Arbitrage_SellB_SubMenu_Rate": {
@@ -2182,10 +1929,6 @@
             45,
             140,
             45
-        ],
-        "expected": [
-            "所需材料$",
-            "需要的材料$"
         ]
     },
     "Arbitrage_Cooking_Menu_Residue": {
@@ -2210,13 +1953,6 @@
             89,
             173,
             66
-        ],
-        "expected": [
-            "[拥擁]有",
-            "持有",
-            "立刻恢[复復]",
-            "立即恢[复復]",
-            "[个個]食物"
         ]
     },
     "Arbitrage_Cooking_NubMenu_Max": {
@@ -2363,10 +2099,6 @@
             45,
             140,
             45
-        ],
-        "expected": [
-            "所需材料$",
-            "需要的材料$"
         ]
     },
     "Arbitrage_ShopBuy_Tuning_Csm": {
@@ -2386,12 +2118,6 @@
             85,
             839,
             545
-        ],
-        "replace": [
-            [
-                "^蘿萄嬰$",
-                "蘿蔔嬰"
-            ]
         ]
     },
     "Arbitrage_ShopBuy_FindStars_Csm": {
@@ -2420,11 +2146,6 @@
             54,
             246,
             235
-        ],
-        "expected": [
-            "优先",
-            "優先",
-            "排序"
         ]
     },
     "Arbitrage_BagStockScan_Sort_Menu_Swipe": {
@@ -2455,12 +2176,6 @@
             54,
             246,
             235
-        ],
-        "expected": [
-            "料理食材优先",
-            "料理食材優先",
-            "按料理食材[数數]量[从從]高到低排序",
-            "料理食材由多至少排序"
         ]
     },
     "Arbitrage_BagStockScan_Sort_Egress": {
@@ -2469,10 +2184,6 @@
             54,
             246,
             235
-        ],
-        "expected": [
-            "按料理食材[数數]量[从從]低到高排序",
-            "料理食材由少至多排序"
         ],
         "target": [
             384,
@@ -2508,20 +2219,7 @@
                     ]
                 ]
             },
-            {
-                "sub_name": "OCR",
-                "recognition": "OCR",
-                "roi": [
-                    155,
-                    8,
-                    217,
-                    51
-                ],
-                "expected": [
-                    "收集品$",
-                    "收藏品$"
-                ]
-            }
+            "Rec_<Arbitrage_Bag_TabReset_Coll>_Ocr"
         ]
     },
     "Arbitrage_Bag_TabReset_Coll_Act": {
@@ -2559,19 +2257,7 @@
                     ]
                 ]
             },
-            {
-                "sub_name": "OCR",
-                "recognition": "OCR",
-                "roi": [
-                    183,
-                    10,
-                    179,
-                    51
-                ],
-                "expected": [
-                    "^消耗品"
-                ]
-            }
+            "Rec_<Arbitrage_Bag_TabReset_Cons>_Ocr"
         ]
     },
     "Arbitrage_Bag_TabReset_Cons_Act": {
@@ -2591,24 +2277,6 @@
                 238
             ]
         }
-    },
-    "Agt_BagStock_List_Ready": {
-        "all_of": [
-            "Arbitrage_Bag_TabReset_Cons",
-            {
-                "sub_name": "OCR",
-                "recognition": "OCR",
-                "roi": [
-                    929,
-                    8,
-                    224,
-                    41
-                ],
-                "expected": [
-                    "^料理食材[优優]先$"
-                ]
-            }
-        ]
     },
     "Agt_BagStock_Item_Tpl": {
         "roi": [
@@ -2648,9 +2316,6 @@
             444,
             180,
             77
-        ],
-        "expected": [
-            "^\\s*可[购購][买買]\\s*[0-9][0-9,，\\s]*[个個]\\s*$"
         ]
     },
     "Agt_BuyQuantity_Cost_White": {
@@ -2675,9 +2340,6 @@
             444,
             180,
             77
-        ],
-        "expected": [
-            "^\\s*[购購][买買]\\s*$"
         ]
     },
     "Agt_BuyQuantity_Gold_Ocr": {
@@ -2742,10 +2404,6 @@
             137,
             65,
             63
-        ],
-        "expected": [
-            "出售",
-            "[贩販]售"
         ]
     },
     "Arbitrage_Sell_Item_ListReset_PostOcr": {
@@ -2754,10 +2412,6 @@
             79,
             101,
             44
-        ],
-        "expected": [
-            "食物$",
-            "料理$"
         ],
         "post_wait_freezes": {
             "target": [
@@ -2800,9 +2454,6 @@
             ]
         }
     },
-    "Arbitrage_Favorit_Buy_SubMenu_Closure": {
-        "desc": "购买收尾:识别售罄标确认买完。现方案=OCR 单字'售'+红色色核双条件(all_of)。⚠️ 售罄小红标仅约 20x10px,OCR 的 det 阶段就未必出得了框,识别不到是常态,故本节点当前实际收效有限、不可作为购买成败的判据——实购成功与否以金币扣款为准。"
-    },
     "Arbitrage_Chain_Retry_PC": {
         "desc": "[PC新增·2026-07-23] 套利进图链超时救援垫。07-23 09:06/09:14两轮实录:插卡成功进商队城镇后Sandplay识别断腿(安卓pin模板PC城镇0.604<0.7),Card5#_Goin的next全miss超时→无自定义on_error→MFA默认Global_Null兜底恒命中→流程SUCCEEDED,'找不到商人'被翻译成任务完成。本节点DirectHit恒中,回Global_BackToPve_Anc整链重试;max_hit 2耗尽后不再命中→流程以失败终止(自定义on_error覆盖默认Null,MFA #1219语义)。",
         "max_hit": 2,
@@ -2814,5 +2465,61 @@
             "Global_BackToPve_Anc"
         ],
         "focus": "Arb.PC.进图链超时!重回复位整链重试"
+    },
+    "Rec_<Arbitrage_Favorit_Buy>_Ocr": {
+        "roi": [
+            875,
+            648,
+            190,
+            45
+        ]
+    },
+    "Rec_<Arbitrage_PriceList_Sort_Check>_Ocr": {
+        "roi": [
+            732,
+            213,
+            191,
+            46
+        ]
+    },
+    "Rec_<Arbitrage_ItemList_Sorting_Reverse>_Ocr": {
+        "roi": [
+            958,
+            70,
+            211,
+            45
+        ]
+    },
+    "Rec_<Arbitrage_Bag_TabReset_Coll>_Ocr": {
+        "roi": [
+            155,
+            8,
+            217,
+            51
+        ]
+    },
+    "Rec_<Arbitrage_Bag_TabReset_Cons>_Ocr": {
+        "roi": [
+            183,
+            10,
+            179,
+            51
+        ]
+    },
+    "Rec_<Agt_BagStock_List_Ready>_Ocr": {
+        "roi": [
+            929,
+            8,
+            224,
+            41
+        ]
+    },
+    "Rec_<Arbitrage_Merchant_Dialog>_Ocr": {
+        "roi": [
+            40,
+            440,
+            140,
+            55
+        ]
     }
 }

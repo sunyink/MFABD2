@@ -28,6 +28,8 @@ from utils.arbitrage_cartridge import (
     DEFAULT_CONFIG as _RESCUE_CFG,
     RESCUE_NODE as _RESCUE_NODE,
     classify_type as _classify_cart_type,
+    cartridge_expected as _cart_expected,
+    cartridge_identity as _cart_identity,
     load_config as _load_rescue_cfg,
     read_current as _read_cartridge,
     rescue_rois as _rescue_rois,
@@ -129,22 +131,6 @@ def _verdict_rank(verdict) -> int:
     if delta is None:
         return 0
     return 2 if delta > 0 else 1
-
-
-# OCR 同趟里对繁简会来回读(07-24实录同次结果 帶/带 混用),这几个字互吃
-_CART_FUZZ = {'帶': '[帶带]', '带': '[帶带]', '遊': '[遊游]', '游': '[遊游]',
-              '戲': '[戲戏]', '戏': '[戲戏]'}
-
-
-def _cart_expected(raw: str) -> str:
-    """卡带整串 → 选卡带菜单匹配式。类型逐字取自实读(活動/故事/角色/剧情… 皆可,不写死),
-    仅对 OCR 繁简来回读的字互吃;号精确 (?<!\\d)N(?!\\d) 防 7 误配 17/71。
-    菜单侧空格由节点 replace 去除;类型的 OCR 错字(如剧→则)属异常,留后续插件。"""
-    m = re.search(r'(\d+)\s*$', raw)
-    if not m:
-        return raw            # 无号(提取正常应带号):退回整串,菜单按类型匹配
-    body = ''.join(_CART_FUZZ.get(c, re.escape(c)) for c in raw[:m.start()])
-    return body + r'(?<!\d)' + m.group(1) + r'(?!\d)'
 
 
 # 当前和月度卡带按位置分别读取。金额因取整相等不代表两行是同一个柜台。
@@ -638,8 +624,9 @@ class ArbitrageSellController(CustomAction):
             cart_raw = target["cartridge_raw"]
             mfaalog.info(f"[Arbitrage] 👉 正在执行 {idx}/{len(targets_to_sell)}: 前往 [{cart_raw}] 售卖 [{item_name}]")
 
-            # 类型缺失、编号分歧等均不能派发；保留解析原因，避免统一误报成尾号救援失败。
-            if not _tail_num(cart_raw):
+            # 旧缓存也必须解析为完整类型和有效编号；语言切换不影响柜台身份。
+            cart_identity = _cart_identity(cart_raw, self._rescue_cfg)
+            if cart_identity is None:
                 mfaalog.warning(
                     f"[Arbitrage] 🚨 [{item_name}] 当前卡带未确认"
                     f"(原因={target['cartridge_read_basis']}，读数=[{cart_raw}]),"
@@ -661,12 +648,10 @@ class ArbitrageSellController(CustomAction):
             # 另一串一次(实录:双1.00分歧,首选"当前行17"进错柜台,真身在"每月行12")。
             cands = [cart_raw]
             alt_raw = target.get("cartridge_alt", "")
-            # 去重比「匹配式」而非 OCR 原文(2026-08-03):原文差一个 帶/带 会被 _cart_expected 折成
-            # 同一条正则(见上方 _CART_FUZZ;同趟 OCR 繁简混读是实录常态),按原文比会把一个生成完全
-            # 相同 override 的候选塞进来,白跑一整轮 UI 往返且不可能有不同结果。
-            # 只有匹配式真不同(=真会去到别的柜台)才值得回退重试。
-            if (target.get("cart_conflict") and alt_raw and _tail_num(alt_raw)
-                    and _cart_expected(alt_raw) != _cart_expected(cart_raw)):
+            # 按类型和编号去重，不以显示语言或匹配列表顺序区分同一柜台。
+            alt_identity = _cart_identity(alt_raw, self._rescue_cfg)
+            if (target.get("cart_conflict") and alt_identity is not None
+                    and alt_identity != cart_identity):
                 cands.append(alt_raw)
 
             outcome = None
@@ -674,7 +659,8 @@ class ArbitrageSellController(CustomAction):
                 if context.tasker.stopping:
                     break
                 override_cfg = _sell_item_override(context, item_name)
-                override_cfg["Arbitrage_Sell_PackShopSwich"] = {"expected": _cart_expected(cand)}
+                override_cfg["Arbitrage_Sell_PackShopSwich"] = {
+                    "expected": _cart_expected(cand, self._rescue_cfg)}
                 current_rate = target.get("current_rate")
                 if type(current_rate) is not int or not 0 < current_rate < 1000:
                     mfaalog.warning(f"[Arbitrage] [{item_name}] 本轮溢价率未知，跳过本项")
