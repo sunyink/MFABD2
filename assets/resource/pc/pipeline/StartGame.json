@@ -69,12 +69,24 @@
             "啟動遊戲中"
         ]
     },
+    "StartGame_PayFailedToChick": {
+        "expected": [
+            "确认",
+            "確認"
+        ]
+    },
     "StartGame_TouchStart": {
         "roi": [
             787,
             442,
             121,
             57
+        ]
+    },
+    "StartGame_PVPSet": {
+        "expected": [
+            "确认",
+            "確認"
         ]
     },
     "StartGame_7dAD_Check": {
@@ -96,6 +108,12 @@
         ],
         "threshold": [
             0.8
+        ]
+    },
+    "StartGame_LinkError2": {
+        "expected": [
+            "确认",
+            "確認"
         ]
     },
     "StartGame_Special": {
@@ -123,6 +141,19 @@
             126,
             56,
             53
+        ]
+    },
+    "StartGame_Setup_SoundTurnOff_Intterp": {
+        "expected": [
+            "取消",
+            "确认",
+            "確認"
+        ]
+    },
+    "StartGame_Setup_SoundTurnOff_End": {
+        "expected": [
+            "确认",
+            "確認"
         ]
     },
     "StartGame_Check_Win32_SetSize": {
