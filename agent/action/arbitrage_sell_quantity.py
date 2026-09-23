@@ -11,6 +11,7 @@ from maa.custom_action import CustomAction
 
 from utils import mfaalog
 from utils.name_i18n import canon
+from utils.ocr_item_name import resolve_item_ocr
 from utils.arbitrage_quote import parse_quote
 from utils.arbitrage_sale_state import get_batch
 
@@ -110,9 +111,12 @@ class QuantityAdjuster:
     def inventory_state(self, image):
         if not self.recognize("menu_node", image).hit:
             raise ValueError("出售子页未打开")
-        names = {canon(_clean(text)) for text in self.texts("name_node", image) if text}
-        if names != {self.name}:
-            raise ValueError(f"出售名称不符: 期望{self.name}，实际{names}")
+        result = self.recognize("name_node", image)
+        resolved = [resolve_item_ocr(self.context, self.config["name_node"], image, item)
+                    for item in (getattr(result, "filtered_results", None) or [])]
+        names = {item["name"] for item in resolved}
+        if not resolved or any(not item["confirmed"] for item in resolved) or names != {self.name}:
+            raise ValueError(f"买卖名称未确认或不符: 期望{self.name}，实际{resolved}")
         return parse_quantity(self.texts("inventory_node", image), inventory=True)
 
     def state(self, image):

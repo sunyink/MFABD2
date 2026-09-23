@@ -33,6 +33,8 @@ from maa.context import Context
 from maa.agent.agent_server import AgentServer
 from utils import mfaalog
 from utils.name_i18n import canon
+from utils.ocr_item_name import resolve_item_ocr
+from utils.ocr_score import select_best_ocr
 from utils.arbitrage_purchase_lists import FORCED_UNFAVORITES, get_purchase_run
 from utils.arbitrage_store import save_purchase_alignment, invalidate_purchase_alignment
 from utils.account_sync import sync_from_context
@@ -413,7 +415,7 @@ class ShopBuyFavController(CustomAction):
         for star in all_stars:
             roi = [value + offset for value, offset in zip(star["box"], self.cfg["name_roi_offset"])]
             result = self._recognize_region(local, NODE_OCR, screenshot, roi)
-            names = self._read_names(result, ocr_exclude)
+            names = self._read_names(result, ocr_exclude, local, screenshot)
             for name in names:
                 if self._name_near_star(star, name) and not any(
                         name["name"] == old["name"] and self._same_box(name["box"], old["box"])
@@ -432,21 +434,26 @@ class ShopBuyFavController(CustomAction):
             0, min(a[1] + a[3], b[1] + b[3]) - max(a[1], b[1]))
         return overlap > 0.5 * min(a[2] * a[3], b[2] * b[3])
 
-    def _read_names(self, result, ocr_exclude):
+    def _read_names(self, result, ocr_exclude, context=None, image=None):
         names = []
-        for match in (getattr(result, "all_results", None) or []):
-            box, raw = getattr(match, "box", None), getattr(match, "text", None)
-            if box is None or raw is None:
+        # filtered_results includes resource replace rules; all_results does not.
+        for match in (getattr(result, "filtered_results", None) or []):
+            candidate = select_best_ocr([match])
+            if candidate is None:
                 continue
+            box, raw = candidate["box"], candidate["text"]
             text = canon(re.sub(r'[^\w一-龥]', '', raw))
             if not text or text.isdigit():
                 continue
             if text not in FORCED_UNFAVORITES and (text in ocr_exclude or len(text) > self.cfg["name_max_len"]):
                 continue
+            resolved = resolve_item_ocr(context, NODE_OCR, image, {**candidate, "text": text})
+            text = resolved["name"] if resolved["confirmed"] else text
             box = list(box)
             if any(text == old["name"] and self._same_box(box, old["box"]) for old in names):
                 continue
-            names.append({"name": text, "box": box, "left_x": box[0], "cy": box[1] + box[3] / 2})
+            names.append({"name": text, "box": box, "left_x": box[0], "cy": box[1] + box[3] / 2,
+                          "confirmed": resolved["confirmed"], "resolution": resolved})
         return names
 
     def _read_stars(self, result, screenshot):
@@ -547,6 +554,9 @@ class ShopBuyFavController(CustomAction):
         for star, indices in zip(all_stars, candidates):
             if len(indices) == 1 and sum(indices[0] in row for row in candidates) == 1:
                 name_item = name_items[indices[0]]
+                if not name_item["confirmed"]:
+                    self._scan_issues.append(f"星框={star['box']} 商品名称未确认：{name_item['resolution']}")
+                    continue
                 entities.append({
                     "name": name_item["name"],
                     "star_color": star["color"],

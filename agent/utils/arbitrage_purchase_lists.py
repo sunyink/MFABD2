@@ -14,6 +14,8 @@ DATA_NODE = "Arbitrage_ShopBuy_Data_Csm"
 PREPARE_NODE = "Arbitrage_Buy_ListPrepare"
 # 固定规则，不接受界面或节点参数覆盖；出现时只允许取消收藏。
 FORCED_UNFAVORITES = frozenset({"天赋神药"})
+# Earlier records could certify favorites without correcting OCR item names.
+PURCHASE_NAME_VERSION = 1
 _RUNS = OrderedDict()
 
 
@@ -56,13 +58,14 @@ def resolve_purchase_table(defaults, catalog, overrides):
 
 
 def changed_cartridges(table, applied):
-    """仅比较成功清单；周周期与每次模式由 Pipeline 决定。"""
+    """比较当前名称识别版本的成功清单；周周期仍由 Pipeline 决定。"""
     pending = []
     for cartridge, selected in table.items():
         previous = applied.get(cartridge, {})
         try:
             items = previous["items"]
-            same = (isinstance(items, list) and all(isinstance(item, str) for item in items)
+            same = (previous.get("name_version") == PURCHASE_NAME_VERSION
+                    and isinstance(items, list) and all(isinstance(item, str) for item in items)
                     and {canon(item) for item in items} == selected)
         except (KeyError, TypeError, ValueError):
             same = False
