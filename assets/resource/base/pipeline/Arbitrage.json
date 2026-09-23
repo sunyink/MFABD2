@@ -2108,11 +2108,24 @@
         "focus": "Arb.B.购买模块结束"
     },
     "Arbitrage_Favorit_Buy": {
-        "desc": "点击一键购买,maxhit配置,使得双入口也只会判定一次",
+        "desc": "点击一键购买,maxhit配置,使得双入口也只会判定一次 内联OCR显式命名OCR，后续颜色识别依赖其box；不能抽成独立引用。",
         "max_hit": 1,
         "recognition": "And",
         "all_of": [
-            "Rec_<Arbitrage_Favorit_Buy>_Ocr",
+            {
+                "sub_name": "OCR",
+                "recognition": "OCR",
+                "roi": [
+                    809,
+                    624,
+                    186,
+                    70
+                ],
+                "expected": [
+                    "[购購][买買]全部收藏",
+                    "[键鍵][购購][买買]全部收藏"
+                ]
+            },
             "Sub_Ocr_Enable_Clr"
         ],
         "action": "Click",
@@ -2540,9 +2553,23 @@
         ]
     },
     "Arbitrage_PriceList_Sort_Check": {
+        "desc": "内联OCR显式命名OCR，后续颜色识别依赖其box；不能抽成独立引用。",
         "recognition": "And",
         "all_of": [
-            "Rec_<Arbitrage_PriceList_Sort_Check>_Ocr",
+            {
+                "sub_name": "OCR",
+                "recognition": "OCR",
+                "roi": [
+                    745,
+                    189,
+                    250,
+                    45
+                ],
+                "expected": [
+                    "[从從]高到低",
+                    "降序"
+                ]
+            },
             "Sub_SieveExpand_Yew_Clr"
         ],
         "next": [
@@ -3272,10 +3299,23 @@
         "focus": "溢价排序-模式选中确认"
     },
     "Arbitrage_ItemList_Sorting_Reverse": {
-        "desc": "确认从高到低排序已选中后，写入当前账号的每日排序完成标记。",
+        "desc": "确认从高到低排序已选中后，写入当前账号的每日排序完成标记。 内联OCR显式命名OCR，后续颜色识别依赖其box；不能抽成独立引用。",
         "recognition": "And",
         "all_of": [
-            "Rec_<Arbitrage_ItemList_Sorting_Reverse>_Ocr",
+            {
+                "sub_name": "OCR",
+                "recognition": "OCR",
+                "roi": [
+                    895,
+                    90,
+                    249,
+                    44
+                ],
+                "expected": [
+                    "[从從]高到低",
+                    "降序"
+                ]
+            },
             "Sub_SieveExpand_Yew_Clr"
         ],
         "action": "Custom",
@@ -6779,6 +6819,7 @@
         "recognition": "And",
         "all_of": [
             {
+                "sub_name": "ColorMatch",
                 "recognition": "ColorMatch",
                 "roi": [
                     138,
@@ -6798,7 +6839,20 @@
                     255
                 ]
             },
-            "Rec_<Arbitrage_Bag_TabReset_Coll>_Ocr"
+            {
+                "sub_name": "OCR",
+                "recognition": "OCR",
+                "roi": [
+                    215,
+                    15,
+                    300,
+                    50
+                ],
+                "expected": [
+                    "收集品$",
+                    "收藏品$"
+                ]
+            }
         ],
         "next": [
             "Arbitrage_Bag_TabReset_Cons",
@@ -6821,6 +6875,7 @@
         "recognition": "And",
         "all_of": [
             {
+                "sub_name": "ColorMatch",
                 "recognition": "ColorMatch",
                 "roi": [
                     138,
@@ -6840,7 +6895,19 @@
                     255
                 ]
             },
-            "Rec_<Arbitrage_Bag_TabReset_Cons>_Ocr"
+            {
+                "sub_name": "OCR",
+                "recognition": "OCR",
+                "roi": [
+                    215,
+                    15,
+                    300,
+                    50
+                ],
+                "expected": [
+                    "^消耗品"
+                ]
+            }
         ],
         "next": [
             "Arbitrage_Bag_TabReset_Egress"
@@ -6922,7 +6989,19 @@
         "recognition": "And",
         "all_of": [
             "Arbitrage_Bag_TabReset_Cons",
-            "Rec_<Agt_BagStock_List_Ready>_Ocr"
+            {
+                "sub_name": "OCR",
+                "recognition": "OCR",
+                "roi": [
+                    850,
+                    15,
+                    300,
+                    40
+                ],
+                "expected": [
+                    "^料理食材[优優]先$"
+                ]
+            }
         ]
     },
     "Agt_BagStock_Item_Tpl": {
@@ -8556,88 +8635,6 @@
         "pre_delay": 0,
         "post_delay": 0,
         "focus": "② 当前卡带收藏未核实，继续下一张"
-    },
-    "Rec_<Arbitrage_Favorit_Buy>_Ocr": {
-        "desc": "共用简繁文字识别；平台覆盖仅调整识别区域。",
-        "recognition": "OCR",
-        "roi": [
-            809,
-            624,
-            186,
-            70
-        ],
-        "expected": [
-            "[购購][买買]全部收藏",
-            "[键鍵][购購][买買]全部收藏"
-        ]
-    },
-    "Rec_<Arbitrage_PriceList_Sort_Check>_Ocr": {
-        "desc": "共用简繁文字识别；平台覆盖仅调整识别区域。",
-        "recognition": "OCR",
-        "roi": [
-            745,
-            189,
-            250,
-            45
-        ],
-        "expected": [
-            "[从從]高到低",
-            "降序"
-        ]
-    },
-    "Rec_<Arbitrage_ItemList_Sorting_Reverse>_Ocr": {
-        "desc": "共用简繁文字识别；平台覆盖仅调整识别区域。",
-        "recognition": "OCR",
-        "roi": [
-            895,
-            90,
-            249,
-            44
-        ],
-        "expected": [
-            "[从從]高到低",
-            "降序"
-        ]
-    },
-    "Rec_<Arbitrage_Bag_TabReset_Coll>_Ocr": {
-        "desc": "共用简繁文字识别；平台覆盖仅调整识别区域。",
-        "recognition": "OCR",
-        "roi": [
-            215,
-            15,
-            300,
-            50
-        ],
-        "expected": [
-            "收集品$",
-            "收藏品$"
-        ]
-    },
-    "Rec_<Arbitrage_Bag_TabReset_Cons>_Ocr": {
-        "desc": "共用简繁文字识别；平台覆盖仅调整识别区域。",
-        "recognition": "OCR",
-        "roi": [
-            215,
-            15,
-            300,
-            50
-        ],
-        "expected": [
-            "^消耗品"
-        ]
-    },
-    "Rec_<Agt_BagStock_List_Ready>_Ocr": {
-        "desc": "共用简繁文字识别；平台覆盖仅调整识别区域。",
-        "recognition": "OCR",
-        "roi": [
-            850,
-            15,
-            300,
-            40
-        ],
-        "expected": [
-            "^料理食材[优優]先$"
-        ]
     },
     "Rec_<Arbitrage_Merchant_Dialog>_Ocr": {
         "desc": "商人交互态文字识别；当前由PC交互入口使用，语言规则两端共用。",
