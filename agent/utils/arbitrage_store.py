@@ -8,6 +8,7 @@ from . import mfaalog
 from .name_i18n import canon
 from .persistent_store import PersistentStore, SharedStore
 from .inventory_archive import commit_inventory, inventory_facts
+from .arbitrage_purchase_lists import PURCHASE_NAME_VERSION
 
 
 SCHEMA_VERSION = 2
@@ -41,7 +42,7 @@ def save_purchase_alignment(cartridge: str, items) -> bool:
     with _LOCK:
         data = PersistentStore.load()
         rows = _dict_child(_root(data), "purchase_alignments")
-        rows[cartridge] = {"items": sorted(set(items))}
+        rows[cartridge] = {"items": sorted(set(items)), "name_version": PURCHASE_NAME_VERSION}
         return bool(PersistentStore.save(data))
 
 

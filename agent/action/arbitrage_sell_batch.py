@@ -11,6 +11,7 @@ from utils import mfaalog, arbitrage_store as store
 from utils.account_sync import sync_from_context
 from utils.persistent_store import PersistentStore
 from utils.arbitrage_sale_state import SaleBatch, get_batch, put_batch, take_batch
+from utils.ocr_item_name import has_unconfirmed_item_name
 from . import gold_verify, arbitrage_sell_quantity as quantity
 
 
@@ -112,6 +113,7 @@ class ArbitrageSaleSearch(CustomAction):
             max_pages = config["max_pages"]
             if type(max_pages) is not int or not 1 <= max_pages <= 32:
                 raise ValueError("出售查找页数配置无效")
+            unconfirmed_names = False
             for page in range(max_pages):
                 check_scope(context, batch)
                 image = context.tasker.controller.post_screencap().wait().get()
@@ -125,12 +127,15 @@ class ArbitrageSaleSearch(CustomAction):
                     raise RuntimeError("出售目标识别未执行")
                 if found.hit:
                     return True
+                unconfirmed_names |= has_unconfirmed_item_name(found.raw_detail)
                 end_node = (context.get_anchor("Arbitrage_Sell_ListEnd")
                             or "Arbitrage_Sell_Item_ListTraverse_End")
                 end = context.run_recognition(end_node, image)
                 if end is None:
                     raise RuntimeError("出售列表末端识别未执行")
                 if end.hit:
+                    if unconfirmed_names:
+                        raise RuntimeError("出售列表仍有商品名称未确认，不能判零")
                     batch.absent()
                     mfaalog.info(f"[Arbitrage] [{batch.request['item_name']}] 从顶部查至类别末端，库存为0")
                     return False

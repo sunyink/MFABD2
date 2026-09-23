@@ -29,7 +29,9 @@ Library.version()
 from maa.agent.agent_server import AgentServer
 
 with patch.object(AgentServer, "custom_action", return_value=lambda cls: cls), \
-     patch.object(AgentServer, "custom_recognition", return_value=lambda cls: cls):
+     patch.object(AgentServer, "custom_recognition", return_value=lambda cls: cls), \
+     patch.object(AgentServer, "_set_api_properties"), \
+     patch.object(AgentServer, "context_sink", return_value=lambda cls: cls):
     from action import arbitrage_buy_list as buy
     from action import cartridge_lib as cycles
     from action.pipeline_manager import PatchPipeline
@@ -103,7 +105,8 @@ class PurchaseCycleTests(unittest.TestCase):
 
     def setUp(self):
         self.data = {"arbitrage": {"purchase_alignments": {
-            card: {"items": sorted(items)} for card, items in TABLE.items()}}}
+            card: {"items": sorted(items), "name_version": lists.PURCHASE_NAME_VERSION}
+            for card, items in TABLE.items()}}}
         self.writes = []
         self.events = []
         self.scanned = []
@@ -406,9 +409,19 @@ class PurchaseCycleTests(unittest.TestCase):
         self.assertEqual(self.writes, [])
 
     def test_old_alignment_timestamp_is_not_a_second_cycle_clock(self):
-        records = {FIRST: {"items": sorted(TABLE[FIRST]), "applied_at": "2000-01-01T00:00:00+00:00"}}
+        records = {FIRST: {"items": sorted(TABLE[FIRST]), "name_version": lists.PURCHASE_NAME_VERSION,
+                           "applied_at": "2000-01-01T00:00:00+00:00"}}
         self.assertEqual(lists.changed_cartridges({FIRST: TABLE[FIRST]}, records), [])
         self.assertEqual(lists.changed_cartridges({FIRST: set()}, records), [FIRST])
+
+    def test_old_name_reader_is_rescanned_once_despite_current_week_mark(self):
+        self.fresh_cycle()
+        self.data["arbitrage"]["purchase_alignments"][FIRST].pop("name_version")
+        self.run_native()
+        self.assertEqual(self.scanned, [{FIRST}])
+        records = store.get_purchase_alignments()
+        self.assertEqual(records[FIRST]["name_version"], lists.PURCHASE_NAME_VERSION)
+        self.assertEqual(lists.changed_cartridges(TABLE, records), [])
 
     def test_batch_invalidation_preserves_other_records_and_accounts_data(self):
         self.data["unrelated"] = "keep"

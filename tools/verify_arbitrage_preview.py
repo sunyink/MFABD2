@@ -71,11 +71,8 @@ class ArbitragePreviewTests(unittest.TestCase):
             for source in (simplified, traditional):
                 with self.subTest(source=source):
                     override = ar._sell_item_override(Context(), source)
-                    patterns = override["Agt_<Sell_Item>_Ocr"]["expected"]
-                    for target in (simplified, traditional):
-                        self.assertTrue(any(re.search(pattern, target) for pattern in patterns))
-                    for target in ("其他物品", simplified + "汤", "大" + traditional):
-                        self.assertFalse(any(re.search(pattern, target) for pattern in patterns))
+                    self.assertEqual(override["Agt_<Sell_Item>_Ocr"]["expected"], [])
+                    self.assertEqual(override["Agt_<Sell_Item>_OcrScore"]["custom_recognition_param"]["item_name"], simplified)
                     self.assertEqual(name_i18n.canon(source), simplified)
 
     def test_item_variants_cover_dictionary_without_changing_identity(self):
@@ -89,10 +86,9 @@ class ArbitragePreviewTests(unittest.TestCase):
         for dictionary in (None, {}):
             with patch.object(name_i18n, "_NORM", dictionary):
                 name = "未知物品(甲)+."
-                patterns = ar._sell_item_override(Context(), name)["Agt_<Sell_Item>_Ocr"]["expected"]
+                override = ar._sell_item_override(Context(), name)
                 self.assertEqual(name_i18n.name_variants(name), [name])
-                self.assertTrue(any(re.search(pattern, name) for pattern in patterns))
-                self.assertFalse(any(re.search(pattern, "未知物品甲甲X") for pattern in patterns))
+                self.assertEqual(override["Agt_<Sell_Item>_OcrScore"]["custom_recognition_param"]["item_name"], name)
         with patch.object(name_i18n, "_NORM", {}):
             self.assertEqual(name_i18n.name_variants("鮭魚"), ["鮭魚"])
 
@@ -148,9 +144,7 @@ class ArbitragePreviewTests(unittest.TestCase):
         execute.assert_called_once()
         self.assertEqual(execute.call_args.args[:2], (context, "烤蜂蜜苹果"))
         override = execute.call_args.args[2]
-        patterns = override["Agt_<Sell_Item>_Ocr"]["expected"]
-        for name in ("烤蜂蜜苹果", "烤蜂蜜蘋果"):
-            self.assertTrue(any(re.fullmatch(pattern, name) for pattern in patterns))
+        self.assertEqual(override["Agt_<Sell_Item>_OcrScore"]["custom_recognition_param"]["item_name"], "烤蜂蜜苹果")
         self.assertEqual(override["Arbitrage_Sell_Item_Price_MaxCheck"]["expected"], "118%")
         self.assertEqual(execute.call_args.kwargs, {"reserve": 0})
 
