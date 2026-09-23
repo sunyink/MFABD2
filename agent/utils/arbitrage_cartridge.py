@@ -32,6 +32,12 @@ DEFAULT_CONFIG = {
     "number_ranges": {"story": [1, 19], "character": [1, 7], "event": [1, 7], "manager": []},
     "type_labels": {"story": "剧情游戏卡", "character": "角色游戏卡",
                     "event": "活动游戏卡", "manager": "店长游戏卡"},
+    "type_patterns": {
+        "story": [r"[剧劇]情[游遊][戏戲]卡(?:[带帶])?", r"故事[游遊][戏戲]卡(?:[带帶])?"],
+        "character": [r"角色[游遊][戏戲]卡(?:[带帶])?"],
+        "event": [r"活[动動][游遊][戏戲]卡(?:[带帶])?"],
+        "manager": [r"店[长長][游遊][戏戲]卡(?:[带帶])?"],
+    },
 }
 _TYPE_ALIASES = {"story": ("剧情", "劇情", "故事"), "character": ("角色",),
                  "event": ("活动", "活動"), "manager": ("店长", "店長")}
@@ -55,12 +61,23 @@ def load_config(context):
                     candidate = value.get(kind, original)
                     if key == "type_labels":
                         ok = isinstance(candidate, str) and bool(candidate.strip())
+                    elif key == "type_patterns":
+                        ok = isinstance(candidate, list) and bool(candidate) and all(
+                            isinstance(pattern, str) and pattern.strip() for pattern in candidate)
+                        if ok:
+                            try:
+                                for pattern in candidate:
+                                    re.compile(pattern)
+                            except re.error:
+                                ok = False
                     else:
                         ok = isinstance(candidate, list) and (not candidate or
                             len(candidate) == 2 and all(type(v) is int for v in candidate)
                             and 1 <= candidate[0] <= candidate[1] <= 99)
                     if ok:
                         cfg[key][kind] = deepcopy(candidate)
+                    else:
+                        mfaalog.warning(f"[Arbitrage] 卡带救援参数 {key}.{kind} 无效，使用默认值")
                 continue
         elif isinstance(default, list):
             valid = isinstance(value, list) and bool(value) and all(
@@ -110,6 +127,32 @@ def valid_number(number, kind, cfg):
     ranges = cfg["number_ranges"]
     choices = [ranges.get(kind, [])] if kind else list(ranges.values())
     return any(pair and pair[0] <= int(number) <= pair[1] for pair in choices)
+
+
+def cartridge_identity(raw, cfg=None):
+    """Resolve a complete display label to its language-independent type and number."""
+    cfg = cfg if cfg is not None else DEFAULT_CONFIG
+    text = _clean(raw)
+    identities = set()
+    for kind, patterns in cfg["type_patterns"].items():
+        for pattern in patterns:
+            match = re.fullmatch(r"(?:" + pattern + r")(?P<cartridge_number>[0-9]+)", text)
+            if match and valid_number(match["cartridge_number"], kind, cfg):
+                identities.add((kind, match["cartridge_number"]))
+    return next(iter(identities)) if len(identities) == 1 else None
+
+
+def cartridge_expected(raw, cfg=None):
+    """Return all supported display rules; never dispatch an unknown or invalid cartridge."""
+    cfg = cfg if cfg is not None else DEFAULT_CONFIG
+    identity = cartridge_identity(raw, cfg)
+    if identity is None:
+        raise ValueError(f"卡带类型或编号未确认: {raw}")
+    kind, number = identity
+    return list(dict.fromkeys(
+        r"(?:" + pattern + r")(?<!\d)" + number + r"(?!\d)"
+        for pattern in cfg["type_patterns"][kind]
+    ))
 
 
 def _clip(roi, bounds):
