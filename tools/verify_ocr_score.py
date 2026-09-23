@@ -106,7 +106,9 @@ class OcrScoreTests(unittest.TestCase):
         context = NS(get_node_object=lambda n: NS(attach=PIPE[n].get("attach", {})))
         sale = _sell_item_override(context, "米")
         self.assertEqual(sale[PARENT]["any_of"], [SELECTOR, TEMPLATE])
-        self.assertIn("^米$", sale[SOURCE]["expected"])
+        self.assertEqual(sale[SOURCE]["expected"], [])
+        self.assertEqual(sale[SELECTOR]["custom_recognition"], "OCRItemName")
+        self.assertEqual(sale[SELECTOR]["custom_recognition_param"]["item_name"], "米")
         self.assertEqual(_sell_item_override(context, "未知商品")[PARENT]["any_of"], [SELECTOR])
         request = {"item_name": "米", "cartridge": "剧情游戏卡12"}
         buying = buy_overrides(context, request)

@@ -14,7 +14,7 @@ from utils.arbitrage_store import (
     save_market_snapshot,
     save_possession_snapshot,
 )
-from utils.name_i18n import canon, name_variants
+from utils.name_i18n import canon
 from utils.arbitrage_pricelist import (
     read_name as _read_item_name,
     read_prices as _read_prices,
@@ -77,7 +77,12 @@ SCORE_MIN = 0.6      # 卡带选中组组分低于此=低置信,打WRN(实录错
 def _sell_item_override(context: Context, item_name: str) -> dict:
     """商品全名OCR按置信度择优，未命中才试模板；不改变卡带匹配顺序。"""
     result = {
-        _SELL_ITEM_OCR: {"expected": ["^" + re.escape(name) + "$" for name in name_variants(item_name)]},
+        # Name correction must run before target filtering; exact expected words
+        # otherwise discard mixed-script/one-character candidates in native OCR.
+        _SELL_ITEM_OCR: {"expected": []},
+        _SELL_ITEM_OCR_SCORE: {"custom_recognition": "OCRItemName",
+                               "custom_recognition_param": {"node": _SELL_ITEM_OCR,
+                                                            "item_name": canon(item_name)}},
         _SELL_ITEM_LIST: {"any_of": [_SELL_ITEM_OCR_SCORE]},
     }
     try:
@@ -644,7 +649,7 @@ class ArbitrageSellController(CustomAction):
                 continue
 
             # 卡带识别质量轻告警(#B):低置信或上下分歧只提示,不阻断——读错最坏进错柜台当没卖掉,
-            # 真相由下面的金币验证承担。商品 expected 由共用派发函数展开简繁名称。
+            # 真相由下面的金币验证承担。商品名称由共用识别入口先纠错再核对。
             if target.get("cart_score", 1.0) < SCORE_MIN or target.get("cart_conflict"):
                 mfaalog.warning(
                     f"[Arbitrage]   ⚠️ 卡带识别可疑(组分{target.get('cart_score', 0):.2f}"

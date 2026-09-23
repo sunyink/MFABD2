@@ -74,9 +74,8 @@ class StackQuantityTests(unittest.TestCase):
         context = SimpleNamespace(get_node_object=lambda name: SimpleNamespace(attach=pipeline[name].get("attach", {})))
         for name in ("三文鱼", "鮭魚"):
             override = buy.buy_overrides(context, {"item_name": name, "cartridge": "剧情游戏卡1"})
-            patterns = override["Agt_<Sell_Item>_Ocr"]["expected"]
-            for target in ("三文鱼", "鮭魚"):
-                self.assertTrue(any(re.fullmatch(pattern, target) for pattern in patterns))
+            self.assertEqual(override["Agt_<Sell_Item>_Ocr"]["expected"], [])
+            self.assertEqual(override["Agt_<Sell_Item>_OcrScore"]["custom_recognition_param"]["item_name"], "三文鱼")
 
     def test_purchase_shop_patterns_follow_loaded_resources(self):
         base = json.loads((ROOT / "assets/resource/base/pipeline/Arbitrage.json").read_text(encoding="utf-8"))
