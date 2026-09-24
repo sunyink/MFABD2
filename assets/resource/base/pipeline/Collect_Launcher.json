@@ -901,6 +901,7 @@
         "anchor": "PackFrame_Loc",
         "timeout": 2000,
         "next": [
+            "[JumpBack]Global_QuickCart_MenuReset",
             "Collect_LocatePackFrame_Smart_Swip",
             "[JumpBack]Collect_LocatePackFrame_Loc1_ResetLoc",
             "[JumpBack]Collect_PackLocation_PassFieldsAndHub",
@@ -943,6 +944,7 @@
         "anchor": "PackFrame_Loc",
         "timeout": 2000,
         "next": [
+            "[JumpBack]Global_QuickCart_MenuReset",
             "Collect_LocatePackFrame_Smart_Swip",
             "[JumpBack]Collect_LocatePackFrame_Loc1_ResetLoc",
             "[JumpBack]Collect_PackLocation_PassFieldsAndHub",
@@ -984,6 +986,7 @@
         "anchor": "PackFrame_Loc",
         "timeout": 2000,
         "next": [
+            "[JumpBack]Global_QuickCart_MenuReset",
             "Collect_LocatePackFrame_Smart_Swip",
             "[JumpBack]Collect_LocatePackFrame_Loc1_ResetLoc",
             "[JumpBack]Collect_PackLocation_PassFieldsAndHub",
@@ -1024,6 +1027,7 @@
         "anchor": "PackFrame_Loc",
         "timeout": 2000,
         "next": [
+            "[JumpBack]Global_QuickCart_MenuReset",
             "Collect_LocatePackFrame_Smart_Swip",
             "[JumpBack]Collect_LocatePackFrame_Loc1_ResetLoc",
             "[JumpBack]Collect_PackLocation_PassFieldsAndHub",
@@ -1063,6 +1067,7 @@
         "anchor": "PackFrame_Loc",
         "timeout": 2000,
         "next": [
+            "[JumpBack]Global_QuickCart_MenuReset",
             "Collect_LocatePackFrame_Smart_Swip",
             "[JumpBack]Collect_LocatePackFrame_Loc1_ResetLoc",
             "[JumpBack]Collect_PackLocation_PassFieldsAndHub",
@@ -1101,6 +1106,7 @@
         "anchor": "PackFrame_Loc",
         "timeout": 2000,
         "next": [
+            "[JumpBack]Global_QuickCart_MenuReset",
             "Collect_LocatePackFrame_Smart_Swip",
             "[JumpBack]Collect_LocatePackFrame_Loc1_ResetLoc",
             "[JumpBack]Collect_PackLocation_PassFieldsAndHub",
@@ -1138,6 +1144,7 @@
         "anchor": "PackFrame_Loc",
         "timeout": 2000,
         "next": [
+            "[JumpBack]Global_QuickCart_MenuReset",
             "Collect_LocatePackFrame_Smart_Swip",
             "[JumpBack]Collect_LocatePackFrame_Loc1_ResetLoc",
             "[JumpBack]Collect_PackLocation_PassFieldsAndHub",
@@ -1174,6 +1181,7 @@
         "anchor": "PackFrame_Loc",
         "timeout": 2000,
         "next": [
+            "[JumpBack]Global_QuickCart_MenuReset",
             "Collect_LocatePackFrame_Smart_Swip",
             "[JumpBack]Collect_LocatePackFrame_Loc1_ResetLoc",
             "[JumpBack]Collect_PackLocation_PassFieldsAndHub",
@@ -1205,6 +1213,7 @@
         },
         "anchor": "PackFrame_Loc",
         "next": [
+            "[JumpBack]Global_QuickCart_MenuReset",
             "Collect_LocatePackFrame_Smart_Swip",
             "[JumpBack]Collect_LocatePackFrame_Loc1_ResetLoc",
             "[JumpBack]Collect_PackLocation_PassFieldsAndHub",

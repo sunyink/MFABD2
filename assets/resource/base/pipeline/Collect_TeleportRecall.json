@@ -1193,7 +1193,7 @@
         },
         "timeout": 5000,
         "next": [
-            "Collect_IM_OnFoot_NviMap_M14_A1_Move"
+            "Collect_IM_M14_Prepare"
         ],
         "on_error": [
             "Global_QuickCart_MenuReset",
@@ -1202,6 +1202,20 @@
             "Global_Null_Panic"
         ],
         "focus": "CTB.特殊地图-神圣审判"
+    },
+    "Collect_IM_M14_Prepare": {
+        "desc": "每次进入M14步行采集时清零专用返程和拉卡带调用次数，避免上次中断影响本次收尾。",
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "ClearNodeHitCount",
+        "custom_action_param": {
+            "node_name": [
+                "Collect_IM_M14_ReturnOnce",
+                "Collect_IM_M14_OpenMenuOnce"
+            ]
+        },
+        "post_delay": 0,
+        "next": ["Collect_IM_OnFoot_NviMap_M14_A1_Move"]
     },
     "Collect_IM_OnFoot_NviMap_M14_A1_Move": {
         "max_hit": 5,
@@ -1232,7 +1246,7 @@
         ]
     },
     "Collect_IM_OnFoot_NviMap_M14_Egress": {
-        "desc": "[出口]旁路M14结束",
+        "desc": "M14采集结束后依次调用返程和拉起快速卡带；各入口本次限一次，列表确认后才标记本卡完成并还原。",
         "recognition": "Or",
         "any_of": [
             "Global_QuickCart_MenuReset_Ocr",
@@ -1248,8 +1262,53 @@
             "QuickSkill_Egress": ""
         },
         "timeout": 10000,
-        "next": ["Collect_TeleporCircle_OnFoot_Entry"],
+        "next": [
+            "[JumpBack]Collect_IM_M14_ReturnOnce",
+            "[JumpBack]Collect_IM_M14_OpenMenuOnce",
+            "Collect_IM_M14_MenuReady"
+        ],
         "on_error": ["[JumpBack]Global_ToSandBox"]
+    },
+    "Collect_IM_M14_ReturnOnce": {
+        "desc": "M14专用返程调用入口，本次限一次；不限制公共返程链内部的重试。",
+        "max_hit": 1,
+        "recognition": "Or",
+        "any_of": ["Global_ToSandBox_Enter"],
+        "pre_delay": 0,
+        "post_delay": 0,
+        "next": ["Collect_TeleporCircle_OnFoot_Entry"]
+    },
+    "Collect_IM_M14_OpenMenuOnce": {
+        "desc": "M14专用拉卡带调用入口，本次限一次；已在列表时入口按钮消失，直接跳过。",
+        "max_hit": 1,
+        "recognition": "Or",
+        "any_of": ["Global_QuickCart_MenuReset"],
+        "pre_delay": 0,
+        "post_delay": 0,
+        "next": ["Global_QuickCart_MenuReset"]
+    },
+    "Collect_IM_M14_MenuReady": {
+        "desc": "确认快速卡带列表已打开，清理本次返程锚点和调用计数，再执行M14完成标记与临时覆盖还原。",
+        "recognition": "Or",
+        "any_of": ["Global_QuickCart_MenuReset_Ocr"],
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "ClearNodeHitCount",
+        "custom_action_param": {
+            "node_name": [
+                "Collect_IM_M14_ReturnOnce",
+                "Collect_IM_M14_OpenMenuOnce"
+            ]
+        },
+        "anchor": {
+            "IntSubMenu_ErrReturn": "",
+            "OnFoot_SkillCircle_Try": "",
+            "Skill_Overpower": "",
+            "ExplorationBoard_Arrived": ""
+        },
+        "post_delay": 0,
+        "next": ["Collect_IM_Closure"],
+        "focus": "C14.快速卡带已恢复，完成本卡收尾"
     },
     "Collect_IM_OnFoot_NviMap_E05_A2": {
         "recognition": "And",
