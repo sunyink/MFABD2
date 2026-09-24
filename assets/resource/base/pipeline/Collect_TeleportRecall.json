@@ -1957,12 +1957,24 @@
             "Sub_SandBox_Pin3_Bright_Clr"
         ],
         "pre_delay": 1500,
+        "action": "Custom",
+        "custom_action": "ClearNodeHitCount",
+        "custom_action_param": {
+            "node_name": [
+                "Collect_WayPoint_Arrived_TryFix",
+                "Collect_WayPoint_Arrived_Fail_1"
+            ]
+        },
         "timeout": 5000,
         "next": [
-            "Collect_WayPoint_Arrived_Verify",
-            "[JumpBack][Anchor]ExplorationBoard_Arrived"
+            "[JumpBack]Collect_WayPoint_Arrived_TryFix",
+            "Collect_WayPoint_Arrived_Verify"
         ],
         "focus": "CTB.已回到探索告示板"
+    },
+    "Collect_WayPoint_Arrived_TryFix": {
+        "max_hit": 1,
+        "next": ["[Anchor]ExplorationBoard_Arrived"]
     },
     "Collect_WayPoint_Arrived_Verify": {
         "desc": "已识别到踩传送阵?继续验证",
@@ -1993,24 +2005,30 @@
         "next": [
             "Collect_WayPoint_Arrived_Succeed",
             "Collect_WayPoint_Arrived_Fail_1"
-        ],
-        "on_error": [
-            "[JumpBack][Anchor]ExplorationBoard_Arrived",
-            "Global_Null"
         ]
     },
     "Collect_WayPoint_Arrived_Fail_1": {
         "desc": "上游点击后,有返回按钮.说明开启了某个对话",
+        "max_hit": 3,
         "recognition": "Or",
         "any_of": ["Global_BackPageHub_Once"],
         "next": [
+            "Collect_WayPoint_Arrived_Verify",
             "[JumpBack]Global_ToSandBox",
-            "[JumpBack][Anchor]ExplorationBoard_Arrived"
+            "[JumpBack]Collect_WayPoint_Arrived_TryFix"
         ]
     },
     "Collect_WayPoint_Arrived_Succeed": {
         "recognition": "Or",
         "any_of": ["Collect_OperationsMain_ToAreaMap"],
+        "action": "Custom",
+        "custom_action": "ClearNodeHitCount",
+        "custom_action_param": {
+            "node_name": [
+                "Collect_WayPoint_ExplorationBoard_Arrived",
+                "Collect_WayPoint_Arrived_Fail_1"
+            ]
+        },
         "anchor": {"ExplorationBoard_Arrived": ""},
         "next": ["Global_ToSandBox"]
     },
