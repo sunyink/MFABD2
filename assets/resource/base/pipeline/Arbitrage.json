@@ -9,6 +9,7 @@
         "next": [
             "Arbitrage_Merchant_Ico",
             "[JumpBack]Arbitrage_HomePageOldCardMenu_Goin",
+            "[JumpBack]PVP_PerPetTask",
             "[JumpBack]Global_ToHomePage"
         ],
         "on_error": [
