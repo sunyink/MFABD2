@@ -318,18 +318,22 @@
     },
     "SeasonEvent_MamonoFollow_Team_Edit": {
         "roi": [
-            561,
-            622,
+            599,
+            624,
             142,
             69
+        ],
+        "expected": [
+            "编辑队伍",
+            "編制隊伍"
         ]
     },
     "SeasonEvent_MamonoFollow_Team_UsePreset": {
         "roi": [
             817,
-            661,
-            101,
-            38
+            660,
+            100,
+            37
         ],
         "expected": [
             "推荐部署",
