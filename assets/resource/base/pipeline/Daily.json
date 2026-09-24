@@ -214,7 +214,8 @@
             "Sub_HomePage_GA_Bright_Clr"
         ],
         "next": [
-            "Daily_Busin_Claim"
+            "Daily_Busin_Claim",
+            "Daily_Busin_Claim_Tpl"
         ],
         "focus": "GOM.餐馆日结组件"
     },
@@ -223,8 +224,7 @@
         "max_hit": 10,
         "recognition": "Or",
         "any_of": [
-            "Rec_<Daily_Busin_Claim>_Ocr",
-            "Rec_<Daily_Busin_Claim>_Tpl"
+            "Rec_<Daily_Busin_Claim>_Ocr"
         ],
         "action": "Click",
         "target_offset": [
@@ -233,13 +233,29 @@
             0,
             0
         ],
-        "post_wait_freezes": 1000,
         "post_delay": 500,
         "next": [
             "Daily_Busin_SubMenu",
-            "Daily_Busin_Claim"
+            "Daily_Busin_Claim",
+            "Daily_Busin_Claim_Tpl"
         ],
         "focus": "GOM.餐馆结算(COR)-主界面"
+    },
+    "Daily_Busin_Claim_Tpl": {
+        "desc": "识别点击餐馆",
+        "max_hit": 10,
+        "recognition": "Or",
+        "any_of": [
+            "Rec_<Daily_Busin_Claim>_Tpl"
+        ],
+        "action": "Click",
+        "post_delay": 500,
+        "next": [
+            "Daily_Busin_SubMenu",
+            "Daily_Busin_Claim",
+            "Daily_Busin_Claim_Tpl"
+        ],
+        "focus": "GOM.餐馆结算(Tpl)-主界面"
     },
     "Rec_<Daily_Busin_Claim>_Ocr": {
         "desc": "主页,左侧按钮群-经管1",
