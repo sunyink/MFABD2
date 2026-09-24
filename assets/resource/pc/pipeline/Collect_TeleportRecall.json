@@ -474,6 +474,10 @@
                 ],
                 "count": 10
             }
+        ],
+        "target": [
+            1119,
+            488
         ]
     },
     "Collect_TeleporCircle_OnFoot_LoopFoot": {
