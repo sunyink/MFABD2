@@ -355,6 +355,7 @@
             "UI_EventPack_PC.png"
         ],
         "next": [
+            "[JumpBack]Global_QuickCart_MenuReset",
             "Collect_LocatePackFrame_Smart_Swip",
             "[JumpBack]Collect_LocatePackFrame_Loc1_ResetLoc",
             "[JumpBack]Collect_PackLocation_PassFieldsAndHub",
@@ -380,6 +381,7 @@
             "UI_EventPack_PC.png"
         ],
         "next": [
+            "[JumpBack]Global_QuickCart_MenuReset",
             "Collect_LocatePackFrame_Smart_Swip",
             "[JumpBack]Collect_LocatePackFrame_Loc1_ResetLoc",
             "[JumpBack]Collect_PackLocation_PassFieldsAndHub",
@@ -533,6 +535,7 @@
             "PackFrame_Loc": "Collect_LocatePackFrame_Loc10"
         },
         "next": [
+            "[JumpBack]Global_QuickCart_MenuReset",
             "Collect_LocatePackFrame_Smart_Swip",
             "[JumpBack]Collect_LocatePackFrame_Loc1_ResetLoc",
             "[JumpBack]Collect_PackLocation_PassFieldsAndHub",
