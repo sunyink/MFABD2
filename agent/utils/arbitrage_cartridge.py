@@ -11,17 +11,16 @@ import re
 import unicodedata
 
 from . import mfaalog
+from .arbitrage_number_geometry import analyze_number_region, build_number_crops
 
 
 RESCUE_NODE = "Arbitrage_Sell_Cart_RescueNum"
 DEFAULT_CONFIG = {
     "min_score": 0.6,
     "initial_min_score": 0.85,
-    "score_drop": 0.25,
-    "narrow_frac": 0.5,
-    "pad_frac": 0.1,
-    "h_frac": 1.2,
-    "y_shifts": [-0.2, 0.0, 0.2],
+    "number_crop_x_padding_fracs": [0.5, 1.0],
+    "number_crop_bottom_padding": 2,
+    "number_band_height_ratio": [0.5, 1.5],
     "type_height_range": [10, 25],
     "type_height": 17,
     "number_height": 16,
@@ -82,15 +81,18 @@ def load_config(context):
         elif isinstance(default, list):
             valid = isinstance(value, list) and bool(value) and all(
                 type(v) in (int, float) and math.isfinite(v) for v in value)
-            if key == "y_shifts":
-                valid = valid and len(value) <= 12 and all(-1 <= v <= 2 for v in value)
+            if key == "number_crop_x_padding_fracs":
+                valid = valid and len(value) == 2 and 0 <= value[0] < value[1] <= 2
+            elif key == "number_band_height_ratio":
+                valid = valid and len(value) == 2 and 0 < value[0] < value[1] <= 4
             else:
                 valid = valid and len(value) == 2 and 1 <= value[0] <= value[1] <= 50
         elif type(default) is int:
-            valid = type(value) is int and 1 <= value <= 64
+            minimum = 0 if key == "number_crop_bottom_padding" else 1
+            valid = type(value) is int and minimum <= value <= 64
         else:
             valid = type(value) in (int, float) and math.isfinite(value) and 0 < value <= 2
-            if key in ("min_score", "initial_min_score", "score_drop", "number_left_frac"):
+            if key in ("min_score", "initial_min_score", "number_left_frac"):
                 valid = valid and value < 1
         if valid:
             cfg[key] = deepcopy(value)
@@ -164,33 +166,20 @@ def _clip(roi, bounds):
     return [x1, y1, x2 - x1, y2 - y1] if x2 > x1 and y2 > y1 else None
 
 
-def rescue_rois(type_dets, cfg):
-    left = min(d["x"] for d in type_dets)
-    right = max(d["x"] + d["w"] for d in type_dets)
-    bottom = max(d["y"] + d["h"] for d in type_dets)
-    heights = sorted(d["h"] for d in type_dets)
-    height = heights[len(heights) // 2]
-    width = max(1, right - left)
-    pad = max(1, round(cfg["pad_frac"] * width))
-    narrow = max(1, round(cfg["narrow_frac"] * width))
-    crop_height = max(1, round(cfg["h_frac"] * height))
-    result = []
-    for shift in cfg["y_shifts"]:
-        top = round(bottom + shift * height)
-        result.extend(([left - pad, top, width + 2 * pad, crop_height],
-                       [right - narrow, top, narrow + pad, crop_height]))
-    return result
-
-
 class _Reader:
     def __init__(self, context, image, bounds, cfg):
         self.context, self.image, self.bounds, self.cfg = context, image, bounds, cfg
         self.cache = {}
         self.attempts = []
+        self.error = None
 
     def read(self, roi, only_rec=True):
         clipped = _clip(roi, self.bounds)
-        if not clipped or getattr(getattr(self.context, "tasker", None), "stopping", False):
+        if getattr(getattr(self.context, "tasker", None), "stopping", False):
+            self.error = "stopped"
+            return []
+        if not clipped:
+            self.error = "invalid_crop"
             return []
         key = (*clipped, only_rec)
         if key in self.cache:
@@ -198,9 +187,15 @@ class _Reader:
         try:
             reco = self.context.run_recognition(RESCUE_NODE, self.image, pipeline_override={RESCUE_NODE: {
                 "recognition": "OCR", "roi": clipped, "only_rec": only_rec}})
-            results = getattr(reco, "filtered_results", None) or getattr(reco, "all_results", None) or []
+            if reco is None:
+                raise RuntimeError("编号OCR未执行")
+            # Low-score legal rivals must remain visible to the consensus check.
+            results = getattr(reco, "all_results", None)
+            if results is None:
+                results = getattr(reco, "filtered_results", None) or []
         except Exception as exc:
             mfaalog.warning(f"[Arbitrage] 卡带局部OCR异常: {exc}")
+            self.error = "ocr_error"
             results = []
         out = []
         for result in results:
@@ -208,80 +203,70 @@ class _Reader:
             if hasattr(box, "x"):
                 box = [box.x, box.y, box.w, box.h]
             x, y, w, h = box
-            out.append({"text": _clean(getattr(result, "text", "")), "score": getattr(result, "score", 0),
+            score = float(getattr(result, "score", 0))
+            score = score if math.isfinite(score) and 0 <= score <= 1 else 0.0
+            out.append({"text": _clean(getattr(result, "text", "")), "score": score,
                         "x": x, "y": y, "w": w, "h": h, "cx": x + w / 2, "cy": y + h / 2})
         self.cache[key] = out
         self.attempts.append({"roi": clipped, "only_rec": only_rec,
                               "clipped": list(roi) != clipped,
+                              "error": self.error,
                               "reads": [{"text": d["text"], "score": round(d["score"], 4)} for d in out]})
         return out
 
 
-def _number_reads(reader, rois, kind, original="", reference_score=0, *, min_score=0):
+def _number_reads(reader, specs, kind):
     evidence = {}
-    floor = max(reader.cfg["min_score"], reference_score - reader.cfg["score_drop"], min_score)
-    for roi in rois:
+    for spec in specs:
+        spec["stage"] = "complete_number"
+        spec["reads"] = []
+        if not spec["admitted"]:
+            continue
+        roi = spec["roi"]
         for det in reader.read(roi):
-            clipped = tuple(_clip(roi, reader.bounds))
-            if clipped[3] < reader.cfg["number_height"] / 2:
-                continue
             number = det["text"]
-            if not valid_number(number, kind, reader.cfg) or det["score"] < floor:
+            legal = valid_number(number, kind, reader.cfg)
+            spec["reads"].append({"raw_text": number, "number": number if legal else None,
+                                  "score": det["score"],
+                                  "supporting": legal and det["score"] >= reader.cfg["initial_min_score"]})
+            if not legal:
                 continue
-            if len(original) == 2 and len(number) < 2:
-                continue
-            entry = evidence.setdefault(number, {"rois": set(), "score": 0.0})
-            entry["rois"].add(clipped)
-            entry["score"] = max(entry["score"], det["score"])
+            evidence.setdefault(number, []).append({"roi": list(roi), "score": det["score"]})
+        if reader.error or getattr(getattr(reader.context, "tasker", None), "stopping", False):
+            spec["error"] = reader.error or "stopped"
+            reader.error = spec["error"]
+            break
     return evidence
 
 
-def _choose_number(evidence, score_drop=0.25):
-    # Crops are correlated. Require consistency, never outvote a competing number.
-    if evidence:
-        floor = max(entry["score"] for entry in evidence.values()) - score_drop
-        evidence = {number: entry for number, entry in evidence.items() if entry["score"] >= floor}
-    if len(evidence) != 1:
-        return "", 0.0
-    number, entry = next(iter(evidence.items()))
-    if len({roi[1] for roi in entry["rois"]}) < 2:
-        return "", 0.0
-    return number, entry["score"]
-
-
-def _fine_number_rois(reader, evidence):
-    """Refine one strong but vertically unconfirmed candidate, at most four crops."""
-    if len(evidence) != 1:
-        return []
-    number, entry = next(iter(evidence.items()))
-    if entry["score"] < reader.cfg["initial_min_score"] or len({r[1] for r in entry["rois"]}) != 1:
-        return []
-    def score(roi):
-        return max((d["score"] for d in reader.cache.get((*roi, True), [])
-                    if d["text"] == number), default=0)
-    x, y, w, h = max(sorted(entry["rois"]), key=score)
-    rois = []
-    for offset in (-1, 1, -2, 2):
-        roi = [x, y + offset, w, h]
-        # Do not change dimensions or cross into the monthly row during fine sampling.
-        if _clip(roi, reader.bounds) == roi:
-            rois.append(roi)
-    return rois
+def _choose_number(evidence, support_floor, digit_count):
+    if len(evidence) > 1:
+        return "", 0.0, "complete_crop_conflict"
+    if not evidence:
+        return "", 0.0, "no_legal_number"
+    number, observations = next(iter(evidence.items()))
+    if len(number) != digit_count:
+        return "", 0.0, "digit_shape_disagreement"
+    supports = {}
+    for observation in observations:
+        if observation["score"] >= support_floor:
+            y = observation["roi"][1]
+            supports[y] = max(supports.get(y, 0), observation["score"])
+    if len(supports) < 2:
+        return "", 0.0, "insufficient_positions"
+    return number, min(supports.values()), "complete_crop_consensus"
 
 
 def rescue_tail_num(context, screenshot, type_dets, cfg, bounds, number_dets=(), kind=""):
-    if not type_dets or bounds is None:
+    """Compatibility entry; numeric rescue shares the same geometry and decision path."""
+    _, score, _, meta = read_current([*type_dets, *number_dets], context, screenshot, cfg, bounds, "尾号复核")
+    if kind and meta.get("type") != kind:
         return "", 0.0
-    reader = _Reader(context, screenshot, bounds, cfg)
-    return _choose_number(_number_reads(reader, rescue_rois(type_dets, cfg), kind), cfg["score_drop"])
+    return meta.get("number", ""), score
 
 
-def _sweep(bounds, height, cfg, numeric):
+def _sweep(bounds, height, cfg):
     left, top, right, bottom = bounds
-    if numeric:
-        left += round((right - left) * cfg["number_left_frac"])
-        right -= cfg["number_right_pad"]
-        top += cfg["type_height"]
     starts = range(math.ceil(top), math.floor(bottom), cfg["scan_step"])
     return [[left, y, right - left, height] for y in list(starts)[:cfg["max_scan_windows"]]]
 
@@ -297,8 +282,16 @@ def read_current(dets, context, screenshot, cfg, bounds, label):
     meta = {"type_basis": "unknown", "number_basis": "unknown", "geometry_basis": "unknown"}
     if bounds is None:
         return "", 0.0, "unreadable_region", meta
-    reader = _Reader(context, screenshot, bounds, cfg)
     typed = [d for d in dets if re.search(r'[^\W\d_]', d["text"])]
+    region = analyze_number_region(screenshot, bounds, typed, cfg)
+    meta.update(region.detail)
+    if region.detail["reason"] in ("invalid_image", "invalid_bounds", "invalid_strip", "uniform_or_empty"):
+        meta["decision_reason"] = region.detail["reason"]
+        return "", 0.0, "unconfirmed_current_number", meta
+    reader = _Reader(context, screenshot, region.detail["bounds"], cfg)
+    if getattr(getattr(context, "tasker", None), "stopping", False):
+        meta["decision_reason"] = "stopped"
+        return "", 0.0, "unconfirmed_current_number", meta
     numbers = [d for d in dets if re.fullmatch(r"[0-9]+", _clean(d["text"]))]
     known = [(d, *classify_type(d["text"])) for d in typed]
     families = {kind for _, kind, _ in known if kind}
@@ -326,7 +319,7 @@ def read_current(dets, context, screenshot, cfg, bounds, label):
             meta["type_basis"] = "local_redetect"
     if not complete:
         candidates = {}
-        for roi in _sweep(bounds, cfg["type_height"], cfg, False):
+        for roi in _sweep(reader.bounds, cfg["type_height"], cfg):
             for det in reader.read(roi):
                 family, full = classify_type(det["text"])
                 if not family or not full or det["score"] < cfg["min_score"]:
@@ -337,6 +330,7 @@ def read_current(dets, context, screenshot, cfg, bounds, label):
             hits = candidates[kind]
             if len({d["y"] for d in hits}) >= 2:
                 complete = True
+                typed = hits
                 type_score = min(d["score"] for d in hits)
                 meta["type_basis"] = "type_sweep"
         if not complete:
@@ -345,49 +339,48 @@ def read_current(dets, context, screenshot, cfg, bounds, label):
             return "", 0.0, "unconfirmed_current_type", meta
     body = cfg["type_labels"][kind]
     meta["type"] = kind
-    meta["geometry_basis"] = "single_line" if geometry else "default_height"
+    region = analyze_number_region(screenshot, reader.bounds, typed, cfg)
+    meta.update(region.detail)
+    meta["geometry_basis"] = "pixel_bands"
+    meta["attempts"] = reader.attempts
+    if reader.error:
+        meta["decision_reason"] = reader.error
+        return body, type_score, "unconfirmed_current_number", meta
     # Inline numbers may belong to an otherwise correctly detected type line.
     inline = [re.search(r"([0-9]+)$", _clean(d["text"])) for d in typed]
     originals = [m.group(1) for m in inline if m] + [d["text"] for d in numbers]
     originals = list(dict.fromkeys(originals))
     original = originals[0] if len(originals) == 1 else ""
     number_score = min((d["score"] for d in numbers), default=type_score)
-    wrapped = bool(numbers and typed and any(n["cy"] > max(t["cy"] for t in typed)
-                    + min(t["h"] for t in typed) / 2 for n in numbers))
-    ambiguous_one = wrapped and len(original) == 1 and valid_number("1" + original, kind, cfg)
-    if (geometry and len(originals) == 1 and valid_number(original, kind, cfg)
-            and number_score >= cfg["initial_min_score"] and not ambiguous_one):
-        meta["number_basis"] = "initial_complete"
-        meta["attempts"] = reader.attempts
-        return body + original, min(type_score, number_score), "current_row", meta
-    evidence = {}
-    if geometry:
-        evidence = _number_reads(reader, rescue_rois(normal, cfg), kind, original, number_score if original else 0)
-    number, score = _choose_number(evidence, cfg["score_drop"])
-    if not number:
-        more = _number_reads(reader, _sweep(bounds, cfg["number_height"], cfg, True),
-                             kind, original, number_score if original else 0)
-        for token, entry in more.items():
-            previous = evidence.setdefault(token, {"rois": set(), "score": 0.0})
-            previous["rois"].update(entry["rois"])
-            previous["score"] = max(previous["score"], entry["score"])
-        number, score = _choose_number(evidence, cfg["score_drop"])
-    if not number:
-        more = _number_reads(reader, _fine_number_rois(reader, evidence), kind, original,
-                             number_score if original else 0, min_score=cfg["initial_min_score"])
-        for token, entry in more.items():
-            previous = evidence.setdefault(token, {"rois": set(), "score": 0.0})
-            previous["rois"].update(entry["rois"])
-            previous["score"] = max(previous["score"], entry["score"])
-        number, score = _choose_number(evidence, cfg["score_drop"])
+    if region.detail["status"] == "inline_candidate":
+        band = region.detail["type_band"]
+        same_line = all(band[0] <= d["cy"] < band[1] for d in numbers)
+        if (geometry and same_line and len(originals) == 1 and valid_number(original, kind, cfg)
+                and number_score >= cfg["initial_min_score"]):
+            meta.update(number=original, number_basis="initial_complete", decision_reason="inline_complete")
+            return body + original, min(type_score, number_score), "current_row", meta
+        meta["decision_reason"] = "inline_number_conflict" if len(originals) > 1 else "inline_number_unconfirmed"
+        return body, type_score, "unconfirmed_current_number", meta
+    if region.detail["status"] != "wrapped_bounded":
+        meta["decision_reason"] = region.detail["reason"]
+        return body, type_score, "unconfirmed_current_number", meta
+    specs = build_number_crops(region, cfg)
+    meta["crops"] = specs
+    if len({s["roi"][1] for s in specs if s["admitted"]}) < 2:
+        meta["decision_reason"] = "insufficient_positions"
+        return body, type_score, "unconfirmed_current_number", meta
+    evidence = _number_reads(reader, specs, kind)
+    number, score, reason = _choose_number(evidence, cfg["initial_min_score"], len(region.detail["blocks"]))
+    if reader.error:
+        number, score, reason = "", 0.0, reader.error
     meta["attempts"] = reader.attempts
     meta["number_candidates"] = sorted(evidence)
-    meta["number_scores"] = {token: round(entry["score"], 4) for token, entry in evidence.items()}
+    meta["number_scores"] = {token: round(max(d["score"] for d in reads), 4) for token, reads in evidence.items()}
+    meta["decision_reason"] = reason
     if number:
-        meta["number_basis"] = "number_rescue"
+        meta.update(number=number, number_basis="number_geometry")
         mfaalog.info(f"[Arbitrage] 当前编号救援: {label} {original or '缺号'}→{number}")
         return body + number, min(type_score, score), "current_number_rechecked", meta
-    reason = "number_conflict" if len(evidence) > 1 else "number_unreadable"
     meta["number_basis"] = reason
     mfaalog.warning(f"[Arbitrage] 当前编号未确认: {label}，原因={reason}，候选={sorted(evidence)}")
     return body, type_score, "unconfirmed_current_number", meta

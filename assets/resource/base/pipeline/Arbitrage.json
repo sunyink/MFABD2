@@ -2858,14 +2858,14 @@
         "attach": {
             "min_score": 0.6,
             "initial_min_score": 0.85,
-            "score_drop": 0.25,
-            "narrow_frac": 0.5,
-            "pad_frac": 0.1,
-            "h_frac": 1.2,
-            "y_shifts": [
-                -0.2,
-                0.0,
-                0.2
+            "number_crop_x_padding_fracs": [
+                0.5,
+                1.0
+            ],
+            "number_crop_bottom_padding": 2,
+            "number_band_height_ratio": [
+                0.5,
+                1.5
             ],
             "type_height_range": [
                 10,
