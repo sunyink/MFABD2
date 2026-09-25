@@ -163,6 +163,10 @@ class QuantityAdjuster:
         if result is None or not result.success:
             raise RuntimeError(f"数量控件操作失败: {node}")
 
+    def _adjust_step(self, key, before):
+        self.action(key)
+        return self.read()
+
     def adjust(self, target, maximum, *, max_selected=None):
         if max_selected is None:
             self.action("max_node")
@@ -210,8 +214,7 @@ class QuantityAdjuster:
             before = current
             diff = target - current
             key = ("plus_" if diff > 0 else "minus_") + ("ten_node" if abs(diff) >= 10 else "one_node")
-            self.action(key)
-            current = self.read()
+            current = self._adjust_step(key, before)
             if not 1 <= current <= maximum or abs(current - target) >= abs(before - target):
                 raise RuntimeError(f"数量调整未接近目标: {before}→{current}，目标{target}")
         return current
@@ -249,6 +252,31 @@ class QuantityAdjuster:
 
 class SaleQuantityAdjuster(QuantityAdjuster):
     """出售专用的最终整行报价及回读；购买继续使用基础数量控件。"""
+
+    def _adjust_step(self, key, before):
+        attempts = _integer(self.config.get("unchanged_attempts", 3), "无变化点击次数", 1)
+        wait = _integer(self.config.get("unchanged_wait_ms", 2000), "无变化观察时长", 1) / 1000
+        interval = _integer(self.config.get("unchanged_interval_ms", 400), "无变化复读间隔", 1) / 1000
+        for attempt in range(attempts):
+            self.action(key)
+            until = min(time.monotonic() + wait, self.deadline)
+            while True:
+                current = self.read()
+                if current != before:
+                    return current
+                remaining = until - time.monotonic()
+                if remaining <= 0:
+                    break
+                time.sleep(min(interval, remaining))
+                self.check_running()
+            if attempt + 1 < attempts:
+                # 补点前重新确认商品、库存及价格；迟到的变化直接交回外层重新计算。
+                _, current = self.read(full=True)
+                if current != before:
+                    return current
+                mfaalog.info(f"[SellQuantity] [{self.name}] 数量仍为{before}，"
+                             f"补试数量按钮（{attempt + 2}/{attempts}）")
+        raise RuntimeError(f"数量按钮连续{attempts}次未生效，待售数量仍为{before}")
 
     def observe_sale(self, inventory_only=False):
         previous = None

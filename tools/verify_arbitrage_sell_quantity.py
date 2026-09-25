@@ -235,6 +235,128 @@ class StackQuantityTests(unittest.TestCase):
             ui.prepare()
 
 
+class QuantityRetryTests(unittest.TestCase):
+    def setUp(self):
+        self.now = 0.0
+        self.mocks = ExitStack()
+        self.addCleanup(self.mocks.close)
+        self.mocks.enter_context(patch.object(quantity.time, "monotonic", side_effect=lambda: self.now))
+        self.mocks.enter_context(patch.object(quantity.time, "sleep", side_effect=self.advance))
+        self.mocks.enter_context(patch.object(quantity.mfaalog, "info"))
+
+    def advance(self, seconds):
+        self.now += seconds
+
+    def ui(self):
+        return QuantityUI(99319, 83438, selected=83438)
+
+    def test_missed_click_waits_then_retries_and_reaches_exact_target(self):
+        ui = self.ui()
+        action = ui.action
+        def miss_first(key, x=None):
+            before = ui.selected
+            action(key, x)
+            if len(ui.actions) == 1:
+                ui.selected = before
+        ui.action = miss_first
+        self.assertEqual(ui.adjust(83359, 83438, max_selected=83438), 83359)
+        self.assertEqual(ui.actions.count("minus_ten_node"), 8)
+        self.assertEqual(ui.actions.count("minus_one_node"), 9)
+        self.assertAlmostEqual(self.now, 2.0)
+
+    def test_delayed_click_is_observed_without_duplicate_input(self):
+        ui = self.ui()
+        action, read = ui.action, ui.read
+        def delayed(key, x=None):
+            before = ui.selected
+            action(key, x)
+            if len(ui.actions) == 1:
+                ui.selected = before
+        def delayed_read(full=False):
+            if len(ui.actions) == 1 and self.now >= 1.2:
+                ui.selected = 83428
+            return read(full)
+        ui.action, ui.read = delayed, delayed_read
+        self.assertEqual(ui.adjust(83359, 83438, max_selected=83438), 83359)
+        self.assertEqual(ui.actions.count("minus_ten_node"), 7)
+        self.assertEqual(ui.actions.count("minus_one_node"), 9)
+        self.assertLess(self.now, 2.0)
+
+    def test_change_during_pre_retry_check_recomputes_step(self):
+        ui = self.ui()
+        ui.ineffective.add("minus_ten_node")
+        read = ui.read
+        def late_read(full=False):
+            if full:
+                # 等待结束时，游戏才给出更接近目标的数量；下一步应改用减1。
+                ui.selected = 83360
+            return read(full)
+        ui.read = late_read
+        self.assertEqual(ui.adjust(83359, 83438, max_selected=83438), 83359)
+        self.assertEqual(ui.actions, ["minus_ten_node", "minus_one_node"])
+
+    def test_permanent_miss_cancels_after_three_attempts(self):
+        ui = self.ui()
+        ui.ineffective.add("minus_ten_node")
+        with self.assertRaisesRegex(RuntimeError, "连续3次未生效"):
+            ui.adjust(83359, 83438, max_selected=83438)
+        self.assertEqual(ui.actions, ["minus_ten_node"] * 3)
+        self.assertEqual(ui.selected, 83438)
+        self.assertAlmostEqual(self.now, 6.0)
+
+    def test_retry_checks_detail_page_before_another_click(self):
+        ui = self.ui()
+        ui.ineffective.add("minus_ten_node")
+        read = ui.read
+        def changed_page(full=False):
+            if full:
+                raise RuntimeError("买卖名称未确认或不符")
+            return read(full)
+        ui.read = changed_page
+        with self.assertRaisesRegex(RuntimeError, "名称未确认"):
+            ui.adjust(83359, 83438, max_selected=83438)
+        self.assertEqual(len(ui.actions), 1)
+
+    def test_retry_preserves_stop_deadline_and_action_limit(self):
+        for boundary in ("stop", "deadline", "actions"):
+            with self.subTest(boundary=boundary):
+                ui = self.ui()
+                ui.ineffective.add("minus_ten_node")
+                if boundary == "deadline":
+                    ui.deadline = self.now + .7
+                elif boundary == "actions":
+                    ui.max_adjustments = 1
+                def advance_boundary(seconds):
+                    self.advance(seconds)
+                    if boundary == "stop":
+                        ui.context.tasker.stopping = True
+                with patch.object(quantity.time, "sleep", side_effect=advance_boundary):
+                    message = {"stop": "任务已停止", "deadline": "超过时限", "actions": "操作上限"}[boundary]
+                    with self.assertRaisesRegex(RuntimeError, message):
+                        ui.adjust(83359, 83438, max_selected=83438)
+                self.assertEqual(len(ui.actions), 1)
+
+    def test_move_away_from_target_still_cancels_immediately(self):
+        ui = self.ui()
+        action = ui.action
+        def reverse(key, x=None):
+            before = ui.selected
+            action(key, x)
+            ui.selected = before + 10
+        ui.action = reverse
+        with self.assertRaisesRegex(RuntimeError, "未接近目标"):
+            ui.adjust(83359, 83438, max_selected=83438)
+        self.assertEqual(len(ui.actions), 1)
+        self.assertEqual(self.now, 0)
+
+    def test_purchase_adjustment_does_not_inherit_sale_retries(self):
+        ui = self.ui()
+        ui.ineffective.add("minus_ten_node")
+        self.assertEqual(quantity.QuantityAdjuster._adjust_step(ui, "minus_ten_node", 83438), 83438)
+        self.assertEqual(len(ui.actions), 1)
+        self.assertEqual(self.now, 0)
+
+
 class BatchUI:
     def __init__(self, stacks, *, fail_at=None):
         self.stacks = list(stacks)

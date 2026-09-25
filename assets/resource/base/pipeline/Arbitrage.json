@@ -3650,6 +3650,9 @@
             "max_adjustments": 80,
             "read_attempts": 3,
             "read_interval_ms": 150,
+            "unchanged_attempts": 3,
+            "unchanged_wait_ms": 2000,
+            "unchanged_interval_ms": 400,
             "quote_node": "Agt_BuyQuantity_Cost_Ocr"
         }
     },
