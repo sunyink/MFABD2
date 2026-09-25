@@ -159,6 +159,7 @@ class PriceTests(unittest.TestCase):
 
 class CartridgeEntryTests(unittest.TestCase):
     def test_legal_but_low_quality_one_enters_existing_rescue(self):
+        from verify_arbitrage_number_geometry import row_image
         typed = dict(text="角色遊戲卡帶", x=913, y=309, w=67, h=14, cx=946.5, cy=316, score=.95)
         number = dict(text="1", x=970, y=319, w=9, h=12, cx=974.5, cy=325, score=.721)
         calls = []
@@ -166,7 +167,7 @@ class CartridgeEntryTests(unittest.TestCase):
             roi = pipeline_override[node]["roi"]
             calls.append(roi)
             return NS(filtered_results=[NS(text="7", score=.9, box=roi)])
-        result = cart.read_current([typed, number], NS(run_recognition=recognize), object(),
+        result = cart.read_current([typed, number], NS(run_recognition=recognize), row_image(typed, "7"),
                                    cart.DEFAULT_CONFIG, (908, 304, 990, 342), "水果冰沙")
         self.assertTrue(calls)
         self.assertEqual(result[0], "角色游戏卡7")

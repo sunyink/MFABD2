@@ -9,6 +9,7 @@
         "next": [
             "Arbitrage_Merchant_Ico",
             "[JumpBack]Arbitrage_HomePageOldCardMenu_Goin",
+            "[JumpBack]PVP_PerPetTask",
             "[JumpBack]Global_ToHomePage"
         ],
         "on_error": [
@@ -2169,7 +2170,7 @@
         "pre_delay": 0,
         "post_delay": 0,
         "next": [
-            "Arbitrage_Buy_Cleanup"
+            "Arbitrage_Buy_Select_End"
         ],
         "focus": "② 没有可以购买的商品，结束本轮常规采购"
     },
@@ -2857,14 +2858,14 @@
         "attach": {
             "min_score": 0.6,
             "initial_min_score": 0.85,
-            "score_drop": 0.25,
-            "narrow_frac": 0.5,
-            "pad_frac": 0.1,
-            "h_frac": 1.2,
-            "y_shifts": [
-                -0.2,
-                0.0,
-                0.2
+            "number_crop_x_padding_fracs": [
+                0.5,
+                1.0
+            ],
+            "number_crop_bottom_padding": 2,
+            "number_band_height_ratio": [
+                0.5,
+                1.5
             ],
             "type_height_range": [
                 10,
@@ -3530,7 +3531,10 @@
             "^料理食材$",
             "聖石",
             "[装裝][备備]材料"
-        ]
+        ],
+        "focus": {
+            "Node.Recognition.Succeeded": "已查至料理类别末端，未找到目标料理。"
+        }
     },
     "Arbitrage_Sell_Gold_Snapshot": {
         "desc": "金币检测点A；串行放行，Python每次派发只记录首次基准。勿加max_hit，其计数跨run_task共享。",
@@ -3649,6 +3653,9 @@
             "max_adjustments": 80,
             "read_attempts": 3,
             "read_interval_ms": 150,
+            "unchanged_attempts": 3,
+            "unchanged_wait_ms": 2000,
+            "unchanged_interval_ms": 400,
             "quote_node": "Agt_BuyQuantity_Cost_Ocr"
         }
     },
