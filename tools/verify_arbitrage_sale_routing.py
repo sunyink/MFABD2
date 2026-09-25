@@ -25,7 +25,9 @@ Library.version()
 from maa.agent.agent_server import AgentServer
 
 with patch.object(AgentServer, "custom_action", return_value=lambda cls: cls), \
-     patch.object(AgentServer, "custom_recognition", return_value=lambda cls: cls):
+     patch.object(AgentServer, "custom_recognition", return_value=lambda cls: cls), \
+     patch.object(AgentServer, "context_sink", return_value=lambda cls: cls), \
+     patch.object(AgentServer, "_set_api_properties"):
     from action import arbitrage_sell_batch as sale, arbitrage_buy_precise as buy
     from action.clear_node_hit_count import ClearNodeHitCountAction
 

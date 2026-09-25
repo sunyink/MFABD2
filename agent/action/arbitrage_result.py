@@ -32,7 +32,6 @@ from utils.arbitrage_cartridge import (
     cartridge_identity as _cart_identity,
     load_config as _load_rescue_cfg,
     read_current as _read_cartridge,
-    rescue_rois as _rescue_rois,
     rescue_tail_num as _rescue_tail_num,
 )
 from action.arbitrage_sell_batch import execute_sale_item
@@ -275,6 +274,11 @@ def _current_cart(dets, context, screenshot, cfg, bounds, label):
 def _merge_cartridge_observation(saved, fresh):
     """Merge compatible observations, preserving conflicts and earlier good reads."""
     if saved.get("cart_conflict"):
+        return
+    if fresh.get("cart_conflict"):
+        saved.update(target_cartridge="", current_cartridge="", alt_cartridge="", cart_conflict=True,
+                     cartridge_read_basis="observation_conflict",
+                     cartridge_evidence=fresh.get("cartridge_evidence", {}))
         return
     for field in ("current_price", "peak_price", "current_rate", "peak_rate"):
         if saved.get(field) is not None and fresh.get(field) is not None and saved[field] != fresh[field]:
@@ -589,7 +593,6 @@ class ArbitrageSellController(CustomAction):
                 "cartridge_raw": item.get("target_cartridge", ""),
                 "cart_score": item.get("cart_score", 0.0),
                 "cart_conflict": item.get("cart_conflict", False),
-                "cartridge_alt": item.get("alt_cartridge", ""),
                 "current_rate": item.get("current_rate"),
                 "cartridge_read_basis": item.get("cartridge_read_basis", "unknown"),
                 "reserve": reserves.get(canon(item["name"])),
@@ -626,7 +629,7 @@ class ArbitrageSellController(CustomAction):
 
             # 旧缓存也必须解析为完整类型和有效编号；语言切换不影响柜台身份。
             cart_identity = _cart_identity(cart_raw, self._rescue_cfg)
-            if cart_identity is None:
+            if cart_identity is None or target.get("cart_conflict"):
                 mfaalog.warning(
                     f"[Arbitrage] 🚨 [{item_name}] 当前卡带未确认"
                     f"(原因={target['cartridge_read_basis']}，读数=[{cart_raw}]),"
@@ -635,24 +638,16 @@ class ArbitrageSellController(CustomAction):
                 sold_fail.append(item_name)
                 continue
 
-            # 卡带识别质量轻告警(#B):低置信或上下分歧只提示,不阻断——读错最坏进错柜台当没卖掉,
-            # 真相由下面的金币验证承担。商品名称由共用识别入口先纠错再核对。
-            if target.get("cart_score", 1.0) < SCORE_MIN or target.get("cart_conflict"):
+            # 编号冲突已经阻止派发；低类型分只提示，交易条件仍在子页独立核对。
+            if target.get("cart_score", 1.0) < SCORE_MIN:
                 mfaalog.warning(
                     f"[Arbitrage]   ⚠️ 卡带识别可疑(组分{target.get('cart_score', 0):.2f}"
-                    f"{'·上下分歧' if target.get('cart_conflict') else ''})，"
+                    f")，"
                     f"将在子页核对名称、价格和本批数量"
                 )
 
-            # 候选序列(2026-08-03):首选=判读胜者;上下分歧且另一串带号时,金币验证失败后改试
-            # 另一串一次(实录:双1.00分歧,首选"当前行17"进错柜台,真身在"每月行12")。
+            # 只使用本轮已确认的当前柜台，不以月度编号或异议候选补派交易。
             cands = [cart_raw]
-            alt_raw = target.get("cartridge_alt", "")
-            # 按类型和编号去重，不以显示语言或匹配列表顺序区分同一柜台。
-            alt_identity = _cart_identity(alt_raw, self._rescue_cfg)
-            if (target.get("cart_conflict") and alt_identity is not None
-                    and alt_identity != cart_identity):
-                cands.append(alt_raw)
 
             outcome = None
             for cand in cands:
@@ -996,6 +991,8 @@ class ArbitrageSellController(CustomAction):
             item_data["monthly_cartridge"] = _cart_group(month_dets)[0]
             item_data["cartridge_read_basis"] = basis
             item_data["cartridge_evidence"] = {key: value for key, value in evidence.items() if key != "attempts"}
+            item_data["cart_conflict"] = evidence.get("decision_reason") in (
+                "complete_crop_conflict", "inline_number_conflict")
             item_data["cart_score"] = day_score
 
             results.append(item_data)

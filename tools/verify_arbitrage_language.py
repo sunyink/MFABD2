@@ -280,15 +280,16 @@ class LanguageTests(unittest.TestCase):
             "type_patterns": {"story": ["[", ""]}})))
         self.assertEqual(cfg["type_patterns"], cart.DEFAULT_CONFIG["type_patterns"])
 
-    def test_sale_dispatch_deduplicates_old_language_aliases_and_skips_unknown_type(self):
+    def test_sale_dispatch_keeps_language_aliases_but_never_dispatches_conflicts(self):
         from action import arbitrage_result as ar
         from verify_arbitrage_preview import Context, Argv, item
-        for source, alternate, calls in [("故事遊戲卡帶14", "剧情游戏卡14", 1),
-                                         ("剧情游戏卡14", "故事遊戲卡帶13", 2),
-                                         ("未知游戏卡14", "", 0)]:
+        for source, alternate, conflict, calls in [("故事遊戲卡帶14", "剧情游戏卡14", False, 1),
+                                                   ("剧情游戏卡14", "故事遊戲卡帶13", True, 0),
+                                                   ("故事遊戲卡帶14", "剧情游戏卡14", True, 0),
+                                                   ("未知游戏卡14", "", False, 0)]:
             context = Context()
             controller = ar.ArbitrageSellController()
-            row = {**item("烤蜂蜜苹果", cart=source), "alt_cartridge": alternate, "cart_conflict": True}
+            row = {**item("烤蜂蜜苹果", cart=source), "alt_cartridge": alternate, "cart_conflict": conflict}
             scan = {"items": [row], "peak_items": [row], "complete": True}
             with patch.object(ar, "sync_from_context", return_value=True), \
                  patch.object(ar, "get_market_snapshot", return_value=None), \

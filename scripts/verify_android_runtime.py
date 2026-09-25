@@ -20,7 +20,7 @@ PROBE_ENV = {key: value for key, value in os.environ.items() if key not in {
 }}
 sys.path.insert(0, str(ROOT / "agent"))
 from utils import runtime_environment as runtime
-from utils.persistent_store import PersistentStore
+from utils.persistent_store import PersistentStore, SharedStore
 
 
 class AndroidRuntimeTests(unittest.TestCase):
@@ -179,6 +179,33 @@ class AndroidRuntimeTests(unittest.TestCase):
         self.assertEqual(self.store.get("keep"), 42)
         self.assertEqual(self.store.FILE_PATH.parent, portable)
         self.assertFalse((self.root / "global").exists())
+
+    def test_shared_archive_alone_selects_desktop_portable_directory(self):
+        for filename in ("agent_shared_data.json", "agent_shared_data.json.bak"):
+            with self.subTest(filename=filename):
+                portable = self.root / filename
+                portable.mkdir()
+                archive = portable / filename
+                archive.write_text('{"market":42}', encoding="utf-8")
+                store = type("IsolatedStore", (PersistentStore,), {"_initialized": False, "_storage_policy": None})
+                store.configure_storage(runtime.StoragePolicy(self.root / "global", portable))
+                self.assertTrue(store.set("account", 1))
+                self.assertEqual(store.FILE_PATH.parent, portable)
+                self.assertEqual(archive.read_text(encoding="utf-8"), '{"market":42}')
+                self.assertFalse((self.root / "global").exists())
+
+    def test_shared_store_follows_host_directory_across_accounts(self):
+        directory = self.root / "host-save"
+        self.store.configure_storage(runtime.StoragePolicy(directory))
+        shared = type("IsolatedSharedStore", (SharedStore,), {"_initialized": False})
+        with patch("utils.persistent_store.PersistentStore", self.store):
+            self.assertTrue(shared.set("market", 42))
+            self.store.switch_account("second")
+            self.assertTrue(self.store.set("account", 2))
+            self.assertEqual(shared.get("market"), 42)
+            self.assertEqual(shared.FILE_PATH, directory / "agent_shared_data.json")
+            self.assertEqual(shared._mode, "host")
+            self.assertNotIn("market", self.store.load())
 
     def test_only_desktop_policy_allows_portable_fallback(self):
         blocked = self.root / "blocked"
