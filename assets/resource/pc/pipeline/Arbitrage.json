@@ -178,7 +178,6 @@
     },
     "Arbitrage_Merchant_Close_Ck": {
         "post_wait_freezes": {
-            "time": 500,
             "target": [
                 745,
                 396,
@@ -186,14 +185,6 @@
                 77
             ]
         }
-    },
-    "Arbitrage_Buy_Button": {
-        "roi": [
-            94,
-            73,
-            38,
-            61
-        ]
     },
     "Arbitrage_Buy_Button_Chg": {
         "roi": [
@@ -717,6 +708,25 @@
             20
         ]
     },
+    "Arbitrage_PriceList_Sort_Check": {
+        "all_of": [
+            {
+                "sub_name": "OCR",
+                "recognition": "OCR",
+                "roi": [
+                    732,
+                    213,
+                    191,
+                    46
+                ],
+                "expected": [
+                    "[从從]高到低",
+                    "降序"
+                ]
+            },
+            "Sub_SieveExpand_Yew_Clr"
+        ]
+    },
     "Arbitrage_PriceList_Sort_Select": {
         "roi": [
             706,
@@ -959,6 +969,25 @@
             237
         ]
     },
+    "Arbitrage_ItemList_Sorting_Reverse": {
+        "all_of": [
+            {
+                "sub_name": "OCR",
+                "recognition": "OCR",
+                "roi": [
+                    958,
+                    70,
+                    211,
+                    45
+                ],
+                "expected": [
+                    "[从從]高到低",
+                    "降序"
+                ]
+            },
+            "Sub_SieveExpand_Yew_Clr"
+        ]
+    },
     "Arbitrage_ItemList_Swip": {
         "custom_action_param": {
             "detect_roi": [
@@ -1017,7 +1046,9 @@
             779,
             540
         ],
-        "threshold": 0.83
+        "threshold": [
+            0.83
+        ]
     },
     "Arbitrage_Sell_Item_ListTraverse_End": {
         "roi": [
@@ -1449,7 +1480,9 @@
                 "template": [
                     "Shop/RecipeList/料理_闪闪铁板虾.png"
                 ],
-                "threshold": 0.9
+                "threshold": [
+                    0.9
+                ]
             },
             "Sub_<Arbitrage_Cooking>_Clr"
         ]
@@ -1469,7 +1502,9 @@
                 "template": [
                     "Shop/RecipeList/料理_透明沙拉.png"
                 ],
-                "threshold": 0.9
+                "threshold": [
+                    0.9
+                ]
             },
             "Sub_<Arbitrage_Cooking>_Clr"
         ]
@@ -1489,7 +1524,9 @@
                 "template": [
                     "Shop/RecipeList/料理_地狱火紫菜包饭.png"
                 ],
-                "threshold": 0.9
+                "threshold": [
+                    0.9
+                ]
             },
             "Sub_<Arbitrage_Cooking>_Clr"
         ]
@@ -1509,7 +1546,9 @@
                     "Shop/RecipeList/料理_洛克菲勒生蚝.png"
                 ],
                 "green_mask": true,
-                "threshold": 0.9
+                "threshold": [
+                    0.9
+                ]
             },
             "Sub_<Arbitrage_Cooking>_Clr"
         ]
@@ -1529,7 +1568,9 @@
                     "Shop/RecipeList/料理_冰镇甜点.png"
                 ],
                 "green_mask": true,
-                "threshold": 0.9
+                "threshold": [
+                    0.9
+                ]
             },
             "Sub_<Arbitrage_Cooking>_Clr"
         ]
@@ -1548,7 +1589,9 @@
                 "template": [
                     "Shop/RecipeList/料理_炸猪排盖饭.png"
                 ],
-                "threshold": 0.9
+                "threshold": [
+                    0.9
+                ]
             },
             "Sub_<Arbitrage_Cooking>_Clr"
         ]
@@ -1568,7 +1611,9 @@
                     "Shop/RecipeList/料理_橄榄油意面.png"
                 ],
                 "green_mask": true,
-                "threshold": 0.9
+                "threshold": [
+                    0.9
+                ]
             },
             "Sub_<Arbitrage_Cooking>_Clr"
         ]
@@ -1588,7 +1633,9 @@
                     "Shop/RecipeList/料理_汉堡排便当.png"
                 ],
                 "green_mask": true,
-                "threshold": 0.9
+                "threshold": [
+                    0.9
+                ]
             },
             "Sub_<Arbitrage_Cooking>_Clr"
         ]
@@ -1608,7 +1655,9 @@
                 "template": [
                     "Shop/RecipeList/料理_卢戈山参烤串.png"
                 ],
-                "threshold": 0.9
+                "threshold": [
+                    0.9
+                ]
             },
             "Sub_<Arbitrage_Cooking>_Clr"
         ]
@@ -1628,7 +1677,9 @@
                 "template": [
                     "Shop/RecipeList/料理_煤炭饼干.png"
                 ],
-                "threshold": 0.9
+                "threshold": [
+                    0.9
+                ]
             },
             "Sub_<Arbitrage_Cooking>_Clr"
         ]
@@ -1648,7 +1699,9 @@
                 "template": [
                     "Shop/RecipeList/料理_蜂蜜黄油杏仁.png"
                 ],
-                "threshold": 0.9
+                "threshold": [
+                    0.9
+                ]
             },
             "Sub_<Arbitrage_Cooking>_Clr"
         ]
@@ -1668,7 +1721,9 @@
                 "template": [
                     "Shop/RecipeList/料理_三角美乃滋饭团.png"
                 ],
-                "threshold": 0.9
+                "threshold": [
+                    0.9
+                ]
             },
             "Sub_<Arbitrage_Cooking>_Clr"
         ]
@@ -1688,7 +1743,9 @@
                 "template": [
                     "Shop/RecipeList/料理_鱼子酱蛋包饭.png"
                 ],
-                "threshold": 0.9
+                "threshold": [
+                    0.9
+                ]
             },
             "Sub_<Arbitrage_Cooking>_Clr"
         ]
@@ -1708,7 +1765,9 @@
                 "template": [
                     "Shop/RecipeList/料理_炸三文鱼便当.png"
                 ],
-                "threshold": 0.9
+                "threshold": [
+                    0.9
+                ]
             },
             "Sub_<Arbitrage_Cooking>_Clr"
         ]
@@ -1728,7 +1787,9 @@
                 "template": [
                     "Shop/RecipeList/料理_烤蜂蜜苹果.png"
                 ],
-                "threshold": 0.9
+                "threshold": [
+                    0.9
+                ]
             },
             "Sub_<Arbitrage_Cooking>_Clr"
         ]
@@ -1748,7 +1809,9 @@
                     "Shop/RecipeList/料理_泰瑞丝派.png"
                 ],
                 "green_mask": true,
-                "threshold": 0.9
+                "threshold": [
+                    0.9
+                ]
             },
             "Sub_<Arbitrage_Cooking>_Clr"
         ]
@@ -1768,7 +1831,9 @@
                     "Shop/RecipeList/料理_三明治便当.png"
                 ],
                 "green_mask": true,
-                "threshold": 0.9
+                "threshold": [
+                    0.9
+                ]
             },
             "Sub_<Arbitrage_Cooking>_Clr"
         ]
@@ -1788,7 +1853,9 @@
                     "Shop/RecipeList/料理_手工蛋糕.png"
                 ],
                 "green_mask": true,
-                "threshold": 0.9
+                "threshold": [
+                    0.9
+                ]
             },
             "Sub_<Arbitrage_Cooking>_Clr"
         ]
@@ -1808,7 +1875,9 @@
                     "Shop/RecipeList/料理_香甜马卡龙.png"
                 ],
                 "green_mask": true,
-                "threshold": 0.9
+                "threshold": [
+                    0.9
+                ]
             },
             "Sub_<Arbitrage_Cooking>_Clr"
         ]
@@ -1828,7 +1897,9 @@
                     "Shop/RecipeList/料理_街头烤鸡肉串.png"
                 ],
                 "green_mask": true,
-                "threshold": 0.9
+                "threshold": [
+                    0.9
+                ]
             },
             "Sub_<Arbitrage_Cooking>_Clr"
         ]
@@ -1848,7 +1919,9 @@
                     "Shop/RecipeList/料理_香草牛排.png"
                 ],
                 "green_mask": true,
-                "threshold": 0.9
+                "threshold": [
+                    0.9
+                ]
             },
             "Sub_<Arbitrage_Cooking>_Clr"
         ]
@@ -1867,7 +1940,9 @@
                 "template": [
                     "Shop/RecipeList/料理_火烤鱼板棒.png"
                 ],
-                "threshold": 0.9
+                "threshold": [
+                    0.9
+                ]
             },
             "Sub_<Arbitrage_Cooking>_Clr"
         ]
@@ -1886,7 +1961,9 @@
                 "template": [
                     "Shop/RecipeList/料理_甜辣鲜虾.png"
                 ],
-                "threshold": 0.9
+                "threshold": [
+                    0.9
+                ]
             },
             "Sub_<Arbitrage_Cooking>_Clr"
         ]
@@ -1905,7 +1982,9 @@
                 "template": [
                     "Shop/RecipeList/料理_三文鱼芥末寿司.png"
                 ],
-                "threshold": 0.9
+                "threshold": [
+                    0.9
+                ]
             },
             "Sub_<Arbitrage_Cooking>_Clr"
         ]
@@ -1924,7 +2003,9 @@
                 "template": [
                     "Shop/RecipeList/料理_巧克力鸡尾酒.png"
                 ],
-                "threshold": 0.9
+                "threshold": [
+                    0.9
+                ]
             },
             "Sub_<Arbitrage_Cooking>_Clr"
         ]
@@ -2026,7 +2107,9 @@
             370,
             83
         ],
-        "threshold": 0.83
+        "threshold": [
+            0.83
+        ]
     },
     "Agt_Cooking_Material1_Ocr": {
         "roi": [
@@ -2319,6 +2402,24 @@
             ]
         }
     },
+    "Agt_BagStock_List_Ready": {
+        "all_of": [
+            "Arbitrage_Bag_TabReset_Cons",
+            {
+                "sub_name": "OCR",
+                "recognition": "OCR",
+                "roi": [
+                    929,
+                    8,
+                    224,
+                    41
+                ],
+                "expected": [
+                    "^料理食材[优優]先$"
+                ]
+            }
+        ]
+    },
     "Agt_BagStock_Item_Tpl": {
         "roi": [
             475,
@@ -2495,6 +2596,14 @@
             ]
         }
     },
+    "Rec_<Arbitrage_Merchant_Dialog>_Ocr": {
+        "roi": [
+            40,
+            440,
+            140,
+            55
+        ]
+    },
     "Arbitrage_Chain_Retry_PC": {
         "desc": "[PC新增·2026-07-23] 套利进图链超时救援垫。07-23 09:06/09:14两轮实录:插卡成功进商队城镇后Sandplay识别断腿(安卓pin模板PC城镇0.604<0.7),Card5#_Goin的next全miss超时→无自定义on_error→MFA默认Global_Null兜底恒命中→流程SUCCEEDED,'找不到商人'被翻译成任务完成。本节点DirectHit恒中,回Global_BackToPve_Anc整链重试;max_hit 2耗尽后不再命中→流程以失败终止(自定义on_error覆盖默认Null,MFA #1219语义)。",
         "max_hit": 2,
@@ -2506,69 +2615,5 @@
             "Global_BackToPve_Anc"
         ],
         "focus": "Arb.PC.进图链超时!重回复位整链重试"
-    },
-    "Rec_<Arbitrage_Merchant_Dialog>_Ocr": {
-        "roi": [
-            40,
-            440,
-            140,
-            55
-        ]
-    },
-    "Arbitrage_PriceList_Sort_Check": {
-        "all_of": [
-            {
-                "sub_name": "OCR",
-                "recognition": "OCR",
-                "roi": [
-                    732,
-                    213,
-                    191,
-                    46
-                ],
-                "expected": [
-                    "[从從]高到低",
-                    "降序"
-                ]
-            },
-            "Sub_SieveExpand_Yew_Clr"
-        ]
-    },
-    "Arbitrage_ItemList_Sorting_Reverse": {
-        "all_of": [
-            {
-                "sub_name": "OCR",
-                "recognition": "OCR",
-                "roi": [
-                    958,
-                    70,
-                    211,
-                    45
-                ],
-                "expected": [
-                    "[从從]高到低",
-                    "降序"
-                ]
-            },
-            "Sub_SieveExpand_Yew_Clr"
-        ]
-    },
-    "Agt_BagStock_List_Ready": {
-        "all_of": [
-            "Arbitrage_Bag_TabReset_Cons",
-            {
-                "sub_name": "OCR",
-                "recognition": "OCR",
-                "roi": [
-                    929,
-                    8,
-                    224,
-                    41
-                ],
-                "expected": [
-                    "^料理食材[优優]先$"
-                ]
-            }
-        ]
     }
 }

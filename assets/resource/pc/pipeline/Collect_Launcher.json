@@ -43,10 +43,6 @@
             "活動遊戲卡"
         ]
     },
-    "Collect_QuickCart_EventPack_OcrCheck": {
-        "desc": "PC:选中态页签文字框仅65x12=780px,base的count 500需64%覆盖率,PC字形上限约48%(实测373/374)恒判负->SelectType自环无界;下调至300(与CharacterPack同lower同值,PC实测406通过),未选中态实测0,分离度充足",
-        "count": 300
-    },
     "Collect_QuickCart_SelectType_ManagerPack": {
         "roi": [
             15,
@@ -58,10 +54,6 @@
             "店长游戏卡",
             "店長遊戲卡"
         ]
-    },
-    "Collect_QuickCart_ManagerPack_OcrCheck": {
-        "desc": "PC:同EventPack,base count 500在PC不可达,预防性下调300",
-        "count": 300
     },
     "Collect_QuickCart_SelectType_BattleplayPack": {
         "roi": [
@@ -75,10 +67,6 @@
             "戰鬥遊戲卡"
         ]
     },
-    "Collect_QuickCart_BattleplayPack_OcrCheck": {
-        "desc": "PC:同EventPack,base count 500在PC不可达,预防性下调300",
-        "count": 300
-    },
     "Collect_QuickCart_SelectType_LifeplayPack": {
         "roi": [
             15,
@@ -90,6 +78,18 @@
             "生活玩法游戏卡",
             "生活遊戲卡"
         ]
+    },
+    "Collect_QuickCart_EventPack_OcrCheck": {
+        "desc": "PC:选中态页签文字框仅65x12=780px,base的count 500需64%覆盖率,PC字形上限约48%(实测373/374)恒判负->SelectType自环无界;下调至300(与CharacterPack同lower同值,PC实测406通过),未选中态实测0,分离度充足",
+        "count": 300
+    },
+    "Collect_QuickCart_ManagerPack_OcrCheck": {
+        "desc": "PC:同EventPack,base count 500在PC不可达,预防性下调300",
+        "count": 300
+    },
+    "Collect_QuickCart_BattleplayPack_OcrCheck": {
+        "desc": "PC:同EventPack,base count 500在PC不可达,预防性下调300",
+        "count": 300
     },
     "Collect_QuickCart_LifeplayPack_OcrCheck": {
         "desc": "PC:同EventPack,base count 500在PC不可达,预防性下调300",

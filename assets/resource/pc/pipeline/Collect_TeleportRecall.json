@@ -477,7 +477,9 @@
         ],
         "target": [
             1119,
-            488
+            488,
+            1,
+            1
         ]
     },
     "Collect_TeleporCircle_OnFoot_LoopFoot": {
