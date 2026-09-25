@@ -2170,7 +2170,7 @@
         "pre_delay": 0,
         "post_delay": 0,
         "next": [
-            "Arbitrage_Buy_Cleanup"
+            "Arbitrage_Buy_Select_End"
         ],
         "focus": "② 没有可以购买的商品，结束本轮常规采购"
     },
