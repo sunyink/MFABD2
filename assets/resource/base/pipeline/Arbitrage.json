@@ -3531,7 +3531,10 @@
             "^料理食材$",
             "聖石",
             "[装裝][备備]材料"
-        ]
+        ],
+        "focus": {
+            "Node.Recognition.Succeeded": "已查至料理类别末端，未找到目标料理。"
+        }
     },
     "Arbitrage_Sell_Gold_Snapshot": {
         "desc": "金币检测点A；串行放行，Python每次派发只记录首次基准。勿加max_hit，其计数跨run_task共享。",
