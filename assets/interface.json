@@ -178,6 +178,9 @@
                 "Adb",
                 "PlayCover"
             ],
+            "option": [
+                "肉鸽塔日常-强制重跑"
+            ],
             "description": "刷取每期强化代币（黑晶石），用于点亮修改器辅助高难关卡。自动选取当前可用最高难度，打完每日3次免费AP。<br><b>注意：</b>强化代币与强化效果期内累计，跨期清零不继承。"
         },
         {
@@ -660,6 +663,25 @@
                     "name": "Yes",
                     "pipeline_override": {
                         "Equip_Daily_Switch": {
+                            "recognition": "DirectHit"
+                        }
+                    }
+                }
+            ]
+        },
+        "肉鸽塔日常-强制重跑": {
+            "type": "switch",
+            "default_case": "No",
+            "description": "关：当前存档本游戏日已完成肉鸽塔快速战斗时直接跳过。<br>开：忽略完成记录，重新尝试执行。<br>完成记录按游戏日刷新（北京时间每日 08:00）；取消或执行失败不会记为完成。",
+            "cases": [
+                {
+                    "name": "No",
+                    "pipeline_override": {}
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "Redemption_Daily_Switch": {
                             "recognition": "DirectHit"
                         }
                     }

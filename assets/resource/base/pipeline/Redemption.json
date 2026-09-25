@@ -1,6 +1,22 @@
 {
     "Redemption_HomePage": {
+        "desc": "肉鸽塔日常入口,本游戏日已完成则跳过",
+        "timeout": 1,
+        "next": [
+            "Redemption_Daily_Switch"
+        ]
+    },
+    "Redemption_Daily_Switch": {
+        "desc": "读取当前存档的肉鸽塔日常记录,未完成才进入;可通过强制重跑选项绕过",
+        "recognition": "Custom",
+        "custom_recognition": "CheckCoolDown",
+        "custom_recognition_param": {
+            "card_name": "Redemption_Daily",
+            "cycle_type": "g_daily"
+        },
+        "pre_delay": 0,
         "anchor": {"QCPack": "Redemption_ToPack"},
+        "post_delay": 0,
         "next": [
             "Redemption_Mapck",
             "[JumpBack]Redemption_Evil_Settlement",
@@ -203,7 +219,6 @@
             73
         ],
         "expected": "1$",
-        "action": "Swipe",
         "next": [
             "Redemption_Evil_Redemption_QuickBattUnable",
             "Redemption_Evil_Redemption_QuickBatt"
@@ -211,66 +226,116 @@
     },
     "Redemption_Evil_Redemption_SelLv-1": {
         "max_hit": 30,
-        "recognition": "TemplateMatch",
-        "roi": [
-            172,
-            66,
-            180,
-            653
+        "recognition": "And",
+        "all_of": [
+            {
+                "sub_name": "OCR",
+                "recognition": "OCR",
+                "roi": [
+                    172,
+                    66,
+                    180,
+                    653
+                ],
+                "expected": [
+                    "[Ll][vV]\\D?\\d?"
+                ]
+            },
+            "Sub_Ocr_Enable_Clr"
         ],
-        "template": [
-            "LV.png"
-        ],
-        "green_mask": true,
+        "box_index": 1,
         "action": "Click",
         "target_offset": [
             15,
-            -95,
+            -70,
             0,
             0
         ],
         "post_delay": 500
     },
     "Redemption_Evil_Redemption_QuickBatt": {
-        "recognition": "OCR",
-        "roi": [
-            832,
-            621,
-            134,
-            46
-        ],
-        "expected": [
-            "快速战斗"
+        "max_hit": 10,
+        "recognition": "And",
+        "all_of": [
+            {
+                "sub_name": "OCR",
+                "recognition": "OCR",
+                "roi": [
+                    832,
+                    621,
+                    134,
+                    46
+                ],
+                "expected": [
+                    "快速战斗"
+                ]
+            },
+            "Sub_Ocr_Enable_Clr"
         ],
         "action": "Click",
-        "post_delay": 1000,
+        "post_wait_freezes": {
+            "time": 1000,
+            "target": [
+                764,
+                70,
+                221,
+                350
+            ]
+        },
+        "next": [
+            "Redemption_Evil_Redemption_QuickBatt_Submenu",
+            "Redemption_Evil_Redemption_QuickBatt"
+        ]
+    },
+    "Redemption_Evil_Redemption_QuickBatt_Submenu": {
+        "recognition": "OCR",
+        "roi": [
+            521,
+            106,
+            220,
+            105
+        ],
+        "expected": ["快速战斗"],
+        "pre_delay": 0,
+        "post_delay": 0,
+        "timeout": 8000,
         "next": [
             "Redemption_Evil_Redemption_JustFree_Ok",
             "Redemption_Evil_Redemption_JustFree_No"
+        ],
+        "on_error": [
+            "Redemption_Evil_Redemption_JustFree_Err",
+            "Global_Null_Exception",
+            "Global_Null_Panic"
         ]
     },
     "Redemption_Evil_Redemption_JustFree_No": {
         "desc": "检测free关,做开动作",
         "max_hit": 3,
-        "recognition": "ColorMatch",
-        "roi": [
-            846,
-            263,
-            52,
-            29
+        "recognition": "And",
+        "all_of": [
+            {
+                "sub_name": "Clr",
+                "recognition": "ColorMatch",
+                "roi": [
+                    846,
+                    263,
+                    52,
+                    29
+                ],
+                "lower": [
+                    0,
+                    0,
+                    0
+                ],
+                "upper": [
+                    255,
+                    255,
+                    255
+                ]
+            },
+            "Rec_SliderSwitch_GryOff_Clr"
         ],
-        "method": 40,
-        "lower": [
-            105,
-            64,
-            39
-        ],
-        "upper": [
-            108,
-            70,
-            40
-        ],
-        "count": 150,
         "action": "Click",
         "post_delay": 2000,
         "timeout": 5000,
@@ -287,25 +352,30 @@
     },
     "Redemption_Evil_Redemption_JustFree_Ok": {
         "desc": "检测free开,通过",
-        "recognition": "ColorMatch",
-        "roi": [
-            846,
-            263,
-            52,
-            29
+        "recognition": "And",
+        "all_of": [
+            {
+                "sub_name": "Clr",
+                "recognition": "ColorMatch",
+                "roi": [
+                    846,
+                    263,
+                    52,
+                    29
+                ],
+                "lower": [
+                    0,
+                    0,
+                    0
+                ],
+                "upper": [
+                    255,
+                    255,
+                    255
+                ]
+            },
+            "Rec_SliderSwitch_YewOn_Clr"
         ],
-        "method": 40,
-        "lower": [
-            21,
-            192,
-            166
-        ],
-        "upper": [
-            21,
-            194,
-            172
-        ],
-        "count": 150,
         "next": [
             "Redemption_Evil_Redemption_MAX",
             "Redemption_Evil_Redemption_QuickBattNoAP"
@@ -424,9 +494,24 @@
         "action": "Click",
         "post_delay": 3000,
         "next": [
+            "Redemption_Daily_End"
+        ]
+    },
+    "Redemption_Daily_End": {
+        "desc": "仅从快速战斗结果页进入,记录本游戏日完成后继续收尾;取消及异常退出不记录",
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "MarkComplete",
+        "custom_action_param": {
+            "card_name": "Redemption_Daily",
+            "cycle_type": "g_daily"
+        },
+        "post_delay": 0,
+        "next": [
             "Redemption_Evil_Redemption_PageBackHub",
             "Redemption_Evil_Redemption_Result"
-        ]
+        ],
+        "focus": "REM.肉鸽塔日常完成,已记录"
     },
     "Redemption_Evil_Redemption_PageBackHub": {
         "desc": "其他页面，返回按钮",
