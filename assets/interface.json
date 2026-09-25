@@ -7783,18 +7783,18 @@
                     "enabled": false
                 },
                 {
+                    "name": "[执行]地图采集[完整]",
+                    "enabled": true,
+                    "option": {
+                        "简单类跳过": "Yes"
+                    }
+                },
+                {
                     "name": "[执行]商店套利",
                     "enabled": true,
                     "option": {
                         "开局出售料理": "Yes",
                         "出售多余材料": "No"
-                    }
-                },
-                {
-                    "name": "[执行]地图采集[完整]",
-                    "enabled": true,
-                    "option": {
-                        "简单类跳过": "Yes"
                     }
                 },
                 {
@@ -7878,18 +7878,18 @@
                     "enabled": true
                 },
                 {
+                    "name": "[执行]地图采集[完整]",
+                    "enabled": true,
+                    "option": {
+                        "简单类跳过": "Yes"
+                    }
+                },
+                {
                     "name": "[执行]商店套利",
                     "enabled": true,
                     "option": {
                         "开局出售料理": "Yes",
                         "出售多余材料": "No"
-                    }
-                },
-                {
-                    "name": "[执行]地图采集[完整]",
-                    "enabled": true,
-                    "option": {
-                        "简单类跳过": "Yes"
                     }
                 },
                 {
