@@ -888,33 +888,23 @@ jobs:
     # 任一依赖失败、取消或跳过时，沿用 needs 默认行为停止发布。
     needs: [meta, install, android, changelog]
     runs-on: ubuntu-latest
-    # 同 tag 的发布与草稿清理共用互斥组，旧任务不能清理重跑接管的草稿。
-    concurrency:
-      group: release-${{ github.repository }}-${{ needs.meta.outputs.tag }}
-      cancel-in-progress: false
-    outputs:
-      release_id: ${{ steps.prepare_release.outputs.release_id }}
     defaults:
       run:
-        # 显式 bash 额外启用 pipefail；默认 shell 本来已带 -e。
+        # 默认 shell 已带 -e，显式写 bash 再补上 pipefail。
         shell: bash
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       RELEASE_TAG: ${{ needs.meta.outputs.tag }}
       SOURCE_SHA: ${{ github.sha }}
       ANDROID_IDENTITY: ${{ needs.android.outputs.identity }}
-      # 保留 beta/alpha/普通 CI 及手动 ci_as_stable 的原有分类。
+      # 原有预发布判定原样保留（beta/alpha/普通 CI 为预发布，手动 ci_as_stable 除外），上传与公开两步共用。
       RELEASE_PRERELEASE: ${{ contains(needs.meta.outputs.tag, '-beta') || contains(needs.meta.outputs.tag, '-alpha') || (contains(needs.meta.outputs.tag, '-ci') && !(github.event_name == 'workflow_dispatch' && github.event.inputs.ci_as_stable == 'true')) }}
     permissions:
       contents: write
       actions: write
     steps:
+      # 只取 scripts/release_guard.py；它的离线测试已在 install.yml 入口跑过。
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
-
-      - name: Set up publication Python
-        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
-        with:
-          python-version: "3.11"
 
       - name: Get current timestamp
         id: get_time
@@ -1039,72 +1029,64 @@ jobs:
                   stream.write(f"apk_name={apk.name}\n")
           PY
 
-      - name: Prepare owned draft or resume completed publication
-        id: prepare_release
-        env:
-          RELEASE_BODY: |
+      - name: Verify local release assets and draft state
+        run: python3 scripts/release_guard.py prepare
+
+      # 只传到草稿：上传中途失败或被取消，也不会出现公开的缺件版本。
+      - name: Upload assets to draft release
+        id: draft_release
+        uses: softprops/action-gh-release@718ea10b132b3b2eba29c1007bb80653f286566b # v3.0.1
+        with:
+          files: |
+            artifacts/release_assets/*.zip
+            artifacts/release_assets/*.apk
+            artifacts/release_assets/*.apk.json
+            artifacts/release_assets/*.apk.sha256
+          fail_on_unmatched_files: true
+          tag_name: ${{ needs.meta.outputs.tag }}
+          name: "MFABD2 ${{ needs.meta.outputs.tag }}"
+          target_commitish: ${{ github.sha }}
+          body: |
             ${{ contains(needs.changelog.outputs.release_body, '## ') && needs.changelog.outputs.release_body || '### 无显著变更' }}
 
             ---
             安卓：`${{ steps.android.outputs.apk_name }}`，安装编号 `${{ steps.android.outputs.version_code }}`。
             覆盖升级按这个数字判断新旧，与上面的显示版本无关；编号只增不减，装回更小的编号需要卸载重装。
-        run: python3 scripts/release_guard.py prepare
 
-      - name: Upload assets to owned draft
-        if: steps.prepare_release.outputs.already_published != 'true'
-        env:
-          RELEASE_ID: ${{ steps.prepare_release.outputs.release_id }}
-        run: python3 scripts/release_guard.py upload
+          draft: true
+          prerelease: ${{ env.RELEASE_PRERELEASE == 'true' }}
+        env: # 添加环境变量以支持高限额API调用
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Verify uploaded assets and publish release
         env:
-          RELEASE_ID: ${{ steps.prepare_release.outputs.release_id }}
+          RELEASE_ID: ${{ steps.draft_release.outputs.id }}
         run: python3 scripts/release_guard.py publish
 
-      - name: Clean up this attempt's unpublished draft
-        if: failure() || cancelled()
-        run: python3 scripts/release_guard.py cleanup
-
-  mirror:
-    # 发布完成后单独派发；派发失败重跑此 job，不重传已公开附件。
-    needs: [meta, release]
-    if: github.repository_owner == 'sunyink' && ((needs.meta.outputs.is_tag_push == 'true') || contains(needs.meta.outputs.tag, '-beta') || contains(needs.meta.outputs.tag, '-alpha'))
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      actions: write
-    steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
-        with:
-          python-version: "3.11"
-      - name: Recheck publication before mirror dispatch
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_ID: ${{ needs.release.outputs.release_id }}
-          RELEASE_TAG: ${{ needs.meta.outputs.tag }}
-          SOURCE_SHA: ${{ github.sha }}
-        run: python3 scripts/release_guard.py verify-public
       - name: Trigger MirrorChyanUploading
+        if: github.repository_owner == 'sunyink' && ((needs.meta.outputs.is_tag_push == 'true') || contains(needs.meta.outputs.tag, '-beta') || contains(needs.meta.outputs.tag, '-alpha'))
         shell: bash
         env:
           tag: ${{ needs.meta.outputs.tag }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SOURCE_REF: ${{ github.ref }}
         run: |
           echo "安全触发镜像服务: 版本=$tag"
-          gh workflow run --repo "$GITHUB_REPOSITORY" --ref "$SOURCE_REF" mirrorchyan_release.yml -f "tag=$tag"
-          gh workflow run --repo "$GITHUB_REPOSITORY" --ref "$SOURCE_REF" mirrorchyan_release_note.yml -f "tag=$tag"
+          gh workflow run --repo $GITHUB_REPOSITORY --ref ${{ github.ref }} mirrorchyan_release.yml -f tag=$tag
+          gh workflow run --repo $GITHUB_REPOSITORY --ref ${{ github.ref }} mirrorchyan_release_note.yml -f tag=$tag
+
+      # 本 job 失败或被取消时删掉本次草稿，重跑从头上传；已公开的 Release 不动。
+      - name: Remove unpublished draft
+        if: failure() || cancelled()
+        run: python3 scripts/release_guard.py cleanup
 
   notify:
-    needs: [meta, install, release, mirror]
+    needs: [meta, install, release]
     # fork 没有上游通知密文；构建可继续，但不要让预期中的空密文把运行标红。
     if: >-
       always() &&
       github.repository == 'sunyink/MFABD2' &&
       needs.install.result == 'success' &&
       needs.release.result == 'success' &&
-      (needs.mirror.result == 'success' || needs.mirror.result == 'skipped') &&
       (github.event_name == 'workflow_dispatch' || needs.meta.outputs.version_type != 'ci')
     runs-on: ubuntu-latest
     steps:

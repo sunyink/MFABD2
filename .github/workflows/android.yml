@@ -8,7 +8,7 @@ on:
         type: string
         default: ""
       publish:
-        description: "已禁用独立上传；发布完整版本请使用 install，APK 仍可单独构建"
+        description: "将签名 APK 附加到上述已存在的 Release（不会创建 Release）"
         type: boolean
         default: false
       release_build:
@@ -65,21 +65,7 @@ env:
   STRIP_COMMENTS: "true"
 
 jobs:
-  validate_request:
-    runs-on: ubuntu-latest
-    if: github.repository == 'sunyink/MFABD2'
-    steps:
-      - name: Reject standalone release mutation
-        env:
-          PUBLISH_REQUEST: ${{ inputs.publish }}
-        run: |
-          if [ "$PUBLISH_REQUEST" = "true" ]; then
-            echo "::error::Android 独立上传已禁用；请通过 install 完整发布。单独构建 APK 请保持 publish=false。"
-            exit 1
-          fi
-
   check:
-    needs: validate_request
     name: Check Android
     if: github.repository == 'sunyink/MFABD2'
     uses: ./.github/workflows/android-check.yml
@@ -291,3 +277,23 @@ jobs:
           name: MFABD2-android-arm64
           path: android-build/artifacts/
           if-no-files-found: error
+
+  publish:
+    needs: apk
+    if: github.event_name == 'workflow_dispatch' && inputs.publish && github.repository == 'sunyink/MFABD2'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: MFABD2-android-arm64
+          path: artifacts
+      - name: Attach APK to the existing project release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ inputs.version_name }}
+        run: |
+          gh release view "$RELEASE_TAG" --repo "$GH_REPO"
+          gh release upload "$RELEASE_TAG" artifacts/*.apk artifacts/*.sha256 artifacts/*.json --repo "$GH_REPO"

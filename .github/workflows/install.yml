@@ -13,7 +13,6 @@ on:
       - ".github/workflows/install-build.yml"
       - ".github/workflows/android.yml"
       - ".github/workflows/android-check.yml"
-      - ".github/workflows/release-cleanup.yml"
       - "android/**"
       - "assets/**"
       - "release/branding/**"
@@ -29,7 +28,6 @@ on:
       - ".github/workflows/install-build.yml"
       - ".github/workflows/android.yml"
       - ".github/workflows/android-check.yml"
-      - ".github/workflows/release-cleanup.yml"
       - "android/**"
       - "assets/**"
       - "release/branding/**"
@@ -70,10 +68,6 @@ jobs:
       concurrency_group: ${{ steps.channel.outputs.concurrency_group }}
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
-      - name: Set up release validation Python
-        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
-        with:
-          python-version: "3.11"
       - name: Verify release channel and publication rules
         run: |
           python3 scripts/verify_release_channels.py
