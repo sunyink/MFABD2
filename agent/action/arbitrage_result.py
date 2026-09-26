@@ -1,11 +1,40 @@
 import json
 import re
+import unicodedata
+from datetime import datetime, timezone
+from pathlib import Path
 from maa.custom_action import CustomAction
 from maa.context import Context
 from maa.agent.agent_server import AgentServer
 from utils import mfaalog
+from utils.account_sync import sync_from_context
+from utils.arbitrage_store import (
+    get_market_snapshot,
+    market_day,
+    save_market_snapshot,
+    save_possession_snapshot,
+)
 from utils.name_i18n import canon
-from action import gold_verify
+from utils.arbitrage_pricelist import (
+    read_name as _read_item_name,
+    read_prices as _read_prices,
+    load_config as _load_price_cfg,
+    confirm_prices as _confirm_prices,
+    price_issues as _price_issues,
+    money_value as _parse_money_value,
+)
+from utils.arbitrage_material_policy import read_material_reserve_policy
+from utils.arbitrage_cartridge import (
+    DEFAULT_CONFIG as _RESCUE_CFG,
+    RESCUE_NODE as _RESCUE_NODE,
+    classify_type as _classify_cart_type,
+    cartridge_expected as _cart_expected,
+    cartridge_identity as _cart_identity,
+    load_config as _load_rescue_cfg,
+    read_current as _read_cartridge,
+    rescue_tail_num as _rescue_tail_num,
+)
+from action.arbitrage_sell_batch import execute_sale_item
 
 # ==========================================
 # 三列各自窄 roi OCR(#Q2.5,2026-07-24)：名/价/卡带在各自节点的 roi 内分别识别。
@@ -14,8 +43,14 @@ from action import gold_verify
 # run_recognition 自动生效,故不再需要 get_node_data 读列带、也无需 cx 过滤分列。
 # ==========================================
 _COL_NAME = "Arbitrage_Sell_Col_Name"
+_COL_AMOUNT = "Arbitrage_Sell_Col_Amount"
 _COL_PRICE = "Arbitrage_Sell_Col_Price"
 _COL_CART = "Arbitrage_Sell_Col_Cart"
+_SELL_ITEM_LIST = "Arbitrage_Sell_Item_ListTraverse"
+_SELL_ITEM_OCR = "Agt_<Sell_Item>_Ocr"
+_SELL_ITEM_OCR_SCORE = "Agt_<Sell_Item>_OcrScore"
+_SELL_ITEM_TEMPLATE = "Agt_<Sell_Item>_Tmp"
+_SELL_QUANTITY = "Arbitrage_Sell_Item_Quantity"
 
 # ==========================================
 # 子行断界(2026-07-24,#Q2)：价目表每个商品占两行
@@ -29,6 +64,7 @@ _COL_CART = "Arbitrage_Sell_Col_Cart"
 # ==========================================
 # 溢价率取两三位数+%:排除OCR把装饰符读成"4"/"A"的噪声,并吃'18120%'粘连(取靠%的三位)
 RE_PCT = re.compile(r'(\d{2,3})\s*%')
+RE_MONEY = re.compile(r'(?:[0-9]+|[0-9]{1,3}(?P<sep>[,.])[0-9]{3}(?:(?P=sep)[0-9]{3})*)')
 SUBROW_TOL = 14      # 同子行 y 容差(子行间距约30px,商品行距约73px)
 SCORE_MIN = 0.6      # 卡带选中组组分低于此=低置信,打WRN(实录错读曾得0.51,正确读数更高,#B)
 
@@ -36,8 +72,37 @@ SCORE_MIN = 0.6      # 卡带选中组组分低于此=低置信,打WRN(实录错
 # 卖出验证(2026-08-06 改)：金币不再由主控在派发前后自测,改由链内 A/B 两个动作节点测量,
 # 主控只取结论 —— 时序契约见 gold_verify.py。主控那对读数跨越整条出售链,时间窗长且看不见
 # 链条内部走到哪一步、卖了几件;链内测点贴着出售动作,还能覆盖连续出售的多件累计。
-# run_task 的返回值靠不住这件事没变:它只表示链条"正常结束",选卡带找不到目标、SmartSwipe
-# 判触底 JumpOut 时同样成功(07-22实录:桑格利亚酒一件没卖仍报成功),所以成败仍以金币为准。
+# run_task 成功只证明框架返回；实际成交由报价等额金币证据或一次库存回读确认。
+
+
+def _sell_item_override(context: Context, item_name: str) -> dict:
+    """商品全名OCR按置信度择优，未命中才试模板；不改变卡带匹配顺序。"""
+    result = {
+        # Name correction must run before target filtering; exact expected words
+        # otherwise discard mixed-script/one-character candidates in native OCR.
+        _SELL_ITEM_OCR: {"expected": []},
+        _SELL_ITEM_OCR_SCORE: {"custom_recognition": "OCRItemName",
+                               "custom_recognition_param": {"node": _SELL_ITEM_OCR,
+                                                            "item_name": canon(item_name)}},
+        _SELL_ITEM_LIST: {"any_of": [_SELL_ITEM_OCR_SCORE]},
+    }
+    try:
+        node = context.get_node_object(_SELL_ITEM_TEMPLATE)
+        attach = getattr(node, "attach", None) or {}
+        templates = attach.get("templates", {})
+        matched = [value for key, value in templates.items() if canon(key) == canon(item_name)]
+        if len(matched) != 1:
+            return result
+        paths = matched[0]
+        paths = [paths] if isinstance(paths, str) else paths
+        if (not isinstance(paths, list) or not paths
+                or any(not isinstance(path, str) or not path.strip() for path in paths)):
+            raise ValueError("模板配置必须是非空路径或路径列表")
+        result[_SELL_ITEM_TEMPLATE] = {"template": list(paths)}
+        result[_SELL_ITEM_LIST]["any_of"].append(_SELL_ITEM_TEMPLATE)
+    except Exception as exc:
+        mfaalog.warning(f"[Arbitrage] [{item_name}] 出售模板配置不可用，仅使用OCR: {exc}")
+    return result
 
 
 def _task_ok(detail) -> bool:
@@ -67,100 +132,39 @@ def _verdict_rank(verdict) -> int:
     return 2 if delta > 0 else 1
 
 
-# OCR 同趟里对繁简会来回读(07-24实录同次结果 帶/带 混用),这几个字互吃
-_CART_FUZZ = {'帶': '[帶带]', '带': '[帶带]', '遊': '[遊游]', '游': '[遊游]',
-              '戲': '[戲戏]', '戏': '[戲戏]'}
-
-
-def _cart_expected(raw: str) -> str:
-    """卡带整串 → 选卡带菜单匹配式。类型逐字取自实读(活動/故事/角色/剧情… 皆可,不写死),
-    仅对 OCR 繁简来回读的字互吃;号精确 (?<!\\d)N(?!\\d) 防 7 误配 17/71。
-    菜单侧空格由节点 replace 去除;类型的 OCR 错字(如剧→则)属异常,留后续插件。"""
-    m = re.search(r'(\d+)\s*$', raw)
-    if not m:
-        return raw            # 无号(提取正常应带号):退回整串,菜单按类型匹配
-    body = ''.join(_CART_FUZZ.get(c, re.escape(c)) for c in raw[:m.start()])
-    return body + r'(?<!\d)' + m.group(1) + r'(?!\d)'
-
-
-# 卡带上下两子行交叉核对(#B,2026-07-24)：满价商品「当前档」与「每月最高档」是同一柜台,卡带名
-# 理应同串。两子行各拼一组(类型+号两个det),组分=组内最小det置信(短板:类型和号都得对才能进对
-# 柜台),取组分高的一组整串去匹配菜单。卡带只决定「去哪卖」,读错最坏是进错柜台、首页找不到物品名
-# →当没卖掉(现有金币验证兜底WRN),绝不误卖,故不做类型闭集纠错/错字重映射(错字是开放集收不过来,
-# 收益仅省一次空跑,不划算)。
+# 当前和月度卡带按位置分别读取。金额因取整相等不代表两行是同一个柜台。
 def _cart_group(dets) -> tuple:
-    """一子行的卡带 det 组 → (整串, 组分)。串按 cx 序拼接+清洗;组分取组内最小 det 置信。空组→("",0.0)。"""
-    dets = sorted(dets, key=lambda t: t["cx"])
+    """区域内先按行、再按横向位置拼接，支持类型和编号换行。"""
+    dets = sorted(dets, key=lambda t: t["cy"])
     if not dets:
         return "", 0.0
-    raw = "".join(t["text"] for t in dets)
+    lines = []
+    for det in dets:
+        if lines and abs(det["cy"] - lines[-1][0]["cy"]) < min(det["h"], lines[-1][0]["h"]) / 2:
+            lines[-1].append(det)
+        else:
+            lines.append([det])
+    raw = "".join(t["text"] for line in lines for t in sorted(line, key=lambda t: t["cx"]))
     text = re.sub(r'[^\w一-龥]', '', raw)
     return text, min(t["score"] for t in dets)
 
 
 # ==========================================
-# 尾号救援(2026-07-25)：DBNet 对孤立细「1」召回不稳——同页尾号里多位数(11/10/2)稳检、单个细「1」
-# 漏检,换 4mb~60mb 多个 det 均无解:坏的是 det,rec 本身能读。故某子行拼组后无尾号时,以类型 det 框为
-# 锚,其正下方 only_rec 跳过 det 直接把号读回。节点靠 override 内联,不占 JSON(同 RDDraw 回显)。
-#
-# roi 宽窄互补(21:33 实测复盘)：值恒右对齐于类型右缘,但噪声随 crop 边界而变——【宽 roi】给 rec 足
-# 够上下文、多数行读对,但有的行被左侧整排类型字底带偏(→00/=—/e 前缀,如实录 0021/e21/=—1);【窄
-# roi】只圈右侧值带、躲开左侧字底,但「1」正处「帶」正下方,窄了反被「帶」右下钩带偏(→」)。二者恰
-# 好互补(同帧宽崩的行窄能读对、反之亦然)。故每行按【宽+窄】各读一次,取「置信最高且号合理(1~99 无
-# 前导0)」的一版——对 crop 边界做小集成。全不合理/全低分则保持无号,交上层按「缺号可疑」跳过柜台。
+# 尾号救援：缺号或编号换行时，在当前区域内改变裁剪边界，only_rec跳过检测直接读编号。
+# ROI沿用类型框右对齐的宽/窄及纵向偏移配置，限定在当前区域并去重。
+# 至少两个不同裁剪读到相同编号才接受；9/19等分歧不按置信度选胜者。
 # ==========================================
 # 扫描翻页的硬上界。业务可用节点的 custom_action_param 传 max_scan_pages 覆盖,
 # 但不允许无限翻 —— 见 run() 里三层终止条件的说明。
 _MAX_SCAN_PAGES_DEFAULT = 30
 
-_RESCUE_NODE = "Arbitrage_Sell_Cart_RescueNum"
-# 救援可调参:全部无量纲(相对"实检类型 det 框"的比例)——尺度锚定 H=类高中位数、W=类型块宽、yb=类型下缘,
-# 故字号/布局不同的两端(PC 繁体小字、ADB 简体大字)可共用同一份配置。可被 _RESCUE_NODE.attach 覆盖,缺项回落此默认。
-# 【调参指南】改值一律落 _RESCUE_NODE.attach(JSON)、不动 py;先看落图 vision/*_Sell_Cart_RescueNum_*.jpg 的红框对症:
-#   · 救援总失败(全档低分/不合理=号没框住):号被切顶/切底 → 增/移 y_shifts 档 或 调大 h_frac;
-#     号被左侧类型字底带出前缀(0021/=—/e 之类) → 调小 narrow_frac(值带更窄、更靠右缘,躲开字底)。
-#   · 救出怪值且被选中:调高 min_score(更严),或删掉最易蹭字底的 y_shifts 档(候选变少→误读面变小)。
-#   · 换端/换分辨率:参数是"相对类型框"的比例,一般无需改;仅当号高占比或号横向位置占比本身变了,才分别动 h_frac / narrow_frac。
-#   · 人工核对:每条救援日志都带名锚(商品名·子行),对照 vision/ 落图逐行核。
-_RESCUE_CFG = {
-    "min_score": 0.6,           # 号 rec 置信下限:集成里最优的合理号仍低于此=糊读,判救援失败
-    "narrow_frac": 0.5,         # 窄 roi 宽 = narrow_frac*W(右对齐值带,避左侧类型字底)
-    "pad_frac": 0.10,           # 宽 roi 横向外扩 = pad_frac*W(左右各;宽 = W+2*pad)
-    "h_frac": 1.2,              # 号 roi 高 = h_frac*H
-    "y_shifts": [-0.2, 0.0, 0.2],  # 带顶相对 yb 的纵向位移(单位=H);含下移档以躲开类型字底残笔
-}
+_MODE_SELL = "sell"
+_MODE_PREVIEW_ALL = "preview_all"
+_MODE_PREVIEW_POSSESS = "preview_possess"
+_VALID_MODES = {_MODE_SELL, _MODE_PREVIEW_ALL, _MODE_PREVIEW_POSSESS}
 
-
-def _load_rescue_cfg(context) -> dict:
-    """从 _RESCUE_NODE.attach 生成**本轮**救援参数副本(缺项/坏值各自回落 py 默认)。run 起始调一次。
-
-    上面的 _RESCUE_CFG 是只读默认表,本函数绝不写它——早先的原地覆盖写法有两个坑:
-      · 半覆盖:逐项转型时中途抛异常被 except 兜住,前面几项已经写进全局了,而日志却报
-        "沿用内置默认",照着日志查会以为全是默认值;
-      · 粘滞:PatchPipeline 能改 attach,任务结束框架撤销它自己那半边 override,但这个
-        全局 dict 框架不知道(同 pipeline_manager 的 _LEDGERS 处境),上一轮的覆盖值会
-        一直留着——下一轮 attach 里没这个 key 了,也回不到 py 默认。
-    改为每轮取副本后,坏值只影响它自己那一项,默认表恒定。
-    """
-    cfg = dict(_RESCUE_CFG)
-    try:
-        node = context.get_node_object(_RESCUE_NODE)
-        attach = getattr(node, "attach", None) if node else None
-        if not attach:
-            return cfg
-        for k in _RESCUE_CFG:
-            if k in attach:
-                try:
-                    cfg[k] = type(_RESCUE_CFG[k])(attach[k])
-                except (TypeError, ValueError):
-                    mfaalog.warning(
-                        f"[Arbitrage] ⚠️ 救援可调参 {k}={attach[k]!r} 非法"
-                        f"(应为 {type(_RESCUE_CFG[k]).__name__}),该项回落默认 {_RESCUE_CFG[k]!r}"
-                    )
-    except Exception as e:
-        mfaalog.warning(f"[Arbitrage] ⚠️ 救援可调参读取异常({e}),整份沿用内置默认")
-    return cfg
-
+_ITEM_DATA_FILE = Path(__file__).resolve().parent.parent / "data" / "bd2_item_names_i18n.json"
+_RECIPE_NAMES = None
 
 def _tail_num(s: str) -> str:
     """整串尾部连续数字(尾号);无则空串。"""
@@ -168,369 +172,676 @@ def _tail_num(s: str) -> str:
     return m.group(1) if m else ""
 
 
-def _rescue_rois(type_dets: list, cfg: dict) -> list:
-    """尾号救援候选 roi(绝对坐标)。尺度全锚定实检类型框:H=类高中位数(自适应端字号)、W=类型块宽、
-    yb=类型下缘。横向宽/窄互补(宽=类型同宽+外扩取上下文;窄=右对齐值带避左侧字底);纵向按 ±%H 多位移
-    (含下移档躲类型字底残笔)。候选 = {宽,窄} × y_shifts。cfg 由 _load_rescue_cfg 逐轮生成。"""
-    left = min(d["x"] for d in type_dets)
-    right = max(d["x"] + d["w"] for d in type_dets)
-    yb = max(d["y"] + d["h"] for d in type_dets)
-    hs = sorted(d["h"] for d in type_dets)
-    H = hs[len(hs) // 2]                                    # 类高中位数 = 尺度单位
-    W = max(1, right - left)
-    pad = max(1, int(round(cfg["pad_frac"] * W)))
-    nw = max(1, int(round(cfg["narrow_frac"] * W)))
-    h = max(1, int(round(cfg["h_frac"] * H)))
-    rois = []
-    for s in cfg["y_shifts"]:
-        top = max(0, int(round(yb + s * H)))
-        rois.append([max(0, left - pad), top, W + 2 * pad, h])   # 宽
-        rois.append([max(0, right - nw), top, nw + pad, h])       # 窄
-    return rois
+def _money_token_value(text: str) -> int | None:
+    """价目表整数金额：允许边缘图标杂字，不合并多个数字段或猜测残缺数字。"""
+    return _parse_money_value(text)
 
 
-def _rescue_tail_num(context, screenshot, type_dets: list, cfg: dict) -> tuple:
-    """多候选 roi 各 only_rec,收合理号(1~99无前导0);先按号串投票取多数(真号在多档复现、杂读难复现),
-    同票再以最高 score 破平 → (号串, 该号最高 score)。全不中或最优 score<min_score → ("",0.0)。"""
-    if not type_dets:
-        return "", 0.0
-    votes = {}   # num -> [票数, 最高 score]
-    for roi in _rescue_rois(type_dets, cfg):
-        roi = [int(v) for v in roi]
-        try:
-            reco = context.run_recognition(
-                _RESCUE_NODE, screenshot,
-                pipeline_override={_RESCUE_NODE: {"recognition": "OCR", "roi": roi, "only_rec": True}},
-            )
-        except Exception as e:
-            mfaalog.warning(f"[Arbitrage] ⚠️ 尾号救援 OCR 异常({e})")
+def _max_price_verdict(top_money: set[int], bot_money: set[int],
+                       top_pct: set[str], bot_pct: set[str]) -> tuple[bool, str]:
+    """金额证据优先；两侧金额都读到但矛盾时，不允许溢价率把它覆盖。"""
+    if top_money and bot_money:
+        if len(top_money) != 1 or len(bot_money) != 1:
+            return False, "unconfirmed_amount"
+        return top_money == bot_money, "amount"
+    if top_pct and bot_pct:
+        return bool(top_pct & bot_pct), "rate_fallback"
+    return False, "unreadable"
+
+
+def _cart_groups(carts):
+    """纯编号连接邻近类型；保留原框，以类型框的位置决定整组归属。"""
+    groups = [[d] for d in carts if re.search(r'[^\W\d_]', d['text'])]
+    orphans = []
+    for number in sorted(carts, key=lambda d: (d['cy'], d['cx'])):
+        if not re.fullmatch(r'\s*[0-9]+\s*', number['text']):
             continue
-        cand = (getattr(reco, "filtered_results", None)
-                or getattr(reco, "all_results", None) or [])
-        if not cand:
+        candidates = []
+        for group in groups:
+            typed = group[0]
+            dy = number['cy'] - typed['cy']
+            overlap = min(number['x'] + number['w'], typed['x'] + typed['w']) - max(number['x'], typed['x'])
+            same_line = (abs(dy) <= min(number['h'], typed['h']) / 2
+                         and typed['x'] + typed['w'] - number['w'] / 4 <= number['x']
+                         <= typed['x'] + typed['w'] + typed['h'])
+            wrapped = (min(number['h'], typed['h']) / 2 < dy <= 1.5 * typed['h']
+                       and overlap > 0)
+            if same_line or wrapped:
+                candidates.append((abs(dy), group))
+        candidates.sort(key=lambda pair: pair[0])
+        if (not candidates or len(candidates) > 1 and candidates[0][0] == candidates[1][0]
+                or len(candidates[0][1]) != 1 or _tail_num(candidates[0][1][0]['text'])):
+            orphans.append(number)
             continue
-        top = max(cand, key=lambda r: getattr(r, "score", 0.0))
-        sc = getattr(top, "score", 0.0)
-        num = re.sub(r'\D', '', getattr(top, "text", "") or "")
-        if not re.fullmatch(r'[1-9]\d?', num):   # 只收合理号,挡 0021/」/=— 噪声
-            continue
-        v = votes.setdefault(num, [0, 0.0])
-        v[0] += 1
-        v[1] = max(v[1], sc)
-    if not votes:
-        return "", 0.0
-    best_num = max(votes, key=lambda n: (votes[n][0], votes[n][1]))   # 票数优先,同票比 score
-    best_sc = votes[best_num][1]
-    if best_sc < cfg["min_score"]:
-        return "", 0.0
-    return best_num, best_sc
+        candidates[0][1].append(number)
+    return groups, orphans
 
 
-def _cart_group_rescued(dets, context, screenshot, cfg: dict, label="") -> tuple:
-    """_cart_group 外加尾号救援:拼组后若无尾号,以类型 det 为锚 only_rec 补号(号计入组分,取短板)。
-    置于置信率对比之前,故上/下两子行各自先补号再比对(#B 交叉核对拿到的是补齐后的整串)。
-    label=行标识(商品名·子行),仅用于日志人工核对定位。"""
-    dets = list(dets)
-    text, score = _cart_group(dets)
-    if text and not _tail_num(text):
-        type_dets = [d for d in dets
-                     if not re.sub(r'[^\w一-龥]', '', d["text"]).isdigit()]
-        num, nsc = _rescue_tail_num(context, screenshot, type_dets, cfg)
-        if num:
-            text, score = text + num, min(score, nsc)
-            mfaalog.info(f"[Arbitrage]   ↳ 尾号救援成功: {label} → {text}(号置信{nsc:.2f})")
-        else:
-            mfaalog.warning(f"[Arbitrage]   ⚠️ 尾号救援失败: {label},[{text}] 仍缺号,将按缺号可疑处置")
-    return text, score
+def _cart_split_y(names, amounts, current_y, monthly_y, next_y):
+    """复用现有OCR：名称/基础金额中线优先，当前/月峰值收购金额中线备用。"""
+    bases = [d for d in names if current_y + SUBROW_TOL < d['cy'] < next_y
+             and re.fullmatch(r'[\s0-9,.]+', d['text']) and _money_token_value(d['text']) is not None]
+    if len(bases) == 1:
+        return (current_y + bases[0]['cy']) / 2
+    if monthly_y is None:
+        return None
+    current = [d for d in amounts if abs(d['cy'] - current_y) <= SUBROW_TOL
+               and _money_token_value(d['text']) is not None]
+    monthly = [d for d in amounts if abs(d['cy'] - monthly_y) <= SUBROW_TOL
+               and _money_token_value(d['text']) is not None]
+    if len(current) == len(monthly) == 1 and current[0]['cy'] < monthly[0]['cy']:
+        return (current[0]['cy'] + monthly[0]['cy']) / 2
+    return None
+
+
+def _cart_regions(carts, current_y, monthly_y, next_y, column_roi, *, split_y=None, previous_monthly_y=None):
+    """先拼类型/编号，再按类型中心分当前/月度；裁剪边界独立保留完整编号。"""
+    if split_y is None:
+        if monthly_y is None or not current_y < monthly_y < next_y:
+            return [], [], None
+        split_y = (current_y + monthly_y) / 2
+    if not current_y < split_y < next_y:
+        return [], [], None
+    x, y, w, h = column_roi
+    monthly_y = monthly_y if monthly_y is not None else 2 * split_y - current_y
+    if previous_monthly_y is None:
+        previous_monthly_y = monthly_y - (next_y - current_y)
+    upper = max(y, (previous_monthly_y + current_y) / 2)
+    lower = min(y + h, (monthly_y + next_y) / 2)
+    if not upper < split_y < lower:
+        return [], [], None
+    groups, orphans = _cart_groups(carts)
+    day_groups = [g for g in groups if upper <= g[0]['cy'] < split_y]
+    month_groups = [g for g in groups if split_y <= g[0]['cy'] < lower]
+    # 中线负责文字归属；月度类型顶部才是编号复核不能越过的下界。
+    crop_bottom = min(g[0]['y'] for g in month_groups) if month_groups else split_y
+    next_types = [g[0]['y'] for g in groups if g[0]['cy'] >= lower]
+    month_bottom = min(next_types) if next_types else y + h
+    if crop_bottom <= upper:
+        return [], [], None
+    current = [d for g in day_groups for d in g if d['y'] + d['h'] <= crop_bottom]
+    monthly = [d for g in month_groups for d in g if d['y'] + d['h'] <= month_bottom]
+    if not day_groups:
+        current = [d for d in orphans if upper <= d['cy'] < split_y]
+    return current, monthly, (x, upper, x + w, crop_bottom)
+
+
+def _current_cart(dets, context, screenshot, cfg, bounds, label):
+    """Compatibility entry for standalone cartridge checks."""
+    return _read_cartridge(dets, context, screenshot, cfg, bounds, label)[:3]
+
+
+def _merge_cartridge_observation(saved, fresh):
+    """Merge compatible observations, preserving conflicts and earlier good reads."""
+    if saved.get("cart_conflict"):
+        return
+    if fresh.get("cart_conflict"):
+        saved.update(target_cartridge="", current_cartridge="", alt_cartridge="", cart_conflict=True,
+                     cartridge_read_basis="observation_conflict",
+                     cartridge_evidence=fresh.get("cartridge_evidence", {}))
+        return
+    for field in ("current_price", "peak_price", "current_rate", "peak_rate"):
+        if saved.get(field) is not None and fresh.get(field) is not None and saved[field] != fresh[field]:
+            saved.update(price_read_basis="observation_conflict", is_max_price=False,
+                         max_price_basis="unconfirmed_amount")
+            return
+    if saved.get("price_read_basis") != "observation_conflict":
+        for field in ("base_price", "current_price", "peak_price", "current_rate", "peak_rate"):
+            if saved.get(field) is None and fresh.get(field) is not None:
+                saved[field] = fresh[field]
+        if fresh.get("price_read_basis") in ("initial_consistent", "local_rescue", "merged_consistent"):
+            if not _price_issues(saved):
+                saved.update(price_read_basis="merged_consistent", price_evidence=fresh.get("price_evidence", {}))
+                _confirm_prices(saved)
+    def signature(item):
+        raw = item.get("target_cartridge", "")
+        kind, complete = _classify_cart_type(raw)
+        number = _tail_num(raw)
+        return (kind, number) if kind and complete and number else None
+    old, new = signature(saved), signature(fresh)
+    if not new:
+        return
+    if old and old != new:
+        saved.update(target_cartridge="", current_cartridge="", alt_cartridge="",
+                     cart_conflict=True, cartridge_read_basis="observation_conflict")
+        return
+    if old:
+        return
+    for field in ("target_cartridge", "current_cartridge", "current_cartridge_raw", "cart_score",
+                  "cartridge_read_basis", "cartridge_evidence"):
+        if field in fresh:
+            saved[field] = fresh[field]
+
+
+def _action_params(argv) -> dict:
+    """解析动作参数；显式写了非法 mode 时绝不回落成真实出售。"""
+    raw = getattr(argv, "custom_action_param", None)
+    if not raw:
+        return {"mode": _MODE_SELL}
+    params = raw if isinstance(raw, dict) else json.loads(str(raw))
+    if not isinstance(params, dict):
+        raise ValueError("custom_action_param 必须是对象")
+    mode = params.get("mode", _MODE_SELL)
+    if mode not in _VALID_MODES:
+        raise ValueError(f"mode={mode!r} 非法，可选 {sorted(_VALID_MODES)}")
+    if mode == _MODE_SELL and params.get("sale_scope", "recipes") not in ("recipes", "materials"):
+        raise ValueError("sale_scope必须为recipes或materials")
+    params["mode"] = mode
+    return params
+
+
+def _load_recipe_names() -> set[str]:
+    """加载料理类别名录；失败时返回空集，预览模式宁可不卖也不猜类别。"""
+    global _RECIPE_NAMES
+    if _RECIPE_NAMES is not None:
+        return _RECIPE_NAMES
+    try:
+        with open(_ITEM_DATA_FILE, "r", encoding="utf-8") as handle:
+            records = json.load(handle)
+        _RECIPE_NAMES = {
+            canon(str(item.get("cn", "")).strip())
+            for item in records
+            if isinstance(item, dict) and item.get("category") == "Recipe" and item.get("cn")
+        }
+        mfaalog.info(f"[Arbitrage] 📖 料理类别名录加载 {len(_RECIPE_NAMES)} 项")
+    except Exception as exc:
+        _RECIPE_NAMES = set()
+        mfaalog.error(f"[Arbitrage] ❌ 料理类别名录加载失败({exc})，预览模式将不执行出售")
+    return _RECIPE_NAMES
+
+def _new_scan(target_rate_floor: int | None = None) -> dict:
+    """创建带明确覆盖语义的价目表观察。"""
+    return {
+        "observed_at": datetime.now(timezone.utc).isoformat(),
+        "items": [],
+        "pages_scanned": 0,
+        # complete 表示本次声明的扫描范围完成；是否扫完整表看 full_list_complete。
+        "complete": False,
+        "sale_candidates_complete": False,
+        "full_list_complete": False,
+        "termination_reason": "stopped",
+        "target_rate_floor": target_rate_floor,
+        "lowest_observed_rate": None,
+        "rate_order_safe": True if target_rate_floor is not None else None,
+    }
+
+
+def _possession_scan_plan(snapshot: dict | None, recipe_names: set[str]) -> dict:
+    """从完整公共行情生成已有物扫描计划；证据不足时要求全量扫描。"""
+    unavailable = {
+        "usable": False,
+        "skip": False,
+        "target_rate_floor": None,
+        "target_names": [],
+    }
+    if not snapshot or not snapshot.get("complete") or not recipe_names:
+        return unavailable
+
+    targets = []
+    for item in snapshot.get("items") or []:
+        if not isinstance(item, dict) or not item.get("is_max_price"):
+            continue
+        name = canon(str(item.get("name") or "").strip())
+        if name not in recipe_names:
+            continue
+        rate = item.get("current_rate")
+        targets.append((name, rate))
+
+    if not targets:
+        return {
+            "usable": True,
+            "skip": True,
+            "target_rate_floor": None,
+            "target_names": [],
+        }
+    if any(not isinstance(rate, int) or isinstance(rate, bool) for _, rate in targets):
+        return unavailable
+
+    return {
+        "usable": True,
+        "skip": False,
+        "target_rate_floor": min(rate for _, rate in targets),
+        "target_names": [name for name, _ in targets],
+    }
+
 
 
 @AgentServer.custom_action("ArbitrageSellController")
 class ArbitrageSellController(CustomAction):
     def run(self, context: Context, argv: CustomAction.RunArg) -> bool:
-        mfaalog.info("[Arbitrage] 🚀 商店套利-出售主控器启动")
+        try:
+            params = _action_params(argv)
+        except (ValueError, TypeError, json.JSONDecodeError) as exc:
+            mfaalog.error(f"[Arbitrage] ❌ 出售主控参数非法({exc})，为避免误卖已中止")
+            return False
+
+        mode = params["mode"]
+        mfaalog.info(f"[Arbitrage] 🚀 商店套利-出售主控器启动(mode={mode})")
+        if not sync_from_context(context, where=f"ArbitrageSellController/{mode}"):
+            return False
+        selling = mode != _MODE_PREVIEW_ALL
+        if selling and not context.set_anchor("Replenish_ShopEntry", "Arbitrage_Merchant_NoDiscount_Entry"):
+            mfaalog.error("[Arbitrage] 出售进店入口设置失败")
+            return False
+        completed = self._run(context, params)
+        # 整轮出售正常收尾才清锚；公共行情、子流程、失败及停止均保留选路。
+        if completed and selling and not context.tasker.stopping:
+            if not context.set_anchor("Replenish_ShopEntry", ""):
+                mfaalog.error("[Arbitrage] 出售结束后清理进店入口失败")
+                return False
+        return completed
+
+    def _run(self, context: Context, params: dict) -> bool:
+        mode = params["mode"]
         # 尾号救援可调参:JSON attach 覆盖 py 默认(缺则用默认)。每轮取副本,不写默认表。
         self._rescue_cfg = _load_rescue_cfg(context)
+        self._price_cfg = _load_price_cfg(context)
 
         # 翻页上限:业务可传,但不允许缺省成"无限"。
-        max_scan_pages = _MAX_SCAN_PAGES_DEFAULT
-        if argv.custom_action_param:
+        try:
+            max_scan_pages = max(1, int(params.get("max_scan_pages", _MAX_SCAN_PAGES_DEFAULT)))
+        except (ValueError, TypeError):
+            mfaalog.error("[Arbitrage] ❌ max_scan_pages 必须是正整数，为避免无界翻页已中止")
+            return False
+
+        if mode == _MODE_PREVIEW_ALL:
             try:
-                _p = json.loads(argv.custom_action_param)
-                if isinstance(_p, dict) and "max_scan_pages" in _p:
-                    max_scan_pages = max(1, int(_p["max_scan_pages"]))
-            except (ValueError, TypeError) as e:
+                cached = get_market_snapshot()
+            except Exception as exc:
+                cached = None
+                mfaalog.error(f"[Arbitrage] ⚠️ 共享行情缓存读取失败({exc})，本轮重新扫描")
+            if cached is not None:
+                names = [item["name"] for item in cached.get("items", []) if item.get("is_max_price")]
+                mfaalog.info(
+                    f"[Arbitrage] ♻️ 已复用今日共享行情快照({len(names)}项)，跳过重复全量观察："
+                    f"{', '.join(names) if names else '无'}"
+                )
+                return True
+
+        preview_recipe_names = None
+        possession_plan = None
+        final_reserves = {}
+        final_market = None
+        final_market_day = None
+        if mode == _MODE_SELL:
+            if params.get("sale_scope", "recipes") == "recipes":
+                final_reserves = {name: 0 for name in _load_recipe_names()}
+            else:
+                try:
+                    policy = read_material_reserve_policy(context)
+                    final_reserves = {name: policy.reserve_for(name) for name in policy.sale_eligible
+                                      if name not in _load_recipe_names() and policy.reserve_for(name) >= 0}
+                    mfaalog.info(f"[⑤材料] 保留模式={policy.mode}；仅峰值出售超过保留量的部分")
+                except Exception as exc:
+                    mfaalog.error(f"[⑤材料] 保留配置不可用({exc})，停止材料出售")
+                    return False
+            if not final_reserves:
+                mfaalog.info("[Arbitrage] 当前没有获准出售的料理或材料")
+                return True
+            try:
+                final_market_day = market_day()
+                final_market = get_market_snapshot(final_market_day)
+            except Exception as exc:
+                mfaalog.warning(f"[Arbitrage] 无法读取今日完整行情({exc})")
+            if not final_market or not final_market.get("complete"):
+                mfaalog.error("[Arbitrage] 今日完整行情存档缺失，最终出售停止；请检查共享行情准备步骤")
+                return False
+        if mode == _MODE_PREVIEW_POSSESS:
+            # ①有独立开关；完整料理目录与④共用，均不依赖③制作选择。
+            try:
+                sell_node = context.get_node_data("Arbitrage_PreSell_Entry")
+                if not isinstance(sell_node, dict):
+                    raise ValueError("开局出售节点不可读")
+            except Exception as exc:
+                mfaalog.error(f"[Arbitrage] 无法确认出售开关({exc})，跳过开局变现")
+                return False
+            if not sell_node.get("enabled", True) or sell_node.get("max_hit") == 0:
+                mfaalog.info("[Arbitrage] ①已关闭，跳过开局变现")
+                return True
+            preview_recipe_names = _load_recipe_names()
+            try:
+                possession_market = get_market_snapshot()
+            except Exception as exc:
+                possession_market = None
+                mfaalog.warning(f"[Arbitrage] ⚠️ 无法读取公共行情以计算已有物边界({exc})，改为全量扫描")
+            possession_plan = _possession_scan_plan(possession_market, preview_recipe_names)
+            if possession_plan["usable"] and possession_plan["skip"]:
+                mfaalog.info("[Arbitrage] 💤 今日公共行情没有峰值料理，已有物列表无需扫描")
+            elif possession_plan["usable"]:
+                target_names = "、".join(possession_plan["target_names"])
+                mfaalog.info(
+                    f"[Arbitrage] 🎯 已有物动态边界={possession_plan['target_rate_floor']}%，"
+                    f"覆盖今日峰值料理：{target_names}"
+                )
+            else:
                 mfaalog.warning(
-                    f"[Arbitrage] ⚠️ custom_action_param 解析失败({e})，翻页上限沿用默认 {max_scan_pages}"
+                    "[Arbitrage] ⚠️ 公共行情或料理峰值倍率不足以证明安全边界，已有物改为全量扫描"
                 )
 
-        # ==========================================
-        # 1. 提取并合并 Attach 白名单
-        # ==========================================
-        whitelist_set = set()
+        if mode == _MODE_SELL:
+            # 全量行情只决定卖什么、去哪卖；库存和选量在商品子窗口重新读取。
+            scan = final_market
+        elif possession_plan and possession_plan["usable"] and possession_plan["skip"]:
+            scan = _new_scan()
+            scan.update({
+                "complete": True,
+                "sale_candidates_complete": True,
+                "termination_reason": "no_peak_recipe" if mode == _MODE_PREVIEW_POSSESS else "no_peak_target",
+                "rate_order_safe": True,
+            })
+        else:
+            rate_floor = (
+                possession_plan["target_rate_floor"]
+                if possession_plan and possession_plan["usable"]
+                else None
+            )
+            scan = self._scan_price_list(
+                context, max_scan_pages, stop_at_non_max=False,
+                stop_below_rate=rate_floor,
+            )
+        peak_items = [item for item in scan["items"] if item.get("is_max_price")]
+        peak_names = [item["name"] for item in peak_items]
+        scope_label = ("今日完整行情存档" if mode == _MODE_SELL else
+                       "全量价目表" if mode == _MODE_PREVIEW_ALL else "已有物品价目表")
+        mfaalog.info(
+            f"[Arbitrage] 📈 {scope_label}·今日峰值商品总览: "
+            f"{', '.join(peak_names) if peak_names else '无'}"
+        )
 
-        # 假设我们将此动作绑定在 Arbitrage_ShopSell_Active 节点
-        node_obj = context.get_node_object("Arbitrage_ShopSell_Active")
-
-        if node_obj and node_obj.attach:
-            # 遍历 attach 中的所有 key (default, Drops, 以及 UI 传进来的 SellName)
-            for _, val_str in node_obj.attach.items():
-                if isinstance(val_str, str) and val_str.strip():
-                    # 按照逗号、分号、中文逗号切分
-                    raw_items = [x.strip() for x in re.split(r'[，,;|]+', val_str) if x.strip()]
-                    for item in raw_items:
-                        # 使用和 OCR 底层一模一样的清洗规则，保证 100% 绝对匹配
-                        cleaned_item = re.sub(r'[^\w\u4e00-\u9fa5]', '', item)
-                        if cleaned_item:
-                            # 归一化到规范简体：白名单可简/繁书写，统一后与 OCR 名同域核对。
-                            whitelist_set.add(canon(cleaned_item))
-
-        if not whitelist_set:
-            mfaalog.warning("[Arbitrage] ⚠️ 未读取到任何待售物品白名单，流程结束。")
+        if mode == _MODE_PREVIEW_ALL:
+            try:
+                stored = save_market_snapshot(scan)
+            except Exception as exc:
+                stored = False
+                mfaalog.error(f"[Arbitrage] ❌ 共享行情快照写入异常({exc})")
+            if stored:
+                state = "完整" if scan["complete"] else "不完整"
+                mfaalog.info(f"[Arbitrage] 💾 今日共享行情{state}观察已保存")
             return True
 
-        mfaalog.info(f"[Arbitrage] 📋 期望售卖清单 ({len(whitelist_set)}项): {', '.join(whitelist_set)}")
-
-        # ==========================================
-        # 2. 扫描阶段：识别当前页 -> 翻页 -> 截断
-        # ==========================================
-        targets_to_sell = [] # 记录所有达标待售的商品
-        all_max_price_items = []   # 记录所有扫描到的最高价商品（仅用于展示）
-        page_count = 1
-        prev_page_key = None    # 上一页的内容指纹,用于识别"已滑到底"
-
-        while not context.tasker.stopping:
-            # 第 3 层终止:硬上界。
-            # 前两层(利润边界截断 / 内容指纹)都是业务判据,可能因数据分布或 OCR 抖动失灵,
-            # 而失灵方向是"永不终止",代价不可恢复;硬上界失灵方向是"提前结束",下次跑能补上。
-            # 两者代价不对称,所以这道防线必须在,哪怕它几乎永远不触发。
-            # 触发即说明前两层都没兜住,按异常记 warning,不静默。
-            if page_count > max_scan_pages:
-                mfaalog.warning(
-                    f"[Arbitrage] ⚠️ 已连续扫描 {max_scan_pages} 页仍未触及利润边界或页底，"
-                    f"达到翻页上限强制结束。若价目表确实更长，"
-                    f"请用节点的 custom_action_param 调大 max_scan_pages。"
+        if mode == _MODE_PREVIEW_POSSESS:
+            try:
+                stored = save_possession_snapshot(scan)
+            except Exception as exc:
+                stored = False
+                mfaalog.error(f"[Arbitrage] ❌ 当前存档持有物观察写入异常({exc})")
+            if stored:
+                mfaalog.info(
+                    f"[Arbitrage] 💾 当前存档可售持有物观察已保存"
+                    f"({len(scan['items'])}项，其中峰值{len(peak_items)}项，数量未知，"
+                    f"覆盖={'完整' if scan['complete'] else '未完成'})"
                 )
-                break
+            if context.tasker.stopping:
+                mfaalog.info("[Arbitrage] 扫描已停止，已观察结果保留")
+                return True
+            whitelist_set = preview_recipe_names if preview_recipe_names is not None else _load_recipe_names()
+            mfaalog.info("[Arbitrage] 🍳 启动变现只允许料理类别，材料与其他物品一律不卖")
+        else:
+            whitelist_set = set(final_reserves)
+            mfaalog.info(f"[Arbitrage] 📋 期望售卖清单 ({len(whitelist_set)}项): {', '.join(whitelist_set)}")
 
-            mfaalog.info(f"[Arbitrage] 📷 正在扫描第 {page_count} 页价目表...")
+        # ①④使用完整料理目录；⑤单独使用材料资格与保留量。
+        recipe_names = preview_recipe_names if preview_recipe_names is not None else _load_recipe_names()
+        reserves = final_reserves if mode == _MODE_SELL else {name: 0 for name in whitelist_set & recipe_names}
+        excluded = whitelist_set - reserves.keys()
+        if excluded:
+            mfaalog.info(f"[Arbitrage] 未取得本次出售许可或需无限保留，跳过: {', '.join(sorted(excluded))}")
 
-            # 调用内部的 V8 图像解析引擎
-            page_results = self._parse_current_page(context)
-            if not page_results:
-                mfaalog.warning("[Arbitrage] ⚠️ 识别失败或页面无商品，结束扫描。")
-                break
-
-            # 第 2 层终止:内容指纹。价目表滑到底后再滑不动,本页会与上一页完全相同,
-            # 而 has_non_max 在"整页全是最高价"时不会触发,过去这里就是死循环的入口。
-            # 用 canon 归一化后的名字集合而非 OCR 原文比较——原文里个别字的识别抖动
-            # 会让指纹永不相等,这道防线就形同虚设了。
-            page_key = frozenset(canon(it["name"]) for it in page_results)
-            if prev_page_key is not None and page_key == prev_page_key:
-                mfaalog.info("[Arbitrage] 🛑 本页与上一页内容一致，判定价目表已到底，结束扫描。")
-                break
-            prev_page_key = page_key
-
-            has_non_max = False
-            for item in page_results:
-                name = item["name"]
-                is_max = item["is_max_price"]
-                cart = item["target_cartridge"]
-
-                # 触发截断：遇到非最高价商品
-                if not is_max:
-                    has_non_max = True
-                    mfaalog.info(f"[Arbitrage] 🛑 扫描到非最高价商品 [{name}]，已触及利润边界，停止向下扫描。")
-                    break
-
-                # 记录所有扫描到的最高价商品（去重保存）
-                if name not in all_max_price_items:
-                    all_max_price_items.append(name)
-
-                # 检查是否在白名单中（仅归一化「比较用副本」；name 原文保留回填售卖链，
-                # 繁体端须以 OCR 原文匹配同语言 UI，切勿把归一化后的简体名传给 expected）
-                if canon(name) in whitelist_set:
-                    # 查重防抖 (防止翻页重叠导致同个物品被记录两次)
-                    if not any(t["name"] == name for t in targets_to_sell):
-                        targets_to_sell.append({
-                            "name": name,
-                            "cartridge_raw": cart,
-                            "cart_score": item.get("cart_score", 0.0),
-                            "cart_conflict": item.get("cart_conflict", False),
-                            "cartridge_alt": item.get("alt_cartridge", "")
-                        })
-
-            if has_non_max:
-                break
-
-            # 翻页动作：调用你写好的精准滑动链
-            mfaalog.info("[Arbitrage] ⏬ 下滑翻页...")
-            # run_task 返回 Optional[TaskDetail],返回对象只表示任务被成功提交,
-            # 成败在 .status 里。旧写法 `if not swip_success` 把 TaskDetail 当 bool 用,
-            # 而 Arbitrage_Swip_PriceList 是纯 Swipe 节点必然能起来 —— 那个分支从来没执行过,
-            # 于是"滑不动"这件事对本循环完全不可见。
-            swip_detail = context.run_task("Arbitrage_Swip_PriceList")
-            if swip_detail is None:
-                mfaalog.warning("[Arbitrage] ⚠️ 翻页任务未能启动（节点缺失或正在停止），停止扫描。")
-                break
-            if not swip_detail.status.succeeded:
-                mfaalog.warning("[Arbitrage] ⚠️ 翻页任务执行失败，停止扫描。")
-                break
-
-            page_count += 1
-
-        # 🌟 优化日志 2：列出今日市面上的所有最高价商品
-        mfaalog.info(f"[Arbitrage] 📈 今日最高价&有库存商品总览: {', '.join(all_max_price_items) if all_max_price_items else '无'}")
+        targets_to_sell = [
+            {
+                "name": item["name"],
+                "cartridge_raw": item.get("target_cartridge", ""),
+                "cart_score": item.get("cart_score", 0.0),
+                "cart_conflict": item.get("cart_conflict", False),
+                "current_rate": item.get("current_rate"),
+                "cartridge_read_basis": item.get("cartridge_read_basis", "unknown"),
+                "reserve": reserves.get(canon(item["name"])),
+            }
+            for item in peak_items
+            if canon(item["name"]) in reserves and item.get("name_confirmed", True)
+            and item.get("price_read_basis") not in ("unconfirmed_price", "observation_conflict")
+        ]
 
         # ==========================================
         # 3. 派发阶段：循环注入并执行售卖节点链
         # ==========================================
         if not targets_to_sell:
+            if not scan.get("prices_complete", True) or not scan.get("names_complete", True):
+                mfaalog.warning("[Arbitrage] 仍有未确认商品或金额，不能认定今日没有峰值目标")
+                return False
             mfaalog.info("[Arbitrage] 💤 今日无符合条件的最高价商品，收工！")
             return True
 
         # 🌟 优化日志 3：列出最终交集的执行清单
         final_sell_names = [t["name"] for t in targets_to_sell]
-        mfaalog.info(f"[Arbitrage] 🛒 扫描完毕！确认共 {len(targets_to_sell)} 项物品待出售: {', '.join(final_sell_names)}")
+        mfaalog.info(f"[Arbitrage] 🛒 确认共 {len(targets_to_sell)} 项物品待出售: {', '.join(final_sell_names)}")
 
-        sold_ok, sold_fail = [], []
+        sold_ok, sold_fail, sold_skipped = [], [], []
         for idx, target in enumerate(targets_to_sell, 1):
             if context.tasker.stopping: break
+            if mode == _MODE_SELL and market_day() != final_market_day:
+                mfaalog.error("[Arbitrage] 游戏日已刷新，停止使用旧日行情派发出售")
+                return False
 
             item_name = target["name"]
             cart_raw = target["cartridge_raw"]
             mfaalog.info(f"[Arbitrage] 👉 正在执行 {idx}/{len(targets_to_sell)}: 前往 [{cart_raw}] 售卖 [{item_name}]")
 
-            # 缺尾号拦截(2026-07-25):尾号现实一定存在,拼组+救援后仍无号 = 识别彻底失手。按既定策略
-            # 报警并跳过——绝不去「只有类型、没有号」的柜台臆测消歧(最坏进错柜台空跑),交下轮重扫。
-            if not _tail_num(cart_raw):
+            # 旧缓存也必须解析为完整类型和有效编号；语言切换不影响柜台身份。
+            cart_identity = _cart_identity(cart_raw, self._rescue_cfg)
+            if cart_identity is None or target.get("cart_conflict"):
                 mfaalog.warning(
-                    f"[Arbitrage] 🚨 [{item_name}] 卡带尾号缺失且救援失败([{cart_raw}]),"
+                    f"[Arbitrage] 🚨 [{item_name}] 当前卡带未确认"
+                    f"(原因={target['cartridge_read_basis']}，读数=[{cart_raw}]),"
                     f"跳过本项以免进错柜台空跑"
                 )
                 sold_fail.append(item_name)
                 continue
 
-            # 卡带识别质量轻告警(#B):低置信或上下分歧只提示,不阻断——读错最坏进错柜台当没卖掉,
-            # 真相由下面的金币验证承担。派发链的 expected 沿用 OCR 原文(繁体端须同语言匹配菜单)。
-            if target.get("cart_score", 1.0) < SCORE_MIN or target.get("cart_conflict"):
+            # 编号冲突已经阻止派发；低类型分只提示，交易条件仍在子页独立核对。
+            if target.get("cart_score", 1.0) < SCORE_MIN:
                 mfaalog.warning(
                     f"[Arbitrage]   ⚠️ 卡带识别可疑(组分{target.get('cart_score', 0):.2f}"
-                    f"{'·上下分歧' if target.get('cart_conflict') else ''})，"
-                    f"若进错柜台将当作未卖出处理"
+                    f")，"
+                    f"将在子页核对名称、价格和本批数量"
                 )
 
-            # 候选序列(2026-08-03):首选=判读胜者;上下分歧且另一串带号时,金币验证失败后改试
-            # 另一串一次(实录:双1.00分歧,首选"当前行17"进错柜台,真身在"每月行12")。
+            # 只使用本轮已确认的当前柜台，不以月度编号或异议候选补派交易。
             cands = [cart_raw]
-            alt_raw = target.get("cartridge_alt", "")
-            # 去重比「匹配式」而非 OCR 原文(2026-08-03):原文差一个 帶/带 会被 _cart_expected 折成
-            # 同一条正则(见上方 _CART_FUZZ;同趟 OCR 繁简混读是实录常态),按原文比会把一个生成完全
-            # 相同 override 的候选塞进来,白跑一整轮 UI 往返且不可能有不同结果。
-            # 只有匹配式真不同(=真会去到别的柜台)才值得回退重试。
-            if (target.get("cart_conflict") and alt_raw and _tail_num(alt_raw)
-                    and _cart_expected(alt_raw) != _cart_expected(cart_raw)):
-                cands.append(alt_raw)
 
-            verdict = None                     # 跨候选保留的最强结论(gold_verify 的 dict)
-            # 初值必须是 None 而非 False:下方收尾分支按 `is not None` 判"链条跑过了",
-            # False 会被判成跑过 → 取 .status 抛 AttributeError(停止指令恰好落在内层
-            # 循环头、一轮未跑时可达)。
-            sell_result = None
-            for att, cand in enumerate(cands):
-                # 停止指令只打断框架侧任务,管不到 Python 控制流(post_stop 清队列+断当前任务,
-                # stopping 仅表示"已发指令未结束")。不在循环头拦一道,回退轮仍会白提一次注定被
-                # 拒的 run_task。本文件的翻页循环、外层目标循环与 shop_buy_fav_controller 的
-                # 重试/动作循环都是在循环头检查,此处补齐同一约定。
+            outcome = None
+            for cand in cands:
                 if context.tasker.stopping:
                     break
-                # 上轮链条没跑成(任务没提上去 / status 失败) = 出售流程自身垮了,换个卡带串
-                # 解决不了,不空跑。判成败必须走 _task_ok:`not sell_result` 只拦得住"没提上去"。
-                # 注意"链条正常收尾但没走到 B"时 _task_ok 仍为真,那种要继续试下一个候选。
-                if att and not _task_ok(sell_result):
+                override_cfg = _sell_item_override(context, item_name)
+                override_cfg["Arbitrage_Sell_PackShopSwich"] = {
+                    "expected": _cart_expected(cand, self._rescue_cfg)}
+                current_rate = target.get("current_rate")
+                if type(current_rate) is not int or not 0 < current_rate < 1000:
+                    mfaalog.warning(f"[Arbitrage] [{item_name}] 本轮溢价率未知，跳过本项")
                     break
-                if att:
-                    mfaalog.warning(
-                        f"[Arbitrage]   🔁 上下分歧回退：首选 [{cart_raw}] 未售出，改试 [{cand}]"
-                    )
-                # 核心：构造多节点参数替换字典
-                # 卡带名走容错正则(OCR 把'剧'读成'则'等,前缀模糊卡号精确)
-                cart_pat = _cart_expected(cand)
-                if cart_pat != cand:
-                    mfaalog.info(f"[Arbitrage]   ↳ 卡带匹配用容错式: {cart_pat}")
-                override_cfg = {
-                    "Arbitrage_Sell_PackShopSwich": {
-                        "expected": cart_pat
-                    },
-                    "Arbitrage_Sell_Item_ListTraverse": {
-                        "expected": item_name
-                    }
-                }
-
-                # 发包前清槽:不清的话,本轮链条若没走到 B(中途断了),会读到上一轮的残留结论。
-                gold_verify.clear_verdict()
-
-                # 拉起 JSON 端的出售链，并阻塞等待它执行完毕
-                # 起点设为进入出售菜单的识别节点
-                sell_result = context.run_task("Arbitrage_Sell_HUB", pipeline_override=override_cfg)
-
-                # 金币由链内 A/B 测量(见 gold_verify 的时序契约),这里只取结论。
-                # None = B 压根没执行;delta is None = B 跑了但两端读数缺一个。
-                this_round = gold_verify.take_verdict()
-                if _verdict_rank(this_round) > _verdict_rank(verdict):
-                    verdict = this_round
-                delta = this_round.get("delta") if this_round else None
-                if delta is not None and delta > 0:
-                    break            # 已售出,毙掉后续候选,少跑一个柜台
-                # delta == 0(确凿没卖出) 与 delta is None(无法判断) 都按"这个候选不行"处理,
-                # 接着试下一个卡带候选 —— 但绝不拿同一套参数重跑,那只会复现同样的结果。
-
-            delta = verdict.get("delta") if verdict else None
-            before = verdict.get("before") if verdict else None
-            after = verdict.get("after") if verdict else None
-
-            if delta is not None and delta > 0:
+                override_cfg["Arbitrage_Sell_Item_Price_MaxCheck"] = {"expected": f"{current_rate}%"}
+                try:
+                    outcome = execute_sale_item(context, item_name, override_cfg, reserve=target["reserve"])
+                except Exception as exc:
+                    mfaalog.error(f"[Arbitrage] [{item_name}] 出售主控异常：{exc}")
+                    return False
+                if not outcome["page_ok"]:
+                    mfaalog.error("[Arbitrage] 出售页面或账号未能确认恢复，停止后续派发")
+                    return False
+                # 只有未交易且明确找不到目标时才允许换候选柜台；详情失败不重放。
+                if outcome["status"] != "skipped" or outcome["actual_quantity"]:
+                    break
+            if outcome and outcome["actual_quantity"]:
+                mfaalog.info(f"[Arbitrage] [{item_name}] 已确认卖出{outcome['actual_quantity']}个")
+            if outcome and outcome["status"] == "confirmed":
                 sold_ok.append(item_name)
-                mfaalog.info(
-                    f"[Arbitrage] ✅ [{item_name}] 确认售出，金币 +{delta:,} "
-                    f"({before:,} → {after:,})"
-                )
-            elif delta is not None:
-                sold_fail.append(item_name)
-                # delta < 0 出售链里不该出现(卖东西只会加钱),真出现多半是读串了行或期间
-                # 有别的消耗,单独点出来免得当成普通的"没卖出"放过去。
-                extra = "金币不增反减，读数可疑" if delta < 0 else "金币无变化"
-                mfaalog.warning(
-                    f"[Arbitrage] ❌ [{item_name}] 未实际售出！{extra}"
-                    f"({before:,} → {after:,})，"
-                    f"链条多半卡在选卡带/物品定位，run_task 的成功是假信号"
-                )
+            elif outcome and outcome["status"] == "skipped":
+                sold_skipped.append(item_name)
+                mfaalog.info(f"[Arbitrage] [{item_name}] 当前无可卖数量")
             else:
-                # 无法判断一律计入失败(2026-08-06 定):金币是次要保险,保险失效时不能当成
-                # "大概卖成了"放过 —— 物品存在性才是主判据,而它此刻同样没有结论。
                 sold_fail.append(item_name)
-                if not _task_ok(sell_result):
-                    reason = "售卖流程未能启动（节点缺失或正在停止）" if sell_result is None else "售卖流程执行失败"
-                elif verdict is None:
-                    reason = "链条未走到金币复核点（B 未执行，多半中途断链）"
-                else:
-                    reason = f"金币读数不可用（前 {before} / 后 {after}）"
-                mfaalog.warning(f"[Arbitrage] ⚠️ [{item_name}] 无法判断是否售出：{reason}")
+                mfaalog.warning(f"[Arbitrage] [{item_name}] 未全部确认售出，停止该物品；"
+                                "已确认数量保留，未知成交不会重复派发")
 
         if sold_fail:
             mfaalog.warning(
-                f"[Arbitrage] ⚠️ 本轮 {len(sold_fail)}/{len(targets_to_sell)} 项未能售出："
+                f"[Arbitrage] ⚠️ 本轮 {len(sold_fail)}/{len(targets_to_sell)} 项未完成出售："
                 f"{', '.join(sold_fail)}"
             )
-        # 无待售商品的情形已在上方提前 return,故此处 targets_to_sell 必非空。
-        # "无法判断"现已一并计入 sold_fail(见上方三分支),所以 sold_ok / sold_fail 双空
-        # 只剩一种成因:外层循环还没处理完第一项就被停止指令打断。
         if sold_ok:
             mfaalog.info(f"[Arbitrage] 🎉 本轮实际售出 {len(sold_ok)} 项：{', '.join(sold_ok)}")
         elif sold_fail:
-            mfaalog.warning(f"[Arbitrage] 🚫 本轮无一项成功售出({len(targets_to_sell)} 项全部失败),请检查上方失败原因。")
+            mfaalog.warning("[Arbitrage] 本轮没有完整完成的物品，已确认成交量保留，详见逐项回报。")
+        elif sold_skipped:
+            mfaalog.info(f"[Arbitrage] 本轮{len(sold_skipped)}项无可卖数量")
         else:
             mfaalog.info(f"[Arbitrage] ➖ 本轮 {len(targets_to_sell)} 项待售,一项都未及处理(多半是收到停止指令)。")
         return True
+
+    def _scan_price_list(self, context: Context, max_scan_pages: int, stop_at_non_max: bool,
+                         stop_below_rate: int | None = None) -> dict:
+        """扫描价目表；已有物可在公共行情推导出的安全倍率边界处提前结束。"""
+        scan = _new_scan(stop_below_rate)
+        seen_items = {}
+        prev_page_key = None
+        page_count = 1
+        boundary_safe = stop_below_rate is not None
+        last_new_rate = None
+
+        def disable_rate_boundary(reason: str) -> None:
+            nonlocal boundary_safe
+            if not boundary_safe:
+                return
+            boundary_safe = False
+            scan["rate_order_safe"] = False
+            mfaalog.warning(
+                f"[Arbitrage] ⚠️ 已有物倍率顺序证据不完整({reason})，取消提前终止并改为扫到底"
+            )
+
+        while not context.tasker.stopping:
+            # 前两层(动态边界/内容指纹)失灵会无限翻页，硬上界把代价收敛成一次不完整观察。
+            if page_count > max_scan_pages:
+                scan["termination_reason"] = "max_pages"
+                mfaalog.warning(
+                    f"[Arbitrage] ⚠️ 已连续扫描 {max_scan_pages} 页仍未触及利润边界或页底，"
+                    f"达到翻页上限强制结束。若价目表确实更长，请调大 max_scan_pages。"
+                )
+                break
+
+            mfaalog.info(f"[Arbitrage] 📷 正在扫描第 {page_count} 页价目表...")
+            try:
+                page_results = self._parse_current_page(context)
+            except Exception as exc:
+                scan["termination_reason"] = "parse_exception"
+                mfaalog.error(f"[Arbitrage] ❌ 第 {page_count} 页解析异常({exc})，结束扫描")
+                break
+            scan["pages_scanned"] = page_count
+            if not page_results:
+                scan["termination_reason"] = "parse_empty"
+                mfaalog.warning("[Arbitrage] ⚠️ 识别失败或页面无商品，结束扫描。")
+                break
+
+            page_key = frozenset(canon(item["name"]) for item in page_results)
+            # The last repeated page may contain the first usable read of an item.
+            for item in page_results:
+                previous = seen_items.get(canon(item["name"]))
+                if previous is not None:
+                    _merge_cartridge_observation(previous, item)
+            if prev_page_key is not None and page_key == prev_page_key:
+                scan["complete"] = True
+                scan["sale_candidates_complete"] = True
+                scan["full_list_complete"] = True
+                if stop_below_rate is not None:
+                    scan["rate_order_safe"] = boundary_safe
+                scan["termination_reason"] = "repeated_page"
+                mfaalog.info("[Arbitrage] 🛑 本页与上一页内容一致，判定价目表已到底，结束扫描。")
+                break
+            prev_page_key = page_key
+
+            page_rates = [item.get("current_rate") for item in page_results]
+            if stop_below_rate is not None and boundary_safe:
+                if any(not isinstance(rate, int) or isinstance(rate, bool) for rate in page_rates):
+                    disable_rate_boundary(f"第{page_count}页存在未读出的当前倍率")
+                elif any(left < right for left, right in zip(page_rates, page_rates[1:])):
+                    disable_rate_boundary(f"第{page_count}页倍率不是从高到低")
+
+            reached_boundary = False
+            for item in page_results:
+                name = item["name"]
+                if stop_at_non_max and not item["is_max_price"]:
+                    reached_boundary = True
+                    scan["complete"] = True
+                    scan["sale_candidates_complete"] = True
+                    scan["termination_reason"] = "non_max_boundary"
+                    mfaalog.info(f"[Arbitrage] 🛑 扫描到非最高价商品 [{name}]，已触及利润边界，停止向下扫描。")
+                    break
+
+                rate = item.get("current_rate")
+                if isinstance(rate, int) and not isinstance(rate, bool):
+                    lowest = scan["lowest_observed_rate"]
+                    scan["lowest_observed_rate"] = rate if lowest is None else min(lowest, rate)
+                item_key = canon(name)
+                if item_key not in seen_items:
+                    if stop_below_rate is not None and boundary_safe:
+                        if last_new_rate is not None and rate > last_new_rate:
+                            disable_rate_boundary(
+                                f"跨页新增商品 [{name}] 的 {rate}% 高于上一新增商品 {last_new_rate}%"
+                            )
+                        else:
+                            last_new_rate = rate
+                    seen_items[item_key] = item
+                    scan["items"].append(item)
+
+            if reached_boundary:
+                break
+
+            crossed_rate_boundary = (
+                stop_below_rate is not None
+                and boundary_safe
+                and any(rate < stop_below_rate for rate in page_rates)
+            )
+            if crossed_rate_boundary:
+                scan["complete"] = True
+                scan["sale_candidates_complete"] = True
+                scan["termination_reason"] = "target_rate_boundary"
+                scan["rate_order_safe"] = True
+                mfaalog.info(
+                    f"[Arbitrage] 🛑 本页已从高到低越过 {stop_below_rate}% 动态边界，"
+                    "今日峰值料理候选已全部覆盖"
+                )
+                break
+
+            mfaalog.info("[Arbitrage] ⏬ 下滑翻页...")
+            # CustomAction callbacks need a recognition result in MaaFw 5.12.2.
+            # The wrapper uses an empty on_error so actual failures stay failed.
+            swip_detail = context.run_task("Agt_PriceList_Swip")
+            if swip_detail is None:
+                scan["termination_reason"] = "swipe_not_started"
+                mfaalog.warning("[Arbitrage] ⚠️ 翻页任务未能启动（节点缺失或正在停止），停止扫描。")
+                break
+            if not swip_detail.status.succeeded:
+                scan["termination_reason"] = "swipe_failed"
+                mfaalog.warning("[Arbitrage] ⚠️ 翻页任务执行失败，停止扫描。")
+                break
+            page_count += 1
+
+        missing = [item["name"] for item in scan["items"]
+                   if not _tail_num(item.get("target_cartridge", "")) or item.get("cart_conflict")]
+        scan["cartridges_complete"] = not missing
+        scan["unconfirmed_cartridges"] = missing
+        for quality, field, bad in (("names", "name_confirmed", lambda value: value is False),
+                                    ("prices", "price_read_basis", lambda value: value in
+                                     ("unconfirmed_price", "observation_conflict"))):
+            unresolved = [item["name"] for item in scan["items"] if bad(item.get(field))]
+            scan[quality + "_complete"] = not unresolved
+            scan["unconfirmed_" + quality] = unresolved
+            if unresolved:
+                label = "商品名" if quality == "names" else "金额"
+                mfaalog.warning(f"[Arbitrage] 价目表{label}未确认{len(unresolved)}项：{', '.join(unresolved)}")
+        if missing:
+            mfaalog.warning(f"[Arbitrage] 价目表覆盖完成={scan['complete']}，卡带未确认{len(missing)}项：{', '.join(missing)}")
+        return scan
 
     # ==========================================
     # 附：V8 图像解析引擎
@@ -545,6 +856,7 @@ class ArbitrageSellController(CustomAction):
 
         # run 起始已按本轮 attach 取好副本；单测/直调本方法时回落只读默认表。
         rescue_cfg = getattr(self, "_rescue_cfg", None) or dict(_RESCUE_CFG)
+        price_cfg = getattr(self, "_price_cfg", None) or _load_price_cfg(context)
 
         def _col(node):
             """跑某列窄 roi OCR,取 filtered → [{text,cx,cy}, ...](窄 roi 已圈好列,无需 cx 过滤分列)。"""
@@ -558,8 +870,12 @@ class ArbitrageSellController(CustomAction):
             return out
 
         names = _col(_COL_NAME)
+        amounts = _col(_COL_AMOUNT)
         prices = _col(_COL_PRICE)
         carts = _col(_COL_CART)
+        cart_roi = list(context.get_node_object(_COL_CART).recognition.param.roi)
+        price_columns = {key: list(context.get_node_object(node).recognition.param.roi)
+                         for key, node in (("name", _COL_NAME), ("amount", _COL_AMOUNT), ("rate", _COL_PRICE))}
 
         # 名锚:名列内非数字文本 = 各商品行(与上子行同高),按 y 升序、近距去重
         anchors = []
@@ -567,7 +883,8 @@ class ArbitrageSellController(CustomAction):
             cleaned = re.sub(r'[^\w一-龥]', '', t["text"])
             if cleaned and not cleaned.isdigit():
                 if not any(abs(t["cy"] - a["cy"]) < 30 for a in anchors):
-                    anchors.append({"name": cleaned, "cy": t["cy"]})
+                    identified = _read_item_name(context, screenshot, {**t, "text": cleaned})
+                    anchors.append({"name": identified["name"], "cy": t["cy"], "identity": identified})
         if not anchors:
             return []
         # 商品行距中位数:供末行下子行搜索上界(无下一名锚时的兜底跨度)
@@ -584,10 +901,36 @@ class ArbitrageSellController(CustomAction):
                         out.add(m.group(1))
             return out
 
+        def _row_money(center_y):
+            """金额列内的整数集合；兼容金额与百分比粘成 `4.416120%`。"""
+            out = set()
+            for item in amounts:
+                if abs(item["cy"] - center_y) > SUBROW_TOL:
+                    continue
+                value = _money_token_value(item["text"])
+                if value is not None:
+                    out.add(value)
+            return out
+
         results = []
+        previous_monthly_y = None
         for i, row in enumerate(anchors):
-            item_data = {"name": row["name"], "is_max_price": False, "target_cartridge": "",
-                         "cart_score": 0.0, "cart_conflict": False, "alt_cartridge": ""}
+            item_data = {
+                "name": row["name"],
+                "raw_name": row["identity"]["raw"],
+                "name_confirmed": row["identity"]["confirmed"],
+                "name_evidence": row["identity"],
+                "is_max_price": False,
+                "max_price_basis": "unreadable",
+                "current_price": None,
+                "peak_price": None,
+                "current_rate": None,
+                "peak_rate": None,
+                "target_cartridge": "",
+                "cart_score": 0.0,
+                "cart_conflict": False,
+                "alt_cartridge": "",
+            }
             ny = row["cy"]                                    # 上子行(当前)y = 名锚 y
             next_ny = anchors[i + 1]["cy"] if i + 1 < len(anchors) else ny + gap_bound
 
@@ -597,43 +940,60 @@ class ArbitrageSellController(CustomAction):
                 if ny + SUBROW_TOL < t["cy"] < next_ny and RE_PCT.search(t["text"])
             )
             mon_y = below_ys[0] if below_ys else None
+            if mon_y is None:
+                # 倍率漏读时仍可由金额行定位；不借用月度卡带自身来猜当前编号。
+                money_ys = sorted(t["cy"] for t in amounts if ny + SUBROW_TOL < t["cy"] < next_ny
+                                  and _money_token_value(t["text"]) is not None)
+                mon_y = money_ys[0] if money_ys else None
 
-            # 满价 = 今日溢价率 与 每月最高价档 相同(两子行都读到且有交集)
+            # 金额相等才是最终满价判据。低价物品会因向下取整在 117%/118% 提前撞到峰值金额；
+            # 只比溢价率会漏卖。金额列有一侧读不到时才退回旧的溢价率交集判据。
+            top_money = _row_money(ny)
+            bot_money = _row_money(mon_y) if mon_y is not None else set()
             top_pct = _row_pcts(ny)
             bot_pct = _row_pcts(mon_y) if mon_y is not None else set()
-            if top_pct and bot_pct and (top_pct & bot_pct):
-                item_data["is_max_price"] = True
+            if len(top_money) == 1:
+                item_data["current_price"] = next(iter(top_money))
+            if len(bot_money) == 1:
+                item_data["peak_price"] = next(iter(bot_money))
+            if len(top_pct) == 1:
+                item_data["current_rate"] = int(next(iter(top_pct)))
+            if len(bot_pct) == 1:
+                item_data["peak_rate"] = int(next(iter(bot_pct)))
+            current_dets = [d for d in amounts if abs(d["cy"] - ny) <= SUBROW_TOL]
+            monthly_dets = [d for d in amounts if mon_y is not None and abs(d["cy"] - mon_y) <= SUBROW_TOL]
+            bases = [d for d in names if ny + SUBROW_TOL < d["cy"] < next_ny
+                     and _money_token_value(d["text"]) is not None]
+            current_centers = [d["cy"] for d in prices if abs(d["cy"] - ny) <= SUBROW_TOL
+                               and RE_PCT.search(d["text"])]
+            quote_y = sum(current_centers) / len(current_centers) if current_centers else ny
+            _read_prices(context, screenshot, item_data, current=current_dets, monthly=monthly_dets,
+                         bases=bases, centers=(quote_y, mon_y), columns=price_columns, cfg=price_cfg)
 
-            # 卡带:上子行(当前)组;满价时下子行(每月)是同柜台、理应同串(#B),两组各取组分并取
-            # 组分高的一组整串。非满价不卖,仅取上子行(每月档与当前不同,交叉无意义)。
-            up_str, up_sc = _cart_group_rescued(
-                (t for t in carts if abs(t["cy"] - ny) <= SUBROW_TOL),
-                context, screenshot, rescue_cfg, f"{row['name']}·当前")
-            best_str, best_sc = up_str, up_sc
-            if item_data["is_max_price"] and mon_y is not None:
-                lo_str, lo_sc = _cart_group_rescued(
-                    (t for t in carts if abs(t["cy"] - mon_y) <= SUBROW_TOL),
-                    context, screenshot, rescue_cfg, f"{row['name']}·每月")
-                if lo_str:                                    # 每月组也读到才交叉
-                    # 号是去柜台的必需位:带号组优先(缺号组即便类型分更高也不能选,否则会像 07-25
-                    # 实录——一子行救回号、另一子行没救回却因类型分高被选中→整项缺号被误跳)。
-                    up_has, lo_has = bool(_tail_num(up_str)), bool(_tail_num(lo_str))
-                    if lo_has and not up_has:
-                        best_str, best_sc = lo_str, lo_sc
-                    elif up_has == lo_has and lo_sc > up_sc:  # 两组同态(都带号/都缺号)→ 比组分
-                        best_str, best_sc = lo_str, lo_sc
-                    # 分歧判定同样走匹配式(2026-08-03):繁简互吃的两串生成同一条正则、指向同一
-                    # 柜台,不算分歧——否则会对无害的 帶/带 差异打误导性告警并触发回退空跑。
-                    item_data["cart_conflict"] = (
-                        _cart_expected(up_str) != _cart_expected(lo_str)
-                    )
-                    if item_data["cart_conflict"]:
-                        # 分歧回退候选(2026-08-03):两子行各自笃定却互斥时(实录组分双1.00,当前行误读
-                        # 17/每月行12,首选进错柜台白跑),把未被选中的一串也带走,执行层金币验证失败后
-                        # 可改试一次——把"抛硬币"变成"两个都试",真相仍由金币验证承担。
-                        item_data["alt_cartridge"] = lo_str if best_str == up_str else up_str
-            item_data["target_cartridge"] = best_str
-            item_data["cart_score"] = best_sc
+            split_y = _cart_split_y(names, amounts, ny, mon_y, next_ny)
+            if len(anchors) == 1 and split_y is not None:
+                # 单项画面没有相邻名称可量行距，改用实读上下行距补足商品范围。
+                lower_y = mon_y if mon_y is not None else 2 * split_y - ny
+                next_ny = max(next_ny, ny + 2 * (lower_y - ny))
+            if split_y is None:
+                day_dets, month_dets, bounds = [], [], None
+            else:
+                day_dets, month_dets, bounds = _cart_regions(
+                    carts, ny, mon_y, next_ny, cart_roi, split_y=split_y,
+                    previous_monthly_y=previous_monthly_y)
+            previous_monthly_y = mon_y if mon_y is not None else (
+                2 * split_y - ny if split_y is not None else None)
+            day_cart, day_score, basis, evidence = _read_cartridge(
+                day_dets, context, screenshot, rescue_cfg, bounds, row['name'])
+            item_data["target_cartridge"] = day_cart
+            item_data["current_cartridge"] = day_cart
+            item_data["current_cartridge_raw"] = _cart_group(day_dets)[0]
+            item_data["monthly_cartridge"] = _cart_group(month_dets)[0]
+            item_data["cartridge_read_basis"] = basis
+            item_data["cartridge_evidence"] = {key: value for key, value in evidence.items() if key != "attempts"}
+            item_data["cart_conflict"] = evidence.get("decision_reason") in (
+                "complete_crop_conflict", "inline_number_conflict")
+            item_data["cart_score"] = day_score
 
             results.append(item_data)
 

@@ -110,6 +110,8 @@ class PersistentStore:
             portable_root is not None and (
                 any(portable_root.glob("agent_save_data*.json"))
                 or any(portable_root.glob("agent_save_data*.json.bak"))
+                or (portable_root / "agent_shared_data.json").exists()
+                or (portable_root / "agent_shared_data.json.bak").exists()
             )
         )
         
@@ -299,13 +301,15 @@ class PersistentStore:
                 f"[Py] ⛔ 账号 {cls._sanitized_account_id} 存档处于不可读降级态，"
                 f"已拒绝本次写入以免覆盖真实数据。"
             )
-            return
+            return False
 
         if cls._save_file(cls.FILE_PATH, data):
             try:
                 shutil.copy2(cls.FILE_PATH, cls.BACKUP_PATH)
             except Exception as e:
                 logger.warning(f"[Py] 备份更新失败 (不影响主流程): {e}")
+            return True
+        return False
 
     @classmethod
     def _save_file(cls, path: Path, data: dict) -> bool:
@@ -340,4 +344,52 @@ class PersistentStore:
     def set(cls, key: str, value):
         data = cls.load()
         data[key] = value
-        cls.save(data)
+        return cls.save(data)
+
+
+class SharedStore(PersistentStore):
+    """所有游戏存档共用的持久化文件。
+
+    账号存档继续由 PersistentStore 管理；这里只承载与账号无关、可以跨存档复用的
+    观察事实，例如同一天的商店行情。读写、损坏隔离、原子替换与备份策略全部复用
+    PersistentStore，唯一差别是文件名固定且不随 switch_account 切换。
+    """
+
+    _initialized = False
+    _mode = None
+    _current_account_id = "shared"
+    _sanitized_account_id = "shared"
+    _degraded_readonly = False
+
+    FILE_NAME = "agent_shared_data.json"
+    BAK_NAME = "agent_shared_data.json.bak"
+    CONFIG_DIR = None
+    FILE_PATH = None
+    BACKUP_PATH = None
+
+    @classmethod
+    def switch_account(cls, account_id):
+        """共享数据没有账号维度；保留同名方法以防调用方误切。"""
+        return None
+
+    @classmethod
+    def _init_paths(cls):
+        """跟随账号存档选定的全局/便携目录，但使用固定共享文件名。"""
+        PersistentStore._init_paths()
+        config_dir = PersistentStore.CONFIG_DIR
+        if config_dir is None:
+            raise RuntimeError("账号存档尚未挂载，无法确定共享存档目录")
+
+        if cls._initialized and cls.CONFIG_DIR == config_dir:
+            return
+
+        cls._mode = PersistentStore._mode
+        cls.CONFIG_DIR = config_dir
+        cls.FILE_PATH = config_dir / cls.FILE_NAME
+        cls.BACKUP_PATH = config_dir / cls.BAK_NAME
+        cls._initialized = True
+        cls._degraded_readonly = False
+
+        mode_str = {'global': '系统全局模式', 'portable': '绿色便携模式', 'host': '宿主指定模式'}[cls._mode]
+        logger.info(f"[Py] 🌐 共享存档挂载完成 | 模式: {mode_str}")
+        logger.info(f"[Py] 📂 共享存档路径: {cls.FILE_PATH}")

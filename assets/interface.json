@@ -272,16 +272,19 @@
         },
         {
             "name": "[执行]商店套利",
+            "label": "✨商店套利 Opus",
             "entry": "Arbitrage_Start",
             "controller": [
                 "Adb",
                 "PlayCover"
             ],
-            "description": "卡带商店跑商套利：逐卡带扫购低价原料收藏一键购买，按每日最高价择机出售；同时制作高利润料理待出售变现。<br>三个环节均可独立开关，按需组合。",
+            "description": "按①～⑤依次执行，各阶段可独立开关。行情和背包库存按实际需要检查。<br>升级后请重新核对出售和材料保留设置；旧待售文本名单与单份制作保险不再生效。",
             "option": [
+                "开局出售料理",
                 "利润商品-低价进货",
+                "利润料理-制作",
                 "利润商品-最高价抛售",
-                "利润料理-制作"
+                "出售多余材料"
             ]
         },
         {
@@ -1804,14 +1807,22 @@
             ]
         },
         "利润商品-低价进货": {
+            "label": "② 低价购入套利材料",
             "type": "switch",
-            "description": "逐卡带扫描商店，构建低价的利润原料收藏表。一键购买。",
+            "default_case": "Yes",
+            "description": "按低价清单购入材料；无需加工也可待价转卖，也可用于料理制作。与③缺料补买独立。",
             "cases": [
                 {
                     "name": "Yes",
-                    "pipeline_override": {},
+                    "pipeline_override": {
+                        "Arbitrage_BuyItem": {
+                            "enabled": true
+                        }
+                    },
                     "option": [
-                        "购买收藏扫描（每周|每次）"
+                        "购买收藏扫描（每周|每次）",
+                        "收藏未核实仍继续购买",
+                        "自定义卡带采购"
                     ]
                 },
                 {
@@ -1819,35 +1830,24 @@
                     "pipeline_override": {
                         "Arbitrage_BuyItem": {
                             "enabled": false
-                        },
-                        "Arbitrage_Favorit_Buy": {
-                            "enabled": false
-                        },
-                        "Arbitrage_Bargaining_SkillList": {
-                            "recognition": "DirectHit",
-                            "target": [
-                                1122,
-                                523,
-                                8,
-                                15
-                            ],
-                            "next": "Arbitrage_Merchant_Menu"
                         }
                     }
                 }
             ]
         },
         "利润商品-最高价抛售": {
+            "label": "④ 收尾出售料理",
             "type": "switch",
-            "description": "检测当日达最高价的商品，与待售列表匹配后依次出售。<br>当前包含各种利润料理，可额外在子项中额外填写监控物品名。",
+            "default_case": "Yes",
+            "description": "出售已有及本轮新制作的峰值料理。与①共用完整料理目录，不受③制作勾选限制。",
             "cases": [
                 {
                     "name": "Yes",
-                    "pipeline_override": {},
-                    "option": [
-                        "抛售行为保险",
-                        "待出售的物品"
-                    ]
+                    "pipeline_override": {
+                        "Arbitrage_SellItem": {
+                            "enabled": true
+                        }
+                    }
                 },
                 {
                     "name": "No",
@@ -1859,15 +1859,40 @@
                 }
             ]
         },
-        "购买收藏扫描（每周|每次）": {
+        "收藏未核实仍继续购买": {
             "type": "switch",
-            "default_case": "No",
-            "description": "关：每周仅扫描一次，完成后记录存档，本周内后续运行自动跳过。<br>开：每次运行均执行。",
+            "label": "收藏未核实仍继续购买",
+            "description": "开启：名单读取或收藏核对未完成时，仍尝试购买游戏当前收藏，可能买入旧收藏或本次已完成部分调整后的商品。<br>关闭：收藏未核实则跳过本轮常规购买，继续后续阶段。<br>此设置只影响②常规采购，不改变③补买预算等条件。",
+            "default_case": "Yes",
             "cases": [
                 {
                     "name": "Yes",
                     "pipeline_override": {
-                        "Arbitrage_Buy_ToSelect": {
+                        "Arbitrage_Buy_CurrentFavorites": {
+                            "enabled": true
+                        }
+                    }
+                },
+                {
+                    "name": "No",
+                    "pipeline_override": {
+                        "Arbitrage_Buy_CurrentFavorites": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "购买收藏扫描（每周|每次）": {
+            "label": "每次重新扫描购买收藏",
+            "type": "switch",
+            "default_case": "No",
+            "description": "关闭：每周更新收藏；开启：每次更新。名单变化或首次运行时，下次仍会更新受影响卡带。",
+            "cases": [
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "Arbitrage_Buy_CheckCycle": {
                             "recognition": "DirectHit"
                         }
                     }
@@ -1879,16 +1904,23 @@
             ]
         },
         "利润料理-制作": {
+            "label": "③ 料理制作",
             "type": "switch",
-            "description": "制作高利润料理。",
+            "default_case": "Yes",
+            "description": "现有材料制作→按需补查库存→缺料补买并补做。整个阶段受本开关和周周期控制。",
             "cases": [
                 {
                     "name": "Yes",
-                    "pipeline_override": {},
+                    "pipeline_override": {
+                        "Arbitrage_Cooking": {
+                            "enabled": true
+                        }
+                    },
                     "option": [
-                        "料理制作保险",
-                        "料理制作周期（每次|每周）",
-                        "5星料理开关"
+                        "料理自选模式",
+                        "料理稀有材料保护",
+                        "料理制作周期",
+                        "料理缺料补买"
                     ]
                 },
                 {
@@ -1901,172 +1933,58 @@
                 }
             ]
         },
-        "料理制作保险": {
+        "料理稀有材料保护": {
             "type": "switch",
-            "description": "开：首次验证时启用，每种料理仅制作1个确认流程正常。<br>确认无误后关闭，改为每次制作MAX数量。",
-            "default_case": "No",
+            "description": "建议开启。制作前检查已解锁的高位料理，跳过与其争抢稀有材料的低位料理，保留材料供高位料理制作；同级料理仍按顺序制作。可能减少当日收益。",
+            "default_case": "Yes",
             "cases": [
                 {
                     "name": "Yes",
-                    "pipeline_override": {}
+                    "pipeline_override": {
+                        "Arbitrage_Cooking_MateProtec": {
+                            "enabled": true
+                        }
+                    }
                 },
                 {
                     "name": "No",
                     "pipeline_override": {
-                        "Arbitrage_Cooking_NubMenu_Max": {
-                            "recognition": "OCR",
-                            "roi": [
-                                415,
-                                520,
-                                220,
-                                100
-                            ],
-                            "expected": [
-                                "MAX"
-                            ],
-                            "action": "Click"
-                        }
-                    }
-                }
-            ]
-        },
-        "料理制作周期（每次|每周）": {
-            "type": "switch",
-            "label": "料理制作周期",
-            "description": "关：每次运行均执行制作。<br>开：每周仅制作一次，完成后记录存档，本周内后续运行自动跳过。",
-            "cases": [
-                {
-                    "name": "Yes",
-                    "pipeline_override": {
-                        "Arbitrage_Cooking_Weekly": {
-                            "enabled": true
-                        },
-                        "Arbitrage_Cooking": {
+                        "Arbitrage_Cooking_MateProtec": {
                             "enabled": false
                         }
                     }
-                },
+                }
+            ],
+            "label": "保护稀有材料"
+        },
+        "料理制作周期": {
+            "label": "料理制作周期（每周|每次）",
+            "type": "switch",
+            "default_case": "Yes",
+            "description": "关闭（默认）：每周仅执行一次制作及缺料补买补做；开启：每次执行。<br><font color=\"Crimson\">每周模式下，本周后续运行会跳过制作；若同时开启⑤，部分尚未用于料理的材料可能作为多余库存出售。</font>",
+            "cases": [
                 {
                     "name": "No",
                     "pipeline_override": {
                         "Arbitrage_Cooking": {
-                            "enabled": true
-                        },
-                        "Arbitrage_Cooking_Weekly": {
-                            "enabled": false
-                        }
-                    }
-                }
-            ]
-        },
-        "5星料理开关": {
-            "type": "checkbox",
-            "description": "勾选的料理参与制作与出售。取消勾选可保留该料理所需的特殊食材不被消耗。",
-            "default_case": [
-                "卢戈山参烤串",
-                "煤炭饼干",
-                "闪闪铁板虾",
-                "透明沙拉",
-                "地狱火紫菜包饭"
-            ],
-            "cases": [
-                {
-                    "name": "卢戈山参烤串",
-                    "pipeline_override": {
-                        "Arbitrage_Cooking_B6": {
-                            "enabled": true
+                            "recognition": "Custom",
+                            "custom_recognition": "CheckCoolDown",
+                            "custom_recognition_param": {
+                                "card_name": "Arbitrage_Cooking",
+                                "cycle_type": "g_weekly"
+                            }
                         }
                     }
                 },
-                {
-                    "name": "煤炭饼干",
-                    "pipeline_override": {
-                        "Arbitrage_Cooking_B7": {
-                            "enabled": true
-                        }
-                    }
-                },
-                {
-                    "name": "闪闪铁板虾",
-                    "pipeline_override": {
-                        "Arbitrage_Cooking_B8": {
-                            "enabled": true
-                        }
-                    }
-                },
-                {
-                    "name": "透明沙拉",
-                    "pipeline_override": {
-                        "Arbitrage_Cooking_B9": {
-                            "enabled": true
-                        }
-                    }
-                },
-                {
-                    "name": "地狱火紫菜包饭",
-                    "pipeline_override": {
-                        "Arbitrage_Cooking_B10": {
-                            "enabled": true
-                        }
-                    }
-                }
-            ]
-        },
-        "抛售行为保险": {
-            "type": "switch",
-            "description": "开：每次仅出售1件，用于首次验证目标物品识别是否准确。<br>确认无误后关闭，改为每次出售MAX数量。",
-            "default_case": "No",
-            "cases": [
                 {
                     "name": "Yes",
                     "pipeline_override": {
-                        "Arbitrage_Sell_Item_NumberSafety_ON": {
-                            "enabled": true
-                        },
-                        "Arbitrage_Sell_Item_NumberSafety_OFF": {
-                            "enabled": false
-                        },
-                        "Arbitrage_Sell_Item_Selling": {
-                            "next": [
-                                "Arbitrage_Sell_Item_Selling",
-                                "Arbitrage_Sell_End",
-                                "[JumpBack]Arbitrage_PackList_ResetSwip"
-                            ]
-                        }
-                    }
-                },
-                {
-                    "name": "No",
-                    "pipeline_override": {
-                        "Arbitrage_Sell_Item_NumberSafety_ON": {
-                            "enabled": false
-                        },
-                        "Arbitrage_Sell_Item_NumberSafety_OFF": {
-                            "enabled": true
+                        "Arbitrage_Cooking": {
+                            "recognition": "DirectHit"
                         }
                     }
                 }
             ]
-        },
-        "待出售的物品": {
-            "type": "input",
-            "description": "输入期望监视最高价的物品。用逗号隔开(,)。",
-            "inputs": [
-                {
-                    "name": "监视最高价待售物品",
-                    "pipeline_type": "string",
-                    "default": "",
-                    "verify": "^[\\w\\u4e00-\\u9fa5,，\\s]*$",
-                    "pattern_msg": "请输入物品名称,多个之间用','隔开"
-                }
-            ],
-            "pipeline_override": {
-                "Arbitrage_ShopSell_Active": {
-                    "attach": {
-                        "SellName": "{监视最高价待售物品}"
-                    }
-                }
-            }
         },
         "钓鱼地点": {
             "type": "select",
@@ -2245,6 +2163,5555 @@
                     }
                 }
             }
+        },
+        "材料出售模式": {
+            "label": "按天数自动保留材料",
+            "type": "switch",
+            "default_case": "Yes",
+            "description": "开启按天数保留；关闭逐项指定。0不保留，-1全部保留。",
+            "cases": [
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "Agt_Arbitrage_MaterialSale_Mode": {
+                            "attach": {
+                                "mode": "auto"
+                            }
+                        }
+                    },
+                    "option": [
+                        "材料自动保留天数"
+                    ]
+                },
+                {
+                    "name": "No",
+                    "pipeline_override": {
+                        "Agt_Arbitrage_MaterialSale_Mode": {
+                            "attach": {
+                                "mode": "manual"
+                            }
+                        }
+                    },
+                    "option": [
+                        "材料手动保留数量"
+                    ]
+                }
+            ]
+        },
+        "材料自动保留天数": {
+            "type": "input",
+            "description": "按参考日用量保留指定天数。0 天表示不保留有限数量；无限保留的材料仍保留全部。",
+            "inputs": [
+                {
+                    "name": "保留天数",
+                    "pipeline_type": "int",
+                    "default": "14",
+                    "verify": "^[0-9]+$",
+                    "pattern_msg": "请输入非负整数天数。"
+                }
+            ],
+            "pipeline_override": {
+                "Agt_Arbitrage_MaterialSale_Auto": {
+                    "attach": {
+                        "days": "{保留天数}"
+                    }
+                }
+            }
+        },
+        "材料手动保留数量": {
+            "type": "input",
+            "description": "各材料的出售保留量，初始值按 7 天参考用量设置。<br>0：不保留数量；-1：无限保留。未列出的材料不参与直卖。<br>切换到自动模式不会改写这里的数值。",
+            "inputs": [
+                {
+                    "name": "三文鱼",
+                    "label": "三文鱼",
+                    "pipeline_type": "int",
+                    "default": "2205",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "兽肉",
+                    "label": "兽肉",
+                    "pipeline_type": "int",
+                    "default": "10850",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "凯洛药材",
+                    "label": "凯洛药材",
+                    "pipeline_type": "int",
+                    "default": "0",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "吐司",
+                    "label": "吐司",
+                    "pipeline_type": "int",
+                    "default": "840",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "咖啡豆",
+                    "label": "咖啡豆",
+                    "pipeline_type": "int",
+                    "default": "0",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "哈密瓜",
+                    "label": "哈密瓜",
+                    "pipeline_type": "int",
+                    "default": "0",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "啤酒花",
+                    "label": "啤酒花",
+                    "pipeline_type": "int",
+                    "default": "0",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "土豆",
+                    "label": "土豆",
+                    "pipeline_type": "int",
+                    "default": "0",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "大蒜",
+                    "label": "大蒜",
+                    "pipeline_type": "int",
+                    "default": "1365",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "大麦",
+                    "label": "大麦",
+                    "pipeline_type": "int",
+                    "default": "0",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "奶酪",
+                    "label": "奶酪",
+                    "pipeline_type": "int",
+                    "default": "0",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "小麦",
+                    "label": "小麦",
+                    "pipeline_type": "int",
+                    "default": "5775",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "巧克力",
+                    "label": "巧克力",
+                    "pipeline_type": "int",
+                    "default": "12600",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "料酒",
+                    "label": "料酒",
+                    "pipeline_type": "int",
+                    "default": "700",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "杏仁",
+                    "label": "杏仁",
+                    "pipeline_type": "int",
+                    "default": "2100",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "樱桃",
+                    "label": "樱桃",
+                    "pipeline_type": "int",
+                    "default": "1400",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "橄榄油",
+                    "label": "橄榄油",
+                    "pipeline_type": "int",
+                    "default": "8400",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "水果罐头",
+                    "label": "水果罐头",
+                    "pipeline_type": "int",
+                    "default": "0",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "洋葱",
+                    "label": "洋葱",
+                    "pipeline_type": "int",
+                    "default": "10780",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "牛奶",
+                    "label": "牛奶",
+                    "pipeline_type": "int",
+                    "default": "1050",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "玉米",
+                    "label": "玉米",
+                    "pipeline_type": "int",
+                    "default": "0",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "甜椒",
+                    "label": "甜椒",
+                    "pipeline_type": "int",
+                    "default": "14385",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "甜辣酱",
+                    "label": "甜辣酱",
+                    "pipeline_type": "int",
+                    "default": "2100",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "生蚝",
+                    "label": "生蚝",
+                    "pipeline_type": "int",
+                    "default": "1400",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "番茄",
+                    "label": "番茄",
+                    "pipeline_type": "int",
+                    "default": "3640",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "白糖",
+                    "label": "白糖",
+                    "pipeline_type": "int",
+                    "default": "12950",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "盐",
+                    "label": "盐",
+                    "pipeline_type": "int",
+                    "default": "4200",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "米",
+                    "label": "米",
+                    "pipeline_type": "int",
+                    "default": "5705",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "肉桂",
+                    "label": "肉桂",
+                    "pipeline_type": "int",
+                    "default": "350",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "胡椒",
+                    "label": "胡椒",
+                    "pipeline_type": "int",
+                    "default": "875",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "胡萝卜",
+                    "label": "胡萝卜",
+                    "pipeline_type": "int",
+                    "default": "-1",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "芥末",
+                    "label": "芥末",
+                    "pipeline_type": "int",
+                    "default": "1050",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "苹果",
+                    "label": "苹果",
+                    "pipeline_type": "int",
+                    "default": "700",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "萝卜缨",
+                    "label": "萝卜缨",
+                    "pipeline_type": "int",
+                    "default": "1050",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "葡萄",
+                    "label": "葡萄",
+                    "pipeline_type": "int",
+                    "default": "0",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "藏红花",
+                    "label": "藏红花",
+                    "pipeline_type": "int",
+                    "default": "0",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "蘑菇",
+                    "label": "蘑菇",
+                    "pipeline_type": "int",
+                    "default": "14385",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "虾",
+                    "label": "虾",
+                    "pipeline_type": "int",
+                    "default": "5985",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "蛋黄酱",
+                    "label": "蛋黄酱",
+                    "pipeline_type": "int",
+                    "default": "700",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "蜂蜜",
+                    "label": "蜂蜜",
+                    "pipeline_type": "int",
+                    "default": "2800",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "袋装鸡胸肉",
+                    "label": "袋装鸡胸肉",
+                    "pipeline_type": "int",
+                    "default": "7980",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "西蓝花",
+                    "label": "西蓝花",
+                    "pipeline_type": "int",
+                    "default": "0",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "调味海苔",
+                    "label": "调味海苔",
+                    "pipeline_type": "int",
+                    "default": "2870",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "豆子",
+                    "label": "豆子",
+                    "pipeline_type": "int",
+                    "default": "4200",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "辣椒",
+                    "label": "辣椒",
+                    "pipeline_type": "int",
+                    "default": "4200",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "辣椒素",
+                    "label": "辣椒素",
+                    "pipeline_type": "int",
+                    "default": "2800",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "金枪鱼罐头",
+                    "label": "金枪鱼罐头",
+                    "pipeline_type": "int",
+                    "default": "0",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "雷瓦汀火腿",
+                    "label": "雷瓦汀火腿",
+                    "pipeline_type": "int",
+                    "default": "-1",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "香草",
+                    "label": "香草",
+                    "pipeline_type": "int",
+                    "default": "7700",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "鱼子酱罐头",
+                    "label": "鱼子酱罐头",
+                    "pipeline_type": "int",
+                    "default": "2100",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "鸡蛋",
+                    "label": "鸡蛋",
+                    "pipeline_type": "int",
+                    "default": "8330",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                },
+                {
+                    "name": "黄油",
+                    "label": "黄油",
+                    "pipeline_type": "int",
+                    "default": "13650",
+                    "verify": "^(?:-1|[0-9]+)$",
+                    "pattern_msg": "请输入非负整数，或输入 -1 表示无限保留。"
+                }
+            ],
+            "pipeline_override": {
+                "Agt_Arbitrage_MaterialSale_Manual": {
+                    "attach": {
+                        "三文鱼": "{三文鱼}",
+                        "兽肉": "{兽肉}",
+                        "凯洛药材": "{凯洛药材}",
+                        "卢戈山参": -1,
+                        "吐司": "{吐司}",
+                        "咖啡豆": "{咖啡豆}",
+                        "哈密瓜": "{哈密瓜}",
+                        "啤酒花": "{啤酒花}",
+                        "土豆": "{土豆}",
+                        "地狱火辣酱": -1,
+                        "大蒜": "{大蒜}",
+                        "大麦": "{大麦}",
+                        "奶酪": "{奶酪}",
+                        "姜黄": -1,
+                        "小麦": "{小麦}",
+                        "巧克力": "{巧克力}",
+                        "料酒": "{料酒}",
+                        "杏仁": "{杏仁}",
+                        "松露油": -1,
+                        "樱桃": "{樱桃}",
+                        "橄榄油": "{橄榄油}",
+                        "水果罐头": "{水果罐头}",
+                        "永恒之爱": -1,
+                        "洋葱": "{洋葱}",
+                        "灵魂鲜奶油": -1,
+                        "牛奶": "{牛奶}",
+                        "玉米": "{玉米}",
+                        "甜椒": "{甜椒}",
+                        "甜辣酱": "{甜辣酱}",
+                        "生命木炭": -1,
+                        "生蚝": "{生蚝}",
+                        "番茄": "{番茄}",
+                        "白糖": "{白糖}",
+                        "盐": "{盐}",
+                        "秃鹫羽毛": -1,
+                        "穿山甲鳞片": -1,
+                        "米": "{米}",
+                        "维生素B浓缩液": -1,
+                        "肉桂": "{肉桂}",
+                        "胡椒": "{胡椒}",
+                        "胡萝卜": "{胡萝卜}",
+                        "能量粉末": -1,
+                        "能量药水": -1,
+                        "能量蘑菇": -1,
+                        "芥末": "{芥末}",
+                        "苹果": "{苹果}",
+                        "萝卜缨": "{萝卜缨}",
+                        "葡萄": "{葡萄}",
+                        "藏红花": "{藏红花}",
+                        "蘑菇": "{蘑菇}",
+                        "虾": "{虾}",
+                        "蛋黄酱": "{蛋黄酱}",
+                        "蜂蜜": "{蜂蜜}",
+                        "袋装鸡胸肉": "{袋装鸡胸肉}",
+                        "西蓝花": "{西蓝花}",
+                        "调味海苔": "{调味海苔}",
+                        "豆子": "{豆子}",
+                        "辣椒": "{辣椒}",
+                        "辣椒素": "{辣椒素}",
+                        "透明蘑菇": -1,
+                        "金枪鱼罐头": "{金枪鱼罐头}",
+                        "闪光粉末": -1,
+                        "雷瓦汀火腿": "{雷瓦汀火腿}",
+                        "香草": "{香草}",
+                        "魅惑粉末": -1,
+                        "鱼子酱罐头": "{鱼子酱罐头}",
+                        "鸡蛋": "{鸡蛋}",
+                        "黄油": "{黄油}",
+                        "黄金罗勒": -1
+                    }
+                }
+            }
+        },
+        "采购自选-S1": {
+            "label": "血骑士：使用自选清单",
+            "type": "switch",
+            "default_case": "No",
+            "description": "关闭使用推荐方案；开启后只购买勾选商品。全部取消会清空本卡带收藏。",
+            "cases": [
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S1": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "采购商品-S1"
+                    ]
+                },
+                {
+                    "name": "No",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S1": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "采购商品-S1": {
+            "label": "血骑士：购买商品",
+            "type": "checkbox",
+            "default_case": [
+                "小麦",
+                "樱桃",
+                "甜辣酱",
+                "米",
+                "胡萝卜",
+                "蘑菇"
+            ],
+            "description": "初始勾选为推荐方案，可自行增减。仅控制②常规采购，不限制③缺料补买。",
+            "cases": [
+                {
+                    "name": "蘑菇",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S1": {
+                            "attach": {
+                                "蘑菇": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "胡萝卜",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S1": {
+                            "attach": {
+                                "胡萝卜": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "小麦",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S1": {
+                            "attach": {
+                                "小麦": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "米",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S1": {
+                            "attach": {
+                                "米": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "甜辣酱",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S1": {
+                            "attach": {
+                                "甜辣酱": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "甜椒",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S1": {
+                            "attach": {
+                                "甜椒": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "樱桃",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S1": {
+                            "attach": {
+                                "樱桃": true
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        "采购自选-S2": {
+            "label": "苍蓝魔女：使用自选清单",
+            "type": "switch",
+            "default_case": "No",
+            "description": "关闭使用推荐方案；开启后只购买勾选商品。全部取消会清空本卡带收藏。",
+            "cases": [
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S2": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "采购商品-S2"
+                    ]
+                },
+                {
+                    "name": "No",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S2": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "采购商品-S2": {
+            "label": "苍蓝魔女：购买商品",
+            "type": "checkbox",
+            "default_case": [
+                "啤酒花",
+                "大麦",
+                "小麦",
+                "牛奶",
+                "白糖",
+                "鸡蛋",
+                "黄油"
+            ],
+            "description": "初始勾选为推荐方案，可自行增减。仅控制②常规采购，不限制③缺料补买。",
+            "cases": [
+                {
+                    "name": "土豆",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S2": {
+                            "attach": {
+                                "土豆": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "大麦",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S2": {
+                            "attach": {
+                                "大麦": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "黄油",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S2": {
+                            "attach": {
+                                "黄油": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "啤酒花",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S2": {
+                            "attach": {
+                                "啤酒花": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "牛奶",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S2": {
+                            "attach": {
+                                "牛奶": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "白糖",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S2": {
+                            "attach": {
+                                "白糖": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "小麦",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S2": {
+                            "attach": {
+                                "小麦": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "鸡蛋",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S2": {
+                            "attach": {
+                                "鸡蛋": true
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        "采购自选-S3": {
+            "label": "迷雾神射手：使用自选清单",
+            "type": "switch",
+            "default_case": "No",
+            "description": "关闭使用推荐方案；开启后只购买勾选商品。全部取消会清空本卡带收藏。",
+            "cases": [
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S3": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "采购商品-S3"
+                    ]
+                },
+                {
+                    "name": "No",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S3": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "采购商品-S3": {
+            "label": "迷雾神射手：购买商品",
+            "type": "checkbox",
+            "default_case": [
+                "白糖",
+                "苹果",
+                "葡萄",
+                "蜂蜜",
+                "黄油"
+            ],
+            "description": "初始勾选为推荐方案，可自行增减。仅控制②常规采购，不限制③缺料补买。",
+            "cases": [
+                {
+                    "name": "苹果",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S3": {
+                            "attach": {
+                                "苹果": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "葡萄",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S3": {
+                            "attach": {
+                                "葡萄": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "虾",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S3": {
+                            "attach": {
+                                "虾": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "蜂蜜",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S3": {
+                            "attach": {
+                                "蜂蜜": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "白糖",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S3": {
+                            "attach": {
+                                "白糖": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "香草",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S3": {
+                            "attach": {
+                                "香草": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "蘑菇",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S3": {
+                            "attach": {
+                                "蘑菇": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "土豆",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S3": {
+                            "attach": {
+                                "土豆": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "番茄",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S3": {
+                            "attach": {
+                                "番茄": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "黄油",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S3": {
+                            "attach": {
+                                "黄油": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "橄榄油",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S3": {
+                            "attach": {
+                                "橄榄油": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "初级天赋技能书",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S3": {
+                            "attach": {
+                                "初级天赋技能书": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "进阶天赋技能书",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S3": {
+                            "attach": {
+                                "进阶天赋技能书": true
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        "采购自选-S4": {
+            "label": "眼镜与猫：使用自选清单",
+            "type": "switch",
+            "default_case": "No",
+            "description": "关闭使用推荐方案；开启后只购买勾选商品。全部取消会清空本卡带收藏。",
+            "cases": [
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S4": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "采购商品-S4"
+                    ]
+                },
+                {
+                    "name": "No",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S4": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "采购商品-S4": {
+            "label": "眼镜与猫：购买商品",
+            "type": "checkbox",
+            "default_case": [
+                "三文鱼",
+                "咖啡豆",
+                "小麦",
+                "洋葱",
+                "牛奶",
+                "米",
+                "香草"
+            ],
+            "description": "初始勾选为推荐方案，可自行增减。仅控制②常规采购，不限制③缺料补买。",
+            "cases": [
+                {
+                    "name": "咖啡豆",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S4": {
+                            "attach": {
+                                "咖啡豆": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "三文鱼",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S4": {
+                            "attach": {
+                                "三文鱼": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "番茄",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S4": {
+                            "attach": {
+                                "番茄": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "豆子",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S4": {
+                            "attach": {
+                                "豆子": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "牛奶",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S4": {
+                            "attach": {
+                                "牛奶": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "橄榄油",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S4": {
+                            "attach": {
+                                "橄榄油": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "香草",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S4": {
+                            "attach": {
+                                "香草": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "洋葱",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S4": {
+                            "attach": {
+                                "洋葱": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "米",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S4": {
+                            "attach": {
+                                "米": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "小麦",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S4": {
+                            "attach": {
+                                "小麦": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "甜椒",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S4": {
+                            "attach": {
+                                "甜椒": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "甜辣酱",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S4": {
+                            "attach": {
+                                "甜辣酱": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "凯洛药材",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S4": {
+                            "attach": {
+                                "凯洛药材": true
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        "采购自选-S5": {
+            "label": "沙漠之花：使用自选清单",
+            "type": "switch",
+            "default_case": "No",
+            "description": "关闭使用推荐方案；开启后只购买勾选商品。全部取消会清空本卡带收藏。",
+            "cases": [
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S5": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "采购商品-S5"
+                    ]
+                },
+                {
+                    "name": "No",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S5": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "采购商品-S5": {
+            "label": "沙漠之花：购买商品",
+            "type": "checkbox",
+            "default_case": [
+                "哈密瓜",
+                "白糖",
+                "藏红花"
+            ],
+            "description": "初始勾选为推荐方案，可自行增减。仅控制②常规采购，不限制③缺料补买。",
+            "cases": [
+                {
+                    "name": "哈密瓜",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S5": {
+                            "attach": {
+                                "哈密瓜": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "苹果",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S5": {
+                            "attach": {
+                                "苹果": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "白糖",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S5": {
+                            "attach": {
+                                "白糖": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "葡萄",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S5": {
+                            "attach": {
+                                "葡萄": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "香草",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S5": {
+                            "attach": {
+                                "香草": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "盐",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S5": {
+                            "attach": {
+                                "盐": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "藏红花",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S5": {
+                            "attach": {
+                                "藏红花": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "姜黄",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S5": {
+                            "attach": {
+                                "姜黄": true
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        "采购自选-S6": {
+            "label": "异教塔：使用自选清单",
+            "type": "switch",
+            "default_case": "No",
+            "description": "关闭使用推荐方案；开启后只购买勾选商品。全部取消会清空本卡带收藏。",
+            "cases": [
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S6": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "采购商品-S6"
+                    ]
+                },
+                {
+                    "name": "No",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S6": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "采购商品-S6": {
+            "label": "异教塔：购买商品",
+            "type": "checkbox",
+            "default_case": [
+                "奶酪",
+                "小麦",
+                "洋葱",
+                "甜椒",
+                "米",
+                "鸡蛋"
+            ],
+            "description": "初始勾选为推荐方案，可自行增减。仅控制②常规采购，不限制③缺料补买。",
+            "cases": [
+                {
+                    "name": "洋葱",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S6": {
+                            "attach": {
+                                "洋葱": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "米",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S6": {
+                            "attach": {
+                                "米": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "甜椒",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S6": {
+                            "attach": {
+                                "甜椒": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "奶酪",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S6": {
+                            "attach": {
+                                "奶酪": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "香草",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S6": {
+                            "attach": {
+                                "香草": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "鸡蛋",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S6": {
+                            "attach": {
+                                "鸡蛋": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "小麦",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S6": {
+                            "attach": {
+                                "小麦": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "橄榄油",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S6": {
+                            "attach": {
+                                "橄榄油": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "藏红花",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S6": {
+                            "attach": {
+                                "藏红花": true
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        "采购自选-S7": {
+            "label": "愤怒天使：使用自选清单",
+            "type": "switch",
+            "default_case": "No",
+            "description": "关闭使用推荐方案；开启后只购买勾选商品。全部取消会清空本卡带收藏。",
+            "cases": [
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S7": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "采购商品-S7"
+                    ]
+                },
+                {
+                    "name": "No",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S7": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "采购商品-S7": {
+            "label": "愤怒天使：购买商品",
+            "type": "checkbox",
+            "default_case": [
+                "三文鱼",
+                "奶酪",
+                "小麦",
+                "番茄",
+                "米",
+                "芥末",
+                "萝卜缨"
+            ],
+            "description": "初始勾选为推荐方案，可自行增减。仅控制②常规采购，不限制③缺料补买。",
+            "cases": [
+                {
+                    "name": "三文鱼",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S7": {
+                            "attach": {
+                                "三文鱼": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "小麦",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S7": {
+                            "attach": {
+                                "小麦": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "番茄",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S7": {
+                            "attach": {
+                                "番茄": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "芥末",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S7": {
+                            "attach": {
+                                "芥末": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "吐司",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S7": {
+                            "attach": {
+                                "吐司": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "米",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S7": {
+                            "attach": {
+                                "米": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "奶酪",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S7": {
+                            "attach": {
+                                "奶酪": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "萝卜缨",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S7": {
+                            "attach": {
+                                "萝卜缨": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "雷瓦汀火腿",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S7": {
+                            "attach": {
+                                "雷瓦汀火腿": true
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        "采购自选-S8": {
+            "label": "血之狂想曲：使用自选清单",
+            "type": "switch",
+            "default_case": "No",
+            "description": "关闭使用推荐方案；开启后只购买勾选商品。全部取消会清空本卡带收藏。",
+            "cases": [
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S8": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "采购商品-S8"
+                    ]
+                },
+                {
+                    "name": "No",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S8": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "采购商品-S8": {
+            "label": "血之狂想曲：购买商品",
+            "type": "checkbox",
+            "default_case": [
+                "大蒜",
+                "奶酪",
+                "小麦",
+                "料酒",
+                "洋葱",
+                "玉米",
+                "豆子"
+            ],
+            "description": "初始勾选为推荐方案，可自行增减。仅控制②常规采购，不限制③缺料补买。",
+            "cases": [
+                {
+                    "name": "玉米",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S8": {
+                            "attach": {
+                                "玉米": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "豆子",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S8": {
+                            "attach": {
+                                "豆子": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "土豆",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S8": {
+                            "attach": {
+                                "土豆": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "三文鱼",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S8": {
+                            "attach": {
+                                "三文鱼": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "奶酪",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S8": {
+                            "attach": {
+                                "奶酪": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "小麦",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S8": {
+                            "attach": {
+                                "小麦": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "洋葱",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S8": {
+                            "attach": {
+                                "洋葱": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "料酒",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S8": {
+                            "attach": {
+                                "料酒": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "橄榄油",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S8": {
+                            "attach": {
+                                "橄榄油": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "胡萝卜",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S8": {
+                            "attach": {
+                                "胡萝卜": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "甜椒",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S8": {
+                            "attach": {
+                                "甜椒": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "萝卜缨",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S8": {
+                            "attach": {
+                                "萝卜缨": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "大蒜",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S8": {
+                            "attach": {
+                                "大蒜": true
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        "采购自选-S9": {
+            "label": "铁假面：使用自选清单",
+            "type": "switch",
+            "default_case": "No",
+            "description": "关闭使用推荐方案；开启后只购买勾选商品。全部取消会清空本卡带收藏。",
+            "cases": [
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S9": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "采购商品-S9"
+                    ]
+                },
+                {
+                    "name": "No",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S9": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "采购商品-S9": {
+            "label": "铁假面：购买商品",
+            "type": "checkbox",
+            "default_case": [],
+            "description": "初始勾选为推荐方案，可自行增减。仅控制②常规采购，不限制③缺料补买。",
+            "cases": [
+                {
+                    "name": "虾",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S9": {
+                            "attach": {
+                                "虾": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "土豆",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S9": {
+                            "attach": {
+                                "土豆": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "西蓝花",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S9": {
+                            "attach": {
+                                "西蓝花": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "小麦",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S9": {
+                            "attach": {
+                                "小麦": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "胡萝卜",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S9": {
+                            "attach": {
+                                "胡萝卜": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "盐",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S9": {
+                            "attach": {
+                                "盐": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "料酒",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S9": {
+                            "attach": {
+                                "料酒": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "甜辣酱",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S9": {
+                            "attach": {
+                                "甜辣酱": true
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        "采购自选-S10": {
+            "label": "霍尔蒙克斯：使用自选清单",
+            "type": "switch",
+            "default_case": "No",
+            "description": "关闭使用推荐方案；开启后只购买勾选商品。全部取消会清空本卡带收藏。",
+            "cases": [
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S10": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "采购商品-S10"
+                    ]
+                },
+                {
+                    "name": "No",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S10": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "采购商品-S10": {
+            "label": "霍尔蒙克斯：购买商品",
+            "type": "checkbox",
+            "default_case": [
+                "杏仁",
+                "白糖",
+                "肉桂",
+                "黄油"
+            ],
+            "description": "初始勾选为推荐方案，可自行增减。仅控制②常规采购，不限制③缺料补买。",
+            "cases": [
+                {
+                    "name": "杏仁",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S10": {
+                            "attach": {
+                                "杏仁": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "袋装鸡胸肉",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S10": {
+                            "attach": {
+                                "袋装鸡胸肉": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "葡萄",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S10": {
+                            "attach": {
+                                "葡萄": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "蜂蜜",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S10": {
+                            "attach": {
+                                "蜂蜜": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "蘑菇",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S10": {
+                            "attach": {
+                                "蘑菇": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "香草",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S10": {
+                            "attach": {
+                                "香草": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "黄油",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S10": {
+                            "attach": {
+                                "黄油": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "盐",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S10": {
+                            "attach": {
+                                "盐": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "凯洛药材",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S10": {
+                            "attach": {
+                                "凯洛药材": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "白糖",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S10": {
+                            "attach": {
+                                "白糖": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "肉桂",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S10": {
+                            "attach": {
+                                "肉桂": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "高手天赋技能书",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S10": {
+                            "attach": {
+                                "高手天赋技能书": true
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        "采购自选-S11": {
+            "label": "虚假游戏：使用自选清单",
+            "type": "switch",
+            "default_case": "No",
+            "description": "关闭使用推荐方案；开启后只购买勾选商品。全部取消会清空本卡带收藏。",
+            "cases": [
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S11": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "采购商品-S11"
+                    ]
+                },
+                {
+                    "name": "No",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S11": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "采购商品-S11": {
+            "label": "虚假游戏：购买商品",
+            "type": "checkbox",
+            "default_case": [
+                "奶酪",
+                "小麦",
+                "樱桃",
+                "橄榄油",
+                "洋葱",
+                "甜椒",
+                "米",
+                "香草",
+                "鸡蛋"
+            ],
+            "description": "初始勾选为推荐方案，可自行增减。仅控制②常规采购，不限制③缺料补买。",
+            "cases": [
+                {
+                    "name": "洋葱",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S11": {
+                            "attach": {
+                                "洋葱": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "米",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S11": {
+                            "attach": {
+                                "米": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "甜椒",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S11": {
+                            "attach": {
+                                "甜椒": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "奶酪",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S11": {
+                            "attach": {
+                                "奶酪": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "香草",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S11": {
+                            "attach": {
+                                "香草": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "鸡蛋",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S11": {
+                            "attach": {
+                                "鸡蛋": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "小麦",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S11": {
+                            "attach": {
+                                "小麦": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "橄榄油",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S11": {
+                            "attach": {
+                                "橄榄油": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "藏红花",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S11": {
+                            "attach": {
+                                "藏红花": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "樱桃",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S11": {
+                            "attach": {
+                                "樱桃": true
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        "采购自选-S12": {
+            "label": "黑羽毛：使用自选清单",
+            "type": "switch",
+            "default_case": "No",
+            "description": "关闭使用推荐方案；开启后只购买勾选商品。全部取消会清空本卡带收藏。",
+            "cases": [
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S12": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "采购商品-S12"
+                    ]
+                },
+                {
+                    "name": "No",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S12": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "采购商品-S12": {
+            "label": "黑羽毛：购买商品",
+            "type": "checkbox",
+            "default_case": [
+                "三文鱼",
+                "咖啡豆",
+                "大蒜",
+                "小麦",
+                "洋葱",
+                "牛奶",
+                "米",
+                "胡椒",
+                "香草"
+            ],
+            "description": "初始勾选为推荐方案，可自行增减。仅控制②常规采购，不限制③缺料补买。",
+            "cases": [
+                {
+                    "name": "咖啡豆",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S12": {
+                            "attach": {
+                                "咖啡豆": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "三文鱼",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S12": {
+                            "attach": {
+                                "三文鱼": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "番茄",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S12": {
+                            "attach": {
+                                "番茄": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "豆子",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S12": {
+                            "attach": {
+                                "豆子": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "牛奶",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S12": {
+                            "attach": {
+                                "牛奶": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "橄榄油",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S12": {
+                            "attach": {
+                                "橄榄油": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "香草",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S12": {
+                            "attach": {
+                                "香草": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "洋葱",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S12": {
+                            "attach": {
+                                "洋葱": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "米",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S12": {
+                            "attach": {
+                                "米": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "小麦",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S12": {
+                            "attach": {
+                                "小麦": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "甜椒",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S12": {
+                            "attach": {
+                                "甜椒": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "甜辣酱",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S12": {
+                            "attach": {
+                                "甜辣酱": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "凯洛药材",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S12": {
+                            "attach": {
+                                "凯洛药材": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "大蒜",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S12": {
+                            "attach": {
+                                "大蒜": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "胡椒",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S12": {
+                            "attach": {
+                                "胡椒": true
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        "采购自选-S13": {
+            "label": "雪之歌：使用自选清单",
+            "type": "switch",
+            "default_case": "No",
+            "description": "关闭使用推荐方案；开启后只购买勾选商品。全部取消会清空本卡带收藏。",
+            "cases": [
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S13": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "采购商品-S13"
+                    ]
+                },
+                {
+                    "name": "No",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S13": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "采购商品-S13": {
+            "label": "雪之歌：购买商品",
+            "type": "checkbox",
+            "default_case": [
+                "橄榄油",
+                "白糖",
+                "苹果",
+                "葡萄",
+                "蜂蜜",
+                "黄油"
+            ],
+            "description": "初始勾选为推荐方案，可自行增减。仅控制②常规采购，不限制③缺料补买。",
+            "cases": [
+                {
+                    "name": "苹果",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S13": {
+                            "attach": {
+                                "苹果": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "葡萄",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S13": {
+                            "attach": {
+                                "葡萄": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "虾",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S13": {
+                            "attach": {
+                                "虾": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "蜂蜜",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S13": {
+                            "attach": {
+                                "蜂蜜": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "白糖",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S13": {
+                            "attach": {
+                                "白糖": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "香草",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S13": {
+                            "attach": {
+                                "香草": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "蘑菇",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S13": {
+                            "attach": {
+                                "蘑菇": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "土豆",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S13": {
+                            "attach": {
+                                "土豆": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "番茄",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S13": {
+                            "attach": {
+                                "番茄": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "黄油",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S13": {
+                            "attach": {
+                                "黄油": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "橄榄油",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S13": {
+                            "attach": {
+                                "橄榄油": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "初级天赋技能书",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S13": {
+                            "attach": {
+                                "初级天赋技能书": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "进阶天赋技能书",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S13": {
+                            "attach": {
+                                "进阶天赋技能书": true
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        "采购自选-S14": {
+            "label": "神圣审判：使用自选清单",
+            "type": "switch",
+            "default_case": "No",
+            "description": "关闭使用推荐方案；开启后只购买勾选商品。全部取消会清空本卡带收藏。",
+            "cases": [
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S14": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "采购商品-S14"
+                    ]
+                },
+                {
+                    "name": "No",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S14": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "采购商品-S14": {
+            "label": "神圣审判：购买商品",
+            "type": "checkbox",
+            "default_case": [
+                "杏仁",
+                "生蚝",
+                "白糖",
+                "黄油"
+            ],
+            "description": "初始勾选为推荐方案，可自行增减。仅控制②常规采购，不限制③缺料补买。",
+            "cases": [
+                {
+                    "name": "杏仁",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S14": {
+                            "attach": {
+                                "杏仁": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "袋装鸡胸肉",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S14": {
+                            "attach": {
+                                "袋装鸡胸肉": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "葡萄",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S14": {
+                            "attach": {
+                                "葡萄": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "蜂蜜",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S14": {
+                            "attach": {
+                                "蜂蜜": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "蘑菇",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S14": {
+                            "attach": {
+                                "蘑菇": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "香草",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S14": {
+                            "attach": {
+                                "香草": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "黄油",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S14": {
+                            "attach": {
+                                "黄油": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "盐",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S14": {
+                            "attach": {
+                                "盐": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "凯洛药材",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S14": {
+                            "attach": {
+                                "凯洛药材": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "白糖",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S14": {
+                            "attach": {
+                                "白糖": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "生蚝",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S14": {
+                            "attach": {
+                                "生蚝": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "高手天赋技能书",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S14": {
+                            "attach": {
+                                "高手天赋技能书": true
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        "采购自选-S15": {
+            "label": "复仇的誓言：使用自选清单",
+            "type": "switch",
+            "default_case": "No",
+            "description": "关闭使用推荐方案；开启后只购买勾选商品。全部取消会清空本卡带收藏。",
+            "cases": [
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S15": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "采购商品-S15"
+                    ]
+                },
+                {
+                    "name": "No",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S15": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "采购商品-S15": {
+            "label": "复仇的誓言：购买商品",
+            "type": "checkbox",
+            "default_case": [
+                "洋葱",
+                "番茄",
+                "胡萝卜",
+                "芥末",
+                "苹果",
+                "香草"
+            ],
+            "description": "初始勾选为推荐方案，可自行增减。仅控制②常规采购，不限制③缺料补买。",
+            "cases": [
+                {
+                    "name": "蘑菇",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S15": {
+                            "attach": {
+                                "蘑菇": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "胡萝卜",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S15": {
+                            "attach": {
+                                "胡萝卜": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "苹果",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S15": {
+                            "attach": {
+                                "苹果": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "香草",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S15": {
+                            "attach": {
+                                "香草": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "洋葱",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S15": {
+                            "attach": {
+                                "洋葱": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "番茄",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S15": {
+                            "attach": {
+                                "番茄": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "芥末",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S15": {
+                            "attach": {
+                                "芥末": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "甜椒",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S15": {
+                            "attach": {
+                                "甜椒": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "甜辣酱",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S15": {
+                            "attach": {
+                                "甜辣酱": true
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        "采购自选-S16": {
+            "label": "三国同盟：使用自选清单",
+            "type": "switch",
+            "default_case": "No",
+            "description": "关闭使用推荐方案；开启后只购买勾选商品。全部取消会清空本卡带收藏。",
+            "cases": [
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S16": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "采购商品-S16"
+                    ]
+                },
+                {
+                    "name": "No",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S16": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "采购商品-S16": {
+            "label": "三国同盟：购买商品",
+            "type": "checkbox",
+            "default_case": [
+                "三文鱼",
+                "咖啡豆",
+                "奶酪",
+                "料酒",
+                "生蚝",
+                "白糖",
+                "盐",
+                "虾"
+            ],
+            "description": "初始勾选为推荐方案，可自行增减。仅控制②常规采购，不限制③缺料补买。",
+            "cases": [
+                {
+                    "name": "虾",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S16": {
+                            "attach": {
+                                "虾": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "三文鱼",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S16": {
+                            "attach": {
+                                "三文鱼": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "盐",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S16": {
+                            "attach": {
+                                "盐": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "料酒",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S16": {
+                            "attach": {
+                                "料酒": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "奶酪",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S16": {
+                            "attach": {
+                                "奶酪": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "咖啡豆",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S16": {
+                            "attach": {
+                                "咖啡豆": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "藏红花",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S16": {
+                            "attach": {
+                                "藏红花": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "白糖",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S16": {
+                            "attach": {
+                                "白糖": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "姜黄",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S16": {
+                            "attach": {
+                                "姜黄": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "生蚝",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S16": {
+                            "attach": {
+                                "生蚝": true
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        "采购自选-S17": {
+            "label": "试炼之路：使用自选清单",
+            "type": "switch",
+            "default_case": "No",
+            "description": "关闭使用推荐方案；开启后只购买勾选商品。全部取消会清空本卡带收藏。",
+            "cases": [
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S17": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "采购商品-S17"
+                    ]
+                },
+                {
+                    "name": "No",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S17": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "采购商品-S17": {
+            "label": "试炼之路：购买商品",
+            "type": "checkbox",
+            "default_case": [
+                "啤酒花",
+                "小麦",
+                "杏仁",
+                "白糖",
+                "盐",
+                "米"
+            ],
+            "description": "初始勾选为推荐方案，可自行增减。仅控制②常规采购，不限制③缺料补买。",
+            "cases": [
+                {
+                    "name": "杏仁",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S17": {
+                            "attach": {
+                                "杏仁": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "豆子",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S17": {
+                            "attach": {
+                                "豆子": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "啤酒花",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S17": {
+                            "attach": {
+                                "啤酒花": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "盐",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S17": {
+                            "attach": {
+                                "盐": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "白糖",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S17": {
+                            "attach": {
+                                "白糖": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "小麦",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S17": {
+                            "attach": {
+                                "小麦": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "米",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S17": {
+                            "attach": {
+                                "米": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "凯洛药材",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S17": {
+                            "attach": {
+                                "凯洛药材": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "初级天赋技能书",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S17": {
+                            "attach": {
+                                "初级天赋技能书": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "进阶天赋技能书",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S17": {
+                            "attach": {
+                                "进阶天赋技能书": true
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        "采购自选-S18": {
+            "label": "救赎：使用自选清单",
+            "type": "switch",
+            "default_case": "No",
+            "description": "关闭使用推荐方案；开启后只购买勾选商品。全部取消会清空本卡带收藏。",
+            "cases": [
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S18": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "采购商品-S18"
+                    ]
+                },
+                {
+                    "name": "No",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S18": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "采购商品-S18": {
+            "label": "救赎：购买商品",
+            "type": "checkbox",
+            "default_case": [
+                "大麦",
+                "小麦",
+                "牛奶",
+                "玉米",
+                "米",
+                "苹果",
+                "鸡蛋"
+            ],
+            "description": "初始勾选为推荐方案，可自行增减。仅控制②常规采购，不限制③缺料补买。",
+            "cases": [
+                {
+                    "name": "玉米",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S18": {
+                            "attach": {
+                                "玉米": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "土豆",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S18": {
+                            "attach": {
+                                "土豆": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "苹果",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S18": {
+                            "attach": {
+                                "苹果": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "鸡蛋",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S18": {
+                            "attach": {
+                                "鸡蛋": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "小麦",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S18": {
+                            "attach": {
+                                "小麦": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "米",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S18": {
+                            "attach": {
+                                "米": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "大麦",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S18": {
+                            "attach": {
+                                "大麦": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "牛奶",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S18": {
+                            "attach": {
+                                "牛奶": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "吐司",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S18": {
+                            "attach": {
+                                "吐司": true
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        "采购自选-S19": {
+            "label": "被遗忘的战争：使用自选清单",
+            "type": "switch",
+            "default_case": "No",
+            "description": "关闭使用推荐方案；开启后只购买勾选商品。全部取消会清空本卡带收藏。",
+            "cases": [
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S19": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "采购商品-S19"
+                    ]
+                },
+                {
+                    "name": "No",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S19": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "采购商品-S19": {
+            "label": "被遗忘的战争：购买商品",
+            "type": "checkbox",
+            "default_case": [
+                "咖啡豆",
+                "奶酪",
+                "白糖",
+                "盐",
+                "香草",
+                "黄油"
+            ],
+            "description": "初始勾选为推荐方案，可自行增减。仅控制②常规采购，不限制③缺料补买。",
+            "cases": [
+                {
+                    "name": "盐",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S19": {
+                            "attach": {
+                                "盐": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "咖啡豆",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S19": {
+                            "attach": {
+                                "咖啡豆": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "藏红花",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S19": {
+                            "attach": {
+                                "藏红花": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "黄油",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S19": {
+                            "attach": {
+                                "黄油": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "白糖",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S19": {
+                            "attach": {
+                                "白糖": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "奶酪",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S19": {
+                            "attach": {
+                                "奶酪": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "香草",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S19": {
+                            "attach": {
+                                "香草": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "葡萄",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S19": {
+                            "attach": {
+                                "葡萄": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "高手天赋技能书",
+                    "pipeline_override": {
+                        "Agt_BuySelect_S19": {
+                            "attach": {
+                                "高手天赋技能书": true
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        "采购自选-R1": {
+            "label": "杰登之门：使用自选清单",
+            "type": "switch",
+            "default_case": "No",
+            "description": "关闭使用推荐方案；开启后只购买勾选商品。全部取消会清空本卡带收藏。",
+            "cases": [
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "Agt_BuySelect_R1": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "采购商品-R1"
+                    ]
+                },
+                {
+                    "name": "No",
+                    "pipeline_override": {
+                        "Agt_BuySelect_R1": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "采购商品-R1": {
+            "label": "杰登之门：购买商品",
+            "type": "checkbox",
+            "default_case": [
+                "吐司",
+                "巧克力",
+                "牛奶",
+                "金枪鱼罐头",
+                "鸡蛋",
+                "黄油"
+            ],
+            "description": "初始勾选为推荐方案，可自行增减。仅控制②常规采购，不限制③缺料补买。",
+            "cases": [
+                {
+                    "name": "巧克力",
+                    "pipeline_override": {
+                        "Agt_BuySelect_R1": {
+                            "attach": {
+                                "巧克力": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "金枪鱼罐头",
+                    "pipeline_override": {
+                        "Agt_BuySelect_R1": {
+                            "attach": {
+                                "金枪鱼罐头": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "吐司",
+                    "pipeline_override": {
+                        "Agt_BuySelect_R1": {
+                            "attach": {
+                                "吐司": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "袋装鸡胸肉",
+                    "pipeline_override": {
+                        "Agt_BuySelect_R1": {
+                            "attach": {
+                                "袋装鸡胸肉": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "牛奶",
+                    "pipeline_override": {
+                        "Agt_BuySelect_R1": {
+                            "attach": {
+                                "牛奶": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "黄油",
+                    "pipeline_override": {
+                        "Agt_BuySelect_R1": {
+                            "attach": {
+                                "黄油": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "鸡蛋",
+                    "pipeline_override": {
+                        "Agt_BuySelect_R1": {
+                            "attach": {
+                                "鸡蛋": true
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        "采购自选-R2": {
+            "label": "火晶片：使用自选清单",
+            "type": "switch",
+            "default_case": "No",
+            "description": "关闭使用推荐方案；开启后只购买勾选商品。全部取消会清空本卡带收藏。",
+            "cases": [
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "Agt_BuySelect_R2": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "采购商品-R2"
+                    ]
+                },
+                {
+                    "name": "No",
+                    "pipeline_override": {
+                        "Agt_BuySelect_R2": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "采购商品-R2": {
+            "label": "火晶片：购买商品",
+            "type": "checkbox",
+            "default_case": [
+                "巧克力",
+                "水果罐头",
+                "牛奶",
+                "白糖",
+                "辣椒",
+                "辣椒素"
+            ],
+            "description": "初始勾选为推荐方案，可自行增减。仅控制②常规采购，不限制③缺料补买。",
+            "cases": [
+                {
+                    "name": "水果罐头",
+                    "pipeline_override": {
+                        "Agt_BuySelect_R2": {
+                            "attach": {
+                                "水果罐头": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "辣椒",
+                    "pipeline_override": {
+                        "Agt_BuySelect_R2": {
+                            "attach": {
+                                "辣椒": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "白糖",
+                    "pipeline_override": {
+                        "Agt_BuySelect_R2": {
+                            "attach": {
+                                "白糖": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "雷瓦汀火腿",
+                    "pipeline_override": {
+                        "Agt_BuySelect_R2": {
+                            "attach": {
+                                "雷瓦汀火腿": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "巧克力",
+                    "pipeline_override": {
+                        "Agt_BuySelect_R2": {
+                            "attach": {
+                                "巧克力": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "辣椒素",
+                    "pipeline_override": {
+                        "Agt_BuySelect_R2": {
+                            "attach": {
+                                "辣椒素": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "牛奶",
+                    "pipeline_override": {
+                        "Agt_BuySelect_R2": {
+                            "attach": {
+                                "牛奶": true
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        "采购自选-R3": {
+            "label": "美丽无望：使用自选清单",
+            "type": "switch",
+            "default_case": "No",
+            "description": "关闭使用推荐方案；开启后只购买勾选商品。全部取消会清空本卡带收藏。",
+            "cases": [
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "Agt_BuySelect_R3": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "采购商品-R3"
+                    ]
+                },
+                {
+                    "name": "No",
+                    "pipeline_override": {
+                        "Agt_BuySelect_R3": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "采购商品-R3": {
+            "label": "美丽无望：购买商品",
+            "type": "checkbox",
+            "default_case": [
+                "奶酪",
+                "巧克力",
+                "牛奶",
+                "白糖",
+                "鱼子酱罐头",
+                "鸡蛋",
+                "黄油"
+            ],
+            "description": "初始勾选为推荐方案，可自行增减。仅控制②常规采购，不限制③缺料补买。",
+            "cases": [
+                {
+                    "name": "巧克力",
+                    "pipeline_override": {
+                        "Agt_BuySelect_R3": {
+                            "attach": {
+                                "巧克力": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "鱼子酱罐头",
+                    "pipeline_override": {
+                        "Agt_BuySelect_R3": {
+                            "attach": {
+                                "鱼子酱罐头": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "土豆",
+                    "pipeline_override": {
+                        "Agt_BuySelect_R3": {
+                            "attach": {
+                                "土豆": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "白糖",
+                    "pipeline_override": {
+                        "Agt_BuySelect_R3": {
+                            "attach": {
+                                "白糖": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "牛奶",
+                    "pipeline_override": {
+                        "Agt_BuySelect_R3": {
+                            "attach": {
+                                "牛奶": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "鸡蛋",
+                    "pipeline_override": {
+                        "Agt_BuySelect_R3": {
+                            "attach": {
+                                "鸡蛋": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "黄油",
+                    "pipeline_override": {
+                        "Agt_BuySelect_R3": {
+                            "attach": {
+                                "黄油": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "盐",
+                    "pipeline_override": {
+                        "Agt_BuySelect_R3": {
+                            "attach": {
+                                "盐": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "奶酪",
+                    "pipeline_override": {
+                        "Agt_BuySelect_R3": {
+                            "attach": {
+                                "奶酪": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "松露油",
+                    "pipeline_override": {
+                        "Agt_BuySelect_R3": {
+                            "attach": {
+                                "松露油": true
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        "采购自选-R4": {
+            "label": "大逃脱：使用自选清单",
+            "type": "switch",
+            "default_case": "No",
+            "description": "关闭使用推荐方案；开启后只购买勾选商品。全部取消会清空本卡带收藏。",
+            "cases": [
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "Agt_BuySelect_R4": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "采购商品-R4"
+                    ]
+                },
+                {
+                    "name": "No",
+                    "pipeline_override": {
+                        "Agt_BuySelect_R4": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "采购商品-R4": {
+            "label": "大逃脱：购买商品",
+            "type": "checkbox",
+            "default_case": [
+                "小麦",
+                "甜椒",
+                "米",
+                "蛋黄酱",
+                "袋装鸡胸肉",
+                "调味海苔",
+                "辣椒",
+                "辣椒素"
+            ],
+            "description": "初始勾选为推荐方案，可自行增减。仅控制②常规采购，不限制③缺料补买。",
+            "cases": [
+                {
+                    "name": "米",
+                    "pipeline_override": {
+                        "Agt_BuySelect_R4": {
+                            "attach": {
+                                "米": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "袋装鸡胸肉",
+                    "pipeline_override": {
+                        "Agt_BuySelect_R4": {
+                            "attach": {
+                                "袋装鸡胸肉": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "调味海苔",
+                    "pipeline_override": {
+                        "Agt_BuySelect_R4": {
+                            "attach": {
+                                "调味海苔": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "甜椒",
+                    "pipeline_override": {
+                        "Agt_BuySelect_R4": {
+                            "attach": {
+                                "甜椒": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "辣椒",
+                    "pipeline_override": {
+                        "Agt_BuySelect_R4": {
+                            "attach": {
+                                "辣椒": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "蛋黄酱",
+                    "pipeline_override": {
+                        "Agt_BuySelect_R4": {
+                            "attach": {
+                                "蛋黄酱": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "小麦",
+                    "pipeline_override": {
+                        "Agt_BuySelect_R4": {
+                            "attach": {
+                                "小麦": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "辣椒素",
+                    "pipeline_override": {
+                        "Agt_BuySelect_R4": {
+                            "attach": {
+                                "辣椒素": true
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        "采购自选-R5": {
+            "label": "鲁的迷宫：使用自选清单",
+            "type": "switch",
+            "default_case": "No",
+            "description": "关闭使用推荐方案；开启后只购买勾选商品。全部取消会清空本卡带收藏。",
+            "cases": [
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "Agt_BuySelect_R5": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "采购商品-R5"
+                    ]
+                },
+                {
+                    "name": "No",
+                    "pipeline_override": {
+                        "Agt_BuySelect_R5": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "采购商品-R5": {
+            "label": "鲁的迷宫：购买商品",
+            "type": "checkbox",
+            "default_case": [
+                "橄榄油",
+                "白糖",
+                "苹果",
+                "葡萄",
+                "蘑菇",
+                "虾",
+                "蜂蜜",
+                "黄油"
+            ],
+            "description": "初始勾选为推荐方案，可自行增减。仅控制②常规采购，不限制③缺料补买。",
+            "cases": [
+                {
+                    "name": "苹果",
+                    "pipeline_override": {
+                        "Agt_BuySelect_R5": {
+                            "attach": {
+                                "苹果": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "葡萄",
+                    "pipeline_override": {
+                        "Agt_BuySelect_R5": {
+                            "attach": {
+                                "葡萄": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "虾",
+                    "pipeline_override": {
+                        "Agt_BuySelect_R5": {
+                            "attach": {
+                                "虾": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "蜂蜜",
+                    "pipeline_override": {
+                        "Agt_BuySelect_R5": {
+                            "attach": {
+                                "蜂蜜": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "白糖",
+                    "pipeline_override": {
+                        "Agt_BuySelect_R5": {
+                            "attach": {
+                                "白糖": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "香草",
+                    "pipeline_override": {
+                        "Agt_BuySelect_R5": {
+                            "attach": {
+                                "香草": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "蘑菇",
+                    "pipeline_override": {
+                        "Agt_BuySelect_R5": {
+                            "attach": {
+                                "蘑菇": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "土豆",
+                    "pipeline_override": {
+                        "Agt_BuySelect_R5": {
+                            "attach": {
+                                "土豆": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "番茄",
+                    "pipeline_override": {
+                        "Agt_BuySelect_R5": {
+                            "attach": {
+                                "番茄": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "黄油",
+                    "pipeline_override": {
+                        "Agt_BuySelect_R5": {
+                            "attach": {
+                                "黄油": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "橄榄油",
+                    "pipeline_override": {
+                        "Agt_BuySelect_R5": {
+                            "attach": {
+                                "橄榄油": true
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        "采购自选-R6": {
+            "label": "御剑传：使用自选清单",
+            "type": "switch",
+            "default_case": "No",
+            "description": "关闭使用推荐方案；开启后只购买勾选商品。全部取消会清空本卡带收藏。",
+            "cases": [
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "Agt_BuySelect_R6": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "采购商品-R6"
+                    ]
+                },
+                {
+                    "name": "No",
+                    "pipeline_override": {
+                        "Agt_BuySelect_R6": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "采购商品-R6": {
+            "label": "御剑传：购买商品",
+            "type": "checkbox",
+            "default_case": [
+                "橄榄油",
+                "白糖",
+                "苹果",
+                "葡萄",
+                "蘑菇",
+                "虾",
+                "蜂蜜",
+                "黄油"
+            ],
+            "description": "初始勾选为推荐方案，可自行增减。仅控制②常规采购，不限制③缺料补买。",
+            "cases": [
+                {
+                    "name": "苹果",
+                    "pipeline_override": {
+                        "Agt_BuySelect_R6": {
+                            "attach": {
+                                "苹果": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "葡萄",
+                    "pipeline_override": {
+                        "Agt_BuySelect_R6": {
+                            "attach": {
+                                "葡萄": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "虾",
+                    "pipeline_override": {
+                        "Agt_BuySelect_R6": {
+                            "attach": {
+                                "虾": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "蜂蜜",
+                    "pipeline_override": {
+                        "Agt_BuySelect_R6": {
+                            "attach": {
+                                "蜂蜜": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "白糖",
+                    "pipeline_override": {
+                        "Agt_BuySelect_R6": {
+                            "attach": {
+                                "白糖": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "香草",
+                    "pipeline_override": {
+                        "Agt_BuySelect_R6": {
+                            "attach": {
+                                "香草": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "蘑菇",
+                    "pipeline_override": {
+                        "Agt_BuySelect_R6": {
+                            "attach": {
+                                "蘑菇": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "土豆",
+                    "pipeline_override": {
+                        "Agt_BuySelect_R6": {
+                            "attach": {
+                                "土豆": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "番茄",
+                    "pipeline_override": {
+                        "Agt_BuySelect_R6": {
+                            "attach": {
+                                "番茄": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "黄油",
+                    "pipeline_override": {
+                        "Agt_BuySelect_R6": {
+                            "attach": {
+                                "黄油": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "橄榄油",
+                    "pipeline_override": {
+                        "Agt_BuySelect_R6": {
+                            "attach": {
+                                "橄榄油": true
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        "采购自选-R7": {
+            "label": "合约之战：使用自选清单",
+            "type": "switch",
+            "default_case": "No",
+            "description": "关闭使用推荐方案；开启后只购买勾选商品。全部取消会清空本卡带收藏。",
+            "cases": [
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "Agt_BuySelect_R7": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "采购商品-R7"
+                    ]
+                },
+                {
+                    "name": "No",
+                    "pipeline_override": {
+                        "Agt_BuySelect_R7": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "采购商品-R7": {
+            "label": "合约之战：购买商品",
+            "type": "checkbox",
+            "default_case": [
+                "吐司",
+                "巧克力",
+                "牛奶",
+                "金枪鱼罐头",
+                "鸡蛋",
+                "黄油"
+            ],
+            "description": "初始勾选为推荐方案，可自行增减。仅控制②常规采购，不限制③缺料补买。",
+            "cases": [
+                {
+                    "name": "巧克力",
+                    "pipeline_override": {
+                        "Agt_BuySelect_R7": {
+                            "attach": {
+                                "巧克力": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "金枪鱼罐头",
+                    "pipeline_override": {
+                        "Agt_BuySelect_R7": {
+                            "attach": {
+                                "金枪鱼罐头": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "吐司",
+                    "pipeline_override": {
+                        "Agt_BuySelect_R7": {
+                            "attach": {
+                                "吐司": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "袋装鸡胸肉",
+                    "pipeline_override": {
+                        "Agt_BuySelect_R7": {
+                            "attach": {
+                                "袋装鸡胸肉": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "牛奶",
+                    "pipeline_override": {
+                        "Agt_BuySelect_R7": {
+                            "attach": {
+                                "牛奶": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "黄油",
+                    "pipeline_override": {
+                        "Agt_BuySelect_R7": {
+                            "attach": {
+                                "黄油": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "鸡蛋",
+                    "pipeline_override": {
+                        "Agt_BuySelect_R7": {
+                            "attach": {
+                                "鸡蛋": true
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        "采购自选-E1": {
+            "label": "夏日骑士：使用自选清单",
+            "type": "switch",
+            "default_case": "No",
+            "description": "关闭使用推荐方案；开启后只购买勾选商品。全部取消会清空本卡带收藏。",
+            "cases": [
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "Agt_BuySelect_E1": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "采购商品-E1"
+                    ]
+                },
+                {
+                    "name": "No",
+                    "pipeline_override": {
+                        "Agt_BuySelect_E1": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "采购商品-E1": {
+            "label": "夏日骑士：购买商品",
+            "type": "checkbox",
+            "default_case": [
+                "吐司",
+                "巧克力",
+                "牛奶",
+                "袋装鸡胸肉",
+                "金枪鱼罐头",
+                "鸡蛋",
+                "黄油"
+            ],
+            "description": "初始勾选为推荐方案，可自行增减。仅控制②常规采购，不限制③缺料补买。",
+            "cases": [
+                {
+                    "name": "巧克力",
+                    "pipeline_override": {
+                        "Agt_BuySelect_E1": {
+                            "attach": {
+                                "巧克力": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "金枪鱼罐头",
+                    "pipeline_override": {
+                        "Agt_BuySelect_E1": {
+                            "attach": {
+                                "金枪鱼罐头": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "吐司",
+                    "pipeline_override": {
+                        "Agt_BuySelect_E1": {
+                            "attach": {
+                                "吐司": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "袋装鸡胸肉",
+                    "pipeline_override": {
+                        "Agt_BuySelect_E1": {
+                            "attach": {
+                                "袋装鸡胸肉": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "牛奶",
+                    "pipeline_override": {
+                        "Agt_BuySelect_E1": {
+                            "attach": {
+                                "牛奶": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "黄油",
+                    "pipeline_override": {
+                        "Agt_BuySelect_E1": {
+                            "attach": {
+                                "黄油": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "鸡蛋",
+                    "pipeline_override": {
+                        "Agt_BuySelect_E1": {
+                            "attach": {
+                                "鸡蛋": true
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        "采购自选-E2": {
+            "label": "恶梦之冬：使用自选清单",
+            "type": "switch",
+            "default_case": "No",
+            "description": "关闭使用推荐方案；开启后只购买勾选商品。全部取消会清空本卡带收藏。",
+            "cases": [
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "Agt_BuySelect_E2": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "采购商品-E2"
+                    ]
+                },
+                {
+                    "name": "No",
+                    "pipeline_override": {
+                        "Agt_BuySelect_E2": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "采购商品-E2": {
+            "label": "恶梦之冬：购买商品",
+            "type": "checkbox",
+            "default_case": [
+                "巧克力",
+                "水果罐头",
+                "牛奶",
+                "白糖",
+                "辣椒",
+                "辣椒素"
+            ],
+            "description": "初始勾选为推荐方案，可自行增减。仅控制②常规采购，不限制③缺料补买。",
+            "cases": [
+                {
+                    "name": "水果罐头",
+                    "pipeline_override": {
+                        "Agt_BuySelect_E2": {
+                            "attach": {
+                                "水果罐头": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "辣椒",
+                    "pipeline_override": {
+                        "Agt_BuySelect_E2": {
+                            "attach": {
+                                "辣椒": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "白糖",
+                    "pipeline_override": {
+                        "Agt_BuySelect_E2": {
+                            "attach": {
+                                "白糖": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "雷瓦汀火腿",
+                    "pipeline_override": {
+                        "Agt_BuySelect_E2": {
+                            "attach": {
+                                "雷瓦汀火腿": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "巧克力",
+                    "pipeline_override": {
+                        "Agt_BuySelect_E2": {
+                            "attach": {
+                                "巧克力": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "辣椒素",
+                    "pipeline_override": {
+                        "Agt_BuySelect_E2": {
+                            "attach": {
+                                "辣椒素": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "牛奶",
+                    "pipeline_override": {
+                        "Agt_BuySelect_E2": {
+                            "attach": {
+                                "牛奶": true
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        "采购自选-E3": {
+            "label": "海滨天使：使用自选清单",
+            "type": "switch",
+            "default_case": "No",
+            "description": "关闭使用推荐方案；开启后只购买勾选商品。全部取消会清空本卡带收藏。",
+            "cases": [
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "Agt_BuySelect_E3": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "采购商品-E3"
+                    ]
+                },
+                {
+                    "name": "No",
+                    "pipeline_override": {
+                        "Agt_BuySelect_E3": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "采购商品-E3": {
+            "label": "海滨天使：购买商品",
+            "type": "checkbox",
+            "default_case": [
+                "奶酪",
+                "巧克力",
+                "牛奶",
+                "白糖",
+                "鱼子酱罐头",
+                "鸡蛋",
+                "黄油"
+            ],
+            "description": "初始勾选为推荐方案，可自行增减。仅控制②常规采购，不限制③缺料补买。",
+            "cases": [
+                {
+                    "name": "巧克力",
+                    "pipeline_override": {
+                        "Agt_BuySelect_E3": {
+                            "attach": {
+                                "巧克力": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "鱼子酱罐头",
+                    "pipeline_override": {
+                        "Agt_BuySelect_E3": {
+                            "attach": {
+                                "鱼子酱罐头": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "土豆",
+                    "pipeline_override": {
+                        "Agt_BuySelect_E3": {
+                            "attach": {
+                                "土豆": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "白糖",
+                    "pipeline_override": {
+                        "Agt_BuySelect_E3": {
+                            "attach": {
+                                "白糖": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "牛奶",
+                    "pipeline_override": {
+                        "Agt_BuySelect_E3": {
+                            "attach": {
+                                "牛奶": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "鸡蛋",
+                    "pipeline_override": {
+                        "Agt_BuySelect_E3": {
+                            "attach": {
+                                "鸡蛋": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "黄油",
+                    "pipeline_override": {
+                        "Agt_BuySelect_E3": {
+                            "attach": {
+                                "黄油": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "盐",
+                    "pipeline_override": {
+                        "Agt_BuySelect_E3": {
+                            "attach": {
+                                "盐": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "奶酪",
+                    "pipeline_override": {
+                        "Agt_BuySelect_E3": {
+                            "attach": {
+                                "奶酪": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "松露油",
+                    "pipeline_override": {
+                        "Agt_BuySelect_E3": {
+                            "attach": {
+                                "松露油": true
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        "采购自选-E4": {
+            "label": "记忆边缘：使用自选清单",
+            "type": "switch",
+            "default_case": "No",
+            "description": "关闭使用推荐方案；开启后只购买勾选商品。全部取消会清空本卡带收藏。",
+            "cases": [
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "Agt_BuySelect_E4": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "采购商品-E4"
+                    ]
+                },
+                {
+                    "name": "No",
+                    "pipeline_override": {
+                        "Agt_BuySelect_E4": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "采购商品-E4": {
+            "label": "记忆边缘：购买商品",
+            "type": "checkbox",
+            "default_case": [
+                "巧克力",
+                "水果罐头",
+                "牛奶",
+                "白糖",
+                "辣椒",
+                "辣椒素"
+            ],
+            "description": "初始勾选为推荐方案，可自行增减。仅控制②常规采购，不限制③缺料补买。",
+            "cases": [
+                {
+                    "name": "水果罐头",
+                    "pipeline_override": {
+                        "Agt_BuySelect_E4": {
+                            "attach": {
+                                "水果罐头": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "辣椒",
+                    "pipeline_override": {
+                        "Agt_BuySelect_E4": {
+                            "attach": {
+                                "辣椒": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "白糖",
+                    "pipeline_override": {
+                        "Agt_BuySelect_E4": {
+                            "attach": {
+                                "白糖": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "雷瓦汀火腿",
+                    "pipeline_override": {
+                        "Agt_BuySelect_E4": {
+                            "attach": {
+                                "雷瓦汀火腿": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "巧克力",
+                    "pipeline_override": {
+                        "Agt_BuySelect_E4": {
+                            "attach": {
+                                "巧克力": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "辣椒素",
+                    "pipeline_override": {
+                        "Agt_BuySelect_E4": {
+                            "attach": {
+                                "辣椒素": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "牛奶",
+                    "pipeline_override": {
+                        "Agt_BuySelect_E4": {
+                            "attach": {
+                                "牛奶": true
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        "采购自选-E5": {
+            "label": "戏水女王：使用自选清单",
+            "type": "switch",
+            "default_case": "No",
+            "description": "关闭使用推荐方案；开启后只购买勾选商品。全部取消会清空本卡带收藏。",
+            "cases": [
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "Agt_BuySelect_E5": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "采购商品-E5"
+                    ]
+                },
+                {
+                    "name": "No",
+                    "pipeline_override": {
+                        "Agt_BuySelect_E5": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "采购商品-E5": {
+            "label": "戏水女王：购买商品",
+            "type": "checkbox",
+            "default_case": [
+                "吐司",
+                "咖啡豆",
+                "巧克力",
+                "水果罐头",
+                "牛奶",
+                "袋装鸡胸肉",
+                "金枪鱼罐头",
+                "鱼子酱罐头"
+            ],
+            "description": "初始勾选为推荐方案，可自行增减。仅控制②常规采购，不限制③缺料补买。",
+            "cases": [
+                {
+                    "name": "巧克力",
+                    "pipeline_override": {
+                        "Agt_BuySelect_E5": {
+                            "attach": {
+                                "巧克力": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "咖啡豆",
+                    "pipeline_override": {
+                        "Agt_BuySelect_E5": {
+                            "attach": {
+                                "咖啡豆": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "水果罐头",
+                    "pipeline_override": {
+                        "Agt_BuySelect_E5": {
+                            "attach": {
+                                "水果罐头": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "吐司",
+                    "pipeline_override": {
+                        "Agt_BuySelect_E5": {
+                            "attach": {
+                                "吐司": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "袋装鸡胸肉",
+                    "pipeline_override": {
+                        "Agt_BuySelect_E5": {
+                            "attach": {
+                                "袋装鸡胸肉": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "牛奶",
+                    "pipeline_override": {
+                        "Agt_BuySelect_E5": {
+                            "attach": {
+                                "牛奶": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "金枪鱼罐头",
+                    "pipeline_override": {
+                        "Agt_BuySelect_E5": {
+                            "attach": {
+                                "金枪鱼罐头": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "鱼子酱罐头",
+                    "pipeline_override": {
+                        "Agt_BuySelect_E5": {
+                            "attach": {
+                                "鱼子酱罐头": true
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        "料理自选模式": {
+            "label": "自定义制作料理",
+            "type": "switch",
+            "default_case": "No",
+            "description": "关闭采用推荐制作名单；开启由下方勾选决定，全部取消即不制作。",
+            "cases": [
+                {
+                    "name": "Yes",
+                    "pipeline_override": {},
+                    "option": [
+                        "制作料理选择"
+                    ]
+                },
+                {
+                    "name": "No",
+                    "pipeline_override": {
+                        "Arbitrage_Cooking_B10_Entry": {
+                            "enabled": true
+                        },
+                        "Arbitrage_Cooking_B10": {
+                            "enabled": true
+                        },
+                        "Arbitrage_Cooking_B9_Entry": {
+                            "enabled": true
+                        },
+                        "Arbitrage_Cooking_B9": {
+                            "enabled": true
+                        },
+                        "Arbitrage_Cooking_B8_Entry": {
+                            "enabled": true
+                        },
+                        "Arbitrage_Cooking_B8": {
+                            "enabled": true
+                        },
+                        "Arbitrage_Cooking_B7_Entry": {
+                            "enabled": true
+                        },
+                        "Arbitrage_Cooking_B7": {
+                            "enabled": true
+                        },
+                        "Arbitrage_Cooking_B6_Entry": {
+                            "enabled": true
+                        },
+                        "Arbitrage_Cooking_B6": {
+                            "enabled": true
+                        },
+                        "Arbitrage_Cooking_B21_Entry": {
+                            "enabled": true
+                        },
+                        "Arbitrage_Cooking_B21": {
+                            "enabled": true
+                        },
+                        "Arbitrage_Cooking_B11_Entry": {
+                            "enabled": true
+                        },
+                        "Arbitrage_Cooking_B11": {
+                            "enabled": true
+                        },
+                        "Arbitrage_Cooking_B14_Entry": {
+                            "enabled": true
+                        },
+                        "Arbitrage_Cooking_B14": {
+                            "enabled": true
+                        },
+                        "Arbitrage_Cooking_B20_Entry": {
+                            "enabled": true
+                        },
+                        "Arbitrage_Cooking_B20": {
+                            "enabled": true
+                        },
+                        "Arbitrage_Cooking_B15_Entry": {
+                            "enabled": true
+                        },
+                        "Arbitrage_Cooking_B15": {
+                            "enabled": true
+                        },
+                        "Arbitrage_Cooking_B12_Entry": {
+                            "enabled": true
+                        },
+                        "Arbitrage_Cooking_B12": {
+                            "enabled": true
+                        },
+                        "Arbitrage_Cooking_B19_Entry": {
+                            "enabled": true
+                        },
+                        "Arbitrage_Cooking_B19": {
+                            "enabled": true
+                        },
+                        "Arbitrage_Cooking_B17_Entry": {
+                            "enabled": true
+                        },
+                        "Arbitrage_Cooking_B17": {
+                            "enabled": true
+                        },
+                        "Arbitrage_Cooking_B18_Entry": {
+                            "enabled": true
+                        },
+                        "Arbitrage_Cooking_B18": {
+                            "enabled": true
+                        },
+                        "Arbitrage_Cooking_B16_Entry": {
+                            "enabled": true
+                        },
+                        "Arbitrage_Cooking_B16": {
+                            "enabled": true
+                        },
+                        "Arbitrage_Cooking_B13_Entry": {
+                            "enabled": true
+                        },
+                        "Arbitrage_Cooking_B13": {
+                            "enabled": true
+                        },
+                        "Arbitrage_Cooking_A2_Entry": {
+                            "enabled": true
+                        },
+                        "Arbitrage_Cooking_A2": {
+                            "enabled": true
+                        },
+                        "Arbitrage_Cooking_A1_Entry": {
+                            "enabled": true
+                        },
+                        "Arbitrage_Cooking_A1": {
+                            "enabled": true
+                        },
+                        "Arbitrage_Cooking_A7_Entry": {
+                            "enabled": true
+                        },
+                        "Arbitrage_Cooking_A7": {
+                            "enabled": true
+                        },
+                        "Arbitrage_Cooking_A4_Entry": {
+                            "enabled": true
+                        },
+                        "Arbitrage_Cooking_A4": {
+                            "enabled": true
+                        },
+                        "Arbitrage_Cooking_A8_Entry": {
+                            "enabled": true
+                        },
+                        "Arbitrage_Cooking_A8": {
+                            "enabled": true
+                        },
+                        "Arbitrage_Cooking_A3_Entry": {
+                            "enabled": true
+                        },
+                        "Arbitrage_Cooking_A3": {
+                            "enabled": true
+                        },
+                        "Arbitrage_Cooking_A9_Entry": {
+                            "enabled": true
+                        },
+                        "Arbitrage_Cooking_A9": {
+                            "enabled": true
+                        },
+                        "Arbitrage_Cooking_A5_Entry": {
+                            "enabled": true
+                        },
+                        "Arbitrage_Cooking_A5": {
+                            "enabled": true
+                        },
+                        "Arbitrage_Cooking_A10_Entry": {
+                            "enabled": true
+                        },
+                        "Arbitrage_Cooking_A10": {
+                            "enabled": true
+                        }
+                    }
+                }
+            ]
+        },
+        "制作料理选择": {
+            "label": "制作料理",
+            "type": "checkbox",
+            "default_case": [
+                "烤蜂蜜苹果",
+                "炸三文鱼便当",
+                "巧克力鸡尾酒",
+                "蜂蜜黄油杏仁",
+                "火烤鱼板棒",
+                "鱼子酱蛋包饭",
+                "三角美乃滋饭团",
+                "甜辣鲜虾",
+                "三文鱼芥末寿司",
+                "地狱火紫菜包饭",
+                "透明沙拉",
+                "闪闪铁板虾",
+                "煤炭饼干",
+                "卢戈山参烤串",
+                "香草牛排",
+                "洛克菲勒生蚝",
+                "橄榄油意面",
+                "街头烤鸡肉串",
+                "汉堡排便当",
+                "冰镇甜点",
+                "香甜马卡龙",
+                "三明治便当",
+                "手工蛋糕",
+                "泰瑞丝派",
+                "炸猪排盖饭"
+            ],
+            "description": "按星级展示，实际仍按既定优先级制作。未勾选的料理不会被材料保护或补做重新开启。",
+            "cases": [
+                {
+                    "name": "烤蜂蜜苹果",
+                    "label": "[1星] 烤蜂蜜苹果",
+                    "pipeline_override": {
+                        "Arbitrage_Cooking_A1_Entry": {
+                            "enabled": true
+                        },
+                        "Arbitrage_Cooking_A1": {
+                            "enabled": true
+                        }
+                    }
+                },
+                {
+                    "name": "炸三文鱼便当",
+                    "label": "[2星] 炸三文鱼便当",
+                    "pipeline_override": {
+                        "Arbitrage_Cooking_A5_Entry": {
+                            "enabled": true
+                        },
+                        "Arbitrage_Cooking_A5": {
+                            "enabled": true
+                        }
+                    }
+                },
+                {
+                    "name": "巧克力鸡尾酒",
+                    "label": "[2星] 巧克力鸡尾酒",
+                    "pipeline_override": {
+                        "Arbitrage_Cooking_A10_Entry": {
+                            "enabled": true
+                        },
+                        "Arbitrage_Cooking_A10": {
+                            "enabled": true
+                        }
+                    }
+                },
+                {
+                    "name": "蜂蜜黄油杏仁",
+                    "label": "[3星] 蜂蜜黄油杏仁",
+                    "pipeline_override": {
+                        "Arbitrage_Cooking_A2_Entry": {
+                            "enabled": true
+                        },
+                        "Arbitrage_Cooking_A2": {
+                            "enabled": true
+                        }
+                    }
+                },
+                {
+                    "name": "火烤鱼板棒",
+                    "label": "[3星] 火烤鱼板棒",
+                    "pipeline_override": {
+                        "Arbitrage_Cooking_A7_Entry": {
+                            "enabled": true
+                        },
+                        "Arbitrage_Cooking_A7": {
+                            "enabled": true
+                        }
+                    }
+                },
+                {
+                    "name": "鱼子酱蛋包饭",
+                    "label": "[3星] 鱼子酱蛋包饭",
+                    "pipeline_override": {
+                        "Arbitrage_Cooking_A4_Entry": {
+                            "enabled": true
+                        },
+                        "Arbitrage_Cooking_A4": {
+                            "enabled": true
+                        }
+                    }
+                },
+                {
+                    "name": "三角美乃滋饭团",
+                    "label": "[3星] 三角美乃滋饭团",
+                    "pipeline_override": {
+                        "Arbitrage_Cooking_A3_Entry": {
+                            "enabled": true
+                        },
+                        "Arbitrage_Cooking_A3": {
+                            "enabled": true
+                        }
+                    }
+                },
+                {
+                    "name": "甜辣鲜虾",
+                    "label": "[4星] 甜辣鲜虾",
+                    "pipeline_override": {
+                        "Arbitrage_Cooking_A8_Entry": {
+                            "enabled": true
+                        },
+                        "Arbitrage_Cooking_A8": {
+                            "enabled": true
+                        }
+                    }
+                },
+                {
+                    "name": "三文鱼芥末寿司",
+                    "label": "[4星] 三文鱼芥末寿司",
+                    "pipeline_override": {
+                        "Arbitrage_Cooking_A9_Entry": {
+                            "enabled": true
+                        },
+                        "Arbitrage_Cooking_A9": {
+                            "enabled": true
+                        }
+                    }
+                },
+                {
+                    "name": "地狱火紫菜包饭",
+                    "label": "[5星] 地狱火紫菜包饭",
+                    "pipeline_override": {
+                        "Arbitrage_Cooking_B10_Entry": {
+                            "enabled": true
+                        },
+                        "Arbitrage_Cooking_B10": {
+                            "enabled": true
+                        }
+                    }
+                },
+                {
+                    "name": "透明沙拉",
+                    "label": "[5星] 透明沙拉",
+                    "pipeline_override": {
+                        "Arbitrage_Cooking_B9_Entry": {
+                            "enabled": true
+                        },
+                        "Arbitrage_Cooking_B9": {
+                            "enabled": true
+                        }
+                    }
+                },
+                {
+                    "name": "闪闪铁板虾",
+                    "label": "[5星] 闪闪铁板虾",
+                    "pipeline_override": {
+                        "Arbitrage_Cooking_B8_Entry": {
+                            "enabled": true
+                        },
+                        "Arbitrage_Cooking_B8": {
+                            "enabled": true
+                        }
+                    }
+                },
+                {
+                    "name": "煤炭饼干",
+                    "label": "[5星] 煤炭饼干",
+                    "pipeline_override": {
+                        "Arbitrage_Cooking_B7_Entry": {
+                            "enabled": true
+                        },
+                        "Arbitrage_Cooking_B7": {
+                            "enabled": true
+                        }
+                    }
+                },
+                {
+                    "name": "卢戈山参烤串",
+                    "label": "[5星] 卢戈山参烤串",
+                    "pipeline_override": {
+                        "Arbitrage_Cooking_B6_Entry": {
+                            "enabled": true
+                        },
+                        "Arbitrage_Cooking_B6": {
+                            "enabled": true
+                        }
+                    }
+                },
+                {
+                    "name": "香草牛排",
+                    "label": "[5星] 香草牛排",
+                    "pipeline_override": {
+                        "Arbitrage_Cooking_B21_Entry": {
+                            "enabled": true
+                        },
+                        "Arbitrage_Cooking_B21": {
+                            "enabled": true
+                        }
+                    }
+                },
+                {
+                    "name": "洛克菲勒生蚝",
+                    "label": "[5星] 洛克菲勒生蚝",
+                    "pipeline_override": {
+                        "Arbitrage_Cooking_B11_Entry": {
+                            "enabled": true
+                        },
+                        "Arbitrage_Cooking_B11": {
+                            "enabled": true
+                        }
+                    }
+                },
+                {
+                    "name": "橄榄油意面",
+                    "label": "[5星] 橄榄油意面",
+                    "pipeline_override": {
+                        "Arbitrage_Cooking_B14_Entry": {
+                            "enabled": true
+                        },
+                        "Arbitrage_Cooking_B14": {
+                            "enabled": true
+                        }
+                    }
+                },
+                {
+                    "name": "街头烤鸡肉串",
+                    "label": "[5星] 街头烤鸡肉串",
+                    "pipeline_override": {
+                        "Arbitrage_Cooking_B20_Entry": {
+                            "enabled": true
+                        },
+                        "Arbitrage_Cooking_B20": {
+                            "enabled": true
+                        }
+                    }
+                },
+                {
+                    "name": "汉堡排便当",
+                    "label": "[5星] 汉堡排便当",
+                    "pipeline_override": {
+                        "Arbitrage_Cooking_B15_Entry": {
+                            "enabled": true
+                        },
+                        "Arbitrage_Cooking_B15": {
+                            "enabled": true
+                        }
+                    }
+                },
+                {
+                    "name": "冰镇甜点",
+                    "label": "[5星] 冰镇甜点",
+                    "pipeline_override": {
+                        "Arbitrage_Cooking_B12_Entry": {
+                            "enabled": true
+                        },
+                        "Arbitrage_Cooking_B12": {
+                            "enabled": true
+                        }
+                    }
+                },
+                {
+                    "name": "香甜马卡龙",
+                    "label": "[5星] 香甜马卡龙",
+                    "pipeline_override": {
+                        "Arbitrage_Cooking_B19_Entry": {
+                            "enabled": true
+                        },
+                        "Arbitrage_Cooking_B19": {
+                            "enabled": true
+                        }
+                    }
+                },
+                {
+                    "name": "三明治便当",
+                    "label": "[5星] 三明治便当",
+                    "pipeline_override": {
+                        "Arbitrage_Cooking_B17_Entry": {
+                            "enabled": true
+                        },
+                        "Arbitrage_Cooking_B17": {
+                            "enabled": true
+                        }
+                    }
+                },
+                {
+                    "name": "手工蛋糕",
+                    "label": "[5星] 手工蛋糕",
+                    "pipeline_override": {
+                        "Arbitrage_Cooking_B18_Entry": {
+                            "enabled": true
+                        },
+                        "Arbitrage_Cooking_B18": {
+                            "enabled": true
+                        }
+                    }
+                },
+                {
+                    "name": "泰瑞丝派",
+                    "label": "[5星] 泰瑞丝派",
+                    "pipeline_override": {
+                        "Arbitrage_Cooking_B16_Entry": {
+                            "enabled": true
+                        },
+                        "Arbitrage_Cooking_B16": {
+                            "enabled": true
+                        }
+                    }
+                },
+                {
+                    "name": "炸猪排盖饭",
+                    "label": "[5星] 炸猪排盖饭",
+                    "pipeline_override": {
+                        "Arbitrage_Cooking_B13_Entry": {
+                            "enabled": true
+                        },
+                        "Arbitrage_Cooking_B13": {
+                            "enabled": true
+                        }
+                    }
+                }
+            ]
+        },
+        "开局出售料理": {
+            "label": "① 开局出售料理，回笼金币",
+            "type": "switch",
+            "default_case": "Yes",
+            "description": "出售已有的峰值料理，为后续采购回笼金币；与④共用完整料理目录。",
+            "cases": [
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "Arbitrage_PreSell_Entry": {
+                            "enabled": true
+                        }
+                    }
+                },
+                {
+                    "name": "No",
+                    "pipeline_override": {
+                        "Arbitrage_PreSell_Entry": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "自定义卡带采购": {
+            "label": "自定义各卡带采购",
+            "type": "switch",
+            "default_case": "No",
+            "description": "关闭全部采用推荐方案；开启后可逐卡带启用自选清单。关闭不会主动重置界面勾选。",
+            "cases": [
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "Arbitrage_Buy_ListPrepare": {
+                            "attach": {
+                                "custom_enabled": true
+                            }
+                        }
+                    },
+                    "option": [
+                        "采购自选-S1",
+                        "采购自选-S2",
+                        "采购自选-S3",
+                        "采购自选-S4",
+                        "采购自选-S5",
+                        "采购自选-S6",
+                        "采购自选-S7",
+                        "采购自选-S8",
+                        "采购自选-S9",
+                        "采购自选-S10",
+                        "采购自选-S11",
+                        "采购自选-S12",
+                        "采购自选-S13",
+                        "采购自选-S14",
+                        "采购自选-S15",
+                        "采购自选-S16",
+                        "采购自选-S17",
+                        "采购自选-S18",
+                        "采购自选-S19",
+                        "采购自选-R1",
+                        "采购自选-R2",
+                        "采购自选-R3",
+                        "采购自选-R4",
+                        "采购自选-R5",
+                        "采购自选-R6",
+                        "采购自选-R7",
+                        "采购自选-E1",
+                        "采购自选-E2",
+                        "采购自选-E3",
+                        "采购自选-E4",
+                        "采购自选-E5"
+                    ]
+                },
+                {
+                    "name": "No",
+                    "pipeline_override": {
+                        "Arbitrage_Buy_ListPrepare": {
+                            "attach": {
+                                "custom_enabled": false
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        "料理缺料补买": {
+            "label": "缺料时补买并补做",
+            "type": "switch",
+            "default_case": "Yes",
+            "description": "只为③获准料理补缺料，购买后尝试补做；不要求开启②或④。仍可能购买②未勾选的商品。",
+            "cases": [
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "Arbitrage_Cooking_Replenish": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "补买利润让出比例",
+                        "补买预算限制"
+                    ]
+                },
+                {
+                    "name": "No",
+                    "pipeline_override": {
+                        "Arbitrage_Cooking_Replenish": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "补买利润让出比例": {
+            "type": "input",
+            "label": "补买利润让出比例（%）",
+            "description": "每份料理的基准多赚＝料理峰值卖价－全配方材料峰值直卖总额－神药成本。允许将其中指定比例用于补买溢价，即补买价高于材料直卖价值的部分；跨柜台采购按制作份数折算每份溢价。例：每份原本多赚1500，填写10，最多让出150，至少保留1350。0不接受溢价；100仍要求最终多赚大于0。只限制③补买，不放宽原价减60%的购买上限。",
+            "inputs": [
+                {
+                    "name": "利润让出比例",
+                    "pipeline_type": "int",
+                    "default": "10",
+                    "verify": "^(?:100|[1-9]?[0-9])$",
+                    "pattern_msg": "请输入0～100的整数百分比。"
+                }
+            ],
+            "pipeline_override": {
+                "Arbitrage_Cooking_Replenish": {
+                    "attach": {
+                        "profit_surrender_percent": "{利润让出比例}"
+                    }
+                }
+            }
+        },
+        "补买预算限制": {
+            "label": "设置补买支出上限",
+            "type": "switch",
+            "default_case": "No",
+            "description": "只限制③材料补买支出，不包括②常规采购。关闭使用当前金币，实际仅购买计划所需数量。",
+            "cases": [
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "Arbitrage_Cooking_Replenish": {
+                            "attach": {
+                                "limit_budget": true
+                            }
+                        }
+                    },
+                    "option": [
+                        "补买预算金额"
+                    ]
+                },
+                {
+                    "name": "No",
+                    "pipeline_override": {
+                        "Arbitrage_Cooking_Replenish": {
+                            "attach": {
+                                "limit_budget": false
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        "补买预算金额": {
+            "type": "input",
+            "label": "最多使用金币",
+            "description": "非负整数；0表示无补买预算，不表示无限制。",
+            "inputs": [
+                {
+                    "name": "金币上限",
+                    "pipeline_type": "int",
+                    "default": "0",
+                    "verify": "^[0-9]+$",
+                    "pattern_msg": "请输入非负整数金币数。"
+                }
+            ],
+            "pipeline_override": {
+                "Arbitrage_Cooking_Replenish": {
+                    "attach": {
+                        "budget": "{金币上限}"
+                    }
+                }
+            }
+        },
+        "出售多余材料": {
+            "label": "⑤ 出售多余材料",
+            "type": "switch",
+            "default_case": "No",
+            "description": "只出售达到峰值且超过保留量的材料。保留量不限制③制作消耗。",
+            "cases": [
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "Arbitrage_SellMaterials": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "材料出售模式"
+                    ]
+                },
+                {
+                    "name": "No",
+                    "pipeline_override": {
+                        "Arbitrage_SellMaterials": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
         }
     },
     "preset": [
@@ -2317,7 +7784,11 @@
                 },
                 {
                     "name": "[执行]商店套利",
-                    "enabled": true
+                    "enabled": true,
+                    "option": {
+                        "开局出售料理": "Yes",
+                        "出售多余材料": "No"
+                    }
                 },
                 {
                     "name": "[执行]地图采集[完整]",
@@ -2408,7 +7879,11 @@
                 },
                 {
                     "name": "[执行]商店套利",
-                    "enabled": true
+                    "enabled": true,
+                    "option": {
+                        "开局出售料理": "Yes",
+                        "出售多余材料": "No"
+                    }
                 },
                 {
                     "name": "[执行]地图采集[完整]",

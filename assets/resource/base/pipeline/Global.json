@@ -177,7 +177,9 @@
         "next": [
             "Global_ToHomePage_Enter",
             "Global_ToHomePage_HomeButton",
+            "[JumpBack]Arbitrage_Merchant_Close_Ck",
             "Global_ToHomePage_Reset",
+            "[JumpBack]Global_ToHomePage_Else",
             "[JumpBack]Global_WaitingForLoading",
             "[JumpBack]Global_BackPageHub_Once"
         ],
@@ -199,6 +201,19 @@
         "post_delay": 3000,
         "next": ["Global_BackToPve_1#"],
         "focus": "G=1.点Home退出"
+    },
+    "Global_ToHomePage_Else": {
+        "desc": "其他类型页面",
+        "recognition": "OCR",
+        "roi": [
+            297,
+            150,
+            782,
+            453
+        ],
+        "expected": ["关闭商店"],
+        "action": "Click",
+        "post_delay": 1500
     },
     "Global_ToHomePage_Enter": {
         "desc": "[通用复位]复位到主界面模块,结束,中继调用",

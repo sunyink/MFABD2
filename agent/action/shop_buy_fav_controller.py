@@ -4,7 +4,7 @@
 职责边界：已进入某卡带商店页面后，对当前页执行收藏对齐。
 
 识别策略：
-    - 商品名: OCR（Pipeline 节点定义 ROI）
+    - 商品名: 以星框为基准限定右侧 ROI；整页 OCR 经同一过滤表清洗后反查漏星
     - 星星位置: TemplateMatch method 5（颜色不敏感，黄灰都命中）
     - 星星颜色: numpy 对星星完整 box 采样，按高饱和度像素占比判色
       （黄星尖角高饱和 ~68%，灰星 ~0%，规避白色中心干扰）
@@ -13,15 +13,11 @@
     - 当前卡带名     ← custom_action_param（经 json.loads 解包，"推"入）
     - 购物清单       ← Data_Csm.attach[卡带名]
     - OCR 过滤词     ← Data_Csm.attach["ocr_exclude"]
-    - 行为参数       ← Tuning_Csm.attach（延时/重试/几何配对窗口）
+    - 行为参数       ← Tuning_Csm.attach（延时/重试/方向范围/name_roi_offset）
     - 商品名         ← ReadNames_Csm 节点
     - 商品名长度阈   ← ReadNames_Csm.attach["name_max_len"]
     - 星星位置       ← FindStars_Csm 节点
     - 判色参数       ← FindStars_Csm.attach（sat 阈值/星心内缩比）
-    
-
-
-
 参数外置说明（[2026-07-22]）：
     原先散落在本文件的数值常量已迁往上述节点的 attach，各端可经资源覆盖
     （base→pc→…，attach 按 key 字典合并）独立调参而不动 Python。本文件保留
@@ -37,6 +33,11 @@ from maa.context import Context
 from maa.agent.agent_server import AgentServer
 from utils import mfaalog
 from utils.name_i18n import canon
+from utils.ocr_item_name import resolve_item_ocr
+from utils.ocr_score import select_best_ocr
+from utils.arbitrage_purchase_lists import FORCED_UNFAVORITES, get_purchase_run
+from utils.arbitrage_store import save_purchase_alignment, invalidate_purchase_alignment
+from utils.account_sync import sync_from_context
 
 
 # 数据节点名（py 自定义引用节点，_Csm 后缀标记）
@@ -63,6 +64,8 @@ MAX_RETRIES = 1
 BIND_DX_MIN = 5    # 商品名至少在星星右侧 5px
 BIND_DX_MAX = 40   # 最远不超过 40px
 BIND_DY_MAX = 15   # Y 轴差距不超过 15px
+# 星框的 [x, y, w, h] 偏移，限定右侧名称行；不预设货架格数。
+NAME_ROI_OFFSET = [25, -6, 160, 12]
 
 # ← ReadNames_Csm.attach（3/4·名识别参数）
 # 商品名最大长度（中文字符数），过滤掉 Toast 消息。
@@ -86,6 +89,10 @@ class ShopBuyFavController(CustomAction):
     # 主入口
     # ==========================================
     def run(self, context: Context, argv: CustomAction.RunArg) -> bool:
+        run = None
+        cart_name = None
+        aligned = False
+        self._scan_issues = []
         try:
             cart_name = argv.custom_action_param
             if isinstance(cart_name, str):
@@ -103,27 +110,48 @@ class ShopBuyFavController(CustomAction):
             # 先加载外置参数（各端可覆盖），失败自动回落兜底默认值。
             self.cfg = self._load_params(context)
 
-            target_items, ocr_exclude = self._load_config(context, cart_name)
-            if target_items is None:
+            if not sync_from_context(context, where="ShopBuyFavController"):
                 return False
-            if not target_items:
-                mfaalog.info(
-                    f"[ShopBuy] [{cart_name}] 购物清单为空，跳过购买。"
-                )
-                return True
+            run = get_purchase_run(argv.task_detail.task_id)
+            if run is None or cart_name not in run["table"]:
+                raise ValueError("缺少本轮已准备采购名单，不能使用旧收藏")
+            target_items = run["table"][cart_name] - FORCED_UNFAVORITES
+            _, ocr_exclude = self._load_config(context, cart_name)
+            if ocr_exclude is None:
+                return False
+            if not invalidate_purchase_alignment(cart_name):
+                raise RuntimeError("旧收藏核实记录撤销失败，本卡带不执行点星")
 
             mfaalog.debug(
                 f"[ShopBuy] 📋 [{cart_name}] 目标商品 ({len(target_items)}项): "
                 f"{', '.join(target_items)}"
             )
 
-            return self._align_favorites(
-                context, target_items, ocr_exclude, cart_name
-            )
+            if self._align_favorites(context, target_items, ocr_exclude, cart_name):
+                if not sync_from_context(context, where="ShopBuyFavController/complete"):
+                    return False
+                # 再次核对账号；失败或中途切换不能把结果写给其他账号。
+                if get_purchase_run(argv.task_detail.task_id) is not run:
+                    return False
+                if not save_purchase_alignment(cart_name, target_items):
+                    raise RuntimeError("收藏成功记录保存失败")
+                aligned = True
+            return aligned
 
         except Exception as e:
             mfaalog.error(f"[ShopBuy] ❌ 未预期异常: {e}")
+            self._scan_issues.append(str(e))
             return False
+        finally:
+            if run is not None and isinstance(cart_name, str) and cart_name in run["table"]:
+                # 只完成本卡带的尝试；失败不会撤销其他卡带，也不改总派发或购买节点。
+                run["pending"].discard(cart_name)
+                if aligned:
+                    run["failed_cards"].pop(cart_name, None)
+                else:
+                    reason = "; ".join(self._scan_issues) or "收藏未核实"
+                    run["failed_cards"][cart_name] = reason
+                    mfaalog.warning(f"[ShopBuy] [{cart_name}] 本卡带结束：{reason}；继续下一张，下次仍需核对")
 
     # ==========================================
     # 参数读取（外置 attach + 兜底默认值）
@@ -167,6 +195,11 @@ class ShopBuyFavController(CustomAction):
             "sat_ratio_threshold": self._cast(star, "sat_ratio_threshold", SAT_RATIO_THRESHOLD, float),
             "star_core_inset":     self._cast(star, "star_core_inset",     STAR_CORE_INSET,     float),
         }
+        offset = tuning.get("name_roi_offset", NAME_ROI_OFFSET)
+        if (not isinstance(offset, (list, tuple)) or len(offset) != 4
+                or any(type(value) is not int for value in offset)):
+            raise ValueError("name_roi_offset必须是4个整数")
+        cfg["name_roi_offset"] = list(offset)
         # inset 越界只告警、不改值：判据是几何事实而非调参经验——四边各内缩 inset 比例后，
         # 采样区宽高占比 = 1-2×inset，inset≥0.5 时它 ≤0，星心核塌成 0 像素。
         inset = cfg["star_core_inset"]
@@ -184,6 +217,7 @@ class ShopBuyFavController(CustomAction):
             f"sat>{cfg['sat_pixel_threshold']:.2f}占比>{cfg['sat_ratio_threshold']:.0%} "
             f"name_max={cfg['name_max_len']} "
             f"dx[{cfg['bind_dx_min']},{cfg['bind_dx_max']}] dy≤{cfg['bind_dy_max']} "
+            f"name_roi_offset={cfg['name_roi_offset']} "
             f"click={cfg['click_delay']}s verify={cfg['verify_delay']}s "
             f"retry={cfg['max_retries']}"
         )
@@ -264,11 +298,23 @@ class ShopBuyFavController(CustomAction):
             )
             if screenshot is None:
                 mfaalog.warning("[ShopBuy] ❌ 截图失败。")
+                self._scan_issues = ["截图失败"]
+                if attempt < max_retries:
+                    time.sleep(verify_delay)
+                    continue
                 return False
 
             entities = self._scan_page(context, screenshot, ocr_exclude)
-            if entities is None:
-                mfaalog.warning(f"[ShopBuy] ⚠️ [{cart_name}] 识别失败。")
+            if not self._complete_page(entities):
+                # 本页尚未核实；已确认的天赋神药黄星仍单独取消。
+                forced = [item for item in entities or [] if item["name"] in FORCED_UNFAVORITES]
+                forced_actions = self._decide_actions(forced, set())
+                if forced_actions:
+                    self._execute_clicks(context, forced_actions, cart_name)
+                mfaalog.warning(f"[ShopBuy] ⚠️ [{cart_name}] 商品未完整识别，不能核实收藏。")
+                if attempt < max_retries:
+                    time.sleep(verify_delay)
+                    continue
                 return False
 
             actions = self._decide_actions(entities, target_items)
@@ -301,12 +347,15 @@ class ShopBuyFavController(CustomAction):
 
         final_ss = context.tasker.controller.post_screencap().wait().get()
         if final_ss is None:
+            self._scan_issues = ["最终复核截图失败"]
             return False
         final_entities = self._scan_page(context, final_ss, ocr_exclude)
-        if final_entities is None:
+        if not self._complete_page(final_entities):
             return False
         final_actions = self._decide_actions(final_entities, target_items)
         if final_actions:
+            self._scan_issues = ["星星仍未对齐：" + ", ".join(
+                f"{a['name']}@({a['star_cx']:.0f},{a['star_cy']:.0f})" for a in final_actions)]
             mfaalog.warning(
                 f"[ShopBuy] ❌ [{cart_name}] 最终验证仍有 "
                 f"{len(final_actions)} 项未对齐: "
@@ -320,97 +369,122 @@ class ShopBuyFavController(CustomAction):
         mfaalog.info(f"[ShopBuy] ✅ [{cart_name}] 收藏对齐验证通过！")
         return True
 
+    def _complete_page(self, entities):
+        """核对星名配对，允许同名多星；采购名单只决定亮灭，不规定种类或格数。"""
+        return bool(entities) and not self._scan_issues
+
     # ==========================================
     # 页面扫描
     # ==========================================
     def _scan_page(self, context, screenshot, ocr_exclude):
+        self._scan_issues = []
+        # 所有定位都使用同一张图；局部覆盖只留在本次扫描的副本中。
+        local = context.clone()
+        page_names = self._read_names(local.run_recognition(NODE_OCR, screenshot), ocr_exclude)
+        all_stars = self._read_stars(local.run_recognition(NODE_STAR, screenshot), screenshot)
+        if not all_stars:
+            self._scan_issues.append("未识别到星星")
+            return []
 
-        name_max_len = self.cfg["name_max_len"]
+        # 整页OCR只做反查。先排除过滤词，再用本页已观察到的行列约束排除图标杂字、升星说明等。
+        # 不使用固定格数；固定取消收藏商品始终反查，不因目录或行列缺失而忽略。
+        for name in page_names:
+            if any(self._name_near_star(star, name) for star in all_stars):
+                continue
+            in_column = any(self.cfg["bind_dx_min"] <= name["left_x"] - star["right_x"]
+                            <= self.cfg["bind_dx_max"] for star in all_stars)
+            in_row = any(abs(name["cy"] - star["cy"]) <= self.cfg["bind_dy_max"] for star in all_stars)
+            if name["name"] not in FORCED_UNFAVORITES and not (in_column and in_row):
+                continue
+            bw, bh = all_stars[0]["box"][2:]
+            margin = self.cfg["bind_dy_max"]
+            roi = [int(name["left_x"] - self.cfg["bind_dx_max"] - bw),
+                   int(name["cy"] - margin - bh / 2),
+                   int(self.cfg["bind_dx_max"] - self.cfg["bind_dx_min"] + bw), int(2 * margin + bh)]
+            result = self._recognize_region(local, NODE_STAR, screenshot, roi)
+            found = [star for star in self._read_stars(result, screenshot) if self._name_near_star(star, name)]
+            if len(found) != 1:
+                self._scan_issues.append(f"文字[{name['name']}] box={name['box']}向左反查到{len(found)}颗星")
+                continue
+            if not any(self._same_box(found[0]["box"], star["box"]) for star in all_stars):
+                all_stars.append(found[0])
+                mfaalog.info(f"[ShopBuy] 名称反查补回星星 [{name['name']}] box={found[0]['box']}")
 
-        # --- OCR 商品名 ---
-        ocr_result = context.run_recognition(NODE_OCR, screenshot)
-        if not ocr_result or not ocr_result.all_results:
-            mfaalog.warning("[ShopBuy] OCR 未识别到任何文本。")
-            return None
-
+        # 每颗星只读右侧名称行，允许同名出现在不同位置；多候选由配对检查明确拒绝。
         name_items = []
-        for match in ocr_result.all_results:
-            box = getattr(match, 'box', None)
-            text = getattr(match, 'text', None)
-            if box is None or text is None:
-                continue
-            x, y, w, h = box
-            cleaned = re.sub(r'[^\w一-龥]', '', text)
-            # 归一化到规范简体：繁体端 OCR 读到的繁体名（含跨版本异义词）在此折叠为
-            # 简体，之后的 ocr_exclude/长度阈/与 target_items 比较全在同一简体域进行。
-            # 名字只用于判定与按坐标点星，不回填 UI，归一化安全（对比卖出侧的约束）。
-            cleaned = canon(cleaned)
-            if not cleaned or cleaned.isdigit():
-                continue
-            if cleaned in ocr_exclude:
-                continue
-            # 过滤 Toast 消息（"已将商品蘑菇加入收藏"等长文本）
-            if len(cleaned) > name_max_len:
-                continue
-            name_items.append({
-                "name": cleaned,
-                "left_x": x,
-                "cy": y + h / 2,
-            })
+        for star in all_stars:
+            roi = [value + offset for value, offset in zip(star["box"], self.cfg["name_roi_offset"])]
+            result = self._recognize_region(local, NODE_OCR, screenshot, roi)
+            names = self._read_names(result, ocr_exclude, local, screenshot)
+            for name in names:
+                if self._name_near_star(star, name) and not any(
+                        name["name"] == old["name"] and self._same_box(name["box"], old["box"])
+                        for old in name_items):
+                    name_items.append(name)
+        entities = self._bind_star_to_name(all_stars, name_items)
+        yellow_n = sum(star["color"] == "yellow" for star in all_stars)
+        mfaalog.info(f"[ShopBuy] 星星{len(all_stars)}颗（黄{yellow_n}），明确配对{len(entities)}个，疑点{len(self._scan_issues)}项")
+        for issue in self._scan_issues:
+            mfaalog.warning(f"[ShopBuy] {issue}")
+        return entities
 
-        mfaalog.info(f"[ShopBuy] OCR 过滤后: {len(name_items)} 项")
-        for item in name_items:
-            mfaalog.info(
-                f"  {item['name']:6s} "
-                f"left_x={item['left_x']:.0f} cy={item['cy']:.0f}"
-            )
+    @staticmethod
+    def _same_box(a, b):
+        overlap = max(0, min(a[0] + a[2], b[0] + b[2]) - max(a[0], b[0])) * max(
+            0, min(a[1] + a[3], b[1] + b[3]) - max(a[1], b[1]))
+        return overlap > 0.5 * min(a[2] * a[3], b[2] * b[3])
 
-        if not name_items:
-            mfaalog.warning("[ShopBuy] OCR 清洗后无有效商品名。")
-            return None
+    def _read_names(self, result, ocr_exclude, context=None, image=None):
+        names = []
+        # filtered_results includes resource replace rules; all_results does not.
+        for match in (getattr(result, "filtered_results", None) or []):
+            candidate = select_best_ocr([match])
+            if candidate is None:
+                continue
+            box, raw = candidate["box"], candidate["text"]
+            text = canon(re.sub(r'[^\w一-龥]', '', raw))
+            if not text or text.isdigit():
+                continue
+            if text not in FORCED_UNFAVORITES and (text in ocr_exclude or len(text) > self.cfg["name_max_len"]):
+                continue
+            resolved = resolve_item_ocr(context, NODE_OCR, image, {**candidate, "text": text})
+            text = resolved["name"] if resolved["confirmed"] else text
+            box = list(box)
+            if any(text == old["name"] and self._same_box(box, old["box"]) for old in names):
+                continue
+            names.append({"name": text, "box": box, "left_x": box[0], "cy": box[1] + box[3] / 2,
+                          "confirmed": resolved["confirmed"], "resolution": resolved})
+        return names
 
-        # --- 星星位置 ---
-        star_result = context.run_recognition(NODE_STAR, screenshot)
-        if not star_result or not star_result.filtered_results:
-            mfaalog.warning("[ShopBuy] 未识别到任何星星。")
-            return None
-
+    def _read_stars(self, result, screenshot):
         img = np.asarray(screenshot)
         img_h, img_w = img.shape[:2]
-
-        all_stars = []
-        for match in star_result.filtered_results:
-            box = getattr(match, 'box', None)
+        stars = []
+        for match in (getattr(result, "filtered_results", None) or []):
+            box = getattr(match, "box", None)
             if box is None:
                 continue
-            bx, by, bw, bh = box
-            color = self._classify_star_color(
-                img, bx, by, bw, bh, img_w, img_h
-            )
-            all_stars.append({
-                "box": [bx, by, bw, bh],
-                "cx": bx + bw / 2,
-                "cy": by + bh / 2,
-                "right_x": bx + bw,
-                "color": color,
-            })
+            box = list(box)
+            if any(self._same_box(box, star["box"]) for star in stars):
+                continue
+            x, y, w, h = box
+            stars.append({"box": box, "cx": x + w / 2, "cy": y + h / 2, "right_x": x + w,
+                          "color": self._classify_star_color(img, x, y, w, h, img_w, img_h)})
+        return stars
 
-        yellow_n = sum(1 for s in all_stars if s["color"] == "yellow")
-        gray_n = len(all_stars) - yellow_n
-        mfaalog.info(
-            f"[ShopBuy] 星星: {len(all_stars)} 个 "
-            f"({yellow_n} 黄, {gray_n} 灰)"
-        )
-
-        if not all_stars:
+    @staticmethod
+    def _recognize_region(context, node, screenshot, roi):
+        height, width = np.asarray(screenshot).shape[:2]
+        x, y, w, h = roi
+        x1, y1 = max(0, x), max(0, y)
+        clipped = [x1, y1, min(width, x + w) - x1, min(height, y + h) - y1]
+        if clipped[2] <= 0 or clipped[3] <= 0:
             return None
+        return context.run_recognition(node, screenshot, {node: {"roi": clipped, "roi_offset": [0, 0, 0, 0]}})
 
-        # --- 配对 ---
-        entities = self._bind_star_to_name(all_stars, name_items)
-        if not entities:
-            mfaalog.warning("[ShopBuy] ⚠️ 星星与商品名完全无法配对，识别失败。")
-            return None
-        return entities
+    def _name_near_star(self, star, name):
+        return (self.cfg["bind_dx_min"] <= name["left_x"] - star["right_x"] <= self.cfg["bind_dx_max"]
+                and abs(name["cy"] - star["cy"]) <= self.cfg["bind_dy_max"])
 
     # ==========================================
     # 星星颜色判定（星心核 + 高饱和像素占比）
@@ -474,46 +548,26 @@ class ShopBuyFavController(CustomAction):
     # 星星→商品名 配对
     # ==========================================
     def _bind_star_to_name(self, all_stars, name_items):
-        dx_min = self.cfg["bind_dx_min"]
-        dx_max = self.cfg["bind_dx_max"]
-        dy_max = self.cfg["bind_dy_max"]
-
         entities = []
-        used_names = set()
-
-        for star in all_stars:
-            best_name = None
-            best_dx = float('inf')
-
-            for i, name_item in enumerate(name_items):
-                if i in used_names:
+        candidates = [[i for i, name in enumerate(name_items) if self._name_near_star(star, name)]
+                      for star in all_stars]
+        for star, indices in zip(all_stars, candidates):
+            if len(indices) == 1 and sum(indices[0] in row for row in candidates) == 1:
+                name_item = name_items[indices[0]]
+                if not name_item["confirmed"]:
+                    self._scan_issues.append(f"星框={star['box']} 商品名称未确认：{name_item['resolution']}")
                     continue
-                dx = name_item["left_x"] - star["right_x"]
-                dy = abs(name_item["cy"] - star["cy"])
-                if dx_min <= dx <= dx_max and dy <= dy_max:
-                    if dx < best_dx:
-                        best_dx = dx
-                        best_name = (i, name_item)
-
-            if best_name:
-                idx, name_item = best_name
-                used_names.add(idx)
                 entities.append({
                     "name": name_item["name"],
                     "star_color": star["color"],
                     "star_cx": star["cx"],
                     "star_cy": star["cy"],
                 })
-                mfaalog.info(
-                    f"[ShopBuy]   🔗 [{name_item['name']}] "
-                    f"↔ 星({star['right_x']:.0f},{star['cy']:.0f}) "
-                    f"dx={best_dx:.0f} {star['color']}"
-                )
+                mfaalog.info(f"[ShopBuy] [{name_item['name']}] 名框={name_item['box']} "
+                             f"星框={star['box']} 点击=({star['cx']:.0f},{star['cy']:.0f}) {star['color']}")
             else:
-                mfaalog.warning(
-                    f"[ShopBuy] ⚠️ 星星 box={star['box']} 未配对到商品名"
-                )
-
+                self._scan_issues.append(f"星框={star['box']} 名称配对不明确："
+                                         f"{[(name_items[i]['name'], name_items[i]['box']) for i in indices]}")
         return entities
 
     # ==========================================
@@ -524,7 +578,19 @@ class ShopBuyFavController(CustomAction):
         for entity in entities:
             name = entity["name"]
             color = entity["star_color"]
-            is_target = name in target_items
+            is_target = name in target_items and name not in FORCED_UNFAVORITES
+
+            if name in FORCED_UNFAVORITES:
+                if color == "yellow":
+                    actions.append({
+                        "name": name, "action": "extinguish",
+                        "star_cx": entity["star_cx"],
+                        "star_cy": entity["star_cy"],
+                    })
+                    mfaalog.info(f"[ShopBuy]   🔄 [{name}] 固定取消收藏+黄星 → 将熄灭")
+                else:
+                    mfaalog.info(f"[ShopBuy]   ✓  [{name}] 固定取消收藏+灰星 → 已正确")
+                continue
 
             if is_target and color == "gray":
                 actions.append({
@@ -558,7 +624,7 @@ class ShopBuyFavController(CustomAction):
 
         for i, act in enumerate(actions, 1):
             if context.tasker.stopping:
-                break
+                return False
             cx = int(act["star_cx"])
             cy = int(act["star_cy"])
             verb = "点亮" if act["action"] == "light" else "熄灭"
@@ -566,5 +632,8 @@ class ShopBuyFavController(CustomAction):
                 f"[ShopBuy]   👆 {i}/{len(actions)} "
                 f"{verb} [{act['name']}] @ ({cx}, {cy})"
             )
-            context.tasker.controller.post_click(cx, cy).wait()
+            if not context.tasker.controller.post_click(cx, cy).wait().succeeded:
+                mfaalog.warning(f"[ShopBuy] 点击未成功 [{act['name']}] @ ({cx}, {cy})，停止本批点击并重新核对")
+                return False
             time.sleep(click_delay)
+        return True
