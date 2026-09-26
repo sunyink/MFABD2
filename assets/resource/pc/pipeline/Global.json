@@ -277,7 +277,7 @@
             82,
             30
         ],
-        "count": 100
+        "count": 50
     },
     "Rec_SandBox_Pin_Tpl": {
         "desc": "[PC覆盖·07-23追加] 商队城镇(PACK5)PC快捷栏重排:安卓pin.png在城镇箱庭实测0.604<0.7恒miss→Arbitrage_OperationsMain_Sandplay(Or pin/Run)双腿全断→Card5#_Goin超时走默认Null假成功,套利在正确卡带里'找不到商人'静默停(07-23 09:06/09:14两轮实录)。pin_PC_town.png从09:06 on_error帧(1199,660,30,28)裁,离线验:自match 1.000/09:14交叉1.000/主页负样0.307/竞技场负样0.448。Or语义追加,故事箱庭里原pin.png继续工作。",
