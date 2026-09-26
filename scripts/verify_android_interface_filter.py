@@ -53,8 +53,14 @@ class AndroidInterfaceFilterTest(unittest.TestCase):
         self.assertEqual(filtered["resource"][0]["path"], ["./resource/base", "./resource/android_native"])
         self.assertNotIn("mirrorchyan_rid", filtered)
         expected_tasks = [task for task in self.interface["task"]
-                          if not task.get("controller") or "Adb" in task["controller"]]
+                          if task.get("entry") != "Env_MultiSave_Config"
+                          and (not task.get("controller") or "Adb" in task["controller"])]
         self.assertEqual(filtered["task"], expected_tasks)
+        for name in ("启用多存档", "存档名称"):
+            self.assertNotIn(name, filtered["option"])
+            self.assertNotIn(name, filtered.get("global_option", []))
+        self.assertTrue(all(task["name"] != "多存档"
+                            for preset in filtered["preset"] for task in preset["task"]))
 
     def test_task_and_preset_references_follow_controller_filter(self):
         source = deepcopy(self.interface)

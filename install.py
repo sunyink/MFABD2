@@ -94,7 +94,15 @@ def prepare_interface_for_target(interface, target_os):
             resource["label"] = "安卓原生机"
     # Keep the normal task entries, but omit tasks for other controllers.
     tasks = result.get("task", [])
-    result["task"] = [task for task in tasks if not task.get("controller") or adb_name in task["controller"]]
+    result["task"] = [task for task in tasks
+                      if task.get("entry") != "Env_MultiSave_Config"
+                      and (not task.get("controller") or adb_name in task["controller"])]
+    # The APK has one local account; no MFAA instance settings or account override.
+    account_options = {"启用多存档", "存档名称"}
+    result["global_option"] = [name for name in result.get("global_option", [])
+                               if name not in account_options]
+    for name in account_options:
+        result.get("option", {}).pop(name, None)
     task_names = {task["name"] for task in result["task"]}
     for preset in result.get("preset", []):
         preset["task"] = [task for task in preset.get("task", []) if task.get("name") in task_names]

@@ -666,7 +666,9 @@ class CooldownManager:
 
             # 生成 Key 并写入
             storage_key = self._get_storage_key(c_name, s_name)
-            PersistentStore.set(storage_key, now_str)
+            if not PersistentStore.set(storage_key, now_str):
+                utils.mfaalog.error(f"[Py] 完成标记保存失败: {storage_key}")
+                return False
             success_count += 1
             
             # 打印单条详细日志 (可选)
@@ -684,31 +686,28 @@ manager = CooldownManager()
 # ==============================================================================
 # 存档号同步的 pull 路径
 # ==============================================================================
-# 本文件是全仓唯一实际读写存档的业务代码（其余 PersistentStore 调用点只是
-# main.py 的启动挂载与 SwitchAccountCheckpoint 的 push 同步）。所以在这三个
-# 注册入口各同步一次，就覆盖了全部存档读写 —— 用户从哪个 task 起跑都不会用错档，
-# 不必依赖 `Env_AccountSave_Switch` 节点被执行。
-#
-# sync_from_context 承诺永不抛异常，且值相同时零副作用，可以裸调。
-# 详见 utils/account_sync.py。
-# ==============================================================================
+# 每个入口先确认根任务的存档快照。失败时同步层已封锁账号并停止当前
+# Context；必须立即退出，不能让识别 None 被当成普通冷却分支继续执行。
 
 @AgentServer.custom_action("CheckCoolDown")
 class CheckCoolDownAction(CustomAction):
     def run(self, context: Context, argv: CustomAction.RunArg):
-        sync_from_context(context, where="CheckCoolDown/action")
+        if not sync_from_context(context, where="CheckCoolDown/action"):
+            return False
         return manager.check_availability(argv)
 
 @AgentServer.custom_action("MarkComplete")
 class MarkCompleteAction(CustomAction):
     def run(self, context: Context, argv: CustomAction.RunArg):
-        sync_from_context(context, where="MarkComplete")
+        if not sync_from_context(context, where="MarkComplete"):
+            return False
         return manager.mark_complete(argv)
 
 @AgentServer.custom_recognition("CheckCoolDown")
 class CheckCoolDownRecognition(CustomRecognition):
     def analyze(self, context: Context, argv: CustomRecognition.AnalyzeArg):
-        sync_from_context(context, where="CheckCoolDown/reco")
+        if not sync_from_context(context, where="CheckCoolDown/reco"):
+            return None
         try:
             # 1. 获取参数 (Recognition 的参数名为 custom_recognition_param)
             params = json.loads(argv.custom_recognition_param)
