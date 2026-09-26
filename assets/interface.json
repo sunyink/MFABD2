@@ -83,7 +83,7 @@
             "name": "[全局]启动脚本(置顶)",
             "entry": "StartGame_Start",
             "default_check": true,
-            "description": "<b>最新版探测 &amp; 下载渠道：</b><br>[![正式版](https://img.shields.io/github/v/release/sunyink/MFABD2?label=仓库源·正式版&color=green&logo=github)](https://github.com/sunyink/MFABD2/releases/latest)<br>[![公测版](https://img.shields.io/github/v/tag/sunyink/MFABD2?include_prereleases&filter=%2Abeta%2A&label=仓库源·公测版&color=blue&logo=github)](https://github.com/sunyink/MFABD2/releases?q=beta)<br>[![Mirror酱](https://img.shields.io/badge/Mirror%E9%85%B1-镜像源·高速下载-%239af3f6?logo=countingworkspro&logoColor=4f46e5)](https://mirrorchyan.com/zh/projects?rid=MFABD2)<br>自动判断游戏运行状态，按需启动；处理更新弹框、支付失败等异常提示；完成后领取<b>主界面</b>奖励并执行<b>宠物派遣</b>。<br><b>注意：</b>网络环境请提前解决，脚本不处理网络问题。<br><b>首次运行前，务必查看 <code>使用帮助</code> 卡片！</b><br><br>PC端控制器（720P窗口化）资源适配尚不完整，仅供探索。"
+            "description": "<b>最新版探测 &amp; 下载渠道：</b><br>[![正式版](https://img.shields.io/github/v/release/sunyink/MFABD2?label=仓库源·正式版&color=green&logo=github)](https://github.com/sunyink/MFABD2/releases/latest)<br>[![公测版](https://img.shields.io/github/v/release/sunyink/MFABD2?include_prereleases&sort=date&filter=%2Abeta%2A&label=仓库源·公测版&color=blue&logo=github)](https://github.com/sunyink/MFABD2/releases?q=beta)<br>[![Mirror酱](https://img.shields.io/badge/Mirror%E9%85%B1-镜像源·高速下载-%239af3f6?logo=countingworkspro&logoColor=4f46e5)](https://mirrorchyan.com/zh/projects?rid=MFABD2)<br>自动判断游戏运行状态，按需启动；处理更新弹框、支付失败等异常提示；完成后领取<b>主界面</b>奖励并执行<b>宠物派遣</b>。<br><b>注意：</b>网络环境请提前解决，脚本不处理网络问题。<br><b>首次运行前，务必查看 <code>使用帮助</code> 卡片！</b><br><br>PC端控制器（720P窗口化）资源适配尚不完整，仅供探索。"
         },
         {
             "name": "[执行]快速狩猎扫荡",
