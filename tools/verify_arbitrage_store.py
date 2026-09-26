@@ -249,13 +249,16 @@ class ArbitrageStoreTests(unittest.TestCase):
 
 class SharedFileTests(unittest.TestCase):
     def test_shared_file_follows_account_storage_directory(self):
-        attrs = ("_initialized", "_mode", "CONFIG_DIR", "FILE_PATH", "BACKUP_PATH", "_degraded_readonly")
+        attrs = ("_initialized", "_directory_initialized", "_account_ready", "_mode", "CONFIG_DIR",
+                 "FILE_PATH", "BACKUP_PATH", "_degraded_readonly")
         account_state = {name: getattr(RealAccountStore, name) for name in attrs}
         shared_state = {name: getattr(RealSharedStore, name) for name in attrs}
         try:
             with tempfile.TemporaryDirectory(prefix="mfabd2-shared-store-") as temp:
                 directory = Path(temp)
                 RealAccountStore._initialized = True
+                RealAccountStore._directory_initialized = True
+                RealAccountStore._account_ready = False  # shared data needs no account
                 RealAccountStore._mode = "portable"
                 RealAccountStore.CONFIG_DIR = directory
                 RealAccountStore.FILE_PATH = directory / "agent_save_data.json"

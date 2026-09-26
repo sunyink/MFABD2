@@ -1,0 +1,24 @@
+{
+  "TaskItems": [
+    {
+      "name": "用户改过显示名",
+      "entry": "Env_MultiSave_Config",
+      "default_check": null,
+      "option": [
+        {
+          "name": "启用多存档",
+          "index": 0,
+          "sub_options": [
+            {
+              "name": "存档名称",
+              "index": 0,
+              "data": {
+                "账号多开配置": "2"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

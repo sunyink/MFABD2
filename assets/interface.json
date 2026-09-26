@@ -98,9 +98,16 @@
         "PC窗口分辨率",
         "PC启动最小化",
         "前置助手",
-        "存档名称"
+        "启用多存档"
     ],
     "task": [
+        {
+            "name": "多存档",
+            "label": "⚙️ 多存档",
+            "entry": "Env_MultiSave_Config",
+            "default_check": true,
+            "description": "账号选择只看下方「启用多存档」开关，与左侧任务勾选、全选/全不选无关；本任务无需先执行。<br>关闭使用默认档；开启使用填写的号码。修改从下一任务生效，建议停止队列后修改。<br><b>升级或应用预设后默认为 0，多账号用户请重新确认号码。</b>"
+        },
         {
             "name": "[全局]启动脚本(置顶)",
             "entry": "StartGame_Start",
@@ -820,22 +827,22 @@
         },
         "存档名称": {
             "type": "input",
-            "label": "多存档",
-            "description": "按<b>存档号</b>独立保存各实例的刷取进度，多实例运行时自动加载对应存档。<br>填 <b>0</b> 即为默认存档（无后缀），不需要额外开关。<br>运行途中更改存档号后，<b>下一个任务开始时自动生效</b>，无需重跑「启动脚本」。",
+            "label": "存档号",
+            "description": "请填纯数字。0 为默认档；不同号码对应不同存档，前导零会保留。",
             "inputs": [
                 {
                     "name": "账号多开配置",
-                    "label": "账号多开存档名",
-                    "description": "填入数字（如 1, 2, 3 或者 UID！）以隔离各账号存档。<br>填 <b>0</b> 使用默认存档（无后缀）",
-                    "pattern_msg": "请输入纯数字",
+                    "label": "存档号",
+                    "description": "填入账号存档号，如 1、2 或 UID；默认档填 0。",
+                    "pattern_msg": "请输入纯数字存档号，默认档填 0",
                     "pipeline_type": "string",
                     "default": "0",
                     "verify": "^[0-9]+$"
                 }
             ],
             "pipeline_override": {
-                "Env_AccountSave_Switch": {
-                    "custom_action_param": {
+                "Agt_MultiSave_Inject": {
+                    "attach": {
                         "account_id": "{账号多开配置}"
                     }
                 }
@@ -7795,6 +7802,30 @@
                     }
                 }
             ]
+        },
+        "启用多存档": {
+            "type": "switch",
+            "label": "启用多存档",
+            "default_case": "Yes",
+            "description": "关闭时使用默认 0 号档；开启后按填写的号码保存进度。",
+            "cases": [
+                {
+                    "name": "Yes",
+                    "option": [
+                        "存档名称"
+                    ]
+                },
+                {
+                    "name": "No",
+                    "pipeline_override": {
+                        "Agt_MultiSave_Inject": {
+                            "attach": {
+                                "account_id": "0"
+                            }
+                        }
+                    }
+                }
+            ]
         }
     },
     "preset": [
@@ -7802,6 +7833,10 @@
             "name": "日常-尽快完成",
             "description": "快!",
             "task": [
+                {
+                    "name": "多存档",
+                    "enabled": true
+                },
                 {
                     "name": "[全局]启动脚本(置顶)",
                     "enabled": true
@@ -7894,6 +7929,10 @@
             "name": "日常-费时细致",
             "description": "",
             "task": [
+                {
+                    "name": "多存档",
+                    "enabled": true
+                },
                 {
                     "name": "[全局]启动脚本(置顶)",
                     "enabled": true
@@ -7993,6 +8032,10 @@
             "name": "小工具",
             "description": "非日常",
             "task": [
+                {
+                    "name": "多存档",
+                    "enabled": true
+                },
                 {
                     "name": "[半自动]自动钓鱼",
                     "enabled": false

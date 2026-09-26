@@ -124,6 +124,7 @@ class PurchaseCycleTests(unittest.TestCase):
             patch.object(PersistentStore, "load", side_effect=lambda: deepcopy(self.data)),
             patch.object(PersistentStore, "save", side_effect=self.save),
             patch.object(PersistentStore, "_current_account_id", "cycle-test"),
+            patch.object(PersistentStore, "_account_ready", True),
             patch.object(buy, "sync_from_context", return_value=True),
             patch.object(cycles, "sync_from_context", return_value=True),
             patch.dict(lists._RUNS, clear=True),

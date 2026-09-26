@@ -398,7 +398,8 @@ def _emit_summary_detail(context: Context, image, record: dict) -> bool:
 class CookingStockSnapshot(CustomAction):
     def run(self, context: Context, argv: CustomAction.RunArg) -> bool:
         task_id = argv.task_detail.task_id
-        sync_from_context(context, where="CookingStockSnapshot")
+        if not sync_from_context(context, where="CookingStockSnapshot"):
+            return False
         image = None
         guard_recognitions = []
         try:

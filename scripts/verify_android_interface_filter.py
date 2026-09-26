@@ -53,8 +53,14 @@ class AndroidInterfaceFilterTest(unittest.TestCase):
         self.assertEqual(filtered["resource"][0]["path"], ["./resource/base", "./resource/android_native"])
         self.assertNotIn("mirrorchyan_rid", filtered)
         expected_tasks = [task for task in self.interface["task"]
-                          if not task.get("controller") or "Adb" in task["controller"]]
+                          if task.get("entry") != "Env_MultiSave_Config"
+                          and (not task.get("controller") or "Adb" in task["controller"])]
         self.assertEqual(filtered["task"], expected_tasks)
+        for name in ("启用多存档", "存档名称"):
+            self.assertNotIn(name, filtered["option"])
+            self.assertNotIn(name, filtered.get("global_option", []))
+        self.assertTrue(all(task["name"] != "多存档"
+                            for preset in filtered["preset"] for task in preset["task"]))
 
     def test_task_and_preset_references_follow_controller_filter(self):
         source = deepcopy(self.interface)
@@ -216,9 +222,16 @@ class AndroidInterfaceFilterTest(unittest.TestCase):
                         self.assertEqual(installed["resource"], INSTALL.prepare_interface_for_target(self.interface, target)["resource"])
             self.assertEqual({path.relative_to(source): path.read_bytes() for path in source.rglob("*") if path.is_file()}, source_files)
 
-    def test_desktop_targets_are_unfiltered(self):
-        filtered = INSTALL.prepare_interface_for_target(self.interface, "win-x64")
-        self.assertEqual(filtered, self.interface)
+    def test_desktop_targets_only_relocate_multi_save(self):
+        # The source keeps the switch global for per-task clients; MFAA gets it inside the task.
+        expected = deepcopy(self.interface)
+        expected["global_option"].remove("启用多存档")
+        next(task for task in expected["task"] if task["entry"] == "Env_MultiSave_Config")["option"] = ["启用多存档"]
+        del expected["option"]["存档名称"]["pipeline_override"]
+        del next(case for case in expected["option"]["启用多存档"]["cases"] if case["name"] == "No")["pipeline_override"]
+        for target in ("win-x64", "linux-x64", "macos"):
+            with self.subTest(target=target):
+                self.assertEqual(INSTALL.prepare_interface_for_target(self.interface, target), expected)
 
     def test_unrestricted_resources_are_kept(self):
         source = {"controller": [{"name": "A", "type": "Adb"}], "resource": [{"name": "all", "path": ["."]}, {"name": "a", "path": ["."], "controller": ["A"]}, {"name": "b", "path": ["."], "controller": ["B"]}]}

@@ -1,4 +1,24 @@
 {
+    "Env_MultiSave_Config": {
+        "desc": "多存档设置的空入口；只提示，不操作游戏。Python 直接读取本实例保存的选项。",
+        "pre_delay": 0,
+        "post_delay": 0,
+        "focus": "多存档设置"
+    },
+    "Env_AccountUnavailable_Stop": {
+        "desc": "账号配置不可用时，由 Python run_action 停止当前 Context；不停止整个 UI 队列。",
+        "pre_delay": 0,
+        "action": "StopTask",
+        "post_delay": 0,
+        "focus": "账号配置不可用，已停止当前任务"
+    },
+    "Agt_MultiSave_Inject": {
+        "desc": "py 独占，勿挂进管路：非 MFAA 客户端的多存档号载体。源 interface 的全局「启用多存档」把号写进 attach.account_id，Python 按任务读取；发布包不注入，MFAA 只读实例配置。",
+        "enabled": false,
+        "attach": {
+            "account_id": ""
+        }
+    },
     "Fishing_NiceBoat": {
         "focus": "占位符.需要正确的资源选择."
     },
@@ -15,13 +35,10 @@
         "desc": "不要使用,不要删除。SmartAction 的空代理节点,全部内容由 custom_action_param.proxy_override 注入。这里必须保持真空——写任何 action/delay 都会在调用方没覆盖该字段时被意外继承。"
     },
     "Env_AccountSave_Switch": {
-        "desc": "一个存储存档名称/呼叫检查动作的,可复用节点. | 默认节点为0,此时生成不带额外名称的存档文件.| max_hit,利用流程级变量只运行一次,流程结束会销毁",
+        "desc": "启动链的账号检查点；账号来源为实例配置中的独立子开关与输入。无需先执行此节点，业务入口也会检查。",
         "max_hit": 1,
         "action": "Custom",
         "custom_action": "SwitchAccountCheckpoint",
-        "custom_action_param": {
-            "account_id": "0"
-        },
         "focus": "Env.存档检查器"
     },
     "Global_Null": {
@@ -75,8 +92,12 @@
             446,
             385
         ],
-        "expected": ["支付失败"],
-        "next": ["Dummy_Err_GetProductsFail_Ck"]
+        "expected": [
+            "支付失败"
+        ],
+        "next": [
+            "Dummy_Err_GetProductsFail_Ck"
+        ]
     },
     "Dummy_Err_GetProductsFail_Ck": {
         "recognition": "OCR",
@@ -86,7 +107,9 @@
             446,
             385
         ],
-        "expected": ["确认"],
+        "expected": [
+            "确认"
+        ],
         "action": "Click"
     },
     "Agt_RedDot_Preset": {
@@ -95,15 +118,18 @@
         "custom_recognition": "RedDotDetector",
         "custom_recognition_param": {
             "flt_red_hsv": [
-                {"lower": [
+                {
+                    "lower": [
                         0,
                         140,
                         120
-                    ], "upper": [
+                    ],
+                    "upper": [
                         12,
                         255,
                         255
-                    ]},
+                    ]
+                },
                 {
                     "lower": [
                         165,
@@ -143,15 +169,18 @@
         "custom_recognition": "RedDotDetector",
         "custom_recognition_param": {
             "flt_red_hsv": [
-                {"lower": [
+                {
+                    "lower": [
                         0,
                         140,
                         120
-                    ], "upper": [
+                    ],
+                    "upper": [
                         12,
                         255,
                         255
-                    ]},
+                    ]
+                },
                 {
                     "lower": [
                         165,

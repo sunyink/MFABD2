@@ -30,9 +30,18 @@ class AndroidRuntimeTests(unittest.TestCase):
         self.root = Path(temporary.name).resolve()
         self.enterContext(patch.dict(os.environ, {}, clear=True))
         self.enterContext(patch.object(runtime.platform, "system", return_value="Linux"))
-        self.store = type("IsolatedStore", (PersistentStore,), {"_initialized": False, "_storage_policy": None})
+        self.store = self.isolated_store()
         for method in ("info", "warning", "error"):
             self.enterContext(patch(f"utils.persistent_store.logger.{method}"))
+
+    @staticmethod
+    def isolated_store():
+        return type("IsolatedStore", (PersistentStore,), {
+            "_initialized": False, "_storage_policy": None, "_directory_initialized": False,
+            "_account_ready": False, "_bound_task_key": None, "_mounted_account_id": None,
+            "_current_account_id": None, "_sanitized_account_id": None,
+            "CONFIG_DIR": None, "FILE_PATH": None, "BACKUP_PATH": None,
+        })
 
     def android_config(self):
         if "MFA_ANDROID_OUTPUT_BRIDGED" not in os.environ:
@@ -176,6 +185,7 @@ class AndroidRuntimeTests(unittest.TestCase):
         portable.mkdir()
         (portable / "agent_save_data.json.bak").write_text('{"keep":42}', encoding="utf-8")
         self.store.configure_storage(runtime.StoragePolicy(self.root / "global", portable))
+        self.store.switch_account("0")
         self.assertEqual(self.store.get("keep"), 42)
         self.assertEqual(self.store.FILE_PATH.parent, portable)
         self.assertFalse((self.root / "global").exists())
@@ -187,8 +197,9 @@ class AndroidRuntimeTests(unittest.TestCase):
                 portable.mkdir()
                 archive = portable / filename
                 archive.write_text('{"market":42}', encoding="utf-8")
-                store = type("IsolatedStore", (PersistentStore,), {"_initialized": False, "_storage_policy": None})
+                store = self.isolated_store()
                 store.configure_storage(runtime.StoragePolicy(self.root / "global", portable))
+                store.switch_account("0")
                 self.assertTrue(store.set("account", 1))
                 self.assertEqual(store.FILE_PATH.parent, portable)
                 self.assertEqual(archive.read_text(encoding="utf-8"), '{"market":42}')
@@ -213,6 +224,7 @@ class AndroidRuntimeTests(unittest.TestCase):
         portable = self.root / "portable"
         portable.mkdir()
         self.store.configure_storage(runtime.StoragePolicy(blocked, portable))
+        self.store.switch_account("0")
         self.store.set("keep", 42)
         self.assertEqual(self.store.get("keep"), 42)
         self.assertEqual(self.store.FILE_PATH.parent, portable)
@@ -220,6 +232,7 @@ class AndroidRuntimeTests(unittest.TestCase):
     def test_account_switch_does_not_redetect_environment(self):
         original = self.root / "first"
         os.environ["MFABD2_DATA_DIR"] = str(original)
+        self.store.switch_account("0")
         self.store.set("keep", 1)
         os.environ["MFABD2_DATA_DIR"] = str(self.root / "other")
         self.store.switch_account("second")
@@ -230,7 +243,7 @@ class AndroidRuntimeTests(unittest.TestCase):
     def test_relative_override_is_rejected(self):
         os.environ["MFABD2_DATA_DIR"] = "relative/save"
         with self.assertRaisesRegex(RuntimeError, "absolute"):
-            self.store.load()
+            self.store.switch_account("0")
         self.assertFalse(self.store._initialized)
 
     def test_unwritable_host_path_never_falls_back_or_changes_existing_save(self):
@@ -238,6 +251,7 @@ class AndroidRuntimeTests(unittest.TestCase):
         blocked.write_text("keep", encoding="utf-8")
         os.environ["MFABD2_DATA_DIR"] = str(blocked)
         with self.assertRaises(OSError):
+            self.store.switch_account("0")
             self.store.set("key", "new")
         self.assertEqual(blocked.read_text(encoding="utf-8"), "keep")
         self.assertFalse(self.store._initialized)
@@ -248,6 +262,7 @@ class AndroidRuntimeTests(unittest.TestCase):
         resource.mkdir()
         data = self.root / "mfabd2-save"
         os.environ["MFABD2_DATA_DIR"] = str(data)
+        self.store.switch_account("0")
         self.store.set("value", "zero")
         self.store.switch_account("two")
         self.store.set("value", "second")
@@ -261,6 +276,7 @@ class AndroidRuntimeTests(unittest.TestCase):
 
     def test_unreadable_existing_save_remains_write_protected(self):
         os.environ["MFABD2_DATA_DIR"] = str(self.root / "save")
+        self.store.switch_account("0")
         self.store.set("existing", "keep")
         previous = self.store.FILE_PATH.read_bytes()
         with patch.object(self.store, "_try_load_file", return_value=(None, "unreadable")):

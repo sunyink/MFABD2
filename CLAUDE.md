@@ -18,6 +18,11 @@ Python Agent 提供自定义识别/动作，MFAAvalonia 提供 GUI。
 | `tools/` | **人工维护脚本**（CI 不调用）：`migrate_pipeline_manager.py`、`tidy_mpe_config.py` |
 
 `scripts/` 与 `tools/` 的分界是「谁来调用」：CI 里出现的一律放 `scripts/`。
+
+`assets/interface.json` 是源文件，**不等于发布出去的 interface**：`install.py` 的
+`prepare_interface_for_target` 会按目标改写它（安卓过滤；把「启用多存档」从 `global_option`
+移进「多存档」任务，原因见 `docs/multi-save.md`）。判断用户实际看到什么，以 install 产物为准。
+
 `scripts/verify_android_*.py` 与 `scripts/android_build.py` 需要 **Python 3.11+**
 （用了 `hashlib.file_digest` 与 `TestCase.enterContext`），本地用 3.10 跑会直接报
 AttributeError——不是测试失败。

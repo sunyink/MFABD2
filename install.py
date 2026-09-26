@@ -49,9 +49,48 @@ target_os = len(sys.argv) > 2 and sys.argv[2] or "win"
 maa_ver = len(sys.argv) > 3 and sys.argv[3] or "0.0.0"
 
 
+# The source keeps the multi-save switch in global_option: VS Code MaaSupport stores global
+# values per task, so a single task run can pick its account, injected into the Agt_ node.
+# MFAA shares global values across instances, so releases move the switch into the
+# multi-save task (saved per instance) and drop the injection; the agent reads MFAA's file.
+MULTI_SAVE_ENTRY = "Env_MultiSave_Config"
+MULTI_SAVE_SWITCH = "启用多存档"
+MULTI_SAVE_OPTIONS = (MULTI_SAVE_SWITCH, "存档名称")
+MULTI_SAVE_INJECT_NODE = "Agt_MultiSave_Inject"
+
+
+def relocate_multi_save_switch(interface):
+    """Move the global multi-save switch into its task, in place; release shapes pass unchanged."""
+    tasks = [task for task in interface.get("task", []) if task.get("entry") == MULTI_SAVE_ENTRY]
+    in_global = MULTI_SAVE_SWITCH in interface.get("global_option", [])
+    if not tasks and not in_global:
+        return
+    if len(tasks) != 1:
+        raise ValueError(f"Expected exactly one {MULTI_SAVE_ENTRY} task, found {len(tasks)}")
+    task = tasks[0]
+    if in_global:
+        if task.get("option"):
+            raise ValueError("The source multi-save task must not declare its own options")
+        interface["global_option"] = [name for name in interface["global_option"] if name != MULTI_SAVE_SWITCH]
+        task["option"] = [MULTI_SAVE_SWITCH]
+    elif task.get("option") != [MULTI_SAVE_SWITCH]:
+        raise ValueError(f"The multi-save task must carry only {MULTI_SAVE_SWITCH!r}")
+    for name in MULTI_SAVE_OPTIONS:
+        option = interface.get("option", {}).get(name)
+        if option is None:
+            raise ValueError(f"Missing multi-save option {name!r}")
+        for holder in (option, *option.get("cases", [])):
+            override = holder.get("pipeline_override")
+            if isinstance(override, dict):
+                override.pop(MULTI_SAVE_INJECT_NODE, None)
+                if not override:
+                    del holder["pipeline_override"]
+
+
 def prepare_interface_for_target(interface, target_os):
     """Return a target-specific interface copy without mutating the source object."""
     result = deepcopy(interface)
+    relocate_multi_save_switch(result)
     if not str(target_os).lower().startswith("android"):
         return result
 
@@ -94,7 +133,15 @@ def prepare_interface_for_target(interface, target_os):
             resource["label"] = "安卓原生机"
     # Keep the normal task entries, but omit tasks for other controllers.
     tasks = result.get("task", [])
-    result["task"] = [task for task in tasks if not task.get("controller") or adb_name in task["controller"]]
+    result["task"] = [task for task in tasks
+                      if task.get("entry") != "Env_MultiSave_Config"
+                      and (not task.get("controller") or adb_name in task["controller"])]
+    # The APK has one local account; no MFAA instance settings or account override.
+    account_options = {"启用多存档", "存档名称"}
+    result["global_option"] = [name for name in result.get("global_option", [])
+                               if name not in account_options]
+    for name in account_options:
+        result.get("option", {}).pop(name, None)
     task_names = {task["name"] for task in result["task"]}
     for preset in result.get("preset", []):
         preset["task"] = [task for task in preset.get("task", []) if task.get("name") in task_names]

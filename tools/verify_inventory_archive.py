@@ -250,7 +250,8 @@ class InventoryArchiveTests(ArchiveFixture):
 
     def test_real_save_and_backup_commit_before_cold_archive(self):
         directory = Path(self.temp.name)
-        attributes = {"_initialized": True, "_mode": "portable", "CONFIG_DIR": directory,
+        attributes = {"_initialized": True, "_directory_initialized": True, "_account_ready": True,
+                      "_mode": "portable", "CONFIG_DIR": directory,
                       "FILE_PATH": directory / "agent_save_data.json",
                       "BACKUP_PATH": directory / "agent_save_data.json.bak",
                       "_current_account_id": "0", "_sanitized_account_id": "0", "_degraded_readonly": False}

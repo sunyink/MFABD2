@@ -48,7 +48,8 @@ PersistentStore.configure_storage(runtime.storage)
 
 import action # action子文件夹:agent/action/__init__.py里声明的全部
 import recognition
-from utils.instance_resolver import resolve_instance_id  # 实例身份探测(仅日志)
+from utils.instance_resolver import resolve_instance_id
+from utils.account_sync import configure_account_session
 from utils.host_watchdog import HostWatchdog, cleanup_socket_file  # 宿主(UI)存活守护
 from utils.log_event_sink import LogEventSink
 import fishing_agent # 钓鱼~
@@ -63,10 +64,7 @@ def main():
     # =========================================================================
     # 启动时的实例探测与存档系统预热
     # =========================================================================
-    # 存档号**不在这里决定**。启动阶段拿不到 context，也就拿不到用户当前选的
-    # 存档号 —— 它由 utils/account_sync.py 在首个 custom 回调里从 context 读出
-    # 并切换（见该模块 docstring）。这里只用默认档预热一次，验证路径与读写权限。
-    #
+    # 只准备目录，不创建默认档。账号在业务回调中按根任务固定。
     # 获取 socket_id (由 MaaFramework 传入)
     socket_id = sys.argv[-1] if len(sys.argv) >= 2 else ""
     # 去除可能的 "socket_id=" 前缀
@@ -74,11 +72,10 @@ def main():
         socket_id = socket_id.split("=", 1)[1]
 
     try:
-        if socket_id:
-            resolve_instance_id(socket_id, project_root)  # 仅记日志，供多实例排查
-
-        PersistentStore.load()
-        mfaalog.info("✅ [Agent] 存档/备份系统已就绪（存档号将在首个任务运行时确定）")
+        instance_id = resolve_instance_id()
+        configure_account_session(project_root, android=runtime.mode == "android", instance_id=instance_id or "")
+        PersistentStore.prepare_directory()
+        mfaalog.info("✅ [Agent] 存档目录已就绪（业务任务首次使用时确定账号）")
     except Exception as e:
         mfaalog.error(f"⚠️ 存档系统预热异常: {e}")
         if runtime.strict_storage:
