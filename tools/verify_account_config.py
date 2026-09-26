@@ -12,10 +12,10 @@ from unittest.mock import patch
 ROOT = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT), str(ROOT / "agent")]
 from utils.instance_account_config import (
-    ACCOUNT_INPUT, ACCOUNT_OPTION, STOP_ENTRY, SWITCH_OPTION, TASK_ENTRY,
+    ACCOUNT_INPUT, ACCOUNT_OPTION, INJECT_NODE, STOP_ENTRY, SWITCH_OPTION, TASK_ENTRY,
     parse_instance_account, read_instance_account,
 )
-from utils.account_sync import AccountSession
+from utils.account_sync import AccountSession, account_source
 from utils.persistent_store import AccountNotReadyError, PersistentStore
 from utils.runtime_environment import StoragePolicy
 
@@ -36,12 +36,18 @@ def store_type():
 
 
 class Context:
-    def __init__(self, job):
+    def __init__(self, job, attach=None):
         self.job = job
+        self.attach = attach
         self.stops = []
 
     def get_task_job(self):
         return SimpleNamespace(job_id=self.job)
+
+    def get_node_object(self, name):
+        if name != INJECT_NODE or self.attach is None:
+            return None
+        return SimpleNamespace(attach=self.attach)
 
     def run_action(self, name):
         self.stops.append(name)
@@ -236,6 +242,41 @@ class FileAndSessionTests(unittest.TestCase):
             read.assert_not_called()
         self.assertEqual(self.store._current_account_id, "0")
 
+    def test_source_follows_client_not_values(self):
+        self.assertEqual(account_source(True, "A", "VsCode"), "android")
+        self.assertEqual(account_source(False, "A", "VsCode"), "mfaa")
+        self.assertEqual(account_source(False, "", "MFAAvalonia"), "mfaa")
+        for client in ("VsCode", "MaaDebugger", ""):
+            self.assertEqual(account_source(False, "", client), "injected")
+
+    def test_mfaa_never_reads_injection(self):
+        self.write("1")
+        self.assertTrue(self.session.sync(Context(1, {"account_id": "9"})))
+        self.assertEqual(self.store._current_account_id, "1")
+
+    def test_injected_client_reads_its_task_and_pins_it(self):
+        session = AccountSession(self.root, "", injected=True, client="VsCode", store=self.store)
+        first = Context(1, {"account_id": "002"})
+        self.assertTrue(session.sync(first))
+        self.assertTrue(self.store.set("progress", "one"))
+        first.attach = {"account_id": "3"}
+        self.assertTrue(session.sync(first))
+        self.assertEqual(self.store._current_account_id, "002")
+        self.assertTrue(session.sync(Context(2, {"account_id": "0"})))
+        self.assertEqual(self.store._current_account_id, "0")
+        self.assertEqual(json.loads((self.root / "save/agent_save_data_002.json").read_text())["progress"], "one")
+
+    def test_injected_client_never_defaults(self):
+        session = AccountSession(self.root, "", injected=True, client="VsCode", store=self.store)
+        cases = (None, "bad", {}, {"account_id": ""}, {"account_id": "a"}, {"account_id": 1}, {"account_id": " 1"})
+        for job, attach in enumerate(cases, 1):
+            with self.subTest(attach=attach):
+                context = Context(job, attach)
+                self.assertFalse(session.sync(context))
+                self.assertEqual(context.stops, [STOP_ENTRY])
+                with self.assertRaises(AccountNotReadyError): self.store.load()
+                self.assertFalse(self.store.save({}))
+
     def test_invalid_root_and_stop_failure_keep_storage_locked(self):
         self.write("1")
         context = Context(0)
@@ -245,11 +286,52 @@ class FileAndSessionTests(unittest.TestCase):
 
 
 class InterfaceTests(unittest.TestCase):
-    def test_ui_shape_presets_and_android_filter(self):
-        interface = json.loads((ROOT / "assets/interface.json").read_text(encoding="utf-8"), strict=False)
+    @classmethod
+    def setUpClass(cls):
+        cls.source = json.loads((ROOT / "assets/interface.json").read_text(encoding="utf-8"), strict=False)
+        spec = importlib.util.spec_from_file_location("test_install", ROOT / "install.py")
+        cls.installer = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(cls.installer)
+
+    def test_source_shape_for_per_task_clients(self):
+        # MaaSupport shows global options in every task and injects them per task.
+        self.assertIn(SWITCH_OPTION, self.source["global_option"])
+        self.assertNotIn("option", next(t for t in self.source["task"] if t["entry"] == TASK_ENTRY))
+        yes, no = self.source["option"][SWITCH_OPTION]["cases"]
+        self.assertNotIn("pipeline_override", yes)
+        self.assertEqual(no["pipeline_override"], {INJECT_NODE: {"attach": {"account_id": "0"}}})
+        self.assertEqual(self.source["option"][ACCOUNT_OPTION]["pipeline_override"],
+                         {INJECT_NODE: {"attach": {"account_id": "{%s}" % ACCOUNT_INPUT}}})
+        nodes = json.loads((ROOT / "assets/resource/base/pipeline/Dummy.json").read_text(encoding="utf-8"))
+        self.assertEqual((nodes[INJECT_NODE]["enabled"], nodes[INJECT_NODE]["attach"]), (False, {"account_id": ""}))
+
+    def test_relocation_rejects_ambiguous_sources(self):
+        relocate = self.installer.relocate_multi_save_switch
+        doubled = deepcopy(self.source)
+        doubled["task"].append(deepcopy(next(t for t in doubled["task"] if t["entry"] == TASK_ENTRY)))
+        owned = deepcopy(self.source)
+        next(t for t in owned["task"] if t["entry"] == TASK_ENTRY)["option"] = ["前置助手"]
+        lost = deepcopy(self.source)
+        lost["global_option"].remove(SWITCH_OPTION)
+        undefined = deepcopy(self.source)
+        del undefined["option"][ACCOUNT_OPTION]
+        for document in (doubled, owned, lost, undefined):
+            with self.assertRaises(ValueError):
+                relocate(document)
+        bare = {"global_option": ["前置助手"], "task": [{"name": "x", "entry": "y"}]}
+        relocate(bare)
+        self.assertEqual(bare, {"global_option": ["前置助手"], "task": [{"name": "x", "entry": "y"}]})
+
+    def test_release_shape_presets_and_android_filter(self):
+        before = deepcopy(self.source)
+        interface = self.installer.prepare_interface_for_target(self.source, "win-x64")
+        self.assertEqual(self.source, before)
+        self.assertEqual(self.installer.prepare_interface_for_target(interface, "win-x64"), interface)
+        self.assertNotIn(INJECT_NODE, json.dumps(interface, ensure_ascii=False))
         task = next(t for t in interface["task"] if t["entry"] == TASK_ENTRY)
         self.assertEqual((task["name"], task["label"], task["option"]),
                          ("多存档", "⚙️ 多存档", [SWITCH_OPTION]))
+        self.assertNotIn(SWITCH_OPTION, interface["global_option"])
         switch = interface["option"][SWITCH_OPTION]
         self.assertEqual([c["name"] for c in switch["cases"]], ["Yes", "No"])
         self.assertEqual(switch["default_case"], "Yes")
@@ -267,13 +349,10 @@ class InterfaceTests(unittest.TestCase):
         nodes = json.loads((ROOT / "assets/resource/base/pipeline/Dummy.json").read_text(encoding="utf-8"))
         self.assertFalse(set(nodes[TASK_ENTRY]) & {"action", "custom_action", "next"})
         self.assertEqual(nodes[STOP_ENTRY]["action"], "StopTask")
-        spec = importlib.util.spec_from_file_location("test_install", ROOT / "install.py")
-        installer = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(installer)
-        before = deepcopy(interface)
-        apk = installer.prepare_interface_for_target(interface, "android-arm64")
-        self.assertEqual(interface, before)
+        apk = self.installer.prepare_interface_for_target(self.source, "android-arm64")
+        self.assertEqual(self.source, before)
         self.assertFalse(any(t["entry"] == TASK_ENTRY for t in apk["task"]))
+        self.assertNotIn(SWITCH_OPTION, apk["global_option"])
         self.assertNotIn(SWITCH_OPTION, apk["option"])
         self.assertNotIn(ACCOUNT_OPTION, apk["option"])
         self.assertTrue(all(t["name"] != "多存档" for p in apk["preset"] for t in p["task"]))

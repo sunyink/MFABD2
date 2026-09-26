@@ -222,9 +222,16 @@ class AndroidInterfaceFilterTest(unittest.TestCase):
                         self.assertEqual(installed["resource"], INSTALL.prepare_interface_for_target(self.interface, target)["resource"])
             self.assertEqual({path.relative_to(source): path.read_bytes() for path in source.rglob("*") if path.is_file()}, source_files)
 
-    def test_desktop_targets_are_unfiltered(self):
-        filtered = INSTALL.prepare_interface_for_target(self.interface, "win-x64")
-        self.assertEqual(filtered, self.interface)
+    def test_desktop_targets_only_relocate_multi_save(self):
+        # The source keeps the switch global for per-task clients; MFAA gets it inside the task.
+        expected = deepcopy(self.interface)
+        expected["global_option"].remove("启用多存档")
+        next(task for task in expected["task"] if task["entry"] == "Env_MultiSave_Config")["option"] = ["启用多存档"]
+        del expected["option"]["存档名称"]["pipeline_override"]
+        del next(case for case in expected["option"]["启用多存档"]["cases"] if case["name"] == "No")["pipeline_override"]
+        for target in ("win-x64", "linux-x64", "macos"):
+            with self.subTest(target=target):
+                self.assertEqual(INSTALL.prepare_interface_for_target(self.interface, target), expected)
 
     def test_unrestricted_resources_are_kept(self):
         source = {"controller": [{"name": "A", "type": "Adb"}], "resource": [{"name": "all", "path": ["."]}, {"name": "a", "path": ["."], "controller": ["A"]}, {"name": "b", "path": ["."], "controller": ["B"]}]}

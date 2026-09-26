@@ -1,4 +1,9 @@
-"""Read MFAA's saved switch/input, independently of task execution and selection."""
+"""Read the account choice: MFAA's saved switch/input, or a task-local injection.
+
+MFAA shares global options across instances, so its choice comes only from the
+instance file. Clients that keep global options per task (VS Code MaaSupport)
+receive the source interface's switch, injected into INJECT_NODE for each task.
+"""
 from dataclasses import dataclass
 import json
 from pathlib import Path
@@ -11,6 +16,7 @@ SWITCH_OPTION = "启用多存档"
 ACCOUNT_OPTION = "存档名称"
 ACCOUNT_INPUT = "账号多开配置"
 STOP_ENTRY = "Env_AccountUnavailable_Stop"
+INJECT_NODE = "Agt_MultiSave_Inject"
 
 
 @dataclass(frozen=True)
@@ -76,6 +82,19 @@ def parse_instance_account(document) -> AccountSelection:
         return _agree(choices)
     except _InvalidConfig as exc:
         return AccountSelection(reason=str(exc))
+
+
+def parse_injected_account(attach) -> AccountSelection:
+    # The release interface injects nothing, so an empty value means this client
+    # has neither MFAA's instance file nor the source switch. Never default to 0.
+    if not isinstance(attach, dict):
+        return AccountSelection(reason=f"{INJECT_NODE} 的 attach 不是对象，请更新 base 资源")
+    value = attach.get("account_id")
+    if value is None or value == "":
+        return AccountSelection(reason="本任务没有下发存档号：当前客户端不是 MFAA，也未提供全局「启用多存档」设置")
+    if not isinstance(value, str) or re.fullmatch(r"[0-9]+", value) is None:
+        return AccountSelection(reason="存档号必须是纯数字；默认档请填 0，或关闭启用多存档")
+    return AccountSelection(value)
 
 
 def read_instance_account(project_root: Path, instance_id: str, *, attempts=4, delay=0.1) -> AccountSelection:

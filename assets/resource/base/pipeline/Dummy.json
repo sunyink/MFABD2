@@ -12,6 +12,13 @@
         "post_delay": 0,
         "focus": "账号配置不可用，已停止当前任务"
     },
+    "Agt_MultiSave_Inject": {
+        "desc": "py 独占，勿挂进管路：非 MFAA 客户端的多存档号载体。源 interface 的全局「启用多存档」把号写进 attach.account_id，Python 按任务读取；发布包不注入，MFAA 只读实例配置。",
+        "enabled": false,
+        "attach": {
+            "account_id": ""
+        }
+    },
     "Fishing_NiceBoat": {
         "focus": "占位符.需要正确的资源选择."
     },

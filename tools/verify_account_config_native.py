@@ -32,6 +32,7 @@ def serve(identifier, folder):
 
     PersistentStore.configure_storage(StoragePolicy(folder / "saves"))
     session = AccountSession(folder / "application", "A")
+    injected = AccountSession(folder / "application", "", injected=True, client="native-probe")
     configure_account_session(folder / "application", instance_id="A")
     # Load the real four callback entry points, without unrelated action imports.
     for name in ("cartridge_lib", "account_save_checker"):
@@ -96,6 +97,24 @@ def serve(identifier, folder):
                 assert PersistentStore._current_account_id == "1"
             return True
 
+    @AgentServer.custom_action("test_injected")
+    class Injected(CustomAction):
+        def run(self, context, argv):
+            if not injected.sync(context, where=argv.node_name):
+                record(context, "injected_blocked")
+                return False
+            params = json.loads(argv.custom_action_param)
+            assert PersistentStore._current_account_id == params["expected"]
+            assert PersistentStore.set("injected_task", context.get_task_job().job_id)
+            record(context, "injected_" + params["expected"])
+            if params.get("nested"):
+                # The child sees another injection; the root task's choice must stay pinned.
+                child = context.run_task("test_injected_account", {
+                    "Agt_MultiSave_Inject": {"attach": {"account_id": "6"}},
+                    "test_injected_account": {"custom_action_param": {"expected": params["expected"]}}})
+                assert child and child.status.succeeded
+            return True
+
     @AgentServer.custom_recognition("test_account_reco")
     class AccountRecognition(CustomRecognition):
         def analyze(self, context, argv):
@@ -151,6 +170,9 @@ def run(args):
                               "custom_action_param": {"expected": "1"},
                               "on_error": ["test_forbidden"]},
         "test_invalid_account_reco": {"next": ["test_account_reco", "test_forbidden"]},
+        "test_injected_account": {"action": "Custom", "custom_action": "test_injected",
+                                  "custom_action_param": {"expected": "0"},
+                                  "on_error": ["test_forbidden"]},
         "test_account_reco": {"recognition": "Custom", "custom_recognition": "test_account_reco"},
         "test_real_cooldown": {"recognition": "Custom", "custom_recognition": "CheckCoolDown",
                                "custom_recognition_param": {"card_name": "native_probe", "cycle_type": "g_daily"}},
@@ -159,6 +181,8 @@ def run(args):
     production = json.loads((ROOT / "assets/resource/base/pipeline/Dummy.json").read_text(encoding="utf-8"))
     if "Env_AccountUnavailable_Stop" in production:
         nodes["Env_AccountUnavailable_Stop"] = production["Env_AccountUnavailable_Stop"]
+    # The injected client depends on the shipped carrier, including its empty default.
+    nodes["Agt_MultiSave_Inject"] = production["Agt_MultiSave_Inject"]
     for action in ("CheckCoolDown", "MarkComplete", "SwitchAccountCheckpoint"):
         nodes["test_real_" + action] = {
             "action": "Custom", "custom_action": action,
@@ -215,9 +239,21 @@ def run(args):
             assert [e["name"] for e in events[7:]] == [
                 "account_1", "account_1", "account_2", "account_blocked", "account_reco_blocked", "account_0"], events
             assert events[7]["root"] == events[8]["root"] == first.job_id
+            # A client without MFAA identity reads only what this task injects.
+            injected_job = tasker.post_task("test_injected_account", {
+                "Agt_MultiSave_Inject": {"attach": {"account_id": "5"}},
+                "test_injected_account": {"custom_action_param": {"expected": "5", "nested": True}}}).wait()
+            assert injected_job.status.succeeded
+            tasker.post_task("test_injected_account").wait()
+            events = json.loads((folder / "events.json").read_text(encoding="utf-8"))
+            assert [e["name"] for e in events[13:]] == ["injected_5", "injected_5", "injected_blocked"], events
+            assert events[13]["root"] == events[14]["root"] == injected_job.job_id
+            saved = json.loads((folder / "saves/agent_save_data_5.json").read_text(encoding="utf-8"))
+            assert saved["injected_task"] == injected_job.job_id
             report = {"version": Library.version(), "tasker_events_registered": False,
                       "jobs": jobs, "events": events, "forbidden_nodes_executed": 0,
-                      "production_selector_checked": True, "blocked_files_unchanged": True}
+                      "production_selector_checked": True, "blocked_files_unchanged": True,
+                      "injected_selector_checked": True}
             report["production_callbacks_checked"] = 4
             (folder / "result.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
             print(json.dumps(report))
