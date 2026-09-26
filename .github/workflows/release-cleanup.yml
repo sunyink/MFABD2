@@ -1,0 +1,61 @@
+name: Clean failed release drafts
+
+on:
+  workflow_run:
+    workflows: [install]
+    types: [completed]
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  discover:
+    # 使用默认分支上的可信脚本；不检出或执行触发运行的分支代码。
+    if: >-
+      github.repository == 'sunyink/MFABD2' &&
+      github.event.workflow_run.head_repository.full_name == github.repository &&
+      contains(fromJSON('["failure","cancelled","timed_out","action_required","stale","startup_failure"]'), github.event.workflow_run.conclusion)
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.target.outputs.tag }}
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.11"
+      - id: target
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OWNER_RUN_ID: ${{ github.event.workflow_run.id }}
+          OWNER_RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
+          SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: python3 scripts/release_guard.py cleanup-target
+
+  cleanup:
+    needs: discover
+    if: needs.discover.outputs.tag != ''
+    runs-on: ubuntu-latest
+    concurrency:
+      group: release-${{ github.repository }}-${{ needs.discover.outputs.tag }}
+      cancel-in-progress: false
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.11"
+      - name: Remove only the failed attempt's draft
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OWNER_RUN_ID: ${{ github.event.workflow_run.id }}
+          OWNER_RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
+          SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}
+          RELEASE_TAG: ${{ needs.discover.outputs.tag }}
+        run: python3 scripts/release_guard.py cleanup-completed
