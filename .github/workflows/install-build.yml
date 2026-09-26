@@ -828,7 +828,7 @@ jobs:
             --jq '.workflow_run_id')
           [[ "$run_id" =~ ^[0-9]+$ ]] || { echo "Missing Android workflow run ID"; exit 1; }
           echo "Android build: https://github.com/$GITHUB_REPOSITORY/actions/runs/$run_id" >> "$GITHUB_STEP_SUMMARY"
-          gh run watch "$run_id" --repo "$GITHUB_REPOSITORY" --exit-status --interval 30
+          gh run watch "$run_id" --repo "$GITHUB_REPOSITORY" --exit-status --interval 10
           echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
           echo "identity=$identity" >> "$GITHUB_OUTPUT"
 
