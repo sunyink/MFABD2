@@ -50,6 +50,7 @@ _SELL_ITEM_LIST = "Arbitrage_Sell_Item_ListTraverse"
 _SELL_ITEM_OCR = "Agt_<Sell_Item>_Ocr"
 _SELL_ITEM_OCR_SCORE = "Agt_<Sell_Item>_OcrScore"
 _SELL_ITEM_TEMPLATE = "Agt_<Sell_Item>_Tmp"
+_SELL_NAME_SLOTS = "Agt_SellList_NameSlot"
 _SELL_QUANTITY = "Arbitrage_Sell_Item_Quantity"
 
 # ==========================================
@@ -75,15 +76,19 @@ SCORE_MIN = 0.6      # 卡带选中组组分低于此=低置信,打WRN(实录错
 # run_task 成功只证明框架返回；实际成交由报价等额金币证据或一次库存回读确认。
 
 
-def _sell_item_override(context: Context, item_name: str) -> dict:
-    """商品全名OCR按置信度择优，未命中才试模板；不改变卡带匹配顺序。"""
+def _sell_item_override(context: Context, item_name: str, *, name_slots: bool = True) -> dict:
+    """商品全名OCR按置信度择优，未命中才试模板；不改变卡带匹配顺序。
+
+    出售列表按类型标签逐卡读名字框（name_slots）；精准补买的购买列表版式不同，关掉。
+    """
+    param = {"node": _SELL_ITEM_OCR, "item_name": canon(item_name)}
+    if name_slots:
+        param["name_slots"] = _SELL_NAME_SLOTS
     result = {
         # Name correction must run before target filtering; exact expected words
         # otherwise discard mixed-script/one-character candidates in native OCR.
         _SELL_ITEM_OCR: {"expected": []},
-        _SELL_ITEM_OCR_SCORE: {"custom_recognition": "OCRItemName",
-                               "custom_recognition_param": {"node": _SELL_ITEM_OCR,
-                                                            "item_name": canon(item_name)}},
+        _SELL_ITEM_OCR_SCORE: {"custom_recognition": "OCRItemName", "custom_recognition_param": param},
         _SELL_ITEM_LIST: {"any_of": [_SELL_ITEM_OCR_SCORE]},
     }
     try:

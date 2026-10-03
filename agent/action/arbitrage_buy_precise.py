@@ -223,7 +223,7 @@ def _shop_expected(context, shop_name):
 def buy_overrides(context, request):
     from .arbitrage_result import _sell_item_override, _cart_expected
     from utils.arbitrage_cartridge import load_config
-    patch = _sell_item_override(context, request["item_name"])
+    patch = _sell_item_override(context, request["item_name"], name_slots=False)
     patch["Arbitrage_Sell_Item_ListTraverse"]["max_hit"] = 2
     config = dict(context.get_node_object(_QUANTITY).attach)
     config.update(price_node=_BUY_BUTTON_NODE, available_node="Agt_BuyQuantity_Available_Ocr",
