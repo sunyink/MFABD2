@@ -1050,6 +1050,24 @@
             0.83
         ]
     },
+    "Agt_SellList_NameSlot": {
+        "desc": "PC四列版面（10-03实测11屏270卡）：名字框宽145，再宽会碰到同一行下一张卡的角标；价格行在标签下约20px，band_start取40。其余键沿用base。",
+        "attach": {
+            "columns": [
+                397,
+                618,
+                839,
+                1060
+            ],
+            "slot": [
+                -6,
+                -26,
+                145,
+                24
+            ],
+            "band_start": 40
+        }
+    },
     "Arbitrage_Sell_Item_ListTraverse_End": {
         "roi": [
             321,
