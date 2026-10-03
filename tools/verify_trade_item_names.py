@@ -5,7 +5,8 @@ Run: .venv/Scripts/python -B tools/verify_trade_item_names.py -v
 Wiring inventory:
 - Market/possession names: arbitrage_pricelist.read_name (existing).
 - Purchase favorites: ShopBuyFavController._read_names -> _bind_star_to_name.
-- Sale and precise-buy lists: _sell_item_override -> OCRItemName.
+- Sale list: _sell_item_override -> OCRItemName name slots (type-tag anchored cards).
+- Precise-buy list: buy_overrides -> OCRItemName over the whole list.
 - Sale, purchase confirmation and sale retry details: QuantityAdjuster.inventory_state.
 - Bag stock names: BagScanner.inspect (existing).
 Cartridge names, configured identities, template-derived material names and
@@ -45,13 +46,16 @@ with patch.object(AgentServer, "custom_action", return_value=lambda cls: cls), \
     from action.arbitrage_result import _sell_item_override
     from recognition.ocr_score import OCRItemName
 from utils import ocr_item_name as names
+from utils.sale_name_slots import slot_config
 from verify_ocr_score import CaptureBox, Fallback, OfflineController
 
 SOURCE = "Agt_<Sell_Item>_Ocr"
 SELECTOR = "Agt_<Sell_Item>_OcrScore"
 PARENT = "Arbitrage_Sell_Item_ListTraverse"
 TEMPLATE = "Agt_<Sell_Item>_Tmp"
+SLOTS = "Agt_SellList_NameSlot"
 PIPE = json.loads((ROOT / "assets/resource/base/pipeline/Arbitrage.json").read_text(encoding="utf-8"))
+NAME_NODE = PIPE[SLOTS]["attach"]["name_node"]
 SAMPLES = [("鲑魚芥末壽司", "三文鱼芥末寿司"), ("紅蘿萄", "胡萝卜"),
            ("蘿萄嬰", "萝卜缨"), ("包装好的海苔", "调味海苔")]
 IMAGE = np.zeros((720, 1280, 3), dtype=np.uint8)
@@ -61,15 +65,42 @@ def candidate(text, score=.99, box=(396, 117, 90, 20)):
     return NS(text=text, score=score, box=list(box))
 
 
+def tag(x, y, text="食物"):
+    return candidate(text, 1.0, (x, y, 36, 20))
+
+
+def slot_of(card):
+    dx, dy, w, h = PIPE[SLOTS]["attach"]["slot"]
+    return [card.box[0] + dx, card.box[1] + dy, w, h]
+
+
 def observed(*items, raw=()):
     return NS(hit=bool(items), reco_id=123, filtered_results=list(items), all_results=list(raw))
 
 
 def context_for(result):
     return NS(tasker=NS(stopping=False),
-              get_node_data=lambda _: {"recognition": {"type": "OCR"}},
+              get_node_data=lambda n: {"recognition": {"type": "OCR", "param": PIPE.get(n, {})}},
               get_node_object=lambda n: NS(attach=PIPE[n].get("attach", {})),
               run_recognition=Mock(return_value=result))
+
+
+def slot_context(listed, slot_reads):
+    """Whole-list OCR plus per-slot reads keyed by slot ROI; local rereads find nothing."""
+    def run(node, image, override):
+        if override.get(node, {}).get("only_rec"):
+            return observed()
+        if node == NAME_NODE:
+            return observed(*slot_reads.get(tuple(override[node]["roi"]), []))
+        return observed(*listed)
+    ctx = context_for(None)
+    ctx.run_recognition = Mock(side_effect=run)
+    return ctx
+
+
+def sale_pick(ctx, target):
+    return OCRItemName().analyze(ctx, NS(image=IMAGE, custom_recognition_param={
+        "node": SOURCE, "item_name": target, "name_slots": SLOTS}))
 
 
 class ItemWiringTests(unittest.TestCase):
@@ -170,6 +201,104 @@ class ItemWiringTests(unittest.TestCase):
                 self.assertEqual(batch.fail.call_count, 1 if uncertain else 0)
 
 
+class NameSlotTests(unittest.TestCase):
+    """Sale search reads only the name box above each type tag (10-03 sale-page layout)."""
+
+    def test_list_noise_outside_name_slots_cannot_block_zero_inventory(self):
+        card = tag(477, 167)
+        name = candidate("蘑菇汤", .99, (476, 142, 54, 22))
+        listed = [card, name,
+                  candidate("茶", .3, (447, 142, 16, 11)),        # cooking star rating
+                  candidate("96%美茶", .8, (404, 142, 59, 14)),   # rate badge glued to the rating
+                  candidate("元86", .83, (476, 188, 55, 17)),     # coin icon on the price line
+                  candidate("售", .99, (440, 190, 20, 11)),       # half of a sold-out badge
+                  candidate("◆食物", .99, (392, 111, 51, 22))]    # ADB section heading
+        picked = sale_pick(slot_context(listed, {tuple(slot_of(card)): [name]}), "三文鱼芥末寿司")
+        self.assertIsNone(picked.box)
+        self.assertEqual(picked.detail["unconfirmed_names"], [])
+        self.assertEqual([n["name"] for n in picked.detail["names"]], ["蘑菇汤"])
+        self.assertFalse(names.has_unconfirmed_item_name(picked.detail))
+        legacy = OCRItemName().analyze(slot_context(listed, {}), NS(image=IMAGE, custom_recognition_param={
+            "node": SOURCE, "item_name": "三文鱼芥末寿司"}))
+        self.assertTrue(legacy.detail["unconfirmed_names"])
+
+    def test_target_in_name_slot_returns_the_slot_read_box(self):
+        card = tag(477, 167)
+        name = candidate("鲑魚芥末壽司", .95, (476, 143, 90, 20))
+        ctx = slot_context([card], {tuple(slot_of(card)): [name]})
+        picked = sale_pick(ctx, "三文鱼芥末寿司")
+        self.assertEqual(picked.box, name.box)
+        ctx.run_recognition.assert_any_call(NAME_NODE, IMAGE, {NAME_NODE: {"roi": slot_of(card), "expected": []}})
+
+    def test_heading_spelled_like_a_tag_is_not_a_card(self):
+        # ADB after.png 09-11: the 食物 heading at the list edge, its ◆ cut by the ROI.
+        heading, card = candidate("食物", 1.0, (392, 111, 51, 22)), tag(477, 167)
+        name = candidate("蘑菇汤", .99, (476, 142, 54, 22))
+        ctx = slot_context([heading, card, name], {tuple(slot_of(card)): [name]})
+        picked = sale_pick(ctx, "三文鱼芥末寿司")
+        self.assertEqual(picked.detail["tag_count"], 1)
+        self.assertFalse(names.has_unconfirmed_item_name(picked.detail))
+
+    def test_without_any_tag_column_texts_are_still_checked(self):
+        picked = sale_pick(slot_context([candidate("未知料理", .9, (477, 300, 70, 20))], {}), "三文鱼芥末寿司")
+        self.assertEqual([u["raw"] for u in picked.detail["unconfirmed_names"]], ["未知料理"])
+
+    def test_tagged_card_without_a_readable_name_blocks_zero_inventory(self):
+        card = tag(477, 167)
+        picked = sale_pick(slot_context([card], {}), "三文鱼芥末寿司")
+        self.assertEqual(picked.detail["unconfirmed_names"][0]["basis"], "empty_name_slot")
+        self.assertTrue(names.has_unconfirmed_item_name(picked.detail))
+
+    def test_cards_cut_at_list_edges_and_missed_tags(self):
+        cut, left, middle, right = tag(477, 100), tag(477, 188), tag(743, 188), tag(1009, 276)
+        listed = [cut, left, middle, right,
+                  candidate("未知料理", .9, (1009, 164, 70, 20)),   # row of `left`, its tag was missed
+                  candidate("甜辣鲜虾", .99, (477, 340, 70, 20)),   # below the last row, tag cut off
+                  candidate("茶", .3, (447, 340, 16, 11)),          # star rating beside it
+                  candidate("元87", .83, (1009, 297, 55, 17))]      # price line of the last tagged row
+        reads = {tuple(slot_of(card)): [candidate(text, .99, (slot_of(card)[0] + 6, slot_of(card)[1] + 4, 60, 20))]
+                 for card, text in ((left, "蘑菇汤"), (middle, "米"), (right, "白糖"))}
+        ctx = slot_context(listed, reads)
+        picked = sale_pick(ctx, "三文鱼芥末寿司")
+        detail = picked.detail
+        self.assertEqual((detail["tag_count"], detail["top_cut"], detail["extra_count"]), (4, 1, 2))
+        self.assertEqual([u["raw"] for u in detail["unconfirmed_names"]], ["未知料理"])
+        self.assertIn("甜辣鲜虾", [n["name"] for n in detail["names"]])
+        slot_calls = [c for c in ctx.run_recognition.call_args_list if c.args[0] == NAME_NODE]
+        self.assertNotIn(slot_of(cut)[1], [c.args[2][NAME_NODE]["roi"][1] for c in slot_calls])
+
+    def test_name_slot_is_clipped_to_the_list_top(self):
+        card = tag(477, 112)
+        ctx = slot_context([card], {})
+        sale_pick(ctx, "三文鱼芥末寿司")
+        rois = [c.args[2][NAME_NODE]["roi"] for c in ctx.run_recognition.call_args_list if c.args[0] == NAME_NODE]
+        dx, dy, w, h = PIPE[SLOTS]["attach"]["slot"]
+        self.assertEqual(rois, [[477 + dx, 94, w, 112 + dy + h - 94]])
+
+    def test_precise_buy_keeps_whole_list_reading(self):
+        ctx = context_for(None)
+        sale_param = _sell_item_override(ctx, "米")[SELECTOR]["custom_recognition_param"]
+        buy_param = buy_overrides(ctx, {"item_name": "米", "cartridge": "剧情游戏卡1"})[SELECTOR][
+            "custom_recognition_param"]
+        self.assertEqual(sale_param["name_slots"], SLOTS)
+        self.assertNotIn("name_slots", buy_param)
+
+    def test_shipped_layout_is_valid_and_bad_layout_stops_zero_inventory(self):
+        cfg = slot_config(PIPE[SLOTS]["attach"])
+        for word in ("食物", "材料", "升級", "升级"):
+            self.assertTrue(cfg["tag_re"].fullmatch(word), word)
+        self.assertFalse(cfg["tag_re"].fullmatch("料理食材"))
+        self.assertEqual(len(cfg["columns"]), 3)  # base = ADB layout; PC overrides with four columns
+        self.assertEqual(PIPE[cfg["name_node"]]["recognition"], "OCR")
+        self.assertFalse(PIPE[cfg["name_node"]].get("only_rec", False))
+        broken = dict(PIPE[SLOTS]["attach"], slot=[-6, -28, 0, 26])
+        ctx = slot_context([tag(477, 167)], {})
+        ctx.get_node_object = lambda n: NS(attach=broken if n == SLOTS else PIPE[n].get("attach", {}))
+        picked = sale_pick(ctx, "三文鱼芥末寿司")
+        self.assertIsNone(picked.box)
+        self.assertTrue(picked.detail["name_read_failed"])
+
+
 class NativeItemRoutingTests(unittest.TestCase):
     def test_actual_sale_and_buy_overrides_route_corrected_box_through_or(self):
         with tempfile.TemporaryDirectory(prefix="mfabd2-trade-names-", ignore_cleanup_errors=True) as logdir:
@@ -202,9 +331,13 @@ class NativeItemRoutingTests(unittest.TestCase):
                                                      pre_delay=0, post_delay=0, timeout=1, rate_limit=0)
                             overrides[TEMPLATE] = {"recognition": "Custom", "custom_recognition": "test_fallback"}
                             def source(context, node, image, override):
+                                if node == NAME_NODE:  # sale only: the name box above the tag
+                                    self.assertFalse(buying)
+                                    return observed(candidate(raw))
                                 self.assertEqual(node, SOURCE)
                                 self.assertEqual(override[SOURCE]["expected"], [])
-                                return observed(candidate(raw))
+                                column = context.get_node_object(SLOTS).attach["columns"][0]
+                                return observed(candidate(raw), tag(column, 137))
                             with patch.object(Context, "run_recognition", source):
                                 result = tasker.post_task(PARENT, overrides).wait().get()
                             self.assertTrue(result.status.succeeded)
@@ -225,6 +358,9 @@ class NativeItemRoutingTests(unittest.TestCase):
                 original = Context.run_recognition
                 def unknown(context, node, image, *args, **kwargs):
                     if node == SOURCE:
+                        column = context.get_node_object(SLOTS).attach["columns"][0]
+                        return observed(candidate("未知料理名称"), tag(column, 137))
+                    if node == NAME_NODE:
                         return observed(candidate("未知料理名称"))
                     return original(context, node, image, *args, **kwargs)
                 with patch.object(Context, "run_recognition", unknown):

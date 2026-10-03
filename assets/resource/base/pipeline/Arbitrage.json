@@ -3504,6 +3504,43 @@
             }
         }
     },
+    "Agt_SellList_NameSlot": {
+        "desc": "【Py引用·被动数据节点,不入任何流程】出售查找按卡片对账的版面参数：以类型标签定位每张卡，只读标签上方的名字框，星级、角标、价格行不再参与判零。columns=各列标签左缘x，不在列上的同名字样（ADB分区标题◆食物）不算卡；slot=名字框相对标签左上角[dx,dy,w,h]，右缘不得碰到同一行下一张卡的角标；band_start=最后一排标签往下多少像素起，按列检查底部标签被切掉的卡。base为ADB三列实测，PC由pc覆盖。",
+        "enabled": false,
+        "attach": {
+            "tag_pattern": "^(食物|材料|升[级級])$",
+            "name_node": "Agt_SellList_NameSlot_Ocr",
+            "columns": [
+                476,
+                742,
+                1007
+            ],
+            "slot": [
+                -6,
+                -28,
+                175,
+                26
+            ],
+            "column_tolerance": 8,
+            "band_start": 48
+        }
+    },
+    "Agt_SellList_NameSlot_Ocr": {
+        "desc": "【Py引用·纯识别】出售查找名字框OCR，roi由Py按类型标签逐卡改写；框内先检测再识别，实测优于only_rec整框识别（短名不丢字）。",
+        "recognition": "OCR",
+        "roi": [
+            392,
+            94,
+            733,
+            540
+        ],
+        "replace": [
+            [
+                " ",
+                ""
+            ]
+        ]
+    },
     "Arbitrage_Sell_Item_ListTraverse_End": {
         "desc": "列表关注项类已结束",
         "recognition": "OCR",
