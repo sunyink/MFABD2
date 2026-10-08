@@ -141,12 +141,11 @@
         "recognition": "OCR",
         "roi": [
             847,
-            26,
-            134,
-            63
+            12,
+            177,
+            86
         ],
         "expected": ["VICTORY"],
-        "only_rec": true,
         "next": [
             "AutoBattle_Egress_Next",
             "AutoBattle_Egress_TurnBack",
