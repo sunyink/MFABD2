@@ -498,3 +498,4 @@ prettier.config.mjs
 config.json
 /android-upstream/
 /android-build/
+.playwright-mcp/

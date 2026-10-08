@@ -13,6 +13,18 @@ def clean(text):
     return re.sub(r"\s+", "", unicodedata.normalize("NFKC", text or ""))
 
 
+def is_category_label(text):
+    """Ignore exact list headings, including native decorative bullet prefixes.
+
+    Do not use substring matching: a truncated item name such as 茶 must remain
+    unconfirmed, so the sale search cannot incorrectly conclude zero inventory.
+    """
+    return clean(text).lstrip('◆◇■□●•·') in {
+        '食物', '食材', '材料', '料理', '料理食材', '售罄', '已售完',
+        '装备材料', '裝備材料', '装備材料', '裝备材料', '圣石', '聖石',
+    }
+
+
 @lru_cache(maxsize=1)
 def item_aliases():
     data = Path(__file__).resolve().parents[1] / "data"

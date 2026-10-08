@@ -22,7 +22,7 @@ from maa.custom_recognition import CustomRecognition
 from utils import mfaalog
 from utils.ocr_score import select_best_ocr
 from utils.name_i18n import canon
-from utils.ocr_item_name import clean, resolve_item_ocr
+from utils.ocr_item_name import clean, resolve_item_ocr, is_category_label
 
 
 @AgentServer.custom_recognition("OCRBestScore")
@@ -86,8 +86,7 @@ class OCRItemName(CustomRecognition):
                 # The list ROI also contains quantities, prices and category labels.
                 if (not re.search(r"[一-龥]", text)
                         or re.fullmatch(r"(?:可[购購][买買]|[拥擁]有|持有|剩[下余餘]|[还還]剩)?[\d.,，．]+[个個]?", text)
-                        or text in {"食物", "食材", "材料", "料理", "料理食材", "售罄", "已售完",
-                                    "装备材料", "裝備材料", "装備材料", "裝备材料", "圣石", "聖石"}):
+                        or is_category_label(text)):
                     continue
                 resolved = resolve_item_ocr(context, source, argv.image, candidate)
                 observations.append(resolved)
