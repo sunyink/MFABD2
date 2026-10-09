@@ -115,11 +115,37 @@
         ]
     },
     "SeasonEvent_TabTo_Challenge": {
-        "expected": [
-            "普通",
-            "修炼",
-            "血染的结界",
-            "一般戰鬥"
+        "all_of": [
+            {
+                "recognition": "OCR",
+                "roi": [
+                    175,
+                    8,
+                    296,
+                    75
+                ],
+                "expected": [
+                    "普通",
+                    "修炼",
+                    "血染的结界",
+                    "一般戰鬥"
+                ]
+            },
+            {
+                "sub_name": "OCR",
+                "recognition": "OCR",
+                "roi": [
+                    143,
+                    519,
+                    1087,
+                    190
+                ],
+                "expected": [
+                    "快速战斗",
+                    "快速戰鬥"
+                ]
+            },
+            "Sub_Ocr_Enable_Clr"
         ]
     },
     "SeasonEvent_FreeAP_Verdict": {
