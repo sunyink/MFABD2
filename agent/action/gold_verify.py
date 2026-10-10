@@ -11,7 +11,7 @@
 - **A `GoldSnapshot`** —— 挂在「物品已被 OCR 确认存在」之后、点击之前，记基准值。
   每次执行都清除旧基准和结论，再覆盖记录新基准；读数失败也不会留下旧基准。
   重试回边应放在基准节点之后，不能在成交后重新记录购前值。
-- **B `GoldVerdict`** —— 挂在 `Arbitrage_Sell_End`（复位态确认）上，取终值算差额。
+- **B `GoldVerdictAction`** —— 挂在 `Arbitrage_Sell_End`（复位态确认）上，取终值算差额。
 
 两者只**测量**，不判"卖成没卖成" —— 判据归主控，它才知道还有没有别的候选要试。
 主控与本模块在同一个 agent 进程（`AgentServer` 注册的 custom 都在 `agent/main.py`
@@ -37,8 +37,8 @@ B 未执行（链条中途断了、没走到复位态）时 `take_verdict()` 返
   decrease 表示金币减少（购买），increase 表示金币增加（出售）。
   使用本次识别画面；无基准、读不到或方向不符均不命中。不消耗基准、不写结论。
 - action GoldClear：无参数，清除基准和结论；重复清除无害。
-- 原 action GoldVerdict 保留给出售主控：消费基准、保存差额，恒返回 True。
-  与 recognition GoldVerdict 名称相同，但由不同字段选择，勿混用。
+- action GoldVerdictAction 保留给出售主控：消费基准、保存差额，恒返回 True。
+  它原名 GoldVerdict，与识别同名；MaaFw 5.13 起动作与识别不能同名，故加后缀。
 
 下面是购买弹窗已打开后的接线示例，复用项目现有确认按钮识别和购买金币 ROI。
 Example_Gold_Snapshot 只进一次；金币未变化时继续等待，超时清除后结束，不打标。
@@ -81,7 +81,7 @@ Example_Gold_Snapshot 只进一次；金币未变化时继续等待，超时清�
 }
 
 出售侧识别用法：将 direction 改为 increase，并换成出售金币节点和自己的 next。
-使用 action GoldVerdict 的旧主控仍用 clear_verdict() / take_verdict() 交接，
+使用 action GoldVerdictAction 的旧主控仍用 clear_verdict() / take_verdict() 交接，
 不要在主控领取结论前执行 GoldClear；识别器不会为 take_verdict() 生成结论。
 """
 
@@ -289,8 +289,8 @@ class GoldVerdictRecognition(CustomRecognition):
             return None
 
 
-@AgentServer.custom_action("GoldVerdict")
-class GoldVerdict(CustomAction):
+@AgentServer.custom_action("GoldVerdictAction")
+class GoldVerdictAction(CustomAction):
     """B：取终值算差额，落槽位交主控。挂在 `Arbitrage_Sell_End`（复位态确认）上。
 
     只算不判 —— 出售通常按 delta > 0、购买按 delta < 0，具体判据由主控定。

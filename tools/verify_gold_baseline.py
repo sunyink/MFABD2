@@ -18,7 +18,7 @@ class GoldBaselineTests(unittest.TestCase):
         gv.clear_verdict()
         self.argv = SimpleNamespace(custom_action_param="")
         self.snapshot = gv.GoldSnapshot()
-        self.verdict = gv.GoldVerdict()
+        self.verdict = gv.GoldVerdictAction()
 
     def tearDown(self):
         gv.clear_verdict()

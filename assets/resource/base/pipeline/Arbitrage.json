@@ -3887,7 +3887,7 @@
         ],
         "pre_delay": 0,
         "action": "Custom",
-        "custom_action": "GoldVerdict",
+        "custom_action": "GoldVerdictAction",
         "custom_action_param": {
             "node": "Arbitrage_Sell_GoldRead"
         },

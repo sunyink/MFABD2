@@ -76,7 +76,7 @@ utils.mfaalog.info(f"[周期检查] 周期策略管理器已加载。")
 #
 # "Task_Check_Action": {
 #     "action": "Custom",                    // ⚡️ 注意：Action 模式也建议写全
-#     "custom_action": "CheckCoolDown",
+#     "custom_action": "CheckCoolDownAction",
 #     "custom_action_param": {
 #         "card_name": "Map_01"
 #     },
@@ -729,7 +729,7 @@ manager = CooldownManager()
 # 每个入口先确认根任务的存档快照。失败时同步层已封锁账号并停止当前
 # Context；必须立即退出，不能让识别 None 被当成普通冷却分支继续执行。
 
-@AgentServer.custom_action("CheckCoolDown")
+@AgentServer.custom_action("CheckCoolDownAction")
 class CheckCoolDownAction(CustomAction):
     def run(self, context: Context, argv: CustomAction.RunArg):
         if not sync_from_context(context, where="CheckCoolDown/action"):

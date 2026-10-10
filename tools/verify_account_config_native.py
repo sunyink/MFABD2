@@ -183,7 +183,7 @@ def run(args):
         nodes["Env_AccountUnavailable_Stop"] = production["Env_AccountUnavailable_Stop"]
     # The injected client depends on the shipped carrier, including its empty default.
     nodes["Agt_MultiSave_Inject"] = production["Agt_MultiSave_Inject"]
-    for action in ("CheckCoolDown", "MarkComplete", "SwitchAccountCheckpoint"):
+    for action in ("CheckCoolDownAction", "MarkComplete", "SwitchAccountCheckpoint"):
         nodes["test_real_" + action] = {
             "action": "Custom", "custom_action": action,
             "custom_action_param": {"card_name": "native_probe", "cycle_type": "g_daily"},
@@ -228,7 +228,7 @@ def run(args):
             write_config(folder, "invalid")
             tasker.post_task("test_read_account").wait()
             tasker.post_task("test_invalid_account_reco").wait()
-            for entry in ("test_real_reco_list", "test_real_CheckCoolDown", "test_real_MarkComplete",
+            for entry in ("test_real_reco_list", "test_real_CheckCoolDownAction", "test_real_MarkComplete",
                           "test_real_SwitchAccountCheckpoint"):
                 tasker.post_task(entry).wait()
             assert {p.name: p.read_bytes() for p in (folder / "saves").iterdir()} == before

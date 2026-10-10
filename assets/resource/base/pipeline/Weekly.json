@@ -154,7 +154,7 @@
     },
     "Weekly_LastNight_Start": {
         "action": "Custom",
-        "custom_action": "CheckCoolDown",
+        "custom_action": "CheckCoolDownAction",
         "custom_action_param": {
             "card_name": "Gameplay_LastNight",
             "cycle_type": "g_weekly"
@@ -361,7 +361,7 @@
     },
     "Weekly_VisitCabin_Start": {
         "action": "Custom",
-        "custom_action": "CheckCoolDown",
+        "custom_action": "CheckCoolDownAction",
         "custom_action_param": {
             "card_name": "UI_Cabin_Like",
             "cycle_type": "g_weekly"
@@ -559,7 +559,7 @@
     },
     "Weekly_Arcade_Start": {
         "action": "Custom",
-        "custom_action": "CheckCoolDown",
+        "custom_action": "CheckCoolDownAction",
         "custom_action_param": {
             "card_name": "UI_Arcade",
             "cycle_type": "g_weekly"
