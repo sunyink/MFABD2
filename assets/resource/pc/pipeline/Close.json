@@ -1,6 +1,16 @@
 {
     "Close_HomePage": {
-        "desc": "[PC覆盖] Win32无StopApp动作,改用PC_StopApp自定义动作关闭游戏窗口(WM_CLOSE优先,2.5s未关则按PID强杀);游戏已关时no-op成功.覆盖base的action:StopApp.",
+        "desc": "[PC覆盖] 关闭游戏入口：先确认 Agent 通信正常，再由 Close_PCStopApp 关闭游戏。PC_StopApp 是自定义动作，通道断开时会一直卡住，所以不放在入口上。覆盖base的action:StopApp。",
+        "pre_delay": 0,
+        "action": "DoNothing",
+        "post_delay": 0,
+        "next": [
+            "Env_AgentLost_Stop",
+            "Close_PCStopApp"
+        ]
+    },
+    "Close_PCStopApp": {
+        "desc": "[PC] Win32无StopApp动作,改用PC_StopApp自定义动作关闭游戏窗口(WM_CLOSE优先,2.5s未关则按PID强杀);游戏已关时no-op成功.",
         "action": "Custom",
         "custom_action": "PC_StopApp"
     }

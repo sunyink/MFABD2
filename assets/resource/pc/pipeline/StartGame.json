@@ -1,6 +1,7 @@
 {
     "StartGame_Start": {
         "next": [
+            "Env_AgentLost_Stop",
             "[JumpBack]Env_AccountSave_Switch",
             "StartGame_Check_App_Alive",
             "StartGame_Check_Win32_SetSize"

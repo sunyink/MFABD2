@@ -2,6 +2,7 @@
     "Daily_HomePage": {
         "desc": "日常枢纽。保留base子项顺序与Daily_Square_Switch存档判据、选项开关,只在Global_Hub_End前追加PC广场收尾归位。#462后不可直连Daily_Square_Hub,否则会绕过今日已完成检查、广场关闭和强制指定子项设置。",
         "next": [
+            "Env_AgentLost_Stop",
             "[JumpBack]Daily_HomePage_Hub",
             "[JumpBack]Daily_Union_Hub",
             "[JumpBack]Daily_VisitCabin_Hub",
