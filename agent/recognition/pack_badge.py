@@ -445,6 +445,18 @@ class PackBadgeNotDone(CustomRecognition):
         _sync_completion(card, True)
         return None
 
+    def _dump_debug(self, hsv, rx, ry, card, rep):
+        try:
+            import os
+            d = os.path.join("debug", "pack_badge")
+            os.makedirs(d, exist_ok=True)
+            ts = f"{time.time():.3f}".replace(".", "_")
+            crop = hsv[ry:ry + 130, rx:rx + 114].astype(np.uint8)
+            rgb = Image.fromarray(crop, "HSV").convert("RGB")
+            rgb.save(os.path.join(d, f"{ts}_{card}.png"))
+        except Exception as e:
+            utils.mfaalog.warning(f"[PackBadge] 调试图保存失败: {e}")
+
 @AgentServer.custom_recognition("PackUnnamedNotDone")
 class PackUnnamedNotDone(PackBadgeNotDone):
     """无名卡带兜底：当前槽位这张卡带没有任何具名节点（新卡带/改版卡带/模板缺失）。
@@ -529,15 +541,3 @@ class PackUnnamedNotDone(PackBadgeNotDone):
             box=[rx, ry, rw, rh],
             detail={"need_collect": True, "unnamed": True, "star": s, "skull": k},
         )
-
-    def _dump_debug(self, hsv, rx, ry, card, rep):
-        try:
-            import os
-            d = os.path.join("debug", "pack_badge")
-            os.makedirs(d, exist_ok=True)
-            ts = f"{time.time():.3f}".replace(".", "_")
-            crop = hsv[ry:ry + 130, rx:rx + 114].astype(np.uint8)
-            rgb = Image.fromarray(crop, "HSV").convert("RGB")
-            rgb.save(os.path.join(d, f"{ts}_{card}.png"))
-        except Exception as e:
-            utils.mfaalog.warning(f"[PackBadge] 调试图保存失败: {e}")

@@ -35,10 +35,17 @@
         ]
     },
     "GachaADV_GachaRed_HaveNot": {
+        "desc": "首页无可关注抽抽乐(无红点):本日无可抽,打标后结束,避免每天重复进入抽卡流程。识别失败(误判无红点)最坏只是当天不再进抽卡,次日恢复。",
         "recognition": "And",
         "all_of": ["GachaADV_GachaRed_Have"],
         "inverse": true,
-        "focus": "GA.[ERR]无可关注抽抽乐"
+        "action": "Custom",
+        "custom_action": "MarkComplete",
+        "custom_action_param": {
+            "card_name": "Gacha_Daily",
+            "cycle_type": "g_daily"
+        },
+        "focus": "GA.无可关注抽抽乐(已记录)"
     },
     "GachaADV_GachaRed_Have": {
         "desc": "识别左下抽抽乐-红点存在-点击抽卡",
