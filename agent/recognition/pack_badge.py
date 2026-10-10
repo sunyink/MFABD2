@@ -273,19 +273,21 @@ def disabled_pack_nodes(context):
     return out
 
 
-def is_blacklisted_slot(context, image, limit=6):
+def is_blacklisted_slot(context, image):
     """当前槽位的卡带是不是黑名单卡带。
 
     黑名单（采集卡带屏蔽）是把具名节点 `Collect_Pack_*_N` 打成 enabled:false。
     本识别按坐标工作、不知道自己面对的是第几张卡带，所以反向查：把被禁用的那几个
     节点临时 override 成启用后在当前槽位跑一次识别，谁的画面模板命中，当前槽位就是谁。
     run_recognition 对禁用节点会直接返回 None，必须靠 pipeline_override 临时启用。
+    ★查全部禁用节点（不再截断前 6 个）：黑名单超过 6 张时，第 7 张起会被漏识别、
+    进而被兜底采走（Sourcery #1）。
     """
     nodes = disabled_pack_nodes(context)
     if not nodes:
         return False, []
     hit = []
-    for name in nodes[:limit]:
+    for name in nodes:
         try:
             detail = context.run_recognition(
                 name, image, {name: {"enabled": True}}
@@ -317,17 +319,25 @@ def _sync_completion(card: str, done: bool) -> None:
         utils.mfaalog.warning(f"[PackBadge] 无法加载存档模块,跳过完成度同步: {e}")
         return
     try:
+        # 完成记录必须与 CooldownManager(MarkComplete/CheckCoolDown) 同层：存在
+        # data["cycles"][key]，而不是根层级 data[key]。写错层会导致 CheckCoolDown
+        # 读不到本记录、自愈也删不掉 cycles 里的误标（Sourcery #2/#3）。
+        data = PersistentStore.load()
+        marks = data.get("cycles")
+        if not isinstance(marks, dict):
+            marks = data["cycles"] = {}
         if done:
-            had = PersistentStore.get(key, None)
-            PersistentStore.set(key, time.strftime("%Y-%m-%d %H:%M:%S"))
-            if not had:
+            if key not in marks:
+                marks[key] = time.strftime("%Y-%m-%d %H:%M:%S")
+                PersistentStore.save(data)
                 utils.mfaalog.info(f"[PackBadge] 📝 {card} 双勾已确认 -> 登记本地完成记录({CARD_CYCLE})")
             else:
-                utils.mfaalog.debug(f"[PackBadge] 📝 {card} 双勾已确认 -> 刷新本地完成记录")
+                # 记录已存在 -> 跳过重复写盘（Sourcery #10）。不刷新过期记录：即便
+                # 过期也只是分类闸多扫一遍、不会漏采（单卡判定走徽章不看存档）。
+                utils.mfaalog.debug(f"[PackBadge] 📝 {card} 双勾已确认 -> 本地完成记录已存在，跳过写入")
         else:
-            data = PersistentStore.load()
-            if key in data:
-                data.pop(key, None)
+            if key in marks:
+                marks.pop(key, None)
                 PersistentStore.save(data)
                 utils.mfaalog.info(f"[PackBadge] 🧹 {card} 徽章未双勾 -> 撤销本地完成记录(自愈)")
     except Exception as e:

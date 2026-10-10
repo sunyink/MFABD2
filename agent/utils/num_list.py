@@ -20,6 +20,9 @@ def parse_tokens(text):
     return [x for x in re.split(SPLIT_PATTERN, str(text if text is not None else '')) if x]
 
 
+MAX_RANGE_SPAN = 100  # 单个区间展开的上限，防 "1~99999999" 耗尽内存/卡死（Sourcery #5）
+
+
 def parse_number_list(text):
     """把 "1,3~5" 这类输入解析成去重且升序的 int 列表；空/非法 -> []。"""
     nums = set()
@@ -33,6 +36,8 @@ def parse_number_list(text):
                 except ValueError:
                     continue
                 a, b = min(a, b), max(a, b)
+                if b - a > MAX_RANGE_SPAN:
+                    continue
                 nums.update(range(a, b + 1))
             continue
         try:

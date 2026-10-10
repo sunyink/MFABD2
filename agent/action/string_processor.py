@@ -224,20 +224,26 @@ class ForceListApply(CustomAction):
             if not nums:
                 mfaalog.info(f"[ForceList] {key} 未填写 -> 该类保持原逻辑（不禁用、不关闸）")
                 continue
+            # 先收集名单里真正存在的节点；一个都不存在就不能清场/禁用，否则会把
+            # 整类全禁用却一张都不启用（Sourcery #4：填了数字但对不上节点）。
+            on = []
+            for n in nums:
+                nm = f"{pre}{n}"
+                if nm in names:
+                    on.append(nm)
+                else:
+                    mfaalog.warning(f"[ForceList] {key} 填的 {n} 没有对应节点({nm})，忽略")
+            if not on:
+                mfaalog.warning(f"[ForceList] {key} 名单里的编号都对不上节点 -> 该类保持原逻辑")
+                continue
             active.append(key)
             # 清场：同类具名节点全部禁用（按前缀+纯数字筛，从节点表枚举，不写死范围）
             for nm in names:
                 if nm.startswith(pre) and nm[len(pre):].isdigit():
                     patches[nm] = {"enabled": False}
             # 只启用名单里的
-            on = []
-            for n in nums:
-                nm = f"{pre}{n}"
-                if nm in names:
-                    patches[nm] = {"enabled": True}
-                    on.append(nm)
-                else:
-                    mfaalog.warning(f"[ForceList] {key} 填的 {n} 没有对应节点({nm})，忽略")
+            for nm in on:
+                patches[nm] = {"enabled": True}
             if gate:
                 patches[gate] = {"enabled": False}
             # 2026-10-09：强采还必须打通「类入口」的第二条路。
