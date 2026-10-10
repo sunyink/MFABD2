@@ -42,12 +42,15 @@
 ════════════════════════════════════════════════════════════════
 -->
 ---target: all---
-> 近期发版说明:
 
-> 正式版:UI改变因素必定不能跑时,不如直接下放公测版。 | 公测版:PC测试版改发公测渠道 | 内测版：暂停发放，预计会自动切公测。
----end---
+## 📺 B 站视频：商店套利解说
 
+国庆跳票，搞了个活：<del>《从零开始的Adobe全家桶视频制作》</del>商店套利功能的视频解说。从赚钱原理讲到每个选项，后半段是实机运行录屏。
 
----target: beta---
-> Mac系统现可使用专有控制器 playcover 与其配套资源。相关配置方法见 [PlayCover 适配指南](https://github.com/sunyink/MFABD2/blob/develop/docs/zh_cn/PlayCover%E9%80%82%E9%85%8D%E6%8C%87%E5%8D%97.md)。由[@KoujiMinamoto](https://github.com/KoujiMinamoto)强力支援。
+▶️ [【棕色尘埃2】MFABD2：商店套利Opus，完美跑商，躺赢赚钱](https://www.bilibili.com/video/BV13Dpu6zEZW)
+
+这是项目组新开的账号 [MFABD2_Project](https://space.bilibili.com/3706990631061757)，粉丝还是个位数，连最起码的合集功能都用不了。欢迎去点个关注，声援一下 🙏
+
+---
+
 ---end---

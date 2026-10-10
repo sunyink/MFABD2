@@ -423,17 +423,36 @@
     "SeasonEvent_TabTo_Challenge": {
         "desc": "退回检查普通难度,发现自动战斗可用,步进去挑战",
         "max_hit": 1,
-        "recognition": "OCR",
-        "roi": [
-            175,
-            8,
-            296,
-            75
-        ],
-        "expected": [
-            "普通",
-            "修炼",
-            "血染的结界"
+        "recognition": "And",
+        "all_of": [
+            {
+                "recognition": "OCR",
+                "roi": [
+                    175,
+                    8,
+                    296,
+                    75
+                ],
+                "expected": [
+                    "普通",
+                    "修炼",
+                    "血染的结界"
+                ]
+            },
+            {
+                "sub_name": "OCR",
+                "recognition": "OCR",
+                "roi": [
+                    143,
+                    519,
+                    1087,
+                    190
+                ],
+                "expected": [
+                    "快速战斗"
+                ]
+            },
+            "Sub_Ocr_Enable_Clr"
         ],
         "anchor": {
             "Auto_Battle": "SeasonEvent_EnterlBattle_Challenge"
