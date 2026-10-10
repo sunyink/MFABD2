@@ -27,7 +27,9 @@
     "Collect_Tab3_Switch": {
         "desc": "检查tab3,并切换,为传送阵可用状态做准备",
         "recognition": "Or",
-        "any_of": ["Collect_Skill_Tap3"],
+        "any_of": [
+            "Collect_Skill_Tap3"
+        ],
         "action": "Click",
         "target": [
             1203,
@@ -38,7 +40,9 @@
     "Collect_Tab3_Ck": {
         "desc": "检查tab3,并切换,为传送阵可用状态做准备",
         "recognition": "Or",
-        "any_of": ["Collect_Skill_Tap3_Enable"],
+        "any_of": [
+            "Collect_Skill_Tap3_Enable"
+        ],
         "timeout": 5000,
         "next": [
             "Collect_TeleportRecall_Skill"
@@ -89,11 +93,15 @@
         "timeout": 8000,
         "rate_limit": 2000,
         "next": [
+            "[JumpBack]Global_WaitingForLoading",
             "Collect_ForceTeleporCircle",
             "Collect_ForceTeleporCircle_No"
         ],
-        "on_error": ["Collect_TeleporCircle_OnFoot_Start"],
-        "focus": "CRT.传送阵技能已放置"
+        "on_error": [
+            "Collect_TeleporCircle_OnFoot_Start"
+        ],
+        "focus": "CRT.传送阵技能已放置",
+        "desc": " ★2026-10-02 本地:next 首位插 [JumpBack]Global_WaitingForLoading —— 命中(识别到传送技能)后先判'是否在载入':载入中先等载入(等完 JumpBack 回本节点重判),载入完成(箱庭稳定)才判亮/灰;这样亮/灰两颗 ColorMatch（roi 1086,428,10,2）不会在载入/黑屏帧上误判(黑屏 S=0、V<200 双双不中,此前 13:45:24~32 因此白走\"快捷移动→告示板→导航地图→点地面传送阵\"约 1.5 分钟)。只有画面正常但仍不亮不灰才走步行兜底 ⇒ 保留原兜底、消除误判。"
     },
     "Rec_<Collect_TeleportRecall_Skill>_Tpl": {
         "desc": "[识别]'传送'技能存在",
@@ -113,7 +121,9 @@
     "Collect_TeleportRecall_Skill_Bin": {
         "desc": "【不要删不要改后挪用】custom需要调用此节点的识别",
         "recognition": "Or",
-        "any_of": ["Setup_SkillScan_Skill4_Bin"]
+        "any_of": [
+            "Setup_SkillScan_Skill4_Bin"
+        ]
     },
     "Collect_ForceTeleporCircle": {
         "recognition": "ColorMatch",
@@ -143,11 +153,17 @@
         "focus": "CFB.传送技能亮-尝试"
     },
     "Collect_ForceTelepor_MapCk": {
-        "desc": "潜在大漏洞,当塔柱传送满级,可以去任何地方,就不是单独回主城了,以后适配",
+        "desc": "放传送技能后移动魔法阵面板已打开。★2026-10-02 修复(用户报:复位时传送技能没尝试传地图1、直接传了当前地图的传送阵):先翻到最左页(地图1)再点传送阵——传送技能满级时可一步传地图1。没满级时地图1传送阵图标灰/点了不弹「生成」→ next 全失败 → on_error 退回步行兜底(步行会开导航地图认标题翻图去主城)。",
         "recognition": "Or",
-        "any_of": ["Collect_OperationsMain_ToAreaMap"],
+        "any_of": [
+            "Collect_OperationsMain_ToAreaMap"
+        ],
         "next": [
+            "[JumpBack]Collect_MapLift",
             "Collect_ForceTeleporCircle_Ico"
+        ],
+        "on_error": [
+            "Collect_TeleporCircle_OnFoot_Start"
         ]
     },
     "Collect_ForceTeleporCircle_Ico": {
@@ -195,14 +211,69 @@
         ],
         "post_delay": 5000,
         "next": [
-            "Collect_ForceTeleporCircle_Succeed"
+            "Collect_ForceTelepor_CheckMap1"
         ],
         "focus": "CTB.已回到箱庭"
     },
     "Collect_ForceTeleporCircle_Succeed": {
         "desc": "传送阵,通过技能传送出口,完成,",
-        "anchor": {"OnFoot_SkillCircle_Try": ""},
+        "anchor": {
+            "OnFoot_SkillCircle_Try": ""
+        },
         "focus": "CTB.通过传送阵归位结束"
+    },
+    "Collect_ForceTelepor_CheckMap1": {
+        "desc": "检查传送后是否已在地图1:点手标(站在传送阵上才出现)开区域地图读名条。名条=安全→复位成功;名条≠安全→翻到最左页点传送阵传地图1(传送技能没满级只能传当前地图,满级传地图1,所以传送后再统一检查)",
+        "recognition": "Or",
+        "any_of": [
+            "Collect_TeleporCircle_Ico_Enter"
+        ],
+        "action": "Click",
+        "post_delay": 1000,
+        "next": [
+            "Collect_ForceTelepor_CheckMap1_Name",
+            "Collect_ForceTelepor_ToMap1"
+        ],
+        "on_error": [
+            "Collect_ForceTeleporCircle_Succeed"
+        ],
+        "focus": "CTB.检查是否已在地图1"
+    },
+    "Collect_ForceTelepor_CheckMap1_Name": {
+        "desc": "名条=安全区(达普雷镇/雷瓦汀基地等)=已在地图1,复位成功。★2026-10-07:next 首位插 [JumpBack]Global_BackPageHub_Once —— **名条=安全意味着'没传送就判成功'，面板不会随转场自动关闭**（传送成功的路径面板会随载入关掉，所以上游链没这一步）；不关掉的话后续所有候选(寻路按钮/箱庭HUD/OCR)都被面板挡住 ⇒ 在 Collect_TeleporCircle_OnFoot_Entry 的 next 列表上永久空转(10:16:47~10:19 实测卡死,截图确认面板停在屏上)。JumpBack 点一下返回、回本列表继续 Succeed；面板已关(传送后)时 BackPageHub 不命中自动跳过,跑路中途场景零打扰。",
+        "recognition": "OCR",
+        "roi": [
+            408,
+            622,
+            466,
+            47
+        ],
+        "expected": [
+            "达普雷镇",
+            "雷瓦汀基地",
+            "拉勒凯镇",
+            "罗戴夫镇",
+            "科库托斯圣域",
+            "安全"
+        ],
+        "next": [
+            "[JumpBack]Global_BackPageHub_Once",
+            "Collect_ForceTeleporCircle_Succeed"
+        ],
+        "focus": "CTB.已在地图1-复位成功"
+    },
+    "Collect_ForceTelepor_ToMap1": {
+        "desc": "不在地图1:翻到最左页(安全地图/地图1)点传送阵传过去",
+        "max_hit": 2,
+        "recognition": "DirectHit",
+        "next": [
+            "[JumpBack]Collect_MapLift",
+            "Collect_ForceTeleporCircle_Ico"
+        ],
+        "on_error": [
+            "Collect_ForceTeleporCircle_Succeed"
+        ],
+        "focus": "CTB.不在地图1-翻页点传送阵传地图1"
     },
     "Collect_ForceTeleporCircle_No": {
         "recognition": "ColorMatch",
@@ -335,7 +406,9 @@
     },
     "Collect_TeleporCircle_OnFoot_Sandbox": {
         "recognition": "Or",
-        "any_of": ["Global_ToSandBox_Enter"],
+        "any_of": [
+            "Global_ToSandBox_Enter"
+        ],
         "next": [
             "Collect_WayPoint_Entry",
             "Collect_TeleporCircle_OnlyFoot_Entry"
@@ -392,7 +465,9 @@
     },
     "Collect_TeleporCircle_OnFoot_ToNavMap_CK": {
         "recognition": "Or",
-        "any_of": ["Collect_TeleporCircle_OnFoot_NviMap"],
+        "any_of": [
+            "Collect_TeleporCircle_OnFoot_NviMap"
+        ],
         "next": [
             "Collect_TeleporCircle_OnFoot_StateResolGroup_Step1_Lift",
             "Collect_TeleporCircle_OnFoot_StateResolGroup_Step1_Right"
@@ -511,13 +586,19 @@
     },
     "Collect_IM_OnFoot_NviMap_E01_A2": {
         "recognition": "And",
-        "all_of": ["Collect_IM_OnFoot_NviMap_E01_A1"],
-        "next": ["Collect_IM_OnFoot_NviMap_E01_A2_Move"],
+        "all_of": [
+            "Collect_IM_OnFoot_NviMap_E01_A1"
+        ],
+        "next": [
+            "Collect_IM_OnFoot_NviMap_E01_A2_Move"
+        ],
         "focus": "CTB.特殊地图-夏日骑士-02"
     },
     "Collect_IM_OnFoot_NviMap_E01_B2": {
         "recognition": "And",
-        "all_of": ["Collect_IM_OnFoot_NviMap_E01_B1"],
+        "all_of": [
+            "Collect_IM_OnFoot_NviMap_E01_B1"
+        ],
         "next": [
             "Collect_IM_OnFoot_NviMap_E01_B2_Move"
         ],
@@ -526,7 +607,9 @@
     "Collect_IM_OnFoot_NviMap_E01_A2_Move": {
         "max_hit": 5,
         "recognition": "And",
-        "all_of": ["Collect_TeleporCircle_OnFoot_NviMap"],
+        "all_of": [
+            "Collect_TeleporCircle_OnFoot_NviMap"
+        ],
         "action": "Click",
         "target": [
             558,
@@ -593,13 +676,19 @@
     },
     "Collect_IM_OnFoot_NviMap_Sub_Err_Out": {
         "recognition": "Or",
-        "any_of": ["Global_ToSandBox_Enter"],
-        "next": ["Collect_TeleporCircle_OnFoot_Start"]
+        "any_of": [
+            "Global_ToSandBox_Enter"
+        ],
+        "next": [
+            "Collect_TeleporCircle_OnFoot_Start"
+        ]
     },
     "Collect_IM_OnFoot_NviMap_E01_B2_Move": {
         "max_hit": 5,
         "recognition": "And",
-        "all_of": ["Collect_TeleporCircle_OnFoot_NviMap"],
+        "all_of": [
+            "Collect_TeleporCircle_OnFoot_NviMap"
+        ],
         "action": "Click",
         "target": [
             380,
@@ -625,18 +714,11 @@
         "post_delay": 5000
     },
     "Collect_IM_OnFoot_NviMap_2_Move_End": {
+        "desc": "自动移动结束判定。★2026-10-03 本地修复：删掉 any_of 里的 CheckTag(IM_Skill_End,max=1)——它当前值 0<1 恒命中，导致「点战斗区没触发寻路」时也被误判成『已到地图2』，于是采第二次地图1 + 假打完成标。现在只认沙盒图钉/奔跑模板（真到沙盒才命中）。",
         "recognition": "Or",
         "any_of": [
             "Rec_SandBox_Pin_Tpl",
-            "Rec_SandBox_Run_Tpl",
-            {
-                "recognition": "Custom",
-                "custom_recognition": "CheckTag",
-                "custom_recognition_param": {
-                    "tag": "IM_Skill_End",
-                    "max": 1
-                }
-            }
+            "Rec_SandBox_Run_Tpl"
         ],
         "action": "Custom",
         "custom_action": "UpdateTag",
@@ -644,7 +726,9 @@
             "tag": "IM_Skill_End",
             "value": 1
         },
-        "next": ["Collect_IM_Skill_End_Patch"]
+        "next": [
+            "Collect_IM_Skill_End_Patch"
+        ]
     },
     "Collect_IM_OnFoot_Skill_OnlyOnec": {
         "desc": "计数器清零外置版本,用于阶梯call",
@@ -724,7 +808,9 @@
         ]
     },
     "Collect_IM_Skill_1_Patch": {
-        "anchor": {"QuickSkill_Egress": "Collect_IM_GoinNviMap"},
+        "anchor": {
+            "QuickSkill_Egress": "Collect_IM_GoinNviMap"
+        },
         "next": [
             "Collect_Skill_Start",
             "[JumpBack]Global_ToSandBox"
@@ -732,7 +818,9 @@
         "focus": "第一次技能调用,结束后出口锚定到小地图"
     },
     "Collect_IM_Skill_End_Patch": {
-        "anchor": {"QuickSkill_Egress": "Collect_IM_Closure"},
+        "anchor": {
+            "QuickSkill_Egress": "Collect_IM_Closure"
+        },
         "next": [
             "Collect_Skill_Start",
             "[JumpBack]Global_ToSandBox"
@@ -750,7 +838,9 @@
         "anchor": {
             "QuickSkill_Egress": ""
         },
-        "next": ["Collect_IM_Reset"],
+        "next": [
+            "Collect_IM_Reset"
+        ],
         "focus": "[特殊地图]-步行吸取模块完成"
     },
     "Collect_IM_Reset": {
@@ -783,7 +873,9 @@
             34,
             38
         ],
-        "anchor": {"QuickSkill_Egress": ""},
+        "anchor": {
+            "QuickSkill_Egress": ""
+        },
         "next": [
             "Collect_IM_GoinNviMap_Enter",
             "Collect_IM_GoinNviMap"
@@ -793,7 +885,9 @@
     "Collect_IM_GoinNviMap_Enter": {
         "desc": "确认区域地图已打开",
         "recognition": "Or",
-        "any_of": ["Collect_TeleporCircle_OnFoot_NviMap"]
+        "any_of": [
+            "Collect_TeleporCircle_OnFoot_NviMap"
+        ]
     },
     "Collect_IM_DouMap_Tab": {
         "desc": "对于双地图步行,切换地图为另一个关系or箭头标",
@@ -886,27 +980,36 @@
     },
     "Collect_IM_OnFoot_NviMap_E03_A2": {
         "recognition": "And",
-        "all_of": ["Collect_IM_OnFoot_NviMap_E03_A1"],
-        "next": ["Collect_IM_OnFoot_NviMap_E03_A2_Move"],
+        "all_of": [
+            "Collect_IM_OnFoot_NviMap_E03_A1"
+        ],
+        "next": [
+            "Collect_IM_OnFoot_NviMap_E03_A2_Move"
+        ],
         "focus": "CTB.特殊地图-海滨天使-02"
     },
     "Collect_IM_OnFoot_NviMap_E03_A2_Move": {
+        "desc": "点导航地图上的'战斗区'标记 → 弹出「选哪个战斗区」确认弹窗（由 _Sub 处理）。★2026-10-03 用户标定：标记在 1920×1080 相对左上角 (843,785)（早先给的 831,767 会被人物挡住点不中）＝1280×720 系 (562,523)，与上游原值 (562,524) 基本一致——原坐标本来没错，坏在 2_Move_End 恒命中与弹窗时机。点击偶尔无反应靠 next 末位自重试（max_hit 5）兜。",
         "max_hit": 5,
         "recognition": "And",
-        "all_of": ["Collect_TeleporCircle_OnFoot_NviMap"],
+        "all_of": [
+            "Collect_TeleporCircle_OnFoot_NviMap"
+        ],
         "action": "Click",
         "target": [
-            562,
-            524,
+            560,
+            521,
             4,
             4
         ],
+        "post_delay": 1000,
         "next": [
             "Collect_IM_OnFoot_NviMap_E03_A2_Move_Sub",
             "Collect_IM_OnFoot_NviMap_E03_A2_Move"
         ]
     },
     "Collect_IM_OnFoot_NviMap_E03_A2_Move_Sub": {
+        "desc": "确认弹窗「选哪个战斗区」（上下两个选项）。★2026-10-03 澄清：这一步不是点地图文字标签，而是处理标记点击后的选择弹窗——OCR「战斗区」兼做'弹窗已开'判据（timeout 8s 内等弹窗出现；roi 里上下两个选项都会被 OCR 到，取分高的＝下方选项）；点击用固定 target＝**下方选项** (405,495)（用户实测 1920 系 (608,743)，＝要去的地图2 战斗1）。post_delay 3000：点完选项导航地图收起+起步有 ~1-2s 空窗，先等过去再判 Moveing，避免在弹窗/收起动画帧上空判、被 2_Move_End 误收。",
         "recognition": "OCR",
         "roi": [
             347,
@@ -918,7 +1021,13 @@
             "战斗区"
         ],
         "action": "Click",
-        "post_delay": 1000,
+        "target": [
+            403,
+            493,
+            4,
+            4
+        ],
+        "post_delay": 3000,
         "timeout": 8000,
         "next": [
             "[JumpBack]Collect_IM_OnFoot_Moveing",
@@ -934,14 +1043,20 @@
     },
     "Collect_IM_OnFoot_NviMap_E03_B2": {
         "recognition": "And",
-        "all_of": ["Collect_IM_OnFoot_NviMap_E03_B1"],
-        "next": ["Collect_IM_OnFoot_NviMap_E03_B2_Move"],
+        "all_of": [
+            "Collect_IM_OnFoot_NviMap_E03_B1"
+        ],
+        "next": [
+            "Collect_IM_OnFoot_NviMap_E03_B2_Move"
+        ],
         "focus": "CTB.特殊地图-海滨天使-02"
     },
     "Collect_IM_OnFoot_NviMap_E03_B2_Move": {
         "max_hit": 5,
         "recognition": "And",
-        "all_of": ["Collect_TeleporCircle_OnFoot_NviMap"],
+        "all_of": [
+            "Collect_TeleporCircle_OnFoot_NviMap"
+        ],
         "action": "Click",
         "target": [
             238,
@@ -1038,14 +1153,20 @@
     },
     "Collect_IM_OnFoot_NviMap_E04_A2": {
         "recognition": "And",
-        "all_of": ["Collect_IM_OnFoot_NviMap_E04_A1"],
-        "next": ["Collect_IM_OnFoot_NviMap_E04_A2_Move"],
+        "all_of": [
+            "Collect_IM_OnFoot_NviMap_E04_A1"
+        ],
+        "next": [
+            "Collect_IM_OnFoot_NviMap_E04_A2_Move"
+        ],
         "focus": "CTB.特殊地图-记忆边缘-02"
     },
     "Collect_IM_OnFoot_NviMap_E04_A2_Move": {
         "max_hit": 5,
         "recognition": "And",
-        "all_of": ["Collect_TeleporCircle_OnFoot_NviMap"],
+        "all_of": [
+            "Collect_TeleporCircle_OnFoot_NviMap"
+        ],
         "action": "Click",
         "target": [
             389,
@@ -1064,14 +1185,20 @@
     },
     "Collect_IM_OnFoot_NviMap_E04_B2": {
         "recognition": "And",
-        "all_of": ["Collect_IM_OnFoot_NviMap_E04_B1"],
-        "next": ["Collect_IM_OnFoot_NviMap_E04_B2_Move"],
+        "all_of": [
+            "Collect_IM_OnFoot_NviMap_E04_B1"
+        ],
+        "next": [
+            "Collect_IM_OnFoot_NviMap_E04_B2_Move"
+        ],
         "focus": "CTB.特殊地图-记忆边缘-02"
     },
     "Collect_IM_OnFoot_NviMap_E04_B2_Move": {
         "max_hit": 5,
         "recognition": "And",
-        "all_of": ["Collect_TeleporCircle_OnFoot_NviMap"],
+        "all_of": [
+            "Collect_TeleporCircle_OnFoot_NviMap"
+        ],
         "action": "Click",
         "target": [
             290,
@@ -1220,7 +1347,9 @@
     "Collect_IM_OnFoot_NviMap_M14_A1_Move": {
         "max_hit": 5,
         "recognition": "And",
-        "all_of": ["Collect_TeleporCircle_OnFoot_NviMap"],
+        "all_of": [
+            "Collect_TeleporCircle_OnFoot_NviMap"
+        ],
         "action": "Click",
         "target": [
             221,
@@ -1256,7 +1385,9 @@
         "action": "Custom",
         "custom_action": "ResetTag",
         "custom_action_param": {
-            "tags": ["IM_Skill_OnlyOnec"]
+            "tags": [
+                "IM_Skill_OnlyOnec"
+            ]
         },
         "anchor": {
             "QuickSkill_Egress": ""
@@ -1312,14 +1443,20 @@
     },
     "Collect_IM_OnFoot_NviMap_E05_A2": {
         "recognition": "And",
-        "all_of": ["Collect_IM_OnFoot_NviMap_E05_A1"],
-        "next": ["Collect_IM_OnFoot_NviMap_E05_A2_Move"],
+        "all_of": [
+            "Collect_IM_OnFoot_NviMap_E05_A1"
+        ],
+        "next": [
+            "Collect_IM_OnFoot_NviMap_E05_A2_Move"
+        ],
         "focus": "CTB.特殊地图-戏水女王-02"
     },
     "Collect_IM_OnFoot_NviMap_E05_A2_Move": {
         "max_hit": 5,
         "recognition": "And",
-        "all_of": ["Collect_TeleporCircle_OnFoot_NviMap"],
+        "all_of": [
+            "Collect_TeleporCircle_OnFoot_NviMap"
+        ],
         "action": "Click",
         "target": [
             602,
@@ -1338,14 +1475,20 @@
     },
     "Collect_IM_OnFoot_NviMap_E05_B2": {
         "recognition": "And",
-        "all_of": ["Collect_IM_OnFoot_NviMap_E05_B1"],
-        "next": ["Collect_IM_OnFoot_NviMap_E05_B2_Move"],
+        "all_of": [
+            "Collect_IM_OnFoot_NviMap_E05_B1"
+        ],
+        "next": [
+            "Collect_IM_OnFoot_NviMap_E05_B2_Move"
+        ],
         "focus": "CTB.特殊地图-戏水女王-02"
     },
     "Collect_IM_OnFoot_NviMap_E05_B2_Move": {
         "max_hit": 5,
         "recognition": "And",
-        "all_of": ["Collect_TeleporCircle_OnFoot_NviMap"],
+        "all_of": [
+            "Collect_TeleporCircle_OnFoot_NviMap"
+        ],
         "action": "Click",
         "target": [
             310,
@@ -1365,7 +1508,9 @@
     "Collect_TeleporCircle_OnFoot_StateResolGroup_Step1_Lift": {
         "desc": "两层级的导航地图箭头状态识别,来判断最左/中间/最右 ;+地图安全/危险来辅助操作 | Step2_Right下面为判定为最右",
         "recognition": "Or",
-        "any_of": ["Rec_NavMap_Lift"],
+        "any_of": [
+            "Rec_NavMap_Lift"
+        ],
         "next": [
             "Collect_TeleporCircle_OnFoot_StateResolGroup_Step2_Right",
             "Collect_TeleporCircle_OnFoot_NviMap_IsBattleArea",
@@ -1374,7 +1519,9 @@
     },
     "Collect_TeleporCircle_OnFoot_StateResolGroup_Step1_Right": {
         "recognition": "Or",
-        "any_of": ["Rec_NavMap_Right"],
+        "any_of": [
+            "Rec_NavMap_Right"
+        ],
         "timeout": 5000,
         "next": [
             "Collect_TeleporCircle_OnFoot_TPIco",
@@ -1385,7 +1532,9 @@
     },
     "Collect_TeleporCircle_OnFoot_StateResolGroup_Step2_Right": {
         "recognition": "Or",
-        "any_of": ["Rec_NavMap_Right"],
+        "any_of": [
+            "Rec_NavMap_Right"
+        ],
         "timeout": 5000,
         "next": [
             "Collect_TeleporCircle_OnFoot_TPIco",
@@ -1515,14 +1664,18 @@
     },
     "Collect_TeleporCircle_OnFoot_NviMapChange_Lift": {
         "recognition": "Or",
-        "any_of": ["Rec_NavMap_Lift"],
+        "any_of": [
+            "Rec_NavMap_Lift"
+        ],
         "action": "Click",
         "post_delay": 1000,
         "focus": "CTOB.导航地图左移1次"
     },
     "Collect_TeleporCircle_OnFoot__NviMapChange_Right": {
         "recognition": "Or",
-        "any_of": ["Rec_NavMap_Right"],
+        "any_of": [
+            "Rec_NavMap_Right"
+        ],
         "action": "Click",
         "post_delay": 1000,
         "focus": "CTOB.导航地图右移1次"
@@ -1548,7 +1701,9 @@
     "Collect_TeleporCircle_OnFoot_TPIco_Click": {
         "desc": "寻找当前页面传送阵图标",
         "recognition": "Or",
-        "any_of": ["Collect_TeleporCircle_OnFoot_TPIco"],
+        "any_of": [
+            "Collect_TeleporCircle_OnFoot_TPIco"
+        ],
         "action": "Click",
         "post_delay": 2000,
         "next": [
@@ -1565,7 +1720,9 @@
     "Collect_TeleporCircle_OnFoot_TPIco_Mirror": {
         "desc": "_TPIco的同等镜像节点,用于某些Error管路,使用其他中断方法恢复到next同样节点冲突",
         "recognition": "Or",
-        "any_of": ["Collect_TeleporCircle_OnFoot_TPIco"],
+        "any_of": [
+            "Collect_TeleporCircle_OnFoot_TPIco"
+        ],
         "action": "Click",
         "post_delay": 3000,
         "next": [
@@ -1596,7 +1753,9 @@
             "[JumpBack]Collect_TeleporCircle_OnFoot_LoopFoot",
             "[JumpBack]Collect_TeleporCircle_OnFoot_TPIcoCk_IntSubMenu_TryAgain"
         ],
-        "on_error": ["Collect_TeleporCircle_OnFoot_TPIcoCk_IntSubMenu_ERR"]
+        "on_error": [
+            "Collect_TeleporCircle_OnFoot_TPIcoCk_IntSubMenu_ERR"
+        ]
     },
     "Collect_TeleporCircle_OnFoot_TPIcoCk_IntSubMenu_TryAgain": {
         "desc": "游戏bug,第一次点开小地图时点击子按钮没反应",
@@ -1614,7 +1773,9 @@
         ],
         "action": "Click",
         "post_delay": 800,
-        "next": ["Collect_TeleporCircle_OnFoot_TPIcoCk_IntSubMenu_TryAgain_Up"]
+        "next": [
+            "Collect_TeleporCircle_OnFoot_TPIcoCk_IntSubMenu_TryAgain_Up"
+        ]
     },
     "Collect_TeleporCircle_OnFoot_TPIcoCk_IntSubMenu_TryAgain_Up": {
         "pre_delay": 0,
@@ -1634,7 +1795,9 @@
     },
     "Collect_TeleporCircle_OnFoot_TPIcoCk_IntSubMenu_ERR_Sandbox": {
         "recognition": "Or",
-        "any_of": ["Global_ToSandBox_Enter"],
+        "any_of": [
+            "Global_ToSandBox_Enter"
+        ],
         "action": "Custom",
         "custom_action": "ResetTag",
         "custom_action_param": {
@@ -1642,7 +1805,9 @@
                 "NviMap_Sub_Err"
             ]
         },
-        "next": ["[Anchor]IntSubMenu_ErrReturn"]
+        "next": [
+            "[Anchor]IntSubMenu_ErrReturn"
+        ]
     },
     "Collect_OnFoot_Skill3_4": {
         "desc": "跑路过程中不断尝试能否使用传送阵提前结束过程,可以设置IF开关启停",
@@ -1725,7 +1890,9 @@
         "template": [
             "Onfight.png"
         ],
-        "threshold": [0.9],
+        "threshold": [
+            0.9
+        ],
         "next": [
             "Collect_TeleporCircle_OnFoot_Skirmish_Tpause"
         ],
@@ -1784,7 +1951,9 @@
     },
     "Collect_ForceTelepor_IsEffect": {
         "recognition": "Or",
-        "any_of": ["Collect_OperationsMain_ToAreaMap"],
+        "any_of": [
+            "Collect_OperationsMain_ToAreaMap"
+        ],
         "next": [
             "Collect_ForceTelepor_IsEffect_ResetFoot",
             "[JumpBack]Global_BackPageHub_Once"
@@ -1792,7 +1961,9 @@
     },
     "Collect_ForceTelepor_IsEffect_ResetFoot": {
         "recognition": "Or",
-        "any_of": ["Arbitrage_NviGuide_Onfoot_Loop"],
+        "any_of": [
+            "Arbitrage_NviGuide_Onfoot_Loop"
+        ],
         "action": "Click",
         "post_delay": 5000,
         "next": [
@@ -1804,8 +1975,12 @@
     "Collect_ForceTelepor_FindTeleporCircle": {
         "desc": "发现传送按钮标,（步行到终点）模块出口",
         "recognition": "Or",
-        "any_of": ["Collect_FindTeleporCircle0.9"],
-        "anchor": {"IntSubMenu_ErrReturn": ""},
+        "any_of": [
+            "Collect_FindTeleporCircle0.9"
+        ],
+        "anchor": {
+            "IntSubMenu_ErrReturn": ""
+        },
         "focus": "CTOB.到达传送阵-按钮标,End"
     },
     "Rec_NavMap_Lift": {
@@ -1859,7 +2034,8 @@
         ]
     },
     "Collect_WayPoint_Entry": {
-        "desc": "从任意采集箱庭打开左上寻路列表并返回探索告示板；目标项由文字定位，不依赖列表长度。",
+        "desc": "从任意采集箱庭打开左上寻路列表并返回探索告示板；目标项由文字定位，不依赖列表长度。★max_hit:4=重入封顶(2026-10-07):识别面是'左上寻路按钮'(Open_Tpl/Csm)，**在箱庭里恒命中**，而它的 next 里 `[JumpBack]Open_Tpl/Csm/QuickHunt_MIniMap_locErr` 都是子调用，子链(回告示板→Arrived→Verify→Succeed→Global_ToSandBox→Enter)跑完后回溯会**重新评估本节点并再次命中** ⇒ 整条'回告示板'链无限重跑(2026-10-07 10:07~10:09 实测:每 ~21s 一轮,复位成功又回到 CTB.回到探索告示板)。加上限后到限即被跳过(框架日志 `max_hit reached`)，回溯得以继续外退。★值取 4:与下游 Board(max_hit 4)/Arrived(max_hit 3,本次加)同一量级；本节点只服务'特殊地图收尾回主城'(普通卡带走 TargetMapEnd→FastUI→PackEnd_Ck，不经这里)，正常一次就够；到限后由 `Collect_TeleporCircle_OnFoot_Entry.next` 的第二候选 `Collect_TeleporCircle_OnlyFoot_Entry`(纯步行返回传送阵)兜底，不会无路可走。",
+        "max_hit": 4,
         "recognition": "Or",
         "any_of": [
             "Collect_WayPoint_Open_Tpl",
@@ -1877,7 +2053,9 @@
             "[JumpBack]Collect_WayPoint_Csm",
             "[JumpBack]QuickHunt_MIniMap_locErr"
         ],
-        "on_error": ["Collect_TeleporCircle_OnlyFoot_Entry"],
+        "on_error": [
+            "Collect_TeleporCircle_OnlyFoot_Entry"
+        ],
         "focus": "CTB.回到探索告示板"
     },
     "Collect_WayPoint_Csm": {
@@ -1971,7 +2149,7 @@
         ],
         "action": "Click",
         "anchor": {
-            "ExplorationBoard_Arrived": "Collect_WayPoint_ExplorationBoard_Arrived"
+            "ExplorationBoard_Arrived": "Collect_WayPoint_Arrived_SkillReset"
         },
         "post_delay": 1000,
         "next": [
@@ -1997,7 +2175,7 @@
         ],
         "action": "Click",
         "anchor": {
-            "ExplorationBoard_Arrived": "Collect_WayPoint_ExplorationBoard_Arrived"
+            "ExplorationBoard_Arrived": "Collect_WayPoint_Arrived_SkillReset"
         },
         "post_delay": 1000,
         "next": [
@@ -2009,7 +2187,8 @@
         "focus": "CTB.选择旅馆"
     },
     "Collect_WayPoint_Arrived": {
-        "desc": "自动移动结束并回到探索告示板；调用方可设置 ExplorationBoard_Arrived 锚点继续。",
+        "desc": "自动移动结束并回到探索告示板；调用方可设置 ExplorationBoard_Arrived 锚点继续。★max_hit:3=环封顶(2026-10-07):箱庭静止态恒命中,若下游锚点一直复位不成功就会 WayPoint_Arrived→Verify失败→锚→回到本节点 无限循环;加上限后最多 3 轮即被跳过、退栈。正常路径只命中 1 次(Verify 成功即走锚),不受影响。",
+        "max_hit": 3,
         "recognition": "And",
         "all_of": [
             "Rec_SandBox_Pin3_Tpl",
@@ -2070,7 +2249,9 @@
         "desc": "上游点击后,有返回按钮.说明开启了某个对话",
         "max_hit": 3,
         "recognition": "Or",
-        "any_of": ["Global_BackPageHub_Once"],
+        "any_of": [
+            "Global_BackPageHub_Once"
+        ],
         "next": [
             "Collect_WayPoint_Arrived_Verify",
             "[JumpBack]Global_ToSandBox",
@@ -2092,7 +2273,7 @@
         "next": ["Global_ToSandBox"]
     },
     "Collect_WayPoint_ExplorationBoard_Arrived": {
-        "desc": "点击左上地图",
+        "desc": "【已废弃·2026-10-02】原为'到达告示板后开地图点传送阵',但游戏有点地图传送阵不触发寻路的 bug(用户实测)。已改:Board/Inn 的 anchor ExplorationBoard_Arrived 直接指向 Collect_OnFoot_Skill3_4(放传送技能复位)。本节点与 _NavMap 保留代码、不再接线。",
         "recognition": "Or",
         "any_of": [
             "Collect_TeleporCircle_OnFoot_GoinNviMap"
@@ -2120,5 +2301,57 @@
             "[JumpBack]Collect_TeleporCircle_OnFoot_NviMapChange_Lift"
         ],
         "focus": "CTOB.确认导航地图界面打开"
+    },
+    "Collect_WayPoint_Arrived_SkillReset": {
+        "desc": "【到达告示板/旅馆后的复位·2026-10-07】Board/Inn 的 anchor ExplorationBoard_Arrived 指向本节点。判据照抄 Collect_OnFoot_Skill3_4(Skill3-1.png + 亮色核,灰态不命中),**只有出口不同**:本节点用于'已到达静止'的上下文,传送技能放出来、移动魔法阵面板打开后直接交给本地 Collect_ForceTelepor_MapCk(翻最左页→点面板传送阵→传地图1)。★为什么不能直接用 Collect_OnFoot_Skill3_4:它的 desc 是'跑路过程中'用,next 唯一项是 Collect_ForceTelepor_IsEffect→IsEffect_ResetFoot(判据=自动寻路中图标 AutoNvi_ico);到达后人是静止的,该图标永远不会出现 ⇒ 空等默认 20s 超时 ⇒ 落到 [JumpBack]Global_BackPageHub_Once 点返回把刚开的面板关掉 ⇒ 回到 Collect_WayPoint_Arrived 无限循环(2026-10-07 09:15~09:22 实测,每轮 26s)。★为什么不用 Collect_Skill3_4:它没有亮/灰色核判据(灰态也命中→空点),且 next 第三项是自引用且无 max_hit。本节点不动任何上游节点。★next 第三项 2026-10-07 由 Collect_TeleporCircle_OnFoot_Start 改为 Collect_ForceTeleporCircle_No(灰态色核判据):OnFoot_Start 是 DirectHit **恒命中**,复位成功(MapCk 链走完)后退栈继续评估后续候选时会命中它、重入整条步行兜底链(实测 10:16 卡死的相关一环);改用灰态判据后,只有技能真的灰着不可用才进步行兜底,成功路径在列表耗尽后干净退栈。",
+        "recognition": "And",
+        "all_of": [
+            {
+                "recognition": "TemplateMatch",
+                "roi": [
+                    1051,
+                    400,
+                    81,
+                    86
+                ],
+                "template": [
+                    "Skill3-1.png"
+                ]
+            },
+            {
+                "recognition": "ColorMatch",
+                "roi": [
+                    1086,
+                    428,
+                    10,
+                    2
+                ],
+                "method": 40,
+                "lower": [
+                    0,
+                    0,
+                    200
+                ],
+                "upper": [
+                    180,
+                    20,
+                    255
+                ],
+                "count": 10
+            }
+        ],
+        "action": "Click",
+        "target": [
+            1088,
+            444
+        ],
+        "post_delay": 1500,
+        "timeout": 5000,
+        "next": [
+            "Collect_ForceTelepor_MapCk",
+            "Collect_Skill3_1_ERR_TooClose",
+            "Collect_ForceTeleporCircle_No"
+        ],
+        "focus": "CTB.到达-放传送技能复位"
     }
 }
