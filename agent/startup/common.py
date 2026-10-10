@@ -49,10 +49,17 @@ class Budget:
             self.next_progress += (int((now - self.next_progress) // 30) + 1) * 30
 
     def pause(self, seconds):
+        # remaining 必须在 check() 之前取一次并复用：check() 本身要读时钟、判停止，
+        # 若在 sleep 参数里再读一次时钟，余量可能在两次读取之间耗尽变成负值，
+        # time.sleep(负) 会抛 "sleep length must be non-negative"，经 guard 记录成
+        # 会话级失败后整轮任务全灭。多睡一点无害，睡负数直接崩。
         until = min(self.clock() + seconds, self.deadline)
-        while self.clock() < until:
+        while True:
+            remaining = until - self.clock()
+            if remaining <= 0:
+                break
             self.check()
-            self.sleep(min(0.1, until - self.clock()))
+            self.sleep(min(0.1, remaining))
         self.check()
 
     def success(self):

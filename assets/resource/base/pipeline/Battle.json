@@ -1,5 +1,21 @@
 {
     "QuickHunt_Start": {
+        "desc": "task入口,判据交给QuickHunt_Daily_Switch。闸不通过时本节点next耗尽,整个task直接结束。timeout必写——next只剩这一项,不写就会空转到默认20秒才肯退",
+        "timeout": 1,
+        "next": [
+            "QuickHunt_Daily_Switch"
+        ]
+    },
+    "QuickHunt_Daily_Switch": {
+        "desc": "快速狩猎存档闸:本游戏日已扫荡过(上次走到无红点并打了标)则不命中,整个task直接结束",
+        "recognition": "Custom",
+        "custom_recognition": "CheckCoolDown",
+        "custom_recognition_param": {
+            "card_name": "QuickHunt_Daily",
+            "cycle_type": "g_daily"
+        },
+        "pre_delay": 0,
+        "post_delay": 0,
         "next": [
             "QuickHunt_Hub"
         ]
@@ -80,8 +96,22 @@
         "focus": "CM.狩猎场-红点存在"
     },
     "QuickHunt_CollectNoDot": {
+        "desc": "无红点=今日无可扫荡(扫完了或本来就没有)。打标后再终止,下次进任务由QuickHunt_Daily_Switch直接跳过",
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "MarkComplete",
+        "custom_action_param": {
+            "card_name": "QuickHunt_Daily",
+            "cycle_type": "g_daily"
+        },
+        "post_delay": 0,
+        "next": [
+            "QuickHunt_NoDot_End"
+        ]
+    },
+    "QuickHunt_NoDot_End": {
         "action": "StopTask",
-        "focus": "[WRN]狩猎场红点不存在,终止任务"
+        "focus": "[WRN]狩猎场红点不存在,今日已标记完成"
     },
     "QuickHunt_MIniMap_locErr": {
         "desc": "小地图位置调整",

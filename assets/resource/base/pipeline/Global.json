@@ -149,6 +149,7 @@
     },
     "Global_ToHomePage_HomeButton": {
         "desc": "找到run-点击返回主页",
+        "max_hit": 8,
         "recognition": "Or",
         "any_of": [
             "Rec_SandBox_Pin_Tpl",
@@ -1333,7 +1334,7 @@
             5,
             255
         ],
-        "count": 150
+        "count": 120
     },
     "Sub_HomePage_GA_Bright_Clr": {
         "desc": "[检测]主页,抽卡文字；是否高亮",

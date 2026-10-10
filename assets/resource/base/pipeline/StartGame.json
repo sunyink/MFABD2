@@ -625,7 +625,7 @@
         "focus": "SM.返回箱庭成功"
     },
     "StartGame_PerPetTask": {
-        "desc": "宠物派遣。此时已因其他步骤充分延时，时机更合适。",
+        "desc": "宠物派遣。点击箱庭中的感叹号气泡（tanhaoGE），与 Collect_PerPetTask 同款模板。原 PetMidGe 模板会命中错误位置导致空转。",
         "max_hit": 5,
         "recognition": "TemplateMatch",
         "roi": [
@@ -635,11 +635,18 @@
             412
         ],
         "template": [
-            "PetMidGe.png"
+            "tanhaoGE.png"
         ],
         "green_mask": true,
+        "threshold": 0.85,
         "order_by": "Score",
         "action": "Click",
+        "target_offset": [
+            -3,
+            -4,
+            6,
+            6
+        ],
         "post_delay": 1000,
         "timeout": 5000,
         "focus": "SM.宠物派遣"

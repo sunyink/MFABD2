@@ -15,6 +15,7 @@
         ]
     },
     "Setup_Entry1_Swich": {
+        "desc": "操作方式闸:箱庭左下出现虚拟方向键=「选择操作方式」为键盘(即方向键操控),需改为「点击地面」。注意「角色移动方向」(360度方向移动/8个方向固定)不是判据,别被文案带偏。点击地面模式下该键不显示,实测模板分0.73 vs 0.00",
         "recognition": "And",
         "all_of": [
             "Sub_<Setup_Entry1_Swich>_M",
@@ -25,7 +26,7 @@
         "next": [
             "Setup_Main_Switch"
         ],
-        "focus": "SMSP.触发设置按需调整,原因:移动方式不应为方向键"
+        "focus": "SMSP.触发设置按需调整,原因:选择操作方式为键盘(箱庭左下有虚拟方向键),应为点击地面"
     },
     "Sub_<Setup_Entry1_Swich>_M": {
         "recognition": "Or",
@@ -83,7 +84,7 @@
         "green_mask": true
     },
     "Rec_<Setup_Entry1_Swich>_Tpl": {
-        "desc": "[识别]方向键存在",
+        "desc": "[识别]虚拟方向键存在(选择操作方式=键盘时显示;点击地面模式无此键)",
         "recognition": "TemplateMatch",
         "roi": [
             134,
@@ -821,6 +822,7 @@
         ]
     },
     "Setup_Main_Into_Pre": {
+        "max_hit": 3,
         "recognition": "Or",
         "any_of": [
             "Global_HomeButton_Once"
@@ -835,6 +837,7 @@
         "focus": "Setup.主设置修改开始"
     },
     "Setup_Main_Into": {
+        "max_hit": 3,
         "recognition": "And",
         "all_of": [
             "Rec_HomePage_GA_Ocr",
@@ -870,6 +873,7 @@
         "focus": "主设置菜单"
     },
     "Setup_MainSetup_Into": {
+        "max_hit": 3,
         "recognition": "OCR",
         "roi": [
             646,
@@ -922,11 +926,14 @@
         ]
     },
     "Setup_Main_Move_Chg": {
+        "desc": "max_hit兜底:Ck色核永远不过时(游戏改版换高亮色),否则[JumpBack]无限点击",
+        "max_hit": 2,
         "action": "Click",
         "target": "Setup_Main_Move",
         "post_delay": 3000
     },
     "Setup_Main_Tab_2": {
+        "max_hit": 3,
         "recognition": "OCR",
         "roi": [
             172,
@@ -1004,6 +1011,7 @@
         ]
     },
     "Setup_Main_Blurry_Chg": {
+        "max_hit": 2,
         "action": "Click",
         "target": "Setup_Main_Blurry",
         "post_delay": 3000
@@ -1044,6 +1052,7 @@
         ]
     },
     "Setup_Main_Resolution_Chg": {
+        "max_hit": 2,
         "action": "Click",
         "target": "Setup_Main_Resolution",
         "post_delay": 3000
@@ -1084,6 +1093,7 @@
         ]
     },
     "Setup_Main_StartUI_Chg": {
+        "max_hit": 2,
         "action": "Click",
         "target": "Setup_Main_StartUI",
         "post_delay": 3000
@@ -1125,11 +1135,14 @@
         ]
     },
     "Setup_Main_freshRate_Chg": {
+        "max_hit": 2,
         "action": "Click",
         "target": "Setup_Main_freshRate",
         "post_delay": 3000
     },
     "Setup_Main_Swip": {
+        "desc": "图像页翻页滑动,步长520px:把「仅观看新技能|关闭」送进 SkipAv 判定带、「剪影模式」送进 Silhouette 判定带(实测行距168、顶部起点y≈758/926,可落带窗口479~558)。原595px直接滑过头,两行都停在判定带上方→永远找不到。max_hit=3兜底:目标行不可达时不再无限滑,SmartAction 的 unchanged 报错→默认on_error(Global_Null)→调用方[JumpBack]回到列表顶部再问一遍,没有上限就是死循环(实测空转5分钟+)",
+        "max_hit": 3,
         "action": "Custom",
         "custom_action": "SmartAction",
         "custom_action_param": {
@@ -1142,7 +1155,7 @@
                 ],
                 "end": [
                     810,
-                    25
+                    100
                 ],
                 "duration": 700,
                 "end_hold": 1000,
@@ -1162,13 +1175,13 @@
         }
     },
     "Setup_Main_SkipAv": {
-        "desc": "小区域,更新位置需要跟进",
+        "desc": "整列搜索:该页「关闭」唯一(仅观看新技能|关闭),滚动到任何位置都能命中,不依赖行落在固定判定带。原 roi y180-279 在 2026-09 版式下两端都够不着(行顶滚时 y≈758、滚到底 y≈74),导致下面的 Swip 无限重试",
         "recognition": "OCR",
         "roi": [
-            816,
-            180,
-            355,
-            99
+            800,
+            57,
+            390,
+            620
         ],
         "expected": [
             "关闭"
@@ -1197,6 +1210,7 @@
         ]
     },
     "Setup_Main_SkipAv_Chg": {
+        "max_hit": 2,
         "action": "Click",
         "target": "Setup_Main_SkipAv",
         "post_delay": 3000
@@ -1237,11 +1251,13 @@
         ]
     },
     "Setup_Main_Silhouette_Chg": {
+        "max_hit": 2,
         "action": "Click",
         "target": "Setup_Main_Silhouette",
         "post_delay": 3000
     },
     "Setup_Main_Tab_3": {
+        "max_hit": 3,
         "recognition": "OCR",
         "roi": [
             172,
@@ -1318,12 +1334,14 @@
         ]
     },
     "Setup_Main_ShoundOff_Chg": {
+        "max_hit": 2,
         "action": "Click",
         "target": "Setup_Main_ShoundOff",
         "post_delay": 3000,
         "focus": "SM.设定变更关闭声音"
     },
     "Setup_Main_Tab_4": {
+        "max_hit": 3,
         "recognition": "OCR",
         "roi": [
             172,
@@ -1401,6 +1419,7 @@
         ]
     },
     "Setup_Main_YellowPin_Chg": {
+        "max_hit": 2,
         "action": "Click",
         "target": "Setup_Main_YellowPin",
         "post_delay": 3000
@@ -1442,6 +1461,7 @@
         ]
     },
     "Setup_Main_ClothingChange_Chg": {
+        "max_hit": 2,
         "action": "Click",
         "target": "Setup_Main_ClothingChange",
         "post_delay": 3000
