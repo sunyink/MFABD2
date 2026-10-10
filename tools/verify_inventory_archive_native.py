@@ -19,8 +19,11 @@ sys.path.insert(0, str(ROOT / "agent"))
 Library.version()
 from maa.agent.agent_server import AgentServer
 with patch.object(AgentServer, "custom_action", return_value=lambda cls: cls), \
-     patch.object(AgentServer, "custom_recognition", return_value=lambda cls: cls):
+     patch.object(AgentServer, "custom_recognition", return_value=lambda cls: cls), \
+     patch.object(AgentServer, "_set_api_properties"), \
+     patch.object(AgentServer, "context_sink", return_value=lambda cls: cls):
     from action import inventory_archive as action, arbitrage_flow as flow
+    from recognition import agent_ping
 from utils import arbitrage_store as store, inventory_archive as history
 from verify_inventory_archive import ArchiveFixture, MemoryStore
 from verify_arbitrage_purchase_cycle import OfflineController
@@ -101,6 +104,8 @@ class NativeTests(ActionFixture):
         self.assertTrue(resource.post_bundle(ROOT / "assets/resource/base").wait().succeeded)
         self.assertTrue(resource.register_custom_action("ArbitrageStagePrepare", flow.ArbitrageStagePrepare()))
         self.assertTrue(resource.register_custom_action("InventoryArchive", action.InventoryArchive()))
+        # Arbitrage_Start 的 next 首位是通信探针，未注册就会被当成通道中断而停止任务。
+        self.assertTrue(resource.register_custom_recognition("AgentPing", agent_ping.AgentPing()))
         observed = []
 
         class Work(CustomAction):

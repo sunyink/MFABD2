@@ -3,6 +3,7 @@
         "desc": "task入口,判据交给Equip_Daily_Switch。闸不通过时本节点next耗尽,整个task结束。timeout必写——next只剩这一项,不写就会空转到默认20秒才肯退",
         "timeout": 1,
         "next": [
+            "Env_AgentLost_Stop",
             "Equip_Daily_Switch"
         ]
     },

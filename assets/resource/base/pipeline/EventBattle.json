@@ -1,6 +1,7 @@
 {
     "Event_HomePage": {
         "next": [
+            "Env_AgentLost_Stop",
             "Event_Event_Main",
             "[JumpBack]Global_WaitingForLoading",
             "[JumpBack]Event_GoinEvent",

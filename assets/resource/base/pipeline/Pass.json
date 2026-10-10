@@ -1,6 +1,7 @@
 {
     "Pass_HomePage": {
         "next": [
+            "Env_AgentLost_Stop",
             "Pass_InToPass",
             "[JumpBack]Global_ToHomePage"
         ]
