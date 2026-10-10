@@ -200,6 +200,29 @@ class WindowsAPI:
         return bool(self.user.GetLayeredWindowAttributes(hwnd, C.byref(color), C.byref(alpha), C.byref(flags))
                     and flags.value & 2 and alpha.value == 0)
 
+    def restore_pseudo_minimize(self, hwnd):
+        """撤销框架残留的伪最小化（透明+点击穿透），恢复为普通可见窗口。
+
+        实测（260930，v4.5.1-beta.2 / MaaFW v5.12.3 / 游戏版本 20260918000）：
+        伪最小化状态下，游戏在箱庭等场景切换（交换链重建）后，PrintWindow 会持续
+        返回切换前的过期帧——截图、识别全部基于旧画面静默失效，任务空转却报
+        “已全部完成”。手动摘除 LAYERED|TRANSPARENT 并恢复不透明后，截图立即恢复。
+        该状态没有跨任务的自动回退路径，这里提供显式恢复。
+        """
+        if not self.user.IsWindow(hwnd):
+            raise PreparationError("恢复窗口前游戏窗口已失效")
+        style = self.user.GetWindowLongW(hwnd, -20)
+        if style & 0x80020 != 0x80020:
+            return False
+        # 先恢复不透明，再摘掉 WS_EX_LAYERED|WS_EX_TRANSPARENT，最后让系统重算边框
+        self.user.SetLayeredWindowAttributes(hwnd, 0, 255, 0x2)
+        C.set_last_error(0)
+        if not self.user.SetWindowLongW(hwnd, -20, style & ~0x80020):
+            raise C.WinError(C.get_last_error())
+        # SWP_NOSIZE|SWP_NOMOVE|SWP_NOZORDER|SWP_FRAMECHANGED|SWP_NOACTIVATE
+        self.user.SetWindowPos(hwnd, None, 0, 0, 0, 0, 0x0073)
+        return True
+
     def minimize(self, hwnd):
         if not self.user.IsWindow(hwnd):
             raise PreparationError("最小化前游戏窗口已失效")
