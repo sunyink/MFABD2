@@ -12,6 +12,16 @@
         "post_delay": 0,
         "focus": "账号配置不可用，已停止当前任务"
     },
+    "Env_AgentLost_Stop": {
+        "desc": "Agent 通信中断时停止当前任务；排在各任务入口 next 首位，通道正常时永远不命中。AgentPing 恒命中，经 inverse 翻转：只有请求送不到 Agent（MaaFw 5.12.3 回包积压堵死，或 Agent 已退出）才命中。只停当前任务，队列中后续任务会在各自入口再次被拦下。不加 [JumpBack]：命中即终点。",
+        "recognition": "Custom",
+        "custom_recognition": "AgentPing",
+        "inverse": true,
+        "pre_delay": 0,
+        "action": "StopTask",
+        "post_delay": 0,
+        "focus": "Env.[ERR]与Agent的通信已中断，已停止本任务。请完全退出MFA后重开（暂时关闭实时画面可避免再次发生）"
+    },
     "Agt_MultiSave_Inject": {
         "desc": "py 独占，勿挂进管路：非 MFAA 客户端的多存档号载体。源 interface 的全局「启用多存档」把号写进 attach.account_id，Python 按任务读取；发布包不注入，MFAA 只读实例配置。",
         "enabled": false,

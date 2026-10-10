@@ -1,6 +1,7 @@
 {
     "Mail_HomePage": {
         "next": [
+            "Env_AgentLost_Stop",
             "Mail_GoinMail",
             "[JumpBack]Global_ToHomePage"
         ]

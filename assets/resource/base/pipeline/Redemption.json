@@ -3,6 +3,7 @@
         "desc": "肉鸽塔日常入口,本游戏日已完成则跳过",
         "timeout": 1,
         "next": [
+            "Env_AgentLost_Stop",
             "Redemption_Daily_Switch"
         ]
     },
