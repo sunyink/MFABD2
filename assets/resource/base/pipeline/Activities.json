@@ -2,6 +2,7 @@
     "Activities_Start": {
         "desc": "起始节点-分流",
         "next": [
+            "Env_AgentLost_Stop",
             "Activities_HomePageHub",
             "[JumpBack]Global_ToHomePage"
         ]

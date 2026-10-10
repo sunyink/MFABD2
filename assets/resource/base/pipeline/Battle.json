@@ -1,6 +1,7 @@
 {
     "QuickHunt_Start": {
         "next": [
+            "Env_AgentLost_Stop",
             "QuickHunt_Hub"
         ]
     },

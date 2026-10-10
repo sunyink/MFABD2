@@ -1,6 +1,7 @@
 {
     "Collect_StartGame_HomePage": {
         "next": [
+            "Env_AgentLost_Stop",
             "[JumpBack]Collect_PerPetTask",
             "Collect_AllLibGone",
             "Collect_Sandplay",
@@ -8,6 +9,17 @@
         ]
     },
     "Collect_StartGame_HomePage_OnlyOnce": {
+        "desc": "地图采集（每周一次）入口：先确认 Agent 通信正常，再做本周期检查。周期检查是自定义识别，放在入口上会让通道断开时静默结束，所以挪到 Collect_OnlyOnce_Switch。timeout 与原入口一致：本周期已完成时 5 秒后静默结束。",
+        "pre_delay": 0,
+        "post_delay": 0,
+        "timeout": 5000,
+        "next": [
+            "Env_AgentLost_Stop",
+            "Collect_OnlyOnce_Switch"
+        ]
+    },
+    "Collect_OnlyOnce_Switch": {
+        "desc": "地图采集（每周一次）的本周期检查：未完成才命中，并改写采集链的收尾与技能节点后开始采集。",
         "recognition": "Custom",
         "custom_recognition": "CheckCoolDown",
         "custom_recognition_param": {

@@ -1,6 +1,15 @@
 {
     "Arbitrage_Start": {
-        "desc": "读取五个阶段开关并准备套利入口。ArbitrageStagePrepare在导航前插入库存位置A；全部关闭时清空next，不创建归档运行。",
+        "desc": "套利任务入口：先确认 Agent 通信正常，再进入阶段准备。阶段准备是自定义动作，通道断开时会一直卡住，所以不能放在入口节点上。",
+        "pre_delay": 0,
+        "post_delay": 0,
+        "next": [
+            "Env_AgentLost_Stop",
+            "Arbitrage_StagePrepare"
+        ]
+    },
+    "Arbitrage_StagePrepare": {
+        "desc": "读取五个阶段开关并准备套利入口。ArbitrageStagePrepare在导航前插入库存位置A；全部关闭时清空本节点next，不创建归档运行。",
         "pre_delay": 0,
         "action": "Custom",
         "custom_action": "ArbitrageStagePrepare",
@@ -8342,7 +8351,7 @@
         }
     },
     "Agt_Arbitrage_StageConfig": {
-        "desc": "保存套利总入口的导航候选，供ArbitrageStagePrepare读取。主页寻路使用JumpBack，找到商人后返回总入口，再由Arbitrage_Merchant_Ico进入总调度。",
+        "desc": "保存套利总入口的导航候选，供ArbitrageStagePrepare读取并写入Arbitrage_StagePrepare的next。主页寻路使用JumpBack，找到商人后返回Arbitrage_StagePrepare，再由Arbitrage_Merchant_Ico进入总调度。",
         "enabled": false,
         "attach": {
             "start_next": [

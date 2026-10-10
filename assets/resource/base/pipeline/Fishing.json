@@ -273,6 +273,7 @@
             "MainMenu_GoFishing": "Fishing_InFishingNet"
         },
         "next": [
+            "Env_AgentLost_Stop",
             "Daily_Busin_Hub_Post",
             "Fishing_Already_Setsail",
             "[JumpBack]Global_ToHomePage"
