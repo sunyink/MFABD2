@@ -1,6 +1,7 @@
 {
     "GachaADV_Start": {
         "next": [
+            "Env_AgentLost_Stop",
             "GachaADV_HomePage_Enter",
             "[JumpBack]Global_ToHomePage"
         ]

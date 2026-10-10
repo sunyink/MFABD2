@@ -1,6 +1,7 @@
 {
     "SemiAuto_HomePage": {
         "next": [
+            "Env_AgentLost_Stop",
             "SemiAuto_TotalStart",
             "SemiAuto_LastNight_Start",
             "SemiAuto_SequentialRefined_Str"

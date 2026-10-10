@@ -2,6 +2,7 @@
     "RewardsDaily_Start": {
         "desc": "主页按钮区,任务奖励领取",
         "next": [
+            "Env_AgentLost_Stop",
             "RewardsDaily_DailyReward",
             "[JumpBack]Global_ToHomePage"
         ]
