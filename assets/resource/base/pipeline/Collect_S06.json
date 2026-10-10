@@ -1,0 +1,1365 @@
+{
+    "Collect_S06_ReadMe": {
+        "desc": "《施塔因之塔(Story_06 异教塔)旁路模块》>>背景:该卡带只有第1/2/5/6层需要采集(用户口径);其中第2层与第5层没有传送阵,移动魔法阵面板里也没有它们的页,只能'在场景里点阶梯/标记→自动寻路走过去'。通用切图状态机(区域地图传送阵+右箭头)在这卡带上既不认楼层名也切不动,故整卡旁路。 >>入口:两颗钩子挂在 Collect_Navigation.json 的 Collect_OperationsMain_ToAreaMap.next **首位**(即 [JumpBack]Collect_MapLift 之前),因为**面板刚打开时默认落在「人物当前所在层」那一页**,此时名条=真实楼层。①Collect_TargetMap_Special_S06:名条=施塔因之塔第1层 → 人就在第1层 → 关面板直接采集;②Collect_TargetMap_Special_S06_NotAtF1:名条=施塔因之塔其它页(第6层/第8层/宿舍/第13层/封印指定室) → 人不在第1层 → Collect_S06_To1F_Panel(左键连点7下翻到固定第1层页)→Collect_S06_To1F_Click(**点该页六芒星图标**触发传送)→采第1层。★「面板翻到第1层页」≠「人到了第1层」,必须点图标(用户实测);而'传送到第1层后'不再做楼层复核(用户要求,多余动作)。 >>路线(1280×720 管线系,1920×1080 截图 ×2/3;★=已 adb 实测):①第1层→第2层 点画面顶部偏左的楼梯 (212,9)★(2026-10-10 用户圈图实测标定:圈中落点在 1920×1080 截图系为 (318,13),按 ×2/3 换算到 1280×720 管线系 = (212,9);早先误填 314,13=截图系原值、再早 167,43,均已弃用);②第2层→第1层 点人物右上方门内台阶 (750,313)★(点入口前一律先静 3s:`pre_delay`,避免技能/采集刚收尾时UI 动画把点击吃掉——实测 2026-10-01 16:59 踩过;点空了由 SmartAction 的画面变化判据重按,校验失败则由 Collect_S06_Ck_Retry 关图后回到本段点重按,③第1层→第6层 **点传送技能**(技能栏3-1,借既有 Collect_Skill3_4)开'移动魔法阵'面板——★不能用右下'手'标当主路径:手标只在站在魔法阵上时出现,自动寻路走回第1层后常常不在(实测 2026-10-01 17:07 卡死点),手标只作兜底→面板默认落在'人物所在层'页(=第1层页)→点右箭头翻一页(第6层在第2页)→点页内六芒星魔法阵图标;④第6层→第5层 点画面左上角红标 (108,15)★(必须在刚传送到第6层、人物未移动时);⑤第5层→第6层 点红标右边那级阶梯 (777,283)★(点红标本身会走歪,实测);⑥第5层采完→第6层→既有 Collect_QuickCart_* 退卡带收尾。 >>★到层判定不靠猜(但**不是每段都查**):第1层→第2层那段是'点楼梯自动走过去'且走向确定,用户要求不做校验,出发确认交给点击前的 pre_delay + SmartAction 的画面变化判据;其余各段**仍查**。判定手段:沙盒HUD不显示楼层名,统一'点左上小地图开导航地图→OCR标题(roi 175,10,346,64)→确认在第N层→点左上返回关掉地图',与 Collect_InitiatingManual_Onfoot_Start 同一判据,标题形如'战斗 Ⅲ 施塔因之塔第5层'/'安全 施塔因之塔第1层'。每段路线通过 anchor S06_Arrive_Ck 指定自己该校哪一层,校验不符=不再乱点(镜头已偏,重复点只会越走越远),直接 Collect_S06_Abort 断臂退出卡带(同 Collect_Architecture_Underlying_Logic_Protection 思路)。 >>★可续跑:模块用周期标签 S06_F1/F2/F6/F5 记'这一层已采完'(在每段技能模块**正常出口**由 Stage_Done_* 置位,不是在采集前——采集前打标会漏采:技能模块出口崩掉时标记已置位,重进就被判'采过了'跳过,实测 6层制伏还没用就被送去5层)。技能模块偶尔会在出口崩掉(实测 2026-10-01 17:17:Collect_Skill_TapReset 那一刻没认出箱庭图钉 → on_error 落 Global_Null_Exception → Jumpback 链整条崩毁 → 任务跑去调下一个卡带),那时异教塔的完成徽章还没打上,卡带列表会把本卡再调一次;这次从钩子进来时会先读标签:第2层已采→直接用面板去第6层;第1层已采→直接去第2层;什么都没做→从第1层开始。所以中断只会浪费一轮,不会白跑(也不会永远卡在'1层采完2层采完又被踢出去'的循环)。>>采集与收尾全部沿用既有节点:采集=Collect_Skill_Start 技能模块(出口锚 QuickSkill_Egress 回到本模块的下一站,写法同 Collect_IM_Skill_1_Patch);收尾=Collect_QuickCart_FastUI→Collect_PackEnd_Ck(打完成标记由卡带节点的 PatchPipeline 注入)。"
+    },
+    "Collect_S06_2F_Entry": {
+        "desc": "[异教塔]第1层→第2层的到层接点(anchor S06_Arrive_Ck 的目标)。用箱庭识别保证'确实站在箱庭里、没在走路'才进来;进来后再判断这次第2层采过没:没采→Mark_F2→采集;采过了(上一轮中断后重进)→直接走回第1层。",
+        "max_hit": 3,
+        "recognition": "Or",
+        "any_of": [
+            "Rec_SandBox_Pin_Tpl",
+            "Rec_SandBox_Run_Tpl"
+        ],
+        "action": "DoNothing",
+        "next": [
+            "Collect_S06_2F_Check",
+            "Collect_S06_2F_To1F"
+        ],
+        "focus": "S06.到达第2层(箱庭)"
+    },
+    "Collect_S06_2F_Check": {
+        "desc": "[异教塔]阶段判断:CheckTag(S06_F2, max=1)=这次还没采完(计数 0<1 命中;采完由 Stage_Done_* 置 1 → 1<1 落选)。★语义(踩过):agent/recognition/counter.py 判定是「当前值 < max 才命中」,计数初值 0、max 默认 1,写 max=0 会恒不命中。命中→去采集;落选(本层已采完)→由调用方列表里排在后面的'下一段'接走。",
+        "max_hit": 30,
+        "recognition": "Custom",
+        "custom_recognition": "CheckTag",
+        "custom_recognition_param": {
+            "tag": "S06_F2",
+            "max": 1
+        },
+        "action": "DoNothing",
+        "post_delay": 0,
+        "next": [
+            "Collect_S06_2F_Skill"
+        ],
+        "focus": "S06.第2层这次还没采-去采集"
+    },
+    "Collect_S06_6F_Check": {
+        "desc": "[异教塔]阶段判断:CheckTag(S06_F6, max=1)=这次还没采完(计数 0<1 命中;采完由 Stage_Done_* 置 1 → 1<1 落选)。★语义(踩过):agent/recognition/counter.py 判定是「当前值 < max 才命中」,计数初值 0、max 默认 1,写 max=0 会恒不命中。命中→去采集;落选(本层已采完)→由调用方列表里排在后面的'下一段'接走。",
+        "max_hit": 30,
+        "recognition": "Custom",
+        "custom_recognition": "CheckTag",
+        "custom_recognition_param": {
+            "tag": "S06_F6",
+            "max": 1
+        },
+        "action": "DoNothing",
+        "post_delay": 0,
+        "next": [
+            "Collect_S06_6F_Skill"
+        ],
+        "focus": "S06.第6层这次还没采-去采集"
+    },
+    "Collect_S06_5F_Check": {
+        "desc": "[异教塔]阶段判断:CheckTag(S06_F5, max=1)=这次还没采完(计数 0<1 命中;采完由 Stage_Done_* 置 1 → 1<1 落选)。★语义(踩过):agent/recognition/counter.py 判定是「当前值 < max 才命中」,计数初值 0、max 默认 1,写 max=0 会恒不命中。命中→去采集;落选(本层已采完)→由调用方列表里排在后面的'下一段'接走。",
+        "max_hit": 30,
+        "recognition": "Custom",
+        "custom_recognition": "CheckTag",
+        "custom_recognition_param": {
+            "tag": "S06_F5",
+            "max": 1
+        },
+        "action": "DoNothing",
+        "post_delay": 0,
+        "next": [
+            "Collect_S06_5F_Skill"
+        ],
+        "focus": "S06.第5层这次还没采-去采集"
+    },
+    "Collect_S06_Resume_F2": {
+        "desc": "[异教塔]阶段判断:CheckTag(S06_F2, max=0)取反=该阶段已经做过。命中→走到 next。★语义提醒(踩过):agent/recognition/counter.py 的判定是「当前值 < max 才命中」,计数初值 0、max 默认 1。所以 max 必须写 1(未置位 0<1 命中);写 0 会恒不命中——2026-10-01 17:29 就因为这个把'第2层刚采完'当成'已经采过'直接折返。",
+        "max_hit": 30,
+        "recognition": "Custom",
+        "custom_recognition": "CheckTag",
+        "custom_recognition_param": {
+            "tag": "S06_F2",
+            "max": 1
+        },
+        "action": "DoNothing",
+        "post_delay": 0,
+        "next": [
+            "Collect_S06_Panel_WantF6"
+        ],
+        "focus": "S06.续跑-第2层已采过,人已在第1层,直接用面板去第6层",
+        "inverse": true
+    },
+    "Collect_S06_Resume_F1_Ck": {
+        "desc": "[异教塔]阶段判断:CheckTag(S06_F1, max=0)取反=该阶段已经做过。命中→走到 next。★语义提醒(踩过):agent/recognition/counter.py 的判定是「当前值 < max 才命中」,计数初值 0、max 默认 1。所以 max 必须写 1(未置位 0<1 命中);写 0 会恒不命中——2026-10-01 17:29 就因为这个把'第2层刚采完'当成'已经采过'直接折返。",
+        "max_hit": 30,
+        "recognition": "Custom",
+        "custom_recognition": "CheckTag",
+        "custom_recognition_param": {
+            "tag": "S06_F1",
+            "max": 1
+        },
+        "action": "DoNothing",
+        "post_delay": 0,
+        "next": [
+            "Collect_S06_Resume_F1_Back"
+        ],
+        "focus": "S06.续跑-第1层已采过、第2层还没采,先去第2层",
+        "inverse": true
+    },
+    "Collect_S06_Resume_F1_Back": {
+        "desc": "[异教塔]续跑去第2层前先把还开着的区域地图关掉(续跑是从'面板刚打开'那一刻的钩子进来的,图是开着的;不关掉就直接点楼梯,点到的会是面板)。关闭用通用返回按钮,与 Collect_S06_1F_Panel_Back 同一手法。",
+        "max_hit": 3,
+        "recognition": "Or",
+        "any_of": [
+            "Global_BackPageHub_Once"
+        ],
+        "action": "Click",
+        "target": "Global_BackPageHub_Once",
+        "post_delay": 2000,
+        "next": [
+            "Collect_S06_1F_To2F",
+            "Collect_S06_Resume_F1_Back"
+        ],
+        "on_error": [
+            "Collect_S06_1F_To2F"
+        ],
+        "focus": "S06.续跑-关掉面板后去第2层"
+    },
+    "Collect_S06_1F_Panel_Back": {
+        "desc": "[异教塔]第1层接管后第一步:面板还开着(名条=安全 施塔因之塔第1层),点左上返回回到箱庭。识别用通用返回按钮(Global_BackPageHub_Once),面板已经关了也走同一条路(on_error)。★这里**不做楼层复核**(用户 2026-10-01 要求去掉):钩子是在「面板刚打开」那一刻命中的,名条=人物真实所在层,证据已经够了;复核只会多开一次导航地图、多花十几秒。两条路都直接进第1层采集。",
+        "max_hit": 3,
+        "recognition": "Or",
+        "any_of": [
+            "Global_BackPageHub_Once"
+        ],
+        "action": "Click",
+        "target": "Global_BackPageHub_Once",
+        "post_delay": 2000,
+        "next": [
+            "Collect_S06_1F_Skill",
+            "Collect_S06_1F_Panel_Back",
+            "Collect_S06_Abort"
+        ],
+        "on_error": [
+            "Collect_S06_1F_Skill"
+        ],
+        "focus": "S06.关面板回到第1层箱庭"
+    },
+    "Collect_S06_To1F_Panel": {
+        "desc": "[异教塔]「把人送到第1层」第①步:翻到第1层页。区域地图页序固定(第1页=第1层),所以左箭头连点7下(同既有 Collect_MapLift 的步法)一定到最左页。入口:钩子 Collect_TargetMap_Special_S06_NotAtF1(面板已经开着,名条=施塔因之塔其它页,说明人不在第1层)。",
+        "max_hit": 3,
+        "recognition": "Or",
+        "any_of": [
+            "Rec_AreaMap_ButtLift_Tmp"
+        ],
+        "action": "Click",
+        "repeat": 7,
+        "repeat_delay": 150,
+        "post_delay": 2000,
+        "next": [
+            "Collect_S06_To1F_Click",
+            "Collect_S06_Abort"
+        ],
+        "on_error": [
+            "Collect_S06_Abort"
+        ],
+        "focus": "S06.[WRN]面板翻到第1层页"
+    },
+    "Collect_S06_To1F_Click": {
+        "desc": "[异教塔]「把人送到第1层」第②步,也是整条路线的关键:点**第1层页上的那颗六芒星图标**才会触发传送。★「面板翻到第1层页」≠「人到了第1层」——用户实测指出:只翻页不点图标,人还在原地(此前这里误以为已到层、点了返回)。写法完全照既有 Collect_ClickTelepor_TargetClass_White:借 Collect_ClickTeleporCircleIco 的模板(TpCircleMap.png),但 Or 节点没有自己的匹配框,必须显式把 target 指到那个模板节点上,否则点了等于没点(上游 desc 与本地提交 2ae194e7 都记过这个坑)。已生成过的阵直接传;没生成过会弹「生成魔法阵…生成×5」,交给既有 Collect_IM_Move_MGS 点确认。传完等转场结束**直接进第1层采集**——★按用户要求不再用导航地图复核楼层:点图标就是'真的传送',复核是多余动作。",
+        "max_hit": 3,
+        "recognition": "Or",
+        "any_of": [
+            "Collect_ClickTeleporCircleIco"
+        ],
+        "action": "Click",
+        "target": "Collect_ClickTeleporCircleIco",
+        "post_delay": 5000,
+        "next": [
+            "[JumpBack]Collect_IM_Move_MGS",
+            "Collect_S06_To1F_Click",
+            "[JumpBack]Global_WaitingForLoading",
+            "Collect_S06_1F_Skill"
+        ],
+        "on_error": [
+            "Collect_S06_Abort"
+        ],
+        "focus": "S06.[WRN]点第1层页六芒星图标-触发传送"
+    },
+    "Collect_S06_Extra_Skills": {
+        "desc": "[异教塔]技能模块出口后的自查补施(四层共用):技能模块跑完(它按上游判据施放了探查/吸取等)之后,本节点再检查一次 3-3 召集 / 3-5 压制 —— 只要那一格还是**亮的**就补点一次。★为什么需要:上游 Collect_Skill3_5 的判据是按**别的卡带**的压制图标写的(Skill3-5 GE.png 在异教塔实测只 0.528),蓝色光效色核也对不上——异教塔这张卡的压制图标是**白色**的(色核区实测 RGB 246,246,246)。所以上游永远认不出异教塔的压制,直接跳过就退出了(实测 2026-10-01:5层压制明明可用却没施放,卡带因此没采完)。★判据换成'亮白像素'并实测过:可用态 压制图标区 17.1% 亮像素、灰态 0.0%;召集槽同理。用完/灰掉的格子自然不再匹配。",
+        "recognition": "DirectHit",
+        "action": "DoNothing",
+        "post_delay": 0,
+        "next": [
+            "Collect_S06_Extra_Gather",
+            "Collect_S06_Extra_Suppress",
+            "[Anchor]S06_Done_Ck"
+        ],
+        "on_error": [
+            "[Anchor]S06_Done_Ck"
+        ],
+        "focus": "S06.补施召集/压制(自查亮着的格子)"
+    },
+    "Collect_S06_Extra_Gather": {
+        "desc": "[异教塔]补施『召集』(栏位3-3):图标模板用上游现成的 Skill2-1-2.png(在异教塔实测 0.947,是对的),可用判据用'亮白像素'(该槽图标主体区 ≥200 各通道像素数 ≥80;灰态实测 0)。点槽位中心(1006,480)。点完回到 Collect_S06_Extra_Skills 再自查一次:点成功→该格转灰→本节点不再匹配,自然往下走。",
+        "max_hit": 30,
+        "recognition": "And",
+        "all_of": [
+            {
+                "recognition": "TemplateMatch",
+                "roi": [
+                    966,
+                    437,
+                    80,
+                    86
+                ],
+                "template": [
+                    "Skill2-1-2.png"
+                ]
+            },
+            {
+                "recognition": "ColorMatch",
+                "roi": [
+                    978,
+                    448,
+                    56,
+                    44
+                ],
+                "lower": [
+                    200,
+                    200,
+                    200
+                ],
+                "upper": [
+                    255,
+                    255,
+                    255
+                ],
+                "count": 80
+            }
+        ],
+        "action": "Click",
+        "target": [
+            1006,
+            480,
+            2,
+            2
+        ],
+        "post_delay": 2500,
+        "next": [
+            "Collect_S06_Extra_Skills"
+        ],
+        "focus": "S06.补施召集(3-3,亮着才点)"
+    },
+    "Collect_S06_Extra_Suppress": {
+        "desc": "[异教塔]补施『压制』(栏位3-5):图标模板 S06_Skill_Suppress.png 是从用户提供的第5层实测帧重裁的(58x30,只含图标主体、避开会变的 2/75 数字;同帧 1.000、换重采样 0.996)。可用判据=亮白像素(该区域 ≥200 各通道像素数 ≥60;可用帧实测 298/1740=17.1%,已灰帧 0)。点槽位中心(1180,485)。同上,点成功→转灰→不再匹配。",
+        "max_hit": 30,
+        "recognition": "And",
+        "all_of": [
+            {
+                "recognition": "TemplateMatch",
+                "roi": [
+                    1140,
+                    442,
+                    81,
+                    87
+                ],
+                "template": [
+                    "S06_Skill_Suppress.png"
+                ]
+            },
+            {
+                "recognition": "ColorMatch",
+                "roi": [
+                    1152,
+                    462,
+                    58,
+                    30
+                ],
+                "lower": [
+                    200,
+                    200,
+                    200
+                ],
+                "upper": [
+                    255,
+                    255,
+                    255
+                ],
+                "count": 60
+            }
+        ],
+        "action": "Click",
+        "target": [
+            1180,
+            485,
+            2,
+            2
+        ],
+        "post_delay": 2500,
+        "next": [
+            "Collect_S06_Extra_Skills"
+        ],
+        "focus": "S06.补施压制(3-5,亮着才点)"
+    },
+    "Collect_S06_ExtraEntry_F1": {
+        "desc": "[异教塔]第F层:技能模块正常出口的落点。声明本层的收尾目标(S06_Done_Ck → Collect_S06_Stage_Done_F1),然后进 Collect_S06_Extra_Skills 自查补施召集/压制(亮着才点),补完由该锚回到收尾节点。★顺序:补施必须在置位'本层已采完'标签**之前**——补施失败也不能卡住流程,但补施成功才有机会让卡带本周变双勾。",
+        "max_hit": 4,
+        "recognition": "DirectHit",
+        "action": "DoNothing",
+        "post_delay": 0,
+        "anchor": {
+            "S06_Done_Ck": "Collect_S06_Stage_Done_F1"
+        },
+        "next": [
+            "Collect_S06_Extra_Skills"
+        ],
+        "focus": "S06.第F层-技能模块出口(补施入口)"
+    },
+    "Collect_S06_ExtraEntry_F2": {
+        "desc": "[异教塔]第F层:技能模块正常出口的落点。声明本层的收尾目标(S06_Done_Ck → Collect_S06_Stage_Done_F2),然后进 Collect_S06_Extra_Skills 自查补施召集/压制(亮着才点),补完由该锚回到收尾节点。★顺序:补施必须在置位'本层已采完'标签**之前**——补施失败也不能卡住流程,但补施成功才有机会让卡带本周变双勾。",
+        "max_hit": 4,
+        "recognition": "DirectHit",
+        "action": "DoNothing",
+        "post_delay": 0,
+        "anchor": {
+            "S06_Done_Ck": "Collect_S06_Stage_Done_F2"
+        },
+        "next": [
+            "Collect_S06_Extra_Skills"
+        ],
+        "focus": "S06.第F层-技能模块出口(补施入口)"
+    },
+    "Collect_S06_ExtraEntry_F6": {
+        "desc": "[异教塔]第F层:技能模块正常出口的落点。声明本层的收尾目标(S06_Done_Ck → Collect_S06_Stage_Done_F6),然后进 Collect_S06_Extra_Skills 自查补施召集/压制(亮着才点),补完由该锚回到收尾节点。★顺序:补施必须在置位'本层已采完'标签**之前**——补施失败也不能卡住流程,但补施成功才有机会让卡带本周变双勾。",
+        "max_hit": 4,
+        "recognition": "DirectHit",
+        "action": "DoNothing",
+        "post_delay": 0,
+        "anchor": {
+            "S06_Done_Ck": "Collect_S06_Stage_Done_F6"
+        },
+        "next": [
+            "Collect_S06_Extra_Skills"
+        ],
+        "focus": "S06.第F层-技能模块出口(补施入口)"
+    },
+    "Collect_S06_ExtraEntry_F5": {
+        "desc": "[异教塔]第F层:技能模块正常出口的落点。声明本层的收尾目标(S06_Done_Ck → Collect_S06_Stage_Done_F5),然后进 Collect_S06_Extra_Skills 自查补施召集/压制(亮着才点),补完由该锚回到收尾节点。★顺序:补施必须在置位'本层已采完'标签**之前**——补施失败也不能卡住流程,但补施成功才有机会让卡带本周变双勾。",
+        "max_hit": 4,
+        "recognition": "DirectHit",
+        "action": "DoNothing",
+        "post_delay": 0,
+        "anchor": {
+            "S06_Done_Ck": "Collect_S06_Stage_Done_F5"
+        },
+        "next": [
+            "Collect_S06_Extra_Skills"
+        ],
+        "focus": "S06.第F层-技能模块出口(补施入口)"
+    },
+    "Collect_S06_Stage_Done_F1": {
+        "desc": "[异教塔]『第F层采集已完成』标记(路由节点,不识别画面):由技能模块**正常出口**的锚 QuickSkill_Egress 指过来,置位周期标签 S06_F1 后接着走 Collect_S06_1F_To2F。★为什么放在采集之后而不是之前:技能模块偶尔会在出口崩掉(实测 2026-10-01:Collect_Skill_TapReset 那一刻没认出箱庭图钉 → on_error 落 Global_Null_Exception → 整条链退栈),这时本节点根本不会被取到,标签保持未置位 —— 下次重进该卡带时这一层会被**重采**。宁可重采,不可漏采(用户口径:6层制伏还没用就被判'采过了'跳去5层)。",
+        "max_hit": 30,
+        "recognition": "DirectHit",
+        "action": "Custom",
+        "custom_action": "UpdateTag",
+        "custom_action_param": {
+            "tag": "S06_F1",
+            "value": 1
+        },
+        "post_delay": 0,
+        "next": [
+            "Collect_S06_1F_To2F"
+        ],
+        "focus": "S06.第1层已采完-去第2层"
+    },
+    "Collect_S06_Stage_Done_F2": {
+        "desc": "[异教塔]『第F层采集已完成』标记(路由节点,不识别画面):由技能模块**正常出口**的锚 QuickSkill_Egress 指过来,置位周期标签 S06_F2 后接着走 Collect_S06_2F_To1F。★为什么放在采集之后而不是之前:技能模块偶尔会在出口崩掉(实测 2026-10-01:Collect_Skill_TapReset 那一刻没认出箱庭图钉 → on_error 落 Global_Null_Exception → 整条链退栈),这时本节点根本不会被取到,标签保持未置位 —— 下次重进该卡带时这一层会被**重采**。宁可重采,不可漏采(用户口径:6层制伏还没用就被判'采过了'跳去5层)。",
+        "max_hit": 30,
+        "recognition": "DirectHit",
+        "action": "Custom",
+        "custom_action": "UpdateTag",
+        "custom_action_param": {
+            "tag": "S06_F2",
+            "value": 1
+        },
+        "post_delay": 0,
+        "next": [
+            "Collect_S06_2F_To1F"
+        ],
+        "focus": "S06.第2层已采完-回第1层"
+    },
+    "Collect_S06_Stage_Done_F6": {
+        "desc": "[异教塔]『第6层采集已完成』标记:置位 S06_F6 后走 Collect_S06_6F_To5F(点画面里的红叉)下到第5层。★红叉点击用的是整屏模板定位,所以6层采集完人物即使有走动也不影响(用户实测:站桩采集,镜头本来也没动)。",
+        "max_hit": 30,
+        "recognition": "DirectHit",
+        "action": "Custom",
+        "custom_action": "UpdateTag",
+        "custom_action_param": {
+            "tag": "S06_F6",
+            "value": 1
+        },
+        "post_delay": 0,
+        "next": [
+            "Collect_S06_6F_To5F"
+        ],
+        "focus": "S06.第6层已采完-下第5层"
+    },
+    "Collect_S06_Stage_Done_F5": {
+        "desc": "[异教塔]『第5层采集已完成』标记:置位 S06_F5 后直接收尾退卡带。★2026-10-02 用户口径:第5层采集完=本卡带采集完成,不必再走回第6层(原走 Collect_S06_5F_To6F 点台阶回6层,实测那一步 SmartAction 三轮画面未改变 → error → Abort,白卡约 1 分钟)。",
+        "max_hit": 30,
+        "recognition": "DirectHit",
+        "action": "Custom",
+        "custom_action": "UpdateTag",
+        "custom_action_param": {
+            "tag": "S06_F5",
+            "value": 1
+        },
+        "post_delay": 0,
+        "next": [
+            "Collect_S06_Finish"
+        ],
+        "focus": "S06.第5层已采完-收尾退卡带"
+    },
+    "Collect_S06_1F_Skill": {
+        "desc": "[异教塔]第1层采集:直接调技能模块(探查/吸取/召集/压制),出模块后出口锚落到第1层→第2层。写法照 Collect_IM_Skill_1_Patch。",
+        "max_hit": 2,
+        "recognition": "Or",
+        "any_of": [
+            "Rec_SandBox_Pin_Tpl",
+            "Rec_SandBox_Run_Tpl"
+        ],
+        "anchor": {
+            "QuickSkill_Egress": "Collect_S06_ExtraEntry_F1"
+        },
+        "timeout": 3000,
+        "next": [
+            "Collect_Skill_Start",
+            "[JumpBack]Global_ToSandBox"
+        ],
+        "focus": "S06.第1层采集"
+    },
+    "Collect_S06_1F_To2F": {
+        "desc": "第1层→第2层:点画面顶部偏左的楼梯(1280 212,9;= 1920×1080 截图系 (318,13) ×2/3,2026-10-10 用户圈图实测标定)。★pre_delay 3s:技能/采集刚收尾时 UI 与特效还在动,点早了那一下会被吃掉(实测 2026-10-01 16:59),先让画面静下来再点。SmartAction 判'画面动没动':没动=点空了,原地重点(此时镜头没偏,重点同一点安全);动了=已开始自动寻路。detect_roi 取人物周围场景区(避开头像栏与技能栏),threshold 5.0 是'整体位移',比火把/环境光微动大得多。★本段的到层判定:S06_Arrive_Ck 直接指 Collect_S06_2F_Skill,**不开导航地图校验**(用户要求)——点楼梯是'自动寻路到第2层',起步由 SmartAction 的画面变化 + on_error 重按把关。",
+        "max_hit": 3,
+        "recognition": "Or",
+        "any_of": [
+            "Rec_SandBox_Pin_Tpl",
+            "Rec_SandBox_Run_Tpl"
+        ],
+        "action": "Custom",
+        "custom_action": "SmartAction",
+        "custom_action_param": {
+            "proxy_node": "Agt_Proxy_Blank",
+            "proxy_override": {
+                "action": "Click",
+                "target": [
+                    212,
+                    9,
+                    2,
+                    2
+                ],
+                "post_delay": 500
+            },
+            "detect_roi": [
+                400,
+                240,
+                480,
+                320
+            ],
+            "threshold": 5.0,
+            "settle_delay": 1000,
+            "on_changed": "next",
+            "on_unchanged": "loop",
+            "loop_limit": 3,
+            "loop_exhausted": "error"
+        },
+        "anchor": {
+            "S06_Arrive_Ck": "Collect_S06_2F_Entry",
+            "S06_Fail_Ck": "Collect_S06_Ck_Retry",
+            "S06_Leg_Ck": "Collect_S06_1F_To2F"
+        },
+        "next": [
+            "Collect_S06_OnFoot_WaitArrive"
+        ],
+        "on_error": [
+            "[Anchor]S06_Leg_Ck",
+            "Collect_S06_Abort"
+        ],
+        "focus": "S06.第1层→第2层-点楼梯",
+        "pre_delay": 3000
+    },
+    "Collect_S06_2F_Skill": {
+        "desc": "[异教塔]第2层采集:同上,出口锚落到第2层→第1层。",
+        "max_hit": 2,
+        "recognition": "Or",
+        "any_of": [
+            "Rec_SandBox_Pin_Tpl",
+            "Rec_SandBox_Run_Tpl"
+        ],
+        "anchor": {
+            "QuickSkill_Egress": "Collect_S06_ExtraEntry_F2"
+        },
+        "timeout": 3000,
+        "next": [
+            "Collect_Skill_Start",
+            "[JumpBack]Global_ToSandBox"
+        ],
+        "focus": "S06.第2层采集"
+    },
+    "Collect_S06_2F_To1F": {
+        "desc": "第2层→第1层(返回):点人物右上方门内的台阶(1280 750,313)。同 Collect_S06_1F_To2F 的机制(pre_delay 3s、SmartAction 判画面、anchor S06_Leg_Ck 指向自己=校验失败就重按)。★这一段保留到层校验(不像第1层→第2层):回到第1层之后紧接着是'开面板→翻到第6层页'那一步,面板默认落在**人物所在层**那一页,人要是没真的回到第1层,后面翻页目标就全错。",
+        "max_hit": 3,
+        "recognition": "Or",
+        "any_of": [
+            "Rec_SandBox_Pin_Tpl",
+            "Rec_SandBox_Run_Tpl"
+        ],
+        "action": "Custom",
+        "custom_action": "SmartAction",
+        "custom_action_param": {
+            "proxy_node": "Agt_Proxy_Blank",
+            "proxy_override": {
+                "action": "Click",
+                "target": [
+                    750,
+                    313,
+                    2,
+                    2
+                ],
+                "post_delay": 500
+            },
+            "detect_roi": [
+                400,
+                240,
+                480,
+                320
+            ],
+            "threshold": 5.0,
+            "settle_delay": 1000,
+            "on_changed": "next",
+            "on_unchanged": "loop",
+            "loop_limit": 3,
+            "loop_exhausted": "error"
+        },
+        "anchor": {
+            "S06_Arrive_Ck": "Collect_S06_Ck_F1",
+            "S06_Fail_Ck": "Collect_S06_Ck_Retry",
+            "S06_Leg_Ck": "Collect_S06_2F_To1F"
+        },
+        "next": [
+            "Collect_S06_OnFoot_WaitArrive"
+        ],
+        "on_error": [
+            "[Anchor]S06_Leg_Ck",
+            "Collect_S06_Abort"
+        ],
+        "focus": "S06.第2层→第1层-点门内台阶",
+        "pre_delay": 3000
+    },
+    "Collect_S06_5F_To6F_Open": {
+        "desc": "【当前未接线·保留备用】[异教塔]第5层→第6层的面板回程第①步:点传送技能开'移动魔法阵'面板。★停用原因(2026-10-01):当时误以为'采集后镜头会偏、红标坐标失效',所以改用与镜头无关的面板链;实际用户实测'站桩采集、镜头没动',真因是 5 层模板裁坏。模板重裁后本链不再需要。要改回面板链:把 Collect_S06_Stage_Done_F5.next 指向本节点即可(本节点→Panel_Left7→Panel_WantF6→Panel_Ck_F6→Panel_Arrive 都是通的)。",
+        "max_hit": 3,
+        "recognition": "Or",
+        "any_of": [
+            "Collect_Skill3_4"
+        ],
+        "action": "Click",
+        "target": "Collect_Skill3_4",
+        "post_delay": 2500,
+        "next": [
+            "Collect_S06_Panel_Left7",
+            "Collect_S06_Abort"
+        ],
+        "on_error": [
+            "Collect_S06_Abort"
+        ],
+        "focus": "S06.第5层→第6层-点传送技能开面板"
+    },
+    "Collect_S06_Panel_Left7": {
+        "desc": "【当前未接线·保留备用】[异教塔]把面板翻到最左页(=第1层页):点左箭头连点7下,与既有 Collect_MapLift、Collect_S06_To1F_Panel 同一手法。原供第5层(面板里没有它的页,页不确定)回程使用。",
+        "max_hit": 3,
+        "recognition": "Or",
+        "any_of": [
+            "Rec_AreaMap_ButtLift_Tmp"
+        ],
+        "action": "Click",
+        "repeat": 7,
+        "repeat_delay": 150,
+        "post_delay": 2000,
+        "next": [
+            "Collect_S06_Panel_WantF6",
+            "Collect_S06_Abort"
+        ],
+        "on_error": [
+            "Collect_S06_Abort"
+        ],
+        "focus": "S06.面板翻到第1层页(第5层→第6层)"
+    },
+    "Collect_S06_Panel_WantF6": {
+        "desc": "[异教塔]第1层→第6层第②步:面板打开时落在'当前楼层'页(第1层→第1页),第6层在第2页。名条还是第1层就点右箭头(1280 977,343)翻一页,翻完重新问一次(Collect_S06_Panel_Ck_F6 在前)。",
+        "max_hit": 3,
+        "recognition": "OCR",
+        "roi": [
+            408,
+            622,
+            466,
+            47
+        ],
+        "expected": [
+            "施塔因之塔第1层",
+            "施塔因之塔第1層"
+        ],
+        "action": "Click",
+        "target": [
+            977,
+            343,
+            2,
+            2
+        ],
+        "post_delay": 1500,
+        "next": [
+            "Collect_S06_Panel_Ck_F6",
+            "Collect_S06_Panel_WantF6",
+            "Collect_S06_Abort"
+        ],
+        "focus": "S06.面板翻到第6层页"
+    },
+    "Collect_S06_Panel_Open": {
+        "desc": "[异教塔]第1层→第6层第①步:开『移动魔法阵』面板。★用**传送技能**(技能栏 3-1;直接借既有 Collect_Skill3_4 的 ocr/模板与匹配框,只借框不借它的 next)。★不要拿右下那枚'手'标当主路径:手标(Collect_TeleporCircle_Ico_Enter / IcoHand.png)是'站在魔法阵上才出现'的上下文按钮——从第2层自动寻路走回第1层后,人不一定站在阵上,手标根本不在,实测 2026-10-01 17:07 就卡死在这:Ck_F1 已确认回到第1层 → 去 Collect_S06_Panel_Open 找不到手标 → Ck_F1 的 next 耗尽 → 断臂退卡带(用户口径:这时候应该点传送技能)。两端是互补的:站在魔法阵附近时游戏会拒绝天赋技能(『无法在魔法阵附近使用天赋技能』),那时才轮到'手'标,所以两个都留着,用'面板有没有真的弹出来'做闭环(下面 next 先查名条、再退手标、再重按技能)。",
+        "max_hit": 3,
+        "recognition": "Or",
+        "any_of": [
+            "Collect_Skill3_4"
+        ],
+        "action": "Click",
+        "target": "Collect_Skill3_4",
+        "post_delay": 2500,
+        "next": [
+            "Collect_S06_Panel_Ck_F6",
+            "Collect_S06_Panel_WantF6",
+            "Collect_S06_Panel_Open_ByHand",
+            "Collect_S06_Panel_Open",
+            "Collect_S06_Abort"
+        ],
+        "on_error": [
+            "Collect_S06_Panel_Open_ByHand",
+            "Collect_S06_Abort"
+        ],
+        "focus": "S06.点传送技能开移动魔法阵面板"
+    },
+    "Collect_S06_Panel_Open_ByHand": {
+        "desc": "[异教塔]开面板兜底:站在传送阵附近时传送技能会被游戏拒绝(提示『无法在魔法阵附近使用天赋技能』),此时右下才会出现'手'标,用它开面板。识别借既有 Collect_TeleporCircle_Ico_Enter(IcoHand.png,阈值 0.9)。它是上下文按钮,只当兜底,不当主路径(见 Collect_S06_Panel_Open 的 desc)。",
+        "max_hit": 2,
+        "recognition": "Or",
+        "any_of": [
+            "Collect_TeleporCircle_Ico_Enter"
+        ],
+        "action": "Click",
+        "target": "Collect_TeleporCircle_Ico_Enter",
+        "post_delay": 2500,
+        "next": [
+            "Collect_S06_Panel_Ck_F6",
+            "Collect_S06_Panel_WantF6",
+            "Collect_S06_Panel_Open",
+            "Collect_S06_Abort"
+        ],
+        "on_error": [
+            "Collect_S06_Abort"
+        ],
+        "focus": "S06.[WRN]传送技能被拒-用'手'标开面板"
+    },
+    "Collect_S06_Panel_Ck_F6": {
+        "desc": "[异教塔]第1层→第6层第③步:名条出现'第6层'=翻到位了,点该页里那枚六芒星魔法阵图标(1280 730,345;目标框 715,340,30,10 同时罩住用户实测的(723,344)与本次复测的(735,347))选目标。点完画面一变(面板收起/开始转场)即往下走;若该魔法阵尚未生成,游戏会弹「生成魔法阵…生成×5」确认框,交给既有 Collect_IM_Move_MGS(OCR 生成/确认)处理。",
+        "max_hit": 3,
+        "recognition": "OCR",
+        "roi": [
+            408,
+            622,
+            466,
+            47
+        ],
+        "expected": [
+            "施塔因之塔第6层",
+            "施塔因之塔第6層",
+            "施塔因之塔第6 层"
+        ],
+        "action": "Custom",
+        "custom_action": "SmartAction",
+        "custom_action_param": {
+            "proxy_node": "Agt_Proxy_Blank",
+            "proxy_override": {
+                "action": "Click",
+                "target": [
+                    715,
+                    340,
+                    30,
+                    10
+                ],
+                "post_delay": 500
+            },
+            "detect_roi": [
+                400,
+                240,
+                480,
+                320
+            ],
+            "threshold": 5.0,
+            "settle_delay": 1500,
+            "on_changed": "next",
+            "on_unchanged": "loop",
+            "loop_limit": 3,
+            "loop_exhausted": "error"
+        },
+        "next": [
+            "[JumpBack]Collect_IM_Move_MGS",
+            "[JumpBack]Global_WaitingForLoading",
+            "Collect_S06_Panel_Arrive"
+        ],
+        "on_error": [
+            "Collect_S06_Abort"
+        ],
+        "focus": "S06.点第6层魔法阵图标"
+    },
+    "Collect_S06_Panel_Arrive": {
+        "desc": "[异教塔]第1层→第6层第④步:面板里点完第6层魔法阵图标后转场,这里只是'落到通用等待'的接点。到层后由本节点声明的 S06_Arrive_Ck→Collect_S06_Ck_F6_Collect 用导航地图标题确认真的在第6层(S06_Leg_Ck 指向Collect_S06_Panel_Open:万一没传过去,由 Collect_S06_Ck_Retry 关图后重开面板再走一遍)。★第6层→第5层的红标点击要求'人物未移动',所以这一步必须先确认人在第6层、且未动过,不能省。",
+        "recognition": "DirectHit",
+        "action": "DoNothing",
+        "anchor": {
+            "S06_Arrive_Ck": "Collect_S06_Ck_F6_Collect",
+            "S06_Fail_Ck": "Collect_S06_Ck_Retry",
+            "S06_Leg_Ck": "Collect_S06_Panel_Open"
+        },
+        "next": [
+            "Collect_S06_OnFoot_WaitArrive"
+        ],
+        "focus": "S06.传送第6层-等到达"
+    },
+    "Collect_S06_6F_Skill": {
+        "desc": "[异教塔]第6层采集:同上,出口锚落到第6层→第5层。★采集技能理论上不带位移,但若实机发现技能动作把镜头带偏,红标(108,15)的屏幕坐标会失效——那样就需要改成模板匹配红标,见 Collect_S06_6F_To5F.desc。",
+        "max_hit": 2,
+        "recognition": "Or",
+        "any_of": [
+            "Rec_SandBox_Pin_Tpl",
+            "Rec_SandBox_Run_Tpl"
+        ],
+        "anchor": {
+            "QuickSkill_Egress": "Collect_S06_ExtraEntry_F6"
+        },
+        "timeout": 3000,
+        "next": [
+            "Collect_Skill_Start",
+            "[JumpBack]Global_ToSandBox"
+        ],
+        "focus": "S06.第6层采集"
+    },
+    "Collect_S06_NotYetF5": {
+        "desc": "[异教塔]到第6层后的岔路:CheckTag(S06_F5, max=1)=第5层这次还没采(0<1 命中)。命中→走 Collect_S06_6F_To5F 点红叉下到第5层。★只在'第6层已经采完'时才会被问到(正常顺序里由 Collect_S06_Stage_Done_F6 直接去点红叉),所以这条主要服务于'中断后重进'的续跑。落选→由调用方列表后面的 Finish 接走。",
+        "max_hit": 30,
+        "recognition": "Custom",
+        "custom_recognition": "CheckTag",
+        "custom_recognition_param": {
+            "tag": "S06_F5",
+            "max": 1
+        },
+        "action": "DoNothing",
+        "post_delay": 0,
+        "next": [
+            "Collect_S06_6F_To5F"
+        ],
+        "focus": "S06.第5层这次还没采-先下去"
+    },
+    "Collect_S06_6F_To5F": {
+        "desc": "[异教塔]第6层→第5层:点红叉**下方那片地面**(1280 279,87;1920 418,130,已 adb 实测一步走到第5层),会自动寻路下到第5层,转场约10s。落点由模板 Collect_S06_Mark_F6_Click 定位(整屏 ROI + 偏移 -34,58)。★红叉本身点不得:它是悬空标记,点它会走到别处(用户实测)。SmartAction 判『画面动没动』:动了=已经在走;没动=那一下没点上,原地重点;三轮都没动静 → on_error 落固定坐标兜底(同一点)。",
+        "max_hit": 3,
+        "recognition": "Or",
+        "any_of": [
+            "Rec_SandBox_Pin_Tpl",
+            "Rec_SandBox_Run_Tpl"
+        ],
+        "action": "Custom",
+        "custom_action": "SmartAction",
+        "custom_action_param": {
+            "proxy_node": "Collect_S06_Mark_F6_Click",
+            "detect_roi": [
+                400,
+                240,
+                480,
+                320
+            ],
+            "threshold": 5.0,
+            "settle_delay": 1000,
+            "on_changed": "next",
+            "on_unchanged": "loop",
+            "loop_limit": 3,
+            "loop_exhausted": "error"
+        },
+        "anchor": {
+            "S06_Arrive_Ck": "Collect_S06_Ck_F5",
+            "S06_Fail_Ck": "Collect_S06_Ck_Retry",
+            "S06_Leg_Ck": "Collect_S06_6F_To5F"
+        },
+        "next": [
+            "Collect_S06_OnFoot_WaitArrive"
+        ],
+        "on_error": [
+            "Collect_S06_6F_To5F_Fix",
+            "Collect_S06_Abort"
+        ],
+        "focus": "S06.第6层→第5层-点下一层入口红标",
+        "pre_delay": 3000
+    },
+    "Collect_S06_Mark_F6_Click": {
+        "desc": "[异教塔]第6层『下一层入口』红叉(交叉剑)定位点击。★红叉是悬空的标记物(旁边是火盆与栏杆),**不能点红叉本身**——点了不会走到阶梯口(用户指出);要点**它下方那片可走的地面/阶梯口**。所以用 target_offset [-34,58]:模板框中心 (313,29) → 落点 (279,87),与既有 Collect_S06_6F_To5F_Fix 里那条『已 adb 实测一步走到第5层』的固定坐标完全一致。★模板 2026-10-01 从实测帧(install/debug/on_error/..._Collect_S06_Mark_F6_Click.png)重裁 34x34:旧模板裁坏了(红叉被切掉一角、还框进旁边火盆),整屏最高只有 0.715(阈值 0.85)→ 永远匹配不上,表现就是『6层到5层点了没反应』。新模板整屏回验 1.000、邻位 0.95、无其它 >0.7 误匹配。★ROI 放宽到整屏:模板跟着图标走,人物站第6层哪儿都能匹配。",
+        "recognition": "TemplateMatch",
+        "roi": [
+            0,
+            0,
+            1280,
+            720
+        ],
+        "template": [
+            "S06_MarkRed_F6.png"
+        ],
+        "threshold": 0.85,
+        "action": "Click",
+        "post_delay": 500,
+        "focus": "S06.红标定位-第6层下一层入口",
+        "target_offset": [
+            -34,
+            58,
+            0,
+            0
+        ]
+    },
+    "Collect_S06_6F_To5F_Fix": {
+        "desc": "[异教塔]第6层→第5层的固定坐标兜底:SmartAction 连续三轮判『画面没变』才走到这里,点 (1280 279,87;1920 418,130)。★这个点就是红叉下方那片地面(与 Collect_S06_Mark_F6_Click 的落点一致),2026-10-01 用实测帧核对过;上一版曾因『换一次进场红叉位置不同』把它停用,现恢复——红叉是标记、落点是它下方的地面,两者不是一回事。",
+        "recognition": "Or",
+        "any_of": [
+            "Rec_SandBox_Pin_Tpl",
+            "Rec_SandBox_Run_Tpl"
+        ],
+        "action": "Click",
+        "target": [
+            279,
+            87,
+            2,
+            2
+        ],
+        "post_delay": 500,
+        "next": [
+            "Collect_S06_OnFoot_WaitArrive"
+        ],
+        "focus": "S06.[WRN]红标模板未匹配-按固定坐标点",
+        "enabled": true
+    },
+    "Collect_S06_5F_Skill": {
+        "desc": "[异教塔]第5层采集(最后一段):同上,出口锚落到第5层→第6层(走回第6层再退卡带,用户口径)。",
+        "max_hit": 2,
+        "recognition": "Or",
+        "any_of": [
+            "Rec_SandBox_Pin_Tpl",
+            "Rec_SandBox_Run_Tpl"
+        ],
+        "anchor": {
+            "QuickSkill_Egress": "Collect_S06_ExtraEntry_F5"
+        },
+        "timeout": 3000,
+        "next": [
+            "Collect_Skill_Start",
+            "[JumpBack]Global_ToSandBox"
+        ],
+        "focus": "S06.第5层采集"
+    },
+    "Collect_S06_5F_To6F": {
+        "desc": "【当前未接线·保留备用(2026-10-02 用户口径:第5层采完即卡带完成,Stage_Done_F5 直接走 Finish,不再回第6层)】[异教塔]第5层→第6层(返回):点红标**下方那级台阶**(1280 751,287)会走回第6层。落点由模板 Collect_S06_Mark_F5_Click 定位(整屏 ROI + 偏移 0,30)。★红标本身点不得:它是悬空标记,点它会走歪到别处(实测)。SmartAction 判『画面动没动』:没动=点空了原地重点,三轮没动静 → on_error 落到固定坐标兜底。★实测(2026-10-02 17:37~17:38):这一步 SmartAction 三轮画面未改变(diff 0.91/0.54/2.41)→ error——点击落点疑似被镜头偏移带偏,若恢复接线需重新标定落点。",
+        "max_hit": 3,
+        "recognition": "Or",
+        "any_of": [
+            "Rec_SandBox_Pin_Tpl",
+            "Rec_SandBox_Run_Tpl"
+        ],
+        "action": "Custom",
+        "custom_action": "SmartAction",
+        "custom_action_param": {
+            "proxy_node": "Collect_S06_Mark_F5_Click",
+            "detect_roi": [
+                400,
+                240,
+                480,
+                320
+            ],
+            "threshold": 5.0,
+            "settle_delay": 1000,
+            "on_changed": "next",
+            "on_unchanged": "loop",
+            "loop_limit": 3,
+            "loop_exhausted": "error"
+        },
+        "anchor": {
+            "S06_Arrive_Ck": "Collect_S06_Ck_F6_Finish",
+            "S06_Fail_Ck": "Collect_S06_Ck_Retry",
+            "S06_Leg_Ck": "Collect_S06_5F_To6F"
+        },
+        "next": [
+            "Collect_S06_OnFoot_WaitArrive"
+        ],
+        "on_error": [
+            "Collect_S06_5F_To6F_Fix",
+            "Collect_S06_Abort"
+        ],
+        "focus": "S06.第5层→第6层-点红标右侧台阶",
+        "pre_delay": 3000
+    },
+    "Collect_S06_Mark_F5_Click": {
+        "desc": "[异教塔]第5层『回第6层』入口红标(交叉剑)定位点击。★与第6层同一约定:红标是**悬空的标记物**(挂在栏杆/台阶上方,旁边是火盆),**不能点红标本身**——点了走不到阶梯口(用户指出);要**点它下方那级可走的台阶**。所以 target_offset [0,30]:模板框中心 (751.5,257.5) → 落点 (751,287),实测帧里该点正是红标正下方的台阶面。★模板 2026-10-01 从用户提供的第5层实测帧重裁(29x29:红标本体+少许台阶边缘),整屏回验:同帧 1.000、换一种重采样 0.997、其它位置 >0.6 的为零 → 阈值 0.85 安全。ROI 放宽到整屏,人物站第5层哪儿都能匹配。写法与 Collect_S06_Mark_F6_Click 一致(SmartAction 代理挂到『模板匹配+点击』节点)。",
+        "recognition": "TemplateMatch",
+        "roi": [
+            0,
+            0,
+            1280,
+            720
+        ],
+        "template": [
+            "S06_MarkRed_F5.png"
+        ],
+        "threshold": 0.85,
+        "target_offset": [
+            0,
+            30,
+            0,
+            0
+        ],
+        "action": "Click",
+        "post_delay": 500,
+        "focus": "S06.红标定位-第5层上一层入口"
+    },
+    "Collect_S06_5F_To6F_Fix": {
+        "desc": "[异教塔]第5层→第6层的固定坐标兜底:SmartAction 连续三轮判『画面没变』才走到这里,点 (1280 777,283;1920 1165,425)——这是**另一处**已 adb 实测『走回第6层』的点(红标右侧那级台阶),与模板落点(红标下方 751,287)不是同一点,所以它是有意义的第二次尝试:模板落点若因遮挡/边界失效,换这个点再来一次。",
+        "recognition": "Or",
+        "any_of": [
+            "Rec_SandBox_Pin_Tpl",
+            "Rec_SandBox_Run_Tpl"
+        ],
+        "action": "Click",
+        "target": [
+            777,
+            283,
+            2,
+            2
+        ],
+        "post_delay": 500,
+        "next": [
+            "Collect_S06_OnFoot_WaitArrive"
+        ],
+        "focus": "S06.[WRN]红标模板未匹配-按固定坐标点"
+    },
+    "Collect_S06_OnFoot_WaitArrive": {
+        "desc": "[异教塔]换层通用等待,四段路线共用:先当场等画面静止(post_wait_freezes——点击后画面会先'静一下'才起步、转场 NOW LOADING 时画面也在动,这一步天然把'徒步段'和'转场段'都吃掉) → 静止后再空等 post_delay 2s 当'起步确认' → 再问一遍'在走吗/在转场吗'(借既有 Collect_IM_OnFoot_Moveing / Global_WaitingForLoading)。★顺序要点:[Anchor]S06_Arrive_Ck 排在 Collect_S06_Floor_Read **之前**——各段自己声明到层后去哪:需要校验的段指到 Collect_S06_Ck_F*(它是OCR,图没开时匹配不上、会被跳过,于是自然落到 Floor_Read 去开图);不需要校验的段(第1层→第2层)直接指到 Collect_S06_2F_Entry,在'没在走、没在转场'的瞬间就接管,连导航地图都不用开。★★不要在本节点 next 里放 Collect_S06_Abort(或任何 DirectHit 兜底):转场切黑屏那一两秒,箱庭HUD、徒步标、NOW LOADING 可能同时认不到,兜底节点会立刻命中并把整卡断臂——实测 2026-10-01 17:19 那轮就是这么死的(人已经在走,只是那一刻全认不到)。正确做法:让 MaaFramework 在这 60s 内反复轮询这几个候选(next 列表轮询),转场一结束自然命中。",
+        "recognition": "DirectHit",
+        "action": "DoNothing",
+        "post_wait_freezes": {
+            "time": 1000,
+            "rate_limit": 500,
+            "timeout": 30000
+        },
+        "next": [
+            "[JumpBack]Collect_IM_OnFoot_Moveing",
+            "[JumpBack]Global_WaitingForLoading",
+            "[Anchor]S06_Arrive_Ck",
+            "Collect_S06_Floor_Read"
+        ],
+        "focus": "S06.等待寻路与转场结束",
+        "post_delay": 2000,
+        "timeout": 60000,
+        "on_error": [
+            "Collect_S06_Abort"
+        ]
+    },
+    "Collect_S06_Floor_Read": {
+        "desc": "[异教塔]开导航地图并读楼层名:沙盒HUD没有楼层名,只有导航地图标题有(roi 175,10,346,64,与 Collect_InitiatingManual_Onfoot_Start 同一判据)。识别面放宽成'箱庭态**或**导航地图已开'——后者也点一下小地图位置(在图里那处是标题下方空白,无害),这样无论图开没开都走同一条路去读标题。★★失败兜底写成 next 的**后续候选**,不写 on_error:MaaFramework 里'候选节点'识别失败只是被跳过、**不会走它自己的 on_error**(on_error 只在'节点命中后动作失败/next 耗尽'时才生效)。原先把兜底挂在核对节点的 on_error 上,实测就是'超时→重来'空转(16:38 那轮:`Task timeout [pretask.name=Collect_S06_Floor_Read]` 反复出现,自救节点一次没进)。现在的链:①[Anchor]S06_Arrive_Ck=各段的楼层核对节点;②失败落到 [Anchor]S06_Fail_Ck=Collect_S06_Ck_Retry(关掉地图→按 [Anchor]S06_Leg_Ck 回到本段点击节点重按一次,根因见它的 desc);③再补一条 [Anchor]S06_Leg_Ck(直接回到本段点击节点重按,覆盖'导航地图没开、Ck_Retry 匹配不上'那种情形);④再兜不住才 Collect_S06_Abort。",
+        "max_hit": 6,
+        "recognition": "Or",
+        "any_of": [
+            "Rec_SandBox_Pin_Tpl",
+            "Rec_SandBox_Run_Tpl",
+            "Collect_TeleporCircle_OnFoot_NviMap"
+        ],
+        "timeout": 3000,
+        "action": "Click",
+        "target": [
+            148,
+            119,
+            34,
+            38
+        ],
+        "post_delay": 2000,
+        "next": [
+            "[Anchor]S06_Arrive_Ck",
+            "[Anchor]S06_Fail_Ck",
+            "[Anchor]S06_Leg_Ck",
+            "Collect_S06_Abort"
+        ],
+        "on_error": [
+            "[Anchor]S06_Arrive_Ck",
+            "[Anchor]S06_Fail_Ck",
+            "[Anchor]S06_Leg_Ck",
+            "Collect_S06_Abort"
+        ],
+        "focus": "S06.打开导航地图"
+    },
+    "Collect_S06_Ck_Retry": {
+        "desc": "[异教塔]到层校验失败兜底(经 anchor `S06_Fail_Ck` 进来):①先判断'导航地图是不是还开着',开着就点左上返回关掉;②然后**重试一次校验**(回到 Collect_S06_Floor_Read 重新点小地图读标题)——这一步是关键:实测 2026-10-01 18:24 那轮失败的原因是'地图根本没打开',而旧版这里直接去重按入口(点红叉),人已经在目标层、红叉不在画面里 → 空转四十多秒。max_hit 用完后,由 Collect_S06_Floor_Read.next 里的 [Anchor]S06_Leg_Ck 去重按本段入口(真的没走过去时才是这条)。",
+        "max_hit": 4,
+        "recognition": "Or",
+        "any_of": [
+            "Collect_TeleporCircle_OnFoot_NviMap"
+        ],
+        "action": "Click",
+        "target": [
+            111,
+            41,
+            2,
+            2
+        ],
+        "post_delay": 1500,
+        "next": [
+            "Collect_S06_Floor_Read",
+            "Collect_S06_Abort"
+        ],
+        "on_error": [
+            "Collect_S06_Floor_Read",
+            "Collect_S06_Abort"
+        ],
+        "focus": "S06.[WRN]到层校验失败-关图并重按本段入口"
+    },
+    "Collect_S06_Ck_F1": {
+        "desc": "[异教塔·校验]第2层→第1层那一支的到层校验:导航地图标题=第1层。命中即认到层,顺手点左上返回关掉导航地图,然后去'第1层→第6层'(打开移动魔法阵面板)。注:接管时那次'复核真实楼层'用的是 Collect_S06_Ck_F1_Start(命中后去采集第1层),两者判据相同、去向不同,别搞混。",
+        "max_hit": 3,
+        "recognition": "OCR",
+        "roi": [
+            175,
+            10,
+            346,
+            64
+        ],
+        "expected": [
+            "施塔因之塔第1层",
+            "施塔因之塔第1層"
+        ],
+        "action": "Click",
+        "target": [
+            111,
+            41,
+            2,
+            2
+        ],
+        "anchor": {
+            "S06_Arrive_Ck": ""
+        },
+        "post_delay": 2000,
+        "timeout": 4000,
+        "next": [
+            "Collect_S06_Panel_Open"
+        ],
+        "on_error": [
+            "Collect_S06_Ck_Retry",
+            "Collect_S06_Abort"
+        ],
+        "focus": "S06.[校验]已在施塔因之塔第1层"
+    },
+    "Collect_S06_Ck_F2": {
+        "desc": "【当前未接线·保留备用:第1层→第2层按用户要求不做楼层校验,S06_Arrive_Ck 直接指 Collect_S06_2F_Skill】[异教塔·校验]导航地图标题=第2层。命中即认到层,关掉导航地图,再去采第2层。",
+        "max_hit": 3,
+        "recognition": "OCR",
+        "roi": [
+            175,
+            10,
+            346,
+            64
+        ],
+        "expected": [
+            "施塔因之塔第2层",
+            "施塔因之塔第2層"
+        ],
+        "action": "Click",
+        "target": [
+            111,
+            41,
+            2,
+            2
+        ],
+        "anchor": {
+            "S06_Arrive_Ck": ""
+        },
+        "post_delay": 2000,
+        "timeout": 4000,
+        "next": [
+            "Collect_S06_2F_Skill"
+        ],
+        "on_error": [
+            "Collect_S06_Ck_Retry",
+            "Collect_S06_Abort"
+        ],
+        "focus": "S06.[校验]已在施塔因之塔第2层"
+    },
+    "Collect_S06_Ck_F5_Ocr": {
+        "desc": "[异教塔]到层校验-读导航地图标题(OCR):roi 175,10,346,64,期望 ['施塔因之塔第5层', '施塔因之塔第5層']。仅作 Collect_S06_Ck_* 的识别子项用(Or any_of 里引用),动作由父节点负责。",
+        "recognition": "OCR",
+        "roi": [
+            175,
+            10,
+            346,
+            64
+        ],
+        "expected": [
+            "施塔因之塔第5层",
+            "施塔因之塔第5層"
+        ],
+        "action": "DoNothing",
+        "focus": "S06.校验-导航地图标题=施塔因之塔第5层"
+    },
+    "Collect_S06_Ck_F5_ByMark": {
+        "desc": "[异教塔]到层校验-看红标兜底:该层那枚红标(交叉剑)只要在画面里,就认为人确实在第5层。★为什么需要:到层校验主判据是'点小地图→读导航地图标题',实测 2026-10-01 18:24 那轮地图没打开,OCR 读到的是沙盒里的金币数(15,380→识别成 15,3),校验失败后代码又去重按红叉(人已在第5层,红叉不在画面里)→ 空转四十多秒。红标是镜头里的物、用整屏模板匹配,不受'地图开没开'影响。★红标与导航地图**同一个判据链**,所以只有它是该层特有的图标才有意义(第5、第6层的红标是两张不同的图,互不误匹配:实测 6层模板在第5层帧上只有 0.61)。",
+        "recognition": "TemplateMatch",
+        "roi": [
+            0,
+            0,
+            1280,
+            720
+        ],
+        "template": [
+            "S06_MarkRed_F5.png"
+        ],
+        "threshold": 0.85,
+        "action": "DoNothing",
+        "focus": "S06.校验-画面里有第5层红标"
+    },
+    "Collect_S06_Ck_F6_Collect_Ocr": {
+        "desc": "[异教塔]到层校验-读导航地图标题(OCR):roi 175,10,346,64,期望 ['施塔因之塔第6层', '施塔因之塔第6層']。仅作 Collect_S06_Ck_* 的识别子项用(Or any_of 里引用),动作由父节点负责。",
+        "recognition": "OCR",
+        "roi": [
+            175,
+            10,
+            346,
+            64
+        ],
+        "expected": [
+            "施塔因之塔第6层",
+            "施塔因之塔第6層"
+        ],
+        "action": "DoNothing",
+        "focus": "S06.校验-导航地图标题=施塔因之塔第6层"
+    },
+    "Collect_S06_Ck_F6_Collect_ByMark": {
+        "desc": "[异教塔]到层校验-看红标兜底:该层那枚红标(交叉剑)只要在画面里,就认为人确实在第6层。★为什么需要:到层校验主判据是'点小地图→读导航地图标题',实测 2026-10-01 18:24 那轮地图没打开,OCR 读到的是沙盒里的金币数(15,380→识别成 15,3),校验失败后代码又去重按红叉(人已在第5层,红叉不在画面里)→ 空转四十多秒。红标是镜头里的物、用整屏模板匹配,不受'地图开没开'影响。★红标与导航地图**同一个判据链**,所以只有它是该层特有的图标才有意义(第5、第6层的红标是两张不同的图,互不误匹配:实测 6层模板在第5层帧上只有 0.61)。",
+        "recognition": "TemplateMatch",
+        "roi": [
+            0,
+            0,
+            1280,
+            720
+        ],
+        "template": [
+            "S06_MarkRed_F6.png"
+        ],
+        "threshold": 0.85,
+        "action": "DoNothing",
+        "focus": "S06.校验-画面里有第6层红标"
+    },
+    "Collect_S06_Ck_F6_Finish_Ocr": {
+        "desc": "[异教塔]到层校验-读导航地图标题(OCR):roi 175,10,346,64,期望 ['施塔因之塔第6层', '施塔因之塔第6層']。仅作 Collect_S06_Ck_* 的识别子项用(Or any_of 里引用),动作由父节点负责。",
+        "recognition": "OCR",
+        "roi": [
+            175,
+            10,
+            346,
+            64
+        ],
+        "expected": [
+            "施塔因之塔第6层",
+            "施塔因之塔第6層"
+        ],
+        "action": "DoNothing",
+        "focus": "S06.校验-导航地图标题=施塔因之塔第6层"
+    },
+    "Collect_S06_Ck_F6_Finish_ByMark": {
+        "desc": "[异教塔]到层校验-看红标兜底:该层那枚红标(交叉剑)只要在画面里,就认为人确实在第6层。★为什么需要:到层校验主判据是'点小地图→读导航地图标题',实测 2026-10-01 18:24 那轮地图没打开,OCR 读到的是沙盒里的金币数(15,380→识别成 15,3),校验失败后代码又去重按红叉(人已在第5层,红叉不在画面里)→ 空转四十多秒。红标是镜头里的物、用整屏模板匹配,不受'地图开没开'影响。★红标与导航地图**同一个判据链**,所以只有它是该层特有的图标才有意义(第5、第6层的红标是两张不同的图,互不误匹配:实测 6层模板在第5层帧上只有 0.61)。",
+        "recognition": "TemplateMatch",
+        "roi": [
+            0,
+            0,
+            1280,
+            720
+        ],
+        "template": [
+            "S06_MarkRed_F6.png"
+        ],
+        "threshold": 0.85,
+        "action": "DoNothing",
+        "focus": "S06.校验-画面里有第6层红标"
+    },
+    "Collect_S06_Ck_F5": {
+        "desc": "[异教塔·校验]导航地图标题=第5层(战斗 Ⅲ 施塔因之塔第5层)。命中即认到层,关掉导航地图,再去采第5层。★判据(实际,2026-10-10 勘正):any_of 只读导航地图标题(OCR)。红标判据在 2026-10-02 已从组合节点拆到 *_ByMark_Go 挂 on_error(本意是红标命中时不点返回、避免弹『应用效果』弹窗)。但按 MaaFW 语义,候选节点识别失败只会被跳过、不触发 on_error,故红标命中(地图没开)时本节点不命中,落到 Floor_Read 开图再由锚重进校验(实机回归 19 全程跑通,功能正常);*_ByMark_Go 实际只在『OCR 命中但 next 耗尽』时可达。★对照 upstream:其他卡带的到层判断是『开区域地图时读名条』(Collect_TargetMap1-2),而开图翻页本就是切图流程的一部分,所以零额外开销;异教塔的第2/5层在区域地图里没有页、也没有传送阵,读不到名条,才只能靠导航地图标题/红标。",
+        "max_hit": 3,
+        "recognition": "Or",
+        "action": "Click",
+        "target": [
+            111,
+            41,
+            2,
+            2
+        ],
+        "anchor": {
+            "S06_Arrive_Ck": ""
+        },
+        "post_delay": 2000,
+        "timeout": 4000,
+        "next": [
+            "Collect_S06_5F_Check",
+            "Collect_S06_5F_To6F"
+        ],
+        "on_error": [
+            "Collect_S06_Ck_F5_ByMark_Go",
+            "Collect_S06_Ck_Retry",
+            "Collect_S06_Abort"
+        ],
+        "focus": "S06.[校验]已在施塔因之塔第5层",
+        "any_of": [
+            "Collect_S06_Ck_F5_Ocr"
+        ]
+    },
+    "Collect_S06_Ck_F6_Collect": {
+        "desc": "[异教塔]导航地图标题=第6层:关掉导航地图(点左上返回)并确认真的在第6层,然后分岔:①第6层这次还没采(6F_Check 命中)→ 采第6层;②第6层采过了但第5层还没采(NotYetF5 命中)→ 直接下第5层(中断后重进会走这条);③两层都采完 → 收尾退卡带。★判据(实际,2026-10-10 勘正):any_of 只读导航地图标题(OCR)。红标判据在 2026-10-02 已从组合节点拆到 *_ByMark_Go 挂 on_error(本意是红标命中时不点返回、避免弹『应用效果』弹窗)。但按 MaaFW 语义,候选节点识别失败只会被跳过、不触发 on_error,故红标命中(地图没开)时本节点不命中,落到 Floor_Read 开图再由锚重进校验(实机回归 19 全程跑通,功能正常);*_ByMark_Go 实际只在『OCR 命中但 next 耗尽』时可达。★对照 upstream:其他卡带的到层判断是『开区域地图时读名条』(Collect_TargetMap1-2),而开图翻页本就是切图流程的一部分,所以零额外开销;异教塔的第2/5层在区域地图里没有页、也没有传送阵,读不到名条,才只能靠导航地图标题/红标。",
+        "max_hit": 3,
+        "recognition": "Or",
+        "action": "Click",
+        "target": [
+            111,
+            41,
+            2,
+            2
+        ],
+        "anchor": {
+            "S06_Arrive_Ck": ""
+        },
+        "post_delay": 2000,
+        "timeout": 4000,
+        "next": [
+            "Collect_S06_6F_Check",
+            "Collect_S06_NotYetF5",
+            "Collect_S06_Finish"
+        ],
+        "on_error": [
+            "Collect_S06_Ck_F6_Collect_ByMark_Go",
+            "Collect_S06_Ck_Retry",
+            "Collect_S06_Abort"
+        ],
+        "focus": "S06.[校验]已在施塔因之塔第6层(去采集)",
+        "any_of": [
+            "Collect_S06_Ck_F6_Collect_Ocr"
+        ]
+    },
+    "Collect_S06_Ck_F6_Finish": {
+        "desc": "[异教塔·校验]导航地图标题=第6层,且是'第5层采完走回来'那一支:关掉导航地图后直接收尾退卡带。★与 Collect_S06_Ck_F6_Collect 分开成两个节点(而不是用 tag 分流),是为了不依赖 on_error 的分支语义,也让日志一眼看出是哪个分支。★判据(实际,2026-10-10 勘正):any_of 只读导航地图标题(OCR)。红标判据在 2026-10-02 已从组合节点拆到 *_ByMark_Go 挂 on_error(本意是红标命中时不点返回、避免弹『应用效果』弹窗)。但按 MaaFW 语义,候选节点识别失败只会被跳过、不触发 on_error,故红标命中(地图没开)时本节点不命中,落到 Floor_Read 开图再由锚重进校验(实机回归 19 全程跑通,功能正常);*_ByMark_Go 实际只在『OCR 命中但 next 耗尽』时可达。★对照 upstream:其他卡带的到层判断是『开区域地图时读名条』(Collect_TargetMap1-2),而开图翻页本就是切图流程的一部分,所以零额外开销;异教塔的第2/5层在区域地图里没有页、也没有传送阵,读不到名条,才只能靠导航地图标题/红标。",
+        "max_hit": 3,
+        "recognition": "Or",
+        "action": "Click",
+        "target": [
+            111,
+            41,
+            2,
+            2
+        ],
+        "anchor": {
+            "S06_Arrive_Ck": ""
+        },
+        "post_delay": 2000,
+        "timeout": 4000,
+        "next": [
+            "Collect_S06_Finish"
+        ],
+        "on_error": [
+            "Collect_S06_Ck_F6_Finish_ByMark_Go",
+            "Collect_S06_Ck_Retry",
+            "Collect_S06_Abort"
+        ],
+        "focus": "S06.[校验]已在施塔因之塔第6层(收尾)",
+        "any_of": [
+            "Collect_S06_Ck_F6_Finish_Ocr"
+        ]
+    },
+    "Collect_S06_Ck_F5_ByMark_Go": {
+        "desc": "[异教塔]到层校验-红标兜底:画面里有第5层红标(人已在该层、没开导航地图)→ 直接分岔,**不点左上返回**(2026-10-02 修复:那一下会点到左上 buff 图标弹出『应用效果』弹窗,实测 17:46 卡住流程)。",
+        "max_hit": 3,
+        "recognition": "Or",
+        "any_of": [
+            "Collect_S06_Ck_F5_ByMark"
+        ],
+        "action": "DoNothing",
+        "next": [
+            "Collect_S06_5F_Check",
+            "Collect_S06_5F_To6F"
+        ],
+        "on_error": [
+            "Collect_S06_Ck_Retry",
+            "Collect_S06_Abort"
+        ],
+        "focus": "S06.[校验]已在第5层(红标,无需关图)"
+    },
+    "Collect_S06_Ck_F6_Collect_ByMark_Go": {
+        "desc": "[异教塔]到层校验-红标兜底:画面里有第6层红标(人已在该层、没开导航地图)→ 直接分岔,**不点左上返回**(2026-10-02 修复:那一下会点到左上 buff 图标弹出『应用效果』弹窗,实测 17:46 卡住流程)。",
+        "max_hit": 3,
+        "recognition": "Or",
+        "any_of": [
+            "Collect_S06_Ck_F6_Collect_ByMark"
+        ],
+        "action": "DoNothing",
+        "next": [
+            "Collect_S06_6F_Check",
+            "Collect_S06_NotYetF5",
+            "Collect_S06_Finish"
+        ],
+        "on_error": [
+            "Collect_S06_Ck_Retry",
+            "Collect_S06_Abort"
+        ],
+        "focus": "S06.[校验]已在第6层(红标,无需关图)"
+    },
+    "Collect_S06_Ck_F6_Finish_ByMark_Go": {
+        "desc": "[异教塔]到层校验-红标兜底:画面里有第6层红标(人已在该层、没开导航地图)→ 直接收尾,**不点左上返回**(2026-10-02 修复:那一下会点到左上 buff 图标弹出『应用效果』弹窗,实测 17:46 卡住流程)。",
+        "max_hit": 3,
+        "recognition": "Or",
+        "any_of": [
+            "Collect_S06_Ck_F6_Finish_ByMark"
+        ],
+        "action": "DoNothing",
+        "next": [
+            "Collect_S06_Finish"
+        ],
+        "on_error": [
+            "Collect_S06_Ck_Retry",
+            "Collect_S06_Abort"
+        ],
+        "focus": "S06.[校验]已在第6层(红标,无需关图-收尾)"
+    },
+    "Collect_S06_Finish": {
+        "desc": "[异教塔]收尾:五层采完直接退出箱庭回快速卡带菜单(2026-10-02 用户口径:第5层采完=卡带完成,不再走回第6层),并走既有 Collect_QuickCart_FastUI→Collect_PackEnd_Ck 打完成标记(该节点的 action 由卡带节点 Collect_Pack_Story_6 的 PatchPipeline 注入)。",
+        "max_hit": 1,
+        "recognition": "DirectHit",
+        "action": "DoNothing",
+        "next": [
+            "Collect_QuickCart_FastUI",
+            "[JumpBack]Global_QuickCart_MenuReset",
+            "[JumpBack]Global_ToSandBox"
+        ],
+        "focus": "S06.异教塔采集收尾-退出卡带"
+    },
+    "Collect_S06_Abort": {
+        "desc": "[异教塔]换层失败/到层校验不符时的收尾:不再尝试,直接结束卡带内流程(回快速卡带菜单)。最多丢本卡带剩余资源,不会把状态机卡死——与 Collect_Architecture_Underlying_Logic_Protection 同一思路。",
+        "max_hit": 1,
+        "recognition": "DirectHit",
+        "action": "DoNothing",
+        "next": [
+            "Collect_QuickCart_FastUI",
+            "[JumpBack]Global_QuickCart_MenuReset",
+            "[JumpBack]Global_ToSandBox"
+        ],
+        "focus": "S06.[WRN]楼层移动失败,结束卡带"
+    }
+}

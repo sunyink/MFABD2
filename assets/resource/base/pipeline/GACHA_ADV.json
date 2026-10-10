@@ -1,5 +1,21 @@
 {
     "GachaADV_Start": {
+        "desc": "task入口,判据交给GachaADV_Daily_Switch。闸不通过时本节点next耗尽,整个task直接结束。timeout必写——next只剩这一项,不写就会空转到默认20秒才肯退",
+        "timeout": 1,
+        "next": [
+            "GachaADV_Daily_Switch"
+        ]
+    },
+    "GachaADV_Daily_Switch": {
+        "desc": "白嫖抽卡存档闸:本游戏日已跑完(免费抽已用或无可抽)则不命中,整个task直接结束",
+        "recognition": "Custom",
+        "custom_recognition": "CheckCoolDown",
+        "custom_recognition_param": {
+            "card_name": "Gacha_Daily",
+            "cycle_type": "g_daily"
+        },
+        "pre_delay": 0,
+        "post_delay": 0,
         "next": [
             "GachaADV_HomePage_Enter",
             "[JumpBack]Global_ToHomePage"
@@ -19,10 +35,17 @@
         ]
     },
     "GachaADV_GachaRed_HaveNot": {
+        "desc": "首页无可关注抽抽乐(无红点):本日无可抽,打标后结束,避免每天重复进入抽卡流程。识别失败(误判无红点)最坏只是当天不再进抽卡,次日恢复。",
         "recognition": "And",
         "all_of": ["GachaADV_GachaRed_Have"],
         "inverse": true,
-        "focus": "GA.[ERR]无可关注抽抽乐"
+        "action": "Custom",
+        "custom_action": "MarkComplete",
+        "custom_action_param": {
+            "card_name": "Gacha_Daily",
+            "cycle_type": "g_daily"
+        },
+        "focus": "GA.无可关注抽抽乐(已记录)"
     },
     "GachaADV_GachaRed_Have": {
         "desc": "识别左下抽抽乐-红点存在-点击抽卡",
@@ -1362,12 +1385,21 @@
         "focus": "GA.退出抽卡"
     },
     "GachaADV_EndToHomePage": {
-        "desc": "识别左下抽抽乐-返回地图页",
+        "desc": "识别左下抽抽乐-返回地图页。这是抽卡的正常终点(无论抽到与否),打标后本日不再重复进入",
         "recognition": "And",
         "all_of": [
             "Rec_HomePage_GA_Ocr",
             "Sub_HomePage_GA_Bright_Clr"
-        ]
+        ],
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "MarkComplete",
+        "custom_action_param": {
+            "card_name": "Gacha_Daily",
+            "cycle_type": "g_daily"
+        },
+        "post_delay": 0,
+        "focus": "GA.白嫖抽卡完成,已记录"
     },
     "Gacha_Quick_All": {
         "desc": "点击页面一键抽抽乐",

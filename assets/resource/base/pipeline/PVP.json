@@ -210,7 +210,8 @@
         "focus": "PM.PVP.点击舞台物件"
     },
     "PVP_PerPetTask": {
-        "desc": "宠物派遣。初始位置就在pvp图防错",
+        "desc": "宠物派遣。初始位置就在pvp图防错。Or 只借用 StartGame_PerPetTask 的识别参数,不继承它的 max_hit,这里必须自带上限,否则气泡点了没消失时会在 PVP_TaskStart 里无限往复",
+        "max_hit": 3,
         "recognition": "Or",
         "any_of": ["StartGame_PerPetTask"],
         "action": "Click",

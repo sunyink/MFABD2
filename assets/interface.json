@@ -117,6 +117,7 @@
             "default_check": true,
             "description": "<地图采集[完整]>的单卡带模式，满足日常任务所需即停止。",
             "option": [
+                "强制采集卡带",
                 "采集卡带屏蔽",
                 "第三图采集额外等待"
             ]
@@ -276,6 +277,7 @@
             "description": "进入卡带，对含传送阵的地图依次执行探查、吸取、召集。<br><span style=\"background-color:rgba(255,160,0,0.2)\"><b>前提：</b>传送阵须已激活，且周围箱庭迷雾已探明，使区域地图能完整显示传送阵图标。</span><br><b>周常CD：</b>自动跳过本周已刷卡带，进度记录于 <code>agent_save_data.json</code>，可手动迁移。刷取顺序：卡带框从左到右，依故事→角色→活动大类推进。",
             "option": [
                 "简单类跳过",
+                "强制采集卡带",
                 "采集卡带屏蔽",
                 "第三图采集额外等待"
             ]
@@ -1101,6 +1103,94 @@
                     ]
                 }
             ]
+        },
+        "强制采集卡带": {
+            "description": "启用后**只采集**下面名单里点名的卡带；名单里的卡带**连游戏内双勾也无视**，直接进卡带（用途：测试卡带地图切换/寻路）。★某一类留空 => 该类**完全保持原逻辑**（不禁用、不关闸，本地记录显示已全完成就照旧整类跳过）。填的是卡带列表里的**序号**，不是游戏章节号。",
+            "type": "switch",
+            "cases": [
+                {
+                    "name": "No"
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "Collect_ForceList_Apply": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "剧情游戏卡强采",
+                        "角色游戏卡强采",
+                        "活动游戏卡强采"
+                    ]
+                }
+            ]
+        },
+        "剧情游戏卡强采": {
+            "type": "input",
+            "label": "",
+            "inputs": [
+                {
+                    "name": "要强采的剧情游戏卡",
+                    "label": "剧情游戏卡强采",
+                    "pipeline_type": "string",
+                    "default": "",
+                    "verify": "^[0-9\\s,，;\\-~～]*$",
+                    "pattern_msg": "请输入数字，支持区间(1-3)和逗号(1,5)",
+                    "description": "填入要**强制采集**的卡带编号：Collect_Pack_Story_N 的 N（剧情游戏卡列表从左到右的序号，如 3 或 3,5~7）。留空=该类保持原逻辑（不做强采、不看名单）。"
+                }
+            ],
+            "pipeline_override": {
+                "Collect_ForceList_Apply": {
+                    "attach": {
+                        "StoryPack": "{要强采的剧情游戏卡}"
+                    }
+                }
+            }
+        },
+        "角色游戏卡强采": {
+            "type": "input",
+            "label": "",
+            "inputs": [
+                {
+                    "name": "要强采的角色游戏卡",
+                    "label": "角色游戏卡强采",
+                    "pipeline_type": "string",
+                    "default": "",
+                    "verify": "^[0-9\\s,，;\\-~～]*$",
+                    "pattern_msg": "请输入数字，支持区间(1-3)和逗号(1,5)",
+                    "description": "填入要**强制采集**的卡带编号：Collect_Pack_Character_N 的 N（角色游戏卡列表序号，如 3）。留空=该类保持原逻辑（不做强采、不看名单）。"
+                }
+            ],
+            "pipeline_override": {
+                "Collect_ForceList_Apply": {
+                    "attach": {
+                        "CharacterPack": "{要强采的角色游戏卡}"
+                    }
+                }
+            }
+        },
+        "活动游戏卡强采": {
+            "type": "input",
+            "label": "",
+            "inputs": [
+                {
+                    "name": "要强采的活动游戏卡",
+                    "label": "活动游戏卡强采",
+                    "pipeline_type": "string",
+                    "default": "",
+                    "verify": "^[0-9\\s,，;\\-~～]*$",
+                    "pattern_msg": "请输入数字，支持区间(1-3)和逗号(1,5)",
+                    "description": "填入要**强制采集**的卡带编号：Collect_Pack_Event_N 的 N（活动游戏卡列表序号，如 1,3）。留空=该类保持原逻辑（不做强采、不看名单）。"
+                }
+            ],
+            "pipeline_override": {
+                "Collect_ForceList_Apply": {
+                    "attach": {
+                        "EventPack": "{要强采的活动游戏卡}"
+                    }
+                }
+            }
         },
         "故事卡带屏蔽": {
             "type": "input",

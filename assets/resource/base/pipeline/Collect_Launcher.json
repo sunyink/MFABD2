@@ -1,6 +1,9 @@
 {
     "Collect_StartGame_HomePage": {
+        "desc": "采集任务入口(完整)。★2026-10-07 本地:next 首位加 [JumpBack]Collect_QC_Scan_Reset——每轮开始清空「本轮分类扫描标记」。★必须挂在入口而不是只挂 Collect_Sandplay:实测重跑时若人不在箱庭,Sandplay(识别=箱庭图钉/奔跑)根本不命中,清零就会漏掉,上一轮残留的标记会让剧情/角色整类被跳过。",
         "next": [
+            "[JumpBack]Collect_QC_Scan_Reset",
+            "[JumpBack]Collect_RunTags_Reset",
             "[JumpBack]Collect_PerPetTask",
             "Collect_AllLibGone",
             "Collect_Sandplay",
@@ -37,7 +40,10 @@
             }
         },
         "timeout": 5000,
+        "desc": "采集任务入口(单章/每周一次)。★2026-10-07 本地:next 首位加 [JumpBack]Collect_QC_Scan_Reset,同 Collect_StartGame_HomePage(两个入口都要清,否则残留标记会整类跳过)。",
         "next": [
+            "[JumpBack]Collect_QC_Scan_Reset",
+            "[JumpBack]Collect_RunTags_Reset",
             "[JumpBack]Collect_PerPetTask",
             "Collect_AllLibGone",
             "Collect_Sandplay",
@@ -86,20 +92,32 @@
         "next": [
             "[JumpBack]Setup_Entry5",
             "Collect_Skill3_2_Depleted",
+            "[JumpBack]Collect_QC_Scan_Reset",
             "Collect_BlackList_User",
+            "Collect_ForceList_Apply",
             "Collect_QuickCart_Menu",
             "[JumpBack]Global_QuickCart_MenuReset"
         ]
     },
     "Collect_AllLibGone": {
-        "desc": "全类标签已达标,结束task",
+        "desc": "全类标签已达标,结束task。⚠️已停用(2026-10-01):SimpleDone只是「本周期扫到过底」,不代表卡带真采完——卡带下双勾徽章才是完成事实。保留该闸会整周跳过未采完的卡带,与 PackBadgeNotDone 图标判据冲突。要恢复请同时恢复 Collect_*Pack_SetSimpleSkip 的存档闸。",
+        "enabled": false,
         "recognition": "Custom",
         "custom_recognition": "CheckCoolDown",
         "custom_recognition_param": {
             "targets": [
-                {"card_name": "Pack_Story_SimpleDone", "cycle_type": "g_weekly"},
-                {"card_name": "Pack_Character_SimpleDone", "cycle_type": "g_weekly"},
-                {"card_name": "Pack_Event_SimpleDone", "cycle_type": "g_weekly"}
+                {
+                    "card_name": "Pack_Story_SimpleDone",
+                    "cycle_type": "g_weekly"
+                },
+                {
+                    "card_name": "Pack_Character_SimpleDone",
+                    "cycle_type": "g_weekly"
+                },
+                {
+                    "card_name": "Pack_Event_SimpleDone",
+                    "cycle_type": "g_weekly"
+                }
             ],
             "match": "all_done"
         },
@@ -144,26 +162,310 @@
             ]
         },
         "next": [
+            "Collect_ForceList_Apply",
             "Collect_QuickCart_Menu",
             "[JumpBack]Global_QuickCart_MenuReset"
         ],
         "focus": "<span style=\"color:Crimson\">CM.P.检查用户卡带黑名单</span>"
     },
-    "Collect_QuickCart_Menu": {
-        "desc": "快速卡带已调出,等待后续",
-        "recognition": "Or",
-        "any_of": ["Global_QuickCart_MenuReset_Ocr"],
+    "Collect_ForceList_Apply": {
+        "desc": "[本地·强制采集]强采清单应用器（action=Custom/ForceListApply，2026-10-02 本地新增）。读本节点 attach（StoryPack/CharacterPack/EventPack，界面选项注入，语法同屏蔽：1,3~5）：①**填了的类**：把该类具名卡带全部禁用、只启用名单里的、并关掉该类的分类跳过闸（Collect_QC_Skip_*）+ 关 Collect_QC_All_Done；②**没填的类**：一个节点都不碰，完全保持上游原逻辑（该类本地已全完成 -> 照旧整类跳过）；③三类都没填 -> 本次不改任何节点，行为与原版一致。清场范围从节点表枚举，不写死 1~20/1~8/1~5。名单内的卡带连游戏内双勾也无视（徽章放行在 recognition/pack_badge.py）。默认 enabled=false，由界面选项「强制采集卡带」打开。",
+        "enabled": false,
+        "action": "Custom",
+        "custom_action": "ForceListApply",
+        "custom_action_param": {
+            "node_name": "Collect_ForceList_Apply"
+        },
         "next": [
+            "Collect_QuickCart_Menu",
+            "[JumpBack]Global_QuickCart_MenuReset"
+        ],
+        "focus": "CM.P.强采:按类应用(空类不动)"
+    },
+    "Collect_QC_Skip_Story": {
+        "desc": "[本地·分类级跳过①]剧情游戏卡(全部 19 张)**本周全部已完成** ⇒ 整个剧情分支不再打开,直接去挑下一个还有活的分类。判据=批量闸 CheckCoolDown{targets:全部剧情卡, match:'all_done'}(源码 cartridge_lib.py:555 `hit = DONE数==检查数`,命中即全完成)。数据来自本地每周存档 agent_save_data.json(卡带@g_weekly)。★安全性:只有'整类全部完成'才跳过;任何一张没完成 ⇒ 本闸不命中 ⇒ 落到调度器下一个候选[剧情分支],页内照旧逐个卡带查双勾。★targets 只含 enabled=true 的卡带(被禁用的卡永远不采,放进去会让闸永远不成立)。★2026-10-09 本地:保持普通跳转(曾尝试改 [JumpBack] 并在 next 挂 [JumpBack]Collect_QC_Scan_Mark_Story,实测 11:54 死循环打标 QC_Story_Scanned 0→12+ —— ①UpdateTag 的 value 是**累加**不是置位;②Mark 的判据 Or[Collect_QuickCart_Menu] 在列表开着时**恒命中**,而 jump_back 返回后会重跑整个 next 列表 ⇒ 反复命中。★教训:恒命中节点(DirectHit / Or[列表开着])绝不能当 JumpBack 目标放进会被重跑的 next 列表)。★本闸命中后**不会**再回调度器,所以后面的 Collect_FeatureSwitch_StoryPack 也不会被求值,不存在「整类已完成后重扫」的风险,无需打标。",
+        "max_hit": 1,
+        "recognition": "Custom",
+        "custom_recognition": "CheckCoolDown",
+        "custom_recognition_param": {
+            "targets": [
+                {
+                    "card_name": "Story_01_血骑士",
+                    "cycle_type": "g_weekly"
+                },
+                {
+                    "card_name": "Story_02_苍蓝魔女",
+                    "cycle_type": "g_weekly"
+                },
+                {
+                    "card_name": "Story_03_迷雾神射手",
+                    "cycle_type": "g_weekly"
+                },
+                {
+                    "card_name": "Story_04_眼镜与猫",
+                    "cycle_type": "g_weekly"
+                },
+                {
+                    "card_name": "Story_05_沙漠之花",
+                    "cycle_type": "g_weekly"
+                },
+                {
+                    "card_name": "Story_06_异教塔",
+                    "cycle_type": "g_weekly"
+                },
+                {
+                    "card_name": "Story_07_愤怒天使",
+                    "cycle_type": "g_weekly"
+                },
+                {
+                    "card_name": "Story_08_血之狂想曲",
+                    "cycle_type": "g_weekly"
+                },
+                {
+                    "card_name": "Story_09_铁假面",
+                    "cycle_type": "g_weekly"
+                },
+                {
+                    "card_name": "Story_10_霍尔蒙克斯",
+                    "cycle_type": "g_weekly"
+                },
+                {
+                    "card_name": "Story_11_虚假游戏",
+                    "cycle_type": "g_weekly"
+                },
+                {
+                    "card_name": "Story_12_黑羽毛",
+                    "cycle_type": "g_weekly"
+                },
+                {
+                    "card_name": "Story_13_雪之歌",
+                    "cycle_type": "g_weekly"
+                },
+                {
+                    "card_name": "Story_14_神圣审判",
+                    "cycle_type": "g_weekly"
+                },
+                {
+                    "card_name": "Story_15_复仇的誓言",
+                    "cycle_type": "g_weekly"
+                },
+                {
+                    "card_name": "Story_16_三国同盟",
+                    "cycle_type": "g_weekly"
+                },
+                {
+                    "card_name": "Story_17_试炼之路",
+                    "cycle_type": "g_weekly"
+                },
+                {
+                    "card_name": "Story_18_救赎",
+                    "cycle_type": "g_weekly"
+                },
+                {
+                    "card_name": "Story_19_被遗忘的战争",
+                    "cycle_type": "g_weekly"
+                }
+            ],
+            "match": "all_done"
+        },
+        "action": "DoNothing",
+        "post_delay": 0,
+        "next": [
+            "Collect_QC_Char_Pending",
+            "Collect_QC_Event_Pending",
+            "Collect_QC_All_Done"
+        ],
+        "focus": "QC.[跳过]剧情卡已全完成"
+    },
+    "Collect_QC_Skip_Character": {
+        "desc": "[本地·分类级跳过②]角色游戏卡(全部 7 张)**本周全部已完成** ⇒ 跳过角色分支,直接去看活动卡/收工。判据同上(批量闸 all_done)。未命中 ⇒ 落到调度器下一个候选[角色分支]。★2026-10-09 本地:同 Story,保持普通跳转(改 JumpBack + 挂 Mark 的写法已实测死循环,见 Story 的 desc)。★强采配合:ForceListApply 会把本闸 enabled=false(强采角色时)⇒ 本闸不命中 ⇒ 调度器落到 [JumpBack]Collect_FeatureSwitch_CharacterPack ⇒ 角色分支照进;若本闸未被关(剧情类已把路由带进闸链),则由 ForceListApply 给 Collect_QC_Char_Pending 打 DirectHit 补丁兜底(见 string_processor.py)。",
+        "max_hit": 1,
+        "recognition": "Custom",
+        "custom_recognition": "CheckCoolDown",
+        "custom_recognition_param": {
+            "targets": [
+                {
+                    "card_name": "Character_1_杰登之门",
+                    "cycle_type": "g_weekly"
+                },
+                {
+                    "card_name": "Character_2_火晶片",
+                    "cycle_type": "g_weekly"
+                },
+                {
+                    "card_name": "Character_3_美丽无望",
+                    "cycle_type": "g_weekly"
+                },
+                {
+                    "card_name": "Character_4_大逃脱",
+                    "cycle_type": "g_weekly"
+                },
+                {
+                    "card_name": "Character_5_鲁的迷宫",
+                    "cycle_type": "g_weekly"
+                },
+                {
+                    "card_name": "Character_6_御剑传",
+                    "cycle_type": "g_weekly"
+                },
+                {
+                    "card_name": "Character_7_合约之战",
+                    "cycle_type": "g_weekly"
+                }
+            ],
+            "match": "all_done"
+        },
+        "action": "DoNothing",
+        "post_delay": 0,
+        "next": [
+            "Collect_QC_Event_Pending",
+            "Collect_QC_All_Done"
+        ],
+        "focus": "QC.[跳过]角色卡已全完成"
+    },
+    "Collect_QC_Char_Pending": {
+        "desc": "[本地]角色卡还有没完成的 ⇒ 交回原角色分支 Collect_FeatureSwitch_CharacterPack(它会点'角色游戏卡'页签并把列表复位到第一页),后续扫描完全走原逻辑。判据=match:'any'(至少一张可跑)。★2026-10-09 本地:next 补两个出口([JumpBack]Collect_FeatureSwitch_CharacterPack 之后再加 Collect_QC_Event_Pending / Collect_QC_All_Done)——原来只有'回本类分支'一项,角色类扫完后被 CheckTag(QC_Char_Scanned,max=1) 挡住 ⇒ 原地空转到 20s 超时 ⇒ on_error 落 Global_Null ⇒ 任务假成功收尾,活动类整类漏采(实测 09:58)。★依据:jump_back 弹回本节点后 MaaFW 会**重跑整个 next 列表**(maafw 日志实证),所以追加的出口一定会被求值到。★另注:本节点判据只看存档,与'强制采集'清单无关,故强采角色时需要 ForceListApply 给本节点打 DirectHit 补丁(见 string_processor.py),否则会出现'强采角色卡 3 却进不去角色分支'(实测 11:22)。",
+        "max_hit": 1,
+        "recognition": "Custom",
+        "custom_recognition": "CheckCoolDown",
+        "custom_recognition_param": {
+            "targets": [
+                {
+                    "card_name": "Character_1_杰登之门",
+                    "cycle_type": "g_weekly"
+                },
+                {
+                    "card_name": "Character_2_火晶片",
+                    "cycle_type": "g_weekly"
+                },
+                {
+                    "card_name": "Character_3_美丽无望",
+                    "cycle_type": "g_weekly"
+                },
+                {
+                    "card_name": "Character_4_大逃脱",
+                    "cycle_type": "g_weekly"
+                },
+                {
+                    "card_name": "Character_5_鲁的迷宫",
+                    "cycle_type": "g_weekly"
+                },
+                {
+                    "card_name": "Character_6_御剑传",
+                    "cycle_type": "g_weekly"
+                },
+                {
+                    "card_name": "Character_7_合约之战",
+                    "cycle_type": "g_weekly"
+                }
+            ],
+            "match": "any"
+        },
+        "action": "DoNothing",
+        "post_delay": 0,
+        "next": [
+            "[JumpBack]Collect_FeatureSwitch_CharacterPack",
+            "Collect_QC_Event_Pending",
+            "Collect_QC_All_Done"
+        ],
+        "focus": "QC.角色卡还有活-交回角色分支"
+    },
+    "Collect_QC_Event_Pending": {
+        "desc": "[本地]活动卡还有没完成的 ⇒ 交回原活动分支 Collect_FeatureSwitch_EvenPack。判据=match:'any'。★2026-10-09 本地:next 补出口 Collect_QC_All_Done(活动类扫完后被 CheckTag 挡住 ⇒ 原地空转 20s,同 Collect_QC_Char_Pending 的老毛病)。★强采活动时 ForceListApply 会给本节点打 DirectHit 补丁。",
+        "max_hit": 1,
+        "recognition": "Custom",
+        "custom_recognition": "CheckCoolDown",
+        "custom_recognition_param": {
+            "targets": [
+                {
+                    "card_name": "Event_1_夏日骑士",
+                    "cycle_type": "g_weekly"
+                },
+                {
+                    "card_name": "Event_2_恶梦之冬",
+                    "cycle_type": "g_weekly"
+                },
+                {
+                    "card_name": "Event_3_海滨天使",
+                    "cycle_type": "g_weekly"
+                },
+                {
+                    "card_name": "Event_4_记忆边缘",
+                    "cycle_type": "g_weekly"
+                },
+                {
+                    "card_name": "Event_5_戏水女王",
+                    "cycle_type": "g_weekly"
+                }
+            ],
+            "match": "any"
+        },
+        "action": "DoNothing",
+        "post_delay": 0,
+        "next": [
+            "[JumpBack]Collect_FeatureSwitch_EvenPack",
+            "Collect_QC_All_Done"
+        ],
+        "focus": "QC.活动卡还有活-交回活动分支"
+    },
+    "Collect_QuickCart_Menu": {
+        "desc": "快速卡带已调出,等待后续★2026-10-01 本地:next 前插了三颗'分类级跳过'闸(Collect_QC_Skip_Story / Collect_QC_Skip_Character / …),用本地每周存档判'整类是否全完成';命中就整类跳过,不命中完全按原样走。★2026-10-02 本地:next 首位再加 Collect_QC_RewardSwitch_Off_Click——每次打开卡带列表先确保'查看战场奖励'开关已勾上(勾上卡带才显示采集状态双硬币),关闭态才点、开启态自动跳过。★2026-10-09 本地:**两个跳过闸保持普通跳转**(曾改成 [JumpBack] 试图把路由收回本节点,实测 11:54 死循环打标,已回滚,详见 Collect_QC_Skip_Story 的 desc)。闸命中后离开本节点走它自己的 Pending 链,故漏采问题改由「给 Pending 节点补出口」解决(见 Collect_QC_Char_Pending / Collect_QC_Event_Pending)。★本节点不设 timeout:候选里有 ColorMatch/OCR,超时写小会漏判。★三类都无活时的收工节点 Collect_QC_All_Done 仍挂在两个闸的 next 末尾(强采时 ForceListApply 会关掉它以防提前收工)。",
+        "recognition": "Or",
+        "any_of": [
+            "Global_QuickCart_MenuReset_Ocr"
+        ],
+        "next": [
+            "[JumpBack]Collect_QC_RewardSwitch_Off_Click",
+            "Collect_QC_Skip_Story",
             "[JumpBack]Collect_FeatureSwitch_StoryPack",
+            "Collect_QC_Skip_Character",
             "[JumpBack]Collect_FeatureSwitch_CharacterPack",
             "[JumpBack]Collect_FeatureSwitch_EvenPack",
             "[JumpBack]Collect_FeatureSwitch_ManagerPack"
         ],
         "focus": "CM.L.调度器"
     },
+    "Collect_QC_RewardSwitch_Off_Click": {
+        "desc": "[卡带列表]检查'查看战场奖励'开关:关闭态(深灰底座)命中→点一下勾上;开启态(金黄底座)不命中→由 [JumpBack] 跳过、落到下一个分类分派候选。★2026-10-02 用户要求:该开关默认要勾上,勾上后卡带上才显示采集状态'双硬币'。坐标 1280x720 由 1920 实测点(1709,835) 按 ×2/3 换算。",
+        "recognition": "ColorMatch",
+        "roi": [
+            1123,
+            541,
+            50,
+            31
+        ],
+        "method": 40,
+        "lower": [
+            0,
+            0,
+            50
+        ],
+        "upper": [
+            180,
+            30,
+            110
+        ],
+        "count": 200,
+        "action": "Click",
+        "target": [
+            1139,
+            557,
+            2,
+            2
+        ],
+        "post_delay": 1500,
+        "focus": "QC.查看战场奖励开关(关闭则勾上)"
+    },
     "Collect_FeatureSwitch_StoryPack": {
+        "desc": "[分类分支入口]剧情游戏卡。★2026-10-07 本地两处改动(修「停止重跑后剧情/角色被跳过、直接去活动」):①max_hit 1→3——上游的 1 表示「本轮只进一次」,但那唯一一次若被浪费(实测:停止任务时脚本正在进卡带、重跑后残留载入态,分支空等 15s 就退栈),本轮该类就再也进不去,调度器只能落到还没用过的活动分支(日志证据 10:46:21/10:46:43 `max_hit reached [Collect_FeatureSwitch_StoryPack] [current_hit=1]`);3 保留死循环防护,又允许「进了但没扫完」时重进。②新增 CheckTag(QC_Story_Scanned,max=1) 识别——本轮**已完整扫过一轮**(由 Collect_QC_Scan_Mark_Story 在定位链触底时置位)则本节点不再命中,直接落到下一个分类候选,避免放宽 max_hit 后重复扫 2~3 遍。★两个条件互补:闸 Collect_QC_Skip_Story 管「整类本周全完成」(存档),本节点管「本轮扫过没有」(内存 tag,每轮由 Collect_QC_Scan_Reset 清空)。",
         "enabled": true,
-        "max_hit": 1,
+        "max_hit": 3,
+        "recognition": "Custom",
+        "custom_recognition": "CheckTag",
+        "custom_recognition_param": {
+            "tag": "QC_Story_Scanned",
+            "max": 1
+        },
         "anchor": {
             "SetSimpleSkip": "Collect_StoryPack_SetSimpleSkip",
             "SmartSwipOut": ""
@@ -174,8 +476,15 @@
         ]
     },
     "Collect_FeatureSwitch_CharacterPack": {
+        "desc": "[分类分支入口]角色游戏卡。★2026-10-07 同 Story:max_hit 1→3 + CheckTag(QC_Char_Scanned,max=1)(本轮已完整扫过一轮则不再命中)。上游 max_hit:1 会让「空跑那一次」耗尽本类唯一配额,重跑后整类被跳过。",
         "enabled": true,
-        "max_hit": 1,
+        "max_hit": 3,
+        "recognition": "Custom",
+        "custom_recognition": "CheckTag",
+        "custom_recognition_param": {
+            "tag": "QC_Char_Scanned",
+            "max": 1
+        },
         "anchor": {
             "SmartSwipOut": ""
         },
@@ -186,8 +495,15 @@
         ]
     },
     "Collect_FeatureSwitch_EvenPack": {
+        "desc": "[分类分支入口]活动游戏卡。★2026-10-07 同 Story:max_hit 1→3 + CheckTag(QC_Event_Scanned,max=1)。三类都扫完 ⇒ 调度器 next 逐个落空 ⇒ 退栈收尾(与上游原行为一致)。",
         "enabled": true,
-        "max_hit": 1,
+        "max_hit": 3,
+        "recognition": "Custom",
+        "custom_recognition": "CheckTag",
+        "custom_recognition_param": {
+            "tag": "QC_Event_Scanned",
+            "max": 1
+        },
         "anchor": {
             "SmartSwipOut": ""
         },
@@ -198,7 +514,7 @@
         ]
     },
     "Collect_FeatureSwitch_ManagerPack": {
-        "desc": "店长游戏卡类的启用开关,当前整类关闭。⚠️要启用先把 Pack_Manager_SimpleDone 加进 Collect_AllLibGone 的 targets——那个总闸现在只数故事/角色/活动三类,三类做完就会退栈收尾,本类会被整类漏掉。",
+        "desc": "店长游戏卡类的启用开关,当前整类关闭(该类型不支持采集)。⚠️要启用先把 Pack_Manager_SimpleDone 加进 Collect_AllLibGone 的 targets——那个总闸现在只数故事/角色/活动三类,三类做完就会退栈收尾,本类会被整类漏掉。注:Collect_AllLibGone 已于 2026-10-01 停用,启用本类时不必再管那段提示。",
         "enabled": false,
         "max_hit": 1,
         "anchor": {
@@ -211,13 +527,7 @@
         ]
     },
     "Collect_StoryPack_SetSimpleSkip": {
-        "desc": "简单类跳过实现逻辑:发射锚点使得smart动作报err后进入特定存档节点,其他行为一致。此节点启用后读取存档，若通过，直接进入下一个节点链。通过锚点,初次必定为剧情卡,进入此;运行此节点后锚点到dit不用再此识别存档,直接下一步",
-        "recognition": "Custom",
-        "custom_recognition": "CheckCoolDown",
-        "custom_recognition_param": {
-            "card_name": "Pack_Story_SimpleDone",
-            "cycle_type": "g_weekly"
-        },
+        "desc": "原为「简单类跳过」存档闸(每周首扫后整类跳过)。2026-10-01 改 DirectHit:采集完成与否以卡带下双勾徽章为准(PackBadgeNotDone),存档闸会整周跳过没采完的卡带。类扫到底仍会经 SmartSwipOut 锚点打 SimpleDone 标,仅作记录。",
         "anchor": {
             "SmartSwipOut": "Collect_LocatePack_SimpleSkip_Story",
             "SetSimpleSkip": "Collect_FirstBootPack_To1_Sandbox_Dit"
@@ -228,12 +538,7 @@
         ]
     },
     "Collect_CharacterPack_SetSimpleSkip": {
-        "recognition": "Custom",
-        "custom_recognition": "CheckCoolDown",
-        "custom_recognition_param": {
-            "card_name": "Pack_Character_SimpleDone",
-            "cycle_type": "g_weekly"
-        },
+        "desc": "同 Story:存档闸已拆(2026-10-01),改 DirectHit,是否采集由卡带双勾徽章决定。",
         "anchor": {
             "SmartSwipOut": "Collect_LocatePack_SimpleSkip_Character",
             "SetSimpleSkip": "Collect_FirstBootPack_To1_Sandbox_Dit"
@@ -243,12 +548,7 @@
         ]
     },
     "Collect_EventPack_SetSimpleSkip": {
-        "recognition": "Custom",
-        "custom_recognition": "CheckCoolDown",
-        "custom_recognition_param": {
-            "card_name": "Pack_Event_SimpleDone",
-            "cycle_type": "g_weekly"
-        },
+        "desc": "同 Story:存档闸已拆(2026-10-01),改 DirectHit,是否采集由卡带双勾徽章决定。",
         "anchor": {
             "SmartSwipOut": "Collect_LocatePack_SimpleSkip_Event",
             "SetSimpleSkip": "Collect_FirstBootPack_To1_Sandbox_Dit"
@@ -607,7 +907,9 @@
     },
     "Collect_PackProbe_IsPresent": {
         "recognition": "Or",
-        "any_of": ["Global_QuickCart_MenuReset_Ocr"],
+        "any_of": [
+            "Global_QuickCart_MenuReset_Ocr"
+        ],
         "timeout": 2000,
         "next": [
             "[JumpBack]Collect_LocatePackFrame_Loc1_ResetLoc",
@@ -1270,7 +1572,9 @@
     "Collect_Loc_OutToSwip_Hub_Enter_QuickCart_Menu": {
         "desc": "快速卡带已调出,等待后续",
         "recognition": "Or",
-        "any_of": ["Global_QuickCart_MenuReset_Ocr"],
+        "any_of": [
+            "Global_QuickCart_MenuReset_Ocr"
+        ],
         "next": [
             "Collect_Loc_OutToSwip_Hub_Egress"
         ],
@@ -1387,6 +1691,17 @@
             "Collect_LocatePackFrame_Smart_Swip"
         ]
     },
+    "Collect_LocatePack_Swip_VerifyOpen": {
+        "desc": "[加固·2026-10-07]定位链触底后的『列表是否真的开着』校验。SmartSwipe 判『触底』的根据是连续 4 次滑动画面不动,但**卡带列表没打开时画面同样不动** ⇒ 会把『列表没开』误判成『滑到最后一页』⇒ 走 on_error 的锚 SmartSwipOut = Collect_LocatePack_SimpleSkip_Story/Character/Event ⇒ **误打 SimpleDone 标、该分类分支提前结束**(2026-10-07 09:37 / 11:03 实测:剧情卡扫到 14 就转去角色分支,后面的卡带本轮没扫)。本节点判据=快速卡带列表已调出(OCR『最近』,与 Collect_QuickCart_FastUI 同款):列表真的开着 ⇒ 说明确实扫到底了 ⇒ 放行去打 SimpleDone(行为不变);列表没开 ⇒ 本节点不命中 ⇒ 落到下一候选 [JumpBack]Global_QuickCart_MenuReset 把列表调出来,不打标。★不动 Smart_Swip 的 recognition:它靠 PatchPipeline 改 custom_recognition_param 来设翻页预算,改成 And/Custom 组合会让该 patch 失效。",
+        "recognition": "Or",
+        "any_of": [
+            "Global_QuickCart_MenuReset_Ocr"
+        ],
+        "next": [
+            "[Anchor]SmartSwipOut"
+        ],
+        "focus": "CL.M.触底校验-卡带列表已开"
+    },
     "Collect_LocatePackFrame_Smart_Swip": {
         "recognition": "Custom",
         "custom_recognition": "CheckTag",
@@ -1420,14 +1735,15 @@
             "duration": 500,
             "end_hold": 800,
             "settle_delay": 1000,
-            "retry_times": 2,
+            "retry_times": 3,
             "threshold": 3.0
         },
         "next": [
             "Collect_LocatePackFrame_Smart_Swip_UpdateTag"
         ],
         "on_error": [
-            "[Anchor]SmartSwipOut",
+            "Collect_LocatePack_Swip_VerifyOpen",
+            "[JumpBack]Global_QuickCart_MenuReset",
             "Global_Null"
         ]
     },
@@ -1450,31 +1766,103 @@
         ]
     },
     "Collect_LocatePack_SimpleSkip_Story": {
+        "desc": "[触底出口]剧情类定位链滑到底(SmartSwipe JumpOut / 失败)时经锚 SmartSwipOut 调用。★2026-10-07 本地:加 next → Collect_QC_Scan_Mark_Story(置位「本轮剧情类已完整扫过一轮」)。本节点原为叶子(无 next),加 next 不改变原语义(MarkComplete 照旧执行,随后跑标记节点,标记节点也是叶子 ⇒ 再退栈)。",
         "action": "Custom",
         "custom_action": "MarkComplete",
         "custom_action_param": {
             "card_name": "Pack_Story_SimpleDone",
             "cycle_type": "g_weekly"
         },
-        "focus": "Py.经典剧情卡简单全完成标记"
+        "focus": "Py.经典剧情卡简单全完成标记",
+        "next": [
+            "Collect_QC_Scan_Mark_Story"
+        ]
     },
     "Collect_LocatePack_SimpleSkip_Character": {
+        "desc": "[触底出口]角色类,同 Story。★2026-10-07 本地:加 next → Collect_QC_Scan_Mark_Character。",
         "action": "Custom",
         "custom_action": "MarkComplete",
         "custom_action_param": {
             "card_name": "Pack_Character_SimpleDone",
             "cycle_type": "g_weekly"
         },
-        "focus": "Py.角色剧情卡简单全完成标记"
+        "focus": "Py.角色剧情卡简单全完成标记",
+        "next": [
+            "Collect_QC_Scan_Mark_Character"
+        ]
     },
     "Collect_LocatePack_SimpleSkip_Event": {
+        "desc": "[触底出口]活动类,同 Story。★2026-10-07 本地:加 next → Collect_QC_Scan_Mark_Event。",
         "action": "Custom",
         "custom_action": "MarkComplete",
         "custom_action_param": {
             "card_name": "Pack_Event_SimpleDone",
             "cycle_type": "g_weekly"
         },
-        "focus": "Py.活动卡简单全完成标记"
+        "focus": "Py.活动卡简单全完成标记",
+        "next": [
+            "Collect_QC_Scan_Mark_Event"
+        ]
+    },
+    "Collect_QC_Scan_Mark_Story": {
+        "desc": "[本地·本轮扫描标记①]置位 QC_Story_Scanned=1,表示本轮剧情类已完整扫过一轮,供 Collect_FeatureSwitch_StoryPack 的 CheckTag 判「不再进入本类」。★前置判据 Or[Collect_QuickCart_Menu](快速卡带列表确实开着)是故意加的:触底信号来自 SmartSwipe 的 on_error,而 2026-10-07 实测过「复位链退栈到定位链、人在箱庭而列表没开」时 SmartSwipe 会在箱庭画面上误判触底 → 那一次若打上标记就会变成整类跳过(漏采)。列表没开 ⇒ 不打标记 ⇒ 本类下一轮仍可进入(宁可重扫,不可漏采)。",
+        "recognition": "Or",
+        "any_of": [
+            "Collect_QuickCart_Menu"
+        ],
+        "action": "Custom",
+        "custom_action": "UpdateTag",
+        "custom_action_param": {
+            "tag": "QC_Story_Scanned",
+            "value": 1
+        },
+        "timeout": 1,
+        "focus": "QC.本轮剧情类已扫完一轮"
+    },
+    "Collect_QC_Scan_Mark_Character": {
+        "desc": "[本地·本轮扫描标记②]置位 QC_Char_Scanned=1,判据与前置条件同 Story。",
+        "recognition": "Or",
+        "any_of": [
+            "Collect_QuickCart_Menu"
+        ],
+        "action": "Custom",
+        "custom_action": "UpdateTag",
+        "custom_action_param": {
+            "tag": "QC_Char_Scanned",
+            "value": 1
+        },
+        "timeout": 1,
+        "focus": "QC.本轮角色类已扫完一轮"
+    },
+    "Collect_QC_Scan_Mark_Event": {
+        "desc": "[本地·本轮扫描标记③]置位 QC_Event_Scanned=1,判据与前置条件同 Story。",
+        "recognition": "Or",
+        "any_of": [
+            "Collect_QuickCart_Menu"
+        ],
+        "action": "Custom",
+        "custom_action": "UpdateTag",
+        "custom_action_param": {
+            "tag": "QC_Event_Scanned",
+            "value": 1
+        },
+        "timeout": 1,
+        "focus": "QC.本轮活动类已扫完一轮"
+    },
+    "Collect_QC_Scan_Reset": {
+        "desc": "[本地·本轮扫描标记清零]每轮采集开始时清空 QC_Story_Scanned / QC_Char_Scanned / QC_Event_Scanned。★必须清:这三个 tag 存在 Agent 进程内存(TAG_STORE)里,**停止任务不会重置**(不重启 MFAA/Agent 就一直在),不清零会让下一轮直接跳过所有已扫过的分类。挂在 Collect_Sandplay.next(采集主入口),max_hit:1 保证一轮只清一次(退回箱庭再命中也不会把标记洗掉)。",
+        "max_hit": 1,
+        "action": "Custom",
+        "custom_action": "ResetTag",
+        "custom_action_param": {
+            "tags": [
+                "QC_Story_Scanned",
+                "QC_Char_Scanned",
+                "QC_Event_Scanned"
+            ]
+        },
+        "timeout": 1,
+        "focus": "QC.清空本轮分类扫描标记"
     },
     "Collect_LocatePack_SimpleSkip_Manager": {
         "action": "Custom",
@@ -1486,7 +1874,7 @@
         "focus": "Py.店长剧情卡简单全完成标记"
     },
     "Collect_PackLocation_PassFieldsAndHub": {
-        "desc": "[路由节点]不可删除。计数器开关，防止同一节点多次进入，下一个节点的action阶段重置计数。",
+        "desc": "[路由节点]不可删除。计数器开关，防止同一节点多次进入，下一个节点的action阶段重置计数。★2026-10-10 新增 anchor 清锚:每次扫卡带列表(即准备点下一张卡带之前)注销上一张卡带注册的卡带专属锚 S18_Map1_Trip / C3_Battle1_Done / C3_Battle2_Trip。原因:MaaFW 的 anchor 一经 set 就会**跨卡带残留** —— 实测 2026-10-10 15:44:54,跑完卡带18 再进卡带19 时,Collect_OperationsMain_Sandplay.next 首位的 [Anchor]S18_Map1_Trip 仍被解析并命中(S18_Map1_Trip 的判据只有箱庭HUD + per-run 标签,不含卡带特征)⇒ S18 旁路抢跑 ⇒ 卡带19 一张图没采却被打了完成标记。注销写法=把锚的键值填空字符串,与上游 Collect_IM_M14_MenuReady、Collect_IM_OnFoot_NviMap_M14_Egress 的清锚写法同一范式。",
         "recognition": "Custom",
         "custom_recognition": "CheckTag",
         "custom_recognition_param": {
@@ -1501,6 +1889,11 @@
             "value": 1
         },
         "post_delay": 0,
+        "anchor": {
+            "S18_Map1_Trip": "",
+            "C3_Battle1_Done": "",
+            "C3_Battle2_Trip": ""
+        },
         "timeout": 1,
         "next": [
             "Collect_Pack_Story_1",
@@ -1535,10 +1928,38 @@
             "Collect_Pack_Event_2",
             "Collect_Pack_Event_3",
             "Collect_Pack_Event_4",
-            "Collect_Pack_Event_5"
+            "Collect_Pack_Event_5",
+            "Collect_Pack_Unnamed"
+        ]
+    },
+    "Collect_Pack_Unnamed": {
+        "desc": "【无名卡带兜底】排在 33 个具名候选项之后：当前槽位这张卡带没有任何具名节点（新卡带/改版卡带/模板缺失），但徽章显示未双勾时，直接按槽位点击进卡带采集。命中前先反查黑名单——把被禁用的具名节点临时启用后在本槽位跑一次识别，谁的画面模板命中就判为屏蔽卡带并跳过。max_hit 是本轮重进上限。",
+        "max_hit": 6,
+        "recognition": "Custom",
+        "roi": "[Anchor]PackFrame_Loc",
+        "custom_recognition": "PackUnnamedNotDone",
+        "custom_recognition_param": {},
+        "action": "Custom",
+        "custom_action": "PatchPipeline",
+        "custom_action_param": {
+            "target": "Collect_PackEnd_Ck",
+            "patch": {
+                "action": "Custom",
+                "custom_action": "MarkComplete",
+                "custom_action_param": {
+                    "card_name": "Pack_Unnamed_Scan",
+                    "cycle_type": "g_weekly"
+                }
+            }
+        },
+        "anchor": "Pack_Click",
+        "post_delay": 5000,
+        "next": [
+            "Collect_Pack_Click"
         ]
     },
     "Collect_Pack_Story_1": {
+        "max_hit": 3,
         "recognition": "And",
         "all_of": [
             {
@@ -1550,10 +1971,10 @@
             },
             {
                 "recognition": "Custom",
-                "custom_recognition": "CheckCoolDown",
+                "roi": "[Anchor]PackFrame_Loc",
+                "custom_recognition": "PackBadgeNotDone",
                 "custom_recognition_param": {
-                    "card_name": "Story_01_血骑士",
-                    "cycle_type": "g_weekly"
+                    "card_name": "Story_01_血骑士"
                 }
             }
         ],
@@ -1578,6 +1999,7 @@
         ]
     },
     "Collect_Pack_Story_2": {
+        "max_hit": 3,
         "recognition": "And",
         "all_of": [
             {
@@ -1589,10 +2011,10 @@
             },
             {
                 "recognition": "Custom",
-                "custom_recognition": "CheckCoolDown",
+                "roi": "[Anchor]PackFrame_Loc",
+                "custom_recognition": "PackBadgeNotDone",
                 "custom_recognition_param": {
-                    "card_name": "Story_02_苍蓝魔女",
-                    "cycle_type": "g_weekly"
+                    "card_name": "Story_02_苍蓝魔女"
                 }
             }
         ],
@@ -1617,6 +2039,7 @@
         ]
     },
     "Collect_Pack_Story_3": {
+        "max_hit": 3,
         "recognition": "And",
         "all_of": [
             {
@@ -1628,10 +2051,10 @@
             },
             {
                 "recognition": "Custom",
-                "custom_recognition": "CheckCoolDown",
+                "roi": "[Anchor]PackFrame_Loc",
+                "custom_recognition": "PackBadgeNotDone",
                 "custom_recognition_param": {
-                    "card_name": "Story_03_迷雾神射手",
-                    "cycle_type": "g_weekly"
+                    "card_name": "Story_03_迷雾神射手"
                 }
             }
         ],
@@ -1656,6 +2079,7 @@
         ]
     },
     "Collect_Pack_Story_4": {
+        "max_hit": 3,
         "recognition": "And",
         "all_of": [
             {
@@ -1667,10 +2091,10 @@
             },
             {
                 "recognition": "Custom",
-                "custom_recognition": "CheckCoolDown",
+                "roi": "[Anchor]PackFrame_Loc",
+                "custom_recognition": "PackBadgeNotDone",
                 "custom_recognition_param": {
-                    "card_name": "Story_04_眼镜与猫",
-                    "cycle_type": "g_weekly"
+                    "card_name": "Story_04_眼镜与猫"
                 }
             }
         ],
@@ -1695,6 +2119,7 @@
         ]
     },
     "Collect_Pack_Story_5": {
+        "max_hit": 3,
         "recognition": "And",
         "all_of": [
             {
@@ -1706,10 +2131,10 @@
             },
             {
                 "recognition": "Custom",
-                "custom_recognition": "CheckCoolDown",
+                "roi": "[Anchor]PackFrame_Loc",
+                "custom_recognition": "PackBadgeNotDone",
                 "custom_recognition_param": {
-                    "card_name": "Story_05_沙漠之花",
-                    "cycle_type": "g_weekly"
+                    "card_name": "Story_05_沙漠之花"
                 }
             }
         ],
@@ -1734,6 +2159,7 @@
         ]
     },
     "Collect_Pack_Story_6": {
+        "max_hit": 3,
         "recognition": "And",
         "all_of": [
             {
@@ -1745,10 +2171,10 @@
             },
             {
                 "recognition": "Custom",
-                "custom_recognition": "CheckCoolDown",
+                "roi": "[Anchor]PackFrame_Loc",
+                "custom_recognition": "PackBadgeNotDone",
                 "custom_recognition_param": {
-                    "card_name": "Story_06_异教塔",
-                    "cycle_type": "g_weekly"
+                    "card_name": "Story_06_异教塔"
                 }
             }
         ],
@@ -1773,6 +2199,7 @@
         ]
     },
     "Collect_Pack_Story_7": {
+        "max_hit": 3,
         "recognition": "And",
         "all_of": [
             {
@@ -1784,10 +2211,10 @@
             },
             {
                 "recognition": "Custom",
-                "custom_recognition": "CheckCoolDown",
+                "roi": "[Anchor]PackFrame_Loc",
+                "custom_recognition": "PackBadgeNotDone",
                 "custom_recognition_param": {
-                    "card_name": "Story_07_愤怒天使",
-                    "cycle_type": "g_weekly"
+                    "card_name": "Story_07_愤怒天使"
                 }
             }
         ],
@@ -1812,6 +2239,7 @@
         ]
     },
     "Collect_Pack_Story_8": {
+        "max_hit": 3,
         "recognition": "And",
         "all_of": [
             {
@@ -1823,10 +2251,10 @@
             },
             {
                 "recognition": "Custom",
-                "custom_recognition": "CheckCoolDown",
+                "roi": "[Anchor]PackFrame_Loc",
+                "custom_recognition": "PackBadgeNotDone",
                 "custom_recognition_param": {
-                    "card_name": "Story_08_血之狂想曲",
-                    "cycle_type": "g_weekly"
+                    "card_name": "Story_08_血之狂想曲"
                 }
             }
         ],
@@ -1851,6 +2279,7 @@
         ]
     },
     "Collect_Pack_Story_9": {
+        "max_hit": 3,
         "recognition": "And",
         "all_of": [
             {
@@ -1862,10 +2291,10 @@
             },
             {
                 "recognition": "Custom",
-                "custom_recognition": "CheckCoolDown",
+                "roi": "[Anchor]PackFrame_Loc",
+                "custom_recognition": "PackBadgeNotDone",
                 "custom_recognition_param": {
-                    "card_name": "Story_09_铁假面",
-                    "cycle_type": "g_weekly"
+                    "card_name": "Story_09_铁假面"
                 }
             }
         ],
@@ -1890,6 +2319,7 @@
         ]
     },
     "Collect_Pack_Story_10": {
+        "max_hit": 3,
         "recognition": "And",
         "all_of": [
             {
@@ -1901,10 +2331,10 @@
             },
             {
                 "recognition": "Custom",
-                "custom_recognition": "CheckCoolDown",
+                "roi": "[Anchor]PackFrame_Loc",
+                "custom_recognition": "PackBadgeNotDone",
                 "custom_recognition_param": {
-                    "card_name": "Story_10_霍尔蒙克斯",
-                    "cycle_type": "g_weekly"
+                    "card_name": "Story_10_霍尔蒙克斯"
                 }
             }
         ],
@@ -1929,6 +2359,7 @@
         ]
     },
     "Collect_Pack_Story_11": {
+        "max_hit": 3,
         "recognition": "And",
         "all_of": [
             {
@@ -1940,10 +2371,10 @@
             },
             {
                 "recognition": "Custom",
-                "custom_recognition": "CheckCoolDown",
+                "roi": "[Anchor]PackFrame_Loc",
+                "custom_recognition": "PackBadgeNotDone",
                 "custom_recognition_param": {
-                    "card_name": "Story_11_虚假游戏",
-                    "cycle_type": "g_weekly"
+                    "card_name": "Story_11_虚假游戏"
                 }
             }
         ],
@@ -1968,6 +2399,7 @@
         ]
     },
     "Collect_Pack_Story_12": {
+        "max_hit": 3,
         "recognition": "And",
         "all_of": [
             {
@@ -1979,10 +2411,10 @@
             },
             {
                 "recognition": "Custom",
-                "custom_recognition": "CheckCoolDown",
+                "roi": "[Anchor]PackFrame_Loc",
+                "custom_recognition": "PackBadgeNotDone",
                 "custom_recognition_param": {
-                    "card_name": "Story_12_黑羽毛",
-                    "cycle_type": "g_weekly"
+                    "card_name": "Story_12_黑羽毛"
                 }
             }
         ],
@@ -2007,6 +2439,7 @@
         ]
     },
     "Collect_Pack_Story_13": {
+        "max_hit": 3,
         "recognition": "And",
         "all_of": [
             {
@@ -2018,10 +2451,10 @@
             },
             {
                 "recognition": "Custom",
-                "custom_recognition": "CheckCoolDown",
+                "roi": "[Anchor]PackFrame_Loc",
+                "custom_recognition": "PackBadgeNotDone",
                 "custom_recognition_param": {
-                    "card_name": "Story_13_雪之歌",
-                    "cycle_type": "g_weekly"
+                    "card_name": "Story_13_雪之歌"
                 }
             }
         ],
@@ -2046,6 +2479,7 @@
         ]
     },
     "Collect_Pack_Story_14": {
+        "max_hit": 3,
         "recognition": "And",
         "all_of": [
             {
@@ -2057,10 +2491,10 @@
             },
             {
                 "recognition": "Custom",
-                "custom_recognition": "CheckCoolDown",
+                "roi": "[Anchor]PackFrame_Loc",
+                "custom_recognition": "PackBadgeNotDone",
                 "custom_recognition_param": {
-                    "card_name": "Story_14_神圣审判",
-                    "cycle_type": "g_weekly"
+                    "card_name": "Story_14_神圣审判"
                 }
             }
         ],
@@ -2085,6 +2519,7 @@
         ]
     },
     "Collect_Pack_Story_15": {
+        "max_hit": 3,
         "recognition": "And",
         "all_of": [
             {
@@ -2096,10 +2531,10 @@
             },
             {
                 "recognition": "Custom",
-                "custom_recognition": "CheckCoolDown",
+                "roi": "[Anchor]PackFrame_Loc",
+                "custom_recognition": "PackBadgeNotDone",
                 "custom_recognition_param": {
-                    "card_name": "Story_15_复仇的誓言",
-                    "cycle_type": "g_weekly"
+                    "card_name": "Story_15_复仇的誓言"
                 }
             }
         ],
@@ -2124,6 +2559,7 @@
         ]
     },
     "Collect_Pack_Story_16": {
+        "max_hit": 3,
         "recognition": "And",
         "all_of": [
             {
@@ -2135,10 +2571,10 @@
             },
             {
                 "recognition": "Custom",
-                "custom_recognition": "CheckCoolDown",
+                "roi": "[Anchor]PackFrame_Loc",
+                "custom_recognition": "PackBadgeNotDone",
                 "custom_recognition_param": {
-                    "card_name": "Story_16_三国同盟",
-                    "cycle_type": "g_weekly"
+                    "card_name": "Story_16_三国同盟"
                 }
             }
         ],
@@ -2163,6 +2599,7 @@
         ]
     },
     "Collect_Pack_Story_17": {
+        "max_hit": 3,
         "recognition": "And",
         "all_of": [
             {
@@ -2174,10 +2611,10 @@
             },
             {
                 "recognition": "Custom",
-                "custom_recognition": "CheckCoolDown",
+                "roi": "[Anchor]PackFrame_Loc",
+                "custom_recognition": "PackBadgeNotDone",
                 "custom_recognition_param": {
-                    "card_name": "Story_17_试炼之路",
-                    "cycle_type": "g_weekly"
+                    "card_name": "Story_17_试炼之路"
                 }
             }
         ],
@@ -2202,6 +2639,7 @@
         ]
     },
     "Collect_Pack_Story_18": {
+        "max_hit": 3,
         "recognition": "And",
         "all_of": [
             {
@@ -2214,10 +2652,10 @@
             },
             {
                 "recognition": "Custom",
-                "custom_recognition": "CheckCoolDown",
+                "roi": "[Anchor]PackFrame_Loc",
+                "custom_recognition": "PackBadgeNotDone",
                 "custom_recognition_param": {
-                    "card_name": "Story_18_救赎",
-                    "cycle_type": "g_weekly"
+                    "card_name": "Story_18_救赎"
                 }
             }
         ],
@@ -2235,13 +2673,17 @@
                 }
             }
         },
-        "anchor": "Pack_Click",
+        "anchor": {
+            "Pack_Click": "Collect_Pack_Story_18",
+            "S18_Map1_Trip": "Collect_S18_Map1_Trip"
+        },
         "post_delay": 5000,
         "next": [
             "Collect_Pack_Click"
         ]
     },
     "Collect_Pack_Story_19": {
+        "max_hit": 3,
         "recognition": "And",
         "all_of": [
             {
@@ -2253,10 +2695,10 @@
             },
             {
                 "recognition": "Custom",
-                "custom_recognition": "CheckCoolDown",
+                "roi": "[Anchor]PackFrame_Loc",
+                "custom_recognition": "PackBadgeNotDone",
                 "custom_recognition_param": {
-                    "card_name": "Story_19_被遗忘的战争",
-                    "cycle_type": "g_weekly"
+                    "card_name": "Story_19_被遗忘的战争"
                 }
             }
         ],
@@ -2281,6 +2723,8 @@
         ]
     },
     "Collect_Pack_Story_20": {
+        "desc": "【不参与采集·上游默认禁用】Story_20_堕入深渊。禁用=该卡带不进候选列表,任何完成判定(含 PackBadgeNotDone 图标判定)都不会碰到它。要启用前先确认该卡带是否支持采集。",
+        "max_hit": 3,
         "enabled": false,
         "recognition": "And",
         "all_of": [
@@ -2293,10 +2737,10 @@
             },
             {
                 "recognition": "Custom",
-                "custom_recognition": "CheckCoolDown",
+                "roi": "[Anchor]PackFrame_Loc",
+                "custom_recognition": "PackBadgeNotDone",
                 "custom_recognition_param": {
-                    "card_name": "Story_20_堕入深渊",
-                    "cycle_type": "g_weekly"
+                    "card_name": "Story_20_堕入深渊"
                 }
             }
         ],
@@ -2321,6 +2765,7 @@
         ]
     },
     "Collect_Pack_Character_1": {
+        "max_hit": 3,
         "recognition": "And",
         "all_of": [
             {
@@ -2332,10 +2777,10 @@
             },
             {
                 "recognition": "Custom",
-                "custom_recognition": "CheckCoolDown",
+                "roi": "[Anchor]PackFrame_Loc",
+                "custom_recognition": "PackBadgeNotDone",
                 "custom_recognition_param": {
-                    "card_name": "Character_1_杰登之门",
-                    "cycle_type": "g_weekly"
+                    "card_name": "Character_1_杰登之门"
                 }
             }
         ],
@@ -2360,6 +2805,7 @@
         ]
     },
     "Collect_Pack_Character_2": {
+        "max_hit": 3,
         "recognition": "And",
         "all_of": [
             {
@@ -2371,10 +2817,10 @@
             },
             {
                 "recognition": "Custom",
-                "custom_recognition": "CheckCoolDown",
+                "roi": "[Anchor]PackFrame_Loc",
+                "custom_recognition": "PackBadgeNotDone",
                 "custom_recognition_param": {
-                    "card_name": "Character_2_火晶片",
-                    "cycle_type": "g_weekly"
+                    "card_name": "Character_2_火晶片"
                 }
             }
         ],
@@ -2399,6 +2845,7 @@
         ]
     },
     "Collect_Pack_Character_3": {
+        "max_hit": 3,
         "recognition": "And",
         "all_of": [
             {
@@ -2410,10 +2857,10 @@
             },
             {
                 "recognition": "Custom",
-                "custom_recognition": "CheckCoolDown",
+                "roi": "[Anchor]PackFrame_Loc",
+                "custom_recognition": "PackBadgeNotDone",
                 "custom_recognition_param": {
-                    "card_name": "Character_3_美丽无望",
-                    "cycle_type": "g_weekly"
+                    "card_name": "Character_3_美丽无望"
                 }
             }
         ],
@@ -2431,13 +2878,18 @@
                 }
             }
         },
-        "anchor": "Pack_Click",
+        "anchor": {
+            "Pack_Click": "Collect_Pack_Character_3",
+            "C3_Battle2_Trip": "Collect_C3_Trip",
+            "C3_Battle1_Done": "Collect_C3_Battle1_Done"
+        },
         "post_delay": 5000,
         "next": [
             "Collect_Pack_Click"
         ]
     },
     "Collect_Pack_Character_4": {
+        "max_hit": 3,
         "recognition": "And",
         "all_of": [
             {
@@ -2449,10 +2901,10 @@
             },
             {
                 "recognition": "Custom",
-                "custom_recognition": "CheckCoolDown",
+                "roi": "[Anchor]PackFrame_Loc",
+                "custom_recognition": "PackBadgeNotDone",
                 "custom_recognition_param": {
-                    "card_name": "Character_4_大逃脱",
-                    "cycle_type": "g_weekly"
+                    "card_name": "Character_4_大逃脱"
                 }
             }
         ],
@@ -2477,6 +2929,7 @@
         ]
     },
     "Collect_Pack_Character_5": {
+        "max_hit": 3,
         "recognition": "And",
         "all_of": [
             {
@@ -2489,10 +2942,10 @@
             },
             {
                 "recognition": "Custom",
-                "custom_recognition": "CheckCoolDown",
+                "roi": "[Anchor]PackFrame_Loc",
+                "custom_recognition": "PackBadgeNotDone",
                 "custom_recognition_param": {
-                    "card_name": "Character_5_鲁的迷宫",
-                    "cycle_type": "g_weekly"
+                    "card_name": "Character_5_鲁的迷宫"
                 }
             }
         ],
@@ -2517,6 +2970,7 @@
         ]
     },
     "Collect_Pack_Character_6": {
+        "max_hit": 3,
         "recognition": "And",
         "all_of": [
             {
@@ -2528,10 +2982,10 @@
             },
             {
                 "recognition": "Custom",
-                "custom_recognition": "CheckCoolDown",
+                "roi": "[Anchor]PackFrame_Loc",
+                "custom_recognition": "PackBadgeNotDone",
                 "custom_recognition_param": {
-                    "card_name": "Character_6_御剑传",
-                    "cycle_type": "g_weekly"
+                    "card_name": "Character_6_御剑传"
                 }
             }
         ],
@@ -2556,6 +3010,7 @@
         ]
     },
     "Collect_Pack_Character_7": {
+        "max_hit": 3,
         "recognition": "And",
         "all_of": [
             {
@@ -2567,10 +3022,10 @@
             },
             {
                 "recognition": "Custom",
-                "custom_recognition": "CheckCoolDown",
+                "roi": "[Anchor]PackFrame_Loc",
+                "custom_recognition": "PackBadgeNotDone",
                 "custom_recognition_param": {
-                    "card_name": "Character_7_合约之战",
-                    "cycle_type": "g_weekly"
+                    "card_name": "Character_7_合约之战"
                 }
             }
         ],
@@ -2595,6 +3050,8 @@
         ]
     },
     "Collect_Pack_Character_8": {
+        "desc": "【不参与采集·上游默认禁用】Character_8_妖魔讨伐团。同 Story_20:禁用=不进候选列表。",
+        "max_hit": 3,
         "enabled": false,
         "recognition": "And",
         "all_of": [
@@ -2607,10 +3064,10 @@
             },
             {
                 "recognition": "Custom",
-                "custom_recognition": "CheckCoolDown",
+                "roi": "[Anchor]PackFrame_Loc",
+                "custom_recognition": "PackBadgeNotDone",
                 "custom_recognition_param": {
-                    "card_name": "Character_8_妖魔讨伐团",
-                    "cycle_type": "g_weekly"
+                    "card_name": "Character_8_妖魔讨伐团"
                 }
             }
         ],
@@ -2635,6 +3092,7 @@
         ]
     },
     "Collect_Pack_Event_1": {
+        "max_hit": 3,
         "desc": "特殊地图特殊处理.此地图没有传送阵",
         "recognition": "And",
         "all_of": [
@@ -2647,10 +3105,10 @@
             },
             {
                 "recognition": "Custom",
-                "custom_recognition": "CheckCoolDown",
+                "roi": "[Anchor]PackFrame_Loc",
+                "custom_recognition": "PackBadgeNotDone",
                 "custom_recognition_param": {
-                    "card_name": "Event_1_夏日骑士",
-                    "cycle_type": "g_weekly"
+                    "card_name": "Event_1_夏日骑士"
                 }
             }
         ],
@@ -2675,6 +3133,7 @@
         ]
     },
     "Collect_Pack_Event_2": {
+        "max_hit": 3,
         "recognition": "And",
         "all_of": [
             {
@@ -2686,10 +3145,12 @@
             },
             {
                 "recognition": "Custom",
-                "custom_recognition": "CheckCoolDown",
+                "roi": "[Anchor]PackFrame_Loc",
+                "custom_recognition": "PackBadgeNotDone",
                 "custom_recognition_param": {
                     "card_name": "Event_2_恶梦之冬",
-                    "cycle_type": "g_weekly"
+                    "single_coin": true,
+                    "star_coin": [44, 81, 26, 26]
                 }
             }
         ],
@@ -2714,6 +3175,7 @@
         ]
     },
     "Collect_Pack_Event_3": {
+        "max_hit": 3,
         "recognition": "And",
         "all_of": [
             {
@@ -2725,10 +3187,10 @@
             },
             {
                 "recognition": "Custom",
-                "custom_recognition": "CheckCoolDown",
+                "roi": "[Anchor]PackFrame_Loc",
+                "custom_recognition": "PackBadgeNotDone",
                 "custom_recognition_param": {
-                    "card_name": "Event_3_海滨天使",
-                    "cycle_type": "g_weekly"
+                    "card_name": "Event_3_海滨天使"
                 }
             }
         ],
@@ -2753,6 +3215,7 @@
         ]
     },
     "Collect_Pack_Event_4": {
+        "max_hit": 3,
         "recognition": "And",
         "all_of": [
             {
@@ -2764,10 +3227,10 @@
             },
             {
                 "recognition": "Custom",
-                "custom_recognition": "CheckCoolDown",
+                "roi": "[Anchor]PackFrame_Loc",
+                "custom_recognition": "PackBadgeNotDone",
                 "custom_recognition_param": {
-                    "card_name": "Event_4_记忆边缘",
-                    "cycle_type": "g_weekly"
+                    "card_name": "Event_4_记忆边缘"
                 }
             }
         ],
@@ -2792,6 +3255,7 @@
         ]
     },
     "Collect_Pack_Event_5": {
+        "max_hit": 3,
         "recognition": "And",
         "all_of": [
             {
@@ -2803,10 +3267,10 @@
             },
             {
                 "recognition": "Custom",
-                "custom_recognition": "CheckCoolDown",
+                "roi": "[Anchor]PackFrame_Loc",
+                "custom_recognition": "PackBadgeNotDone",
                 "custom_recognition_param": {
-                    "card_name": "Event_5_戏水女王",
-                    "cycle_type": "g_weekly"
+                    "card_name": "Event_5_戏水女王"
                 }
             }
         ],
@@ -2844,7 +3308,9 @@
             0,
             0
         ],
-        "anchor": {"ExplorationBoard_Arrived": ""},
+        "anchor": {
+            "ExplorationBoard_Arrived": ""
+        },
         "post_delay": 5000,
         "next": [
             "[JumpBack]Global_WaitingForLoading",
@@ -2905,5 +3371,13 @@
         "action": "Click",
         "post_delay": 2000,
         "focus": "发现新卡带,快速点击'插入'"
+    },
+    "Collect_QC_All_Done": {
+        "desc": "[本地]剧情/角色/活动三类都已完成 ⇒ 本周期没有要采的卡带,结束 task。★写法照抄上游 Collect_AllLibGone:不带 next 的节点 = 结束当前 task(它的 desc 原文就是'结束task')。它与 Collect_AllLibGone 的区别:那条用的是'扫到过底'的 SimpleDone 标签(不可信,已停用),这条用的是每张卡的完成记录(由退卡带时的 MarkComplete 写入),粒度到卡带、且只判据'整类全完成'。★2026-10-09 本地:挂载点保持原样(两个闸 + 两个 Pending 的 next 末尾);曾尝试迁到调度器末位,因配套改动(闸改 JumpBack)会死循环已一并回滚。语义不变:只有同类候选都不命中才轮到它;强采时 ForceListApply 关掉它的补丁依然有效。",
+        "max_hit": 1,
+        "recognition": "DirectHit",
+        "action": "DoNothing",
+        "post_delay": 0,
+        "focus": "QC.三类卡带全部完成-结束任务"
     }
 }

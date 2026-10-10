@@ -3,7 +3,7 @@
         "desc": "《卡带内导航模块》>>●开始>>【主流程】从进入箱庭开始，Collect_TargetMap系列主流程，每一个地图节点都包含大量子流程。通过下方地图名称通用前缀控制系列进度与退出（另一种思路是录入全部小地图名称）（另：起始包含一个图标点击托举异物Collect_FindPickupCat 不完善）。注意主流程子节点顺序。●>>找传送门>>【子流程1】初始节点_OperationsMain_Sandplay特殊卡带恢复。 | 【子流程2 FTC】找不到传送门。初始节点的error为进入强制传送门恢复模块。●>>进入传送地图后>>【子流程3】区域图强制进入白名单。Collect_TargetMap_Special_ClickTpCircleIco可复用的、无视地图前缀强制进入传送门（【重要】必须置于后面黑名单出口前。TargetMap系列主流程也要加上地图名）。 | 【子流程4】区域图越过黑名单，Collect_ClickTelepor_ButNotActive温和正则地图提示无传送阵、Collect_TeleporNotFind激进越过inverse判定故日常不应该触发（考虑删掉）。●>>命中出口>>● Collect_ClickTeleporCircleIco进入【技能模组】，技能模组结束会复位到下一站区域地图 ●>>非命中出口>>●【子流程5】拥有一套退出正则：Collect_QuickCart_TargetMapEnd温和识别关键词、Collect_Architecture_Underlying_Logic_Protection激进全局退出、Collect_OperationsEnd_NORight区域图到底、Collect_MapRight_NoFind区域图到底。"
     },
     "Collect_OperationsMain_Sandplay": {
-        "desc": "中断：章节内主要操作开始。找到图钉，确认进入箱庭",
+        "desc": "中断：章节内主要操作开始。找到图钉，确认进入箱庭★2026-10-01 本地:next 首位挂 [Anchor]S18_Map1_Trip。该锚只在 Collect_Pack_Story_18 的 anchor 里声明 ⇒ 只有点开卡带18 时才解析成 Collect_S18_Map1_Trip(进箱庭即去采集地图1);别的卡带没有这个锚,MAA 直接跳过,行为不变。",
         "recognition": "Or",
         "any_of": [
             "Rec_SandBox_Pin_Tpl",
@@ -18,10 +18,13 @@
                 "NviMap_Sub_Err"
             ]
         },
-        "anchor": {"Pack_Click": ""},
+        "anchor": {
+            "Pack_Click": ""
+        },
         "post_delay": 1000,
         "timeout": 5000,
         "next": [
+            "[Anchor]S18_Map1_Trip",
             "Collect_OperationsMain_ToAreaMap",
             "[JumpBack]Collect_Special_QR7-CW",
             "[JumpBack]Collect_FindPickupCat",
@@ -58,7 +61,9 @@
     "Collect_FindPickupCat_LeaveCircle_Ty1": {
         "desc": "自动寻路菜单",
         "recognition": "Or",
-        "any_of": ["Arbitrage_NviGuide_Butt"],
+        "any_of": [
+            "Arbitrage_NviGuide_Butt"
+        ],
         "action": "Click",
         "post_delay": 800,
         "next": [
@@ -74,7 +79,9 @@
             190,
             307
         ],
-        "expected": ["酒馆"],
+        "expected": [
+            "酒馆"
+        ],
         "action": "Click",
         "post_delay": 800,
         "next": [
@@ -85,7 +92,9 @@
     "Collect_FindPickupCat_LeaveCircle_Ty3": {
         "desc": "自动寻路酒馆-等待进入步行态,再等x秒",
         "recognition": "Or",
-        "any_of": ["Arbitrage_NviGuide_Onfoot_Loop"],
+        "any_of": [
+            "Arbitrage_NviGuide_Onfoot_Loop"
+        ],
         "post_delay": 3000,
         "next": [
             "Collect_FindPickupCat_LeaveCircle_Ty4"
@@ -94,7 +103,9 @@
     "Collect_FindPickupCat_LeaveCircle_Ty4": {
         "desc": "停止自动寻路",
         "recognition": "Or",
-        "any_of": ["Arbitrage_NviGuide_Onfoot_Loop"],
+        "any_of": [
+            "Arbitrage_NviGuide_Onfoot_Loop"
+        ],
         "action": "Click",
         "post_delay": 800,
         "next": [
@@ -105,12 +116,14 @@
     "Collect_FindPickupCat_LeaveCircle_Ty5": {
         "desc": "放下猫咪，等待x秒，让它走开",
         "recognition": "Or",
-        "any_of": ["Collect_FindPickupCat"],
+        "any_of": [
+            "Collect_FindPickupCat"
+        ],
         "action": "Click",
         "post_delay": 4000
     },
     "Collect_OperationsMain_ToAreaMap": {
-        "desc": "判断是否为区域地图界面",
+        "desc": "判断是否为区域地图界面。★异教塔(Story_06)旁路的两颗钩子必须挂在**这个 next 的首位**:面板刚打开时默认落在「人物当前所在层」那一页,此时名条=真实楼层;一旦被 [JumpBack]Collect_MapLift 翻到最左页,名条就只代表「面板翻到哪一页」了(实测踩过:人停在狩猎场/第6层时,名条照样显示「安全 施塔因之塔第1层」)。同款套路见 Setup.json 的 Setup_ResetLoc_JumpBackUse(它也是往这里插节点先读名条判断当前位置)。★2026-10-07 本地:**next 首位的 Collect_S18_Map1_Trip 已改回 `[Anchor]S18_Map1_Trip`(锚引用)**。原则(用户口径):卡带专属逻辑必须『只有该卡带才触发』,不能影响通用序列。原来这里写的是**节点名直接引用** ⇒ 对**所有卡带**生效,而该节点判据只是 And[箱庭HUD, CheckTag(未走过)]、**不含任何『我是卡带18』的特征** ⇒ 实测 14:08 卡带19 一打开区域地图就被它抢走,去『快捷移动→酒馆→绿房子』那一套(19 里没有这些)⇒ `S18.[WRN]地图1流程失败-结束卡带` ⇒ 第一次进 19 一张图没采就退卡带,第二次进才走通用序列正常采集。改成锚后:只有声明了该锚的 `Collect_Pack_Story_18` 才解析成本节点,别的卡带锚不解析、自动跳过(与 Sandplay 那处挂法一致)。★同列表中 `Collect_TargetMap_Special_S06` / `_NotAtF1` 保持节点名直接引用 —— 它们的判据是 OCR「施塔因之塔第N层」等**自带卡带特征**,不会被别的卡带误命中。★2026-10-01 本地:next 首位挂 Collect_S18_Map1_Trip(卡带18 去采集它自己的地图1)→本轮第一次打开区域地图时,先关面板回箱庭、用快捷移动去酒馆、再点导航地图绿色图标去地图1;采完置位标签后不再触发,后续一切照原逻辑。★C3 钩子不挂这里(2026-10-02 修复):原在此 next 首位挂 [Anchor]C3_Battle1_Done 处理「续跑时人已在战斗1、战斗1已采→直接去战斗2」,但「面板刚打开、名条=战斗I」也可能是「角色初始就停在战斗1、战斗1还没采」,两者分不清 ⇒ 抢跑跳过地图1(用户实测)。该钩子已改挂 Collect_OperationsMain_OperationsEnd.next 首位(采完战斗1切图时,名条=战斗I 才可靠)。",
         "recognition": "OCR",
         "roi": [
             128,
@@ -133,12 +146,15 @@
             "rate_limit": 500
         },
         "next": [
+            "[Anchor]S18_Map1_Trip",
+            "Collect_TargetMap_Special_S06",
+            "Collect_TargetMap_Special_S06_NotAtF1",
             "[JumpBack]Collect_MapLift",
             "Collect_TargetMap1-1"
         ]
     },
     "Collect_TargetMap1-1": {
-        "desc": "色核详细地图内左图标位置，暗色足量为白图标消失，即为最左。【依赖ROI】",
+        "desc": "色核详细地图内左图标位置，暗色足量为白图标消失，即为最左。【依赖ROI】★2026-10-01 本地:卡带18 的地图1 守卫已上移到 Collect_OperationsMain_ToAreaMap.next 首位(面板一开就命中),本节点不再挂它。",
         "recognition": "ColorMatch",
         "roi": [
             269,
@@ -318,7 +334,7 @@
         "focus": "确认区域地图tp2"
     },
     "Collect_TargetMap3": {
-        "desc": "详细地图确定位置3",
+        "desc": "详细地图确定位置3★2026-10-01 本地:next 首位挂 [Anchor]C3_Battle2_Trip —— 角色卡3 的名条命中'战斗II'(=禁闭室)时**先接管**:战斗2 没有魔法阵、传送不了,必须'开导航地图→点禁闭室→自动寻路(到达后游戏自动切图)'。别的卡带没有这个锚,自动跳过。",
         "recognition": "OCR",
         "roi": [
             408,
@@ -370,6 +386,7 @@
         "post_delay": 200,
         "timeout": 3000,
         "next": [
+            "[Anchor]C3_Battle2_Trip",
             "Collect_TargetMap_Special_M14",
             "Collect_TargetMap4",
             "[JumpBack]Collect_TargetMap_Special_ClickTpCircleIco",
@@ -390,7 +407,7 @@
         "focus": "确认区域地图tp3"
     },
     "Collect_TargetMap4": {
-        "desc": "详细地图额外位置4。白名单制,每一张图名称都要手动指定.",
+        "desc": "详细地图额外位置4。白名单制,每一张图名称都要手动指定.★2026-10-10 本地:next 里把 Collect_QuickCart_TargetMapEnd(卡带结束判定)提到 Collect_TargetMap4_Special **之前**。原因:END 白名单(Cpt_Collect_TargetMapEnd_Ocr)里本来就含『夜世界入口』,而 Collect_TargetMap4_Special 认的是『通往暗夜世界入口之路』——**同一张图被同时登记成 结束标记 与 返回tp3继续采的路由**,原顺序让 Special 抢先命中,它的 next 只指向 Collect_TargetMap3(只认 战斗II/战斗Ⅱ),遇到名条『战斗V通往暗夜世界入口之路』必然不命中 ⇒ 死路 ⇒ 整链超时退栈到定位链 ⇒ 在还开着的区域地图上滑动翻卡带(卡带19 实测 2026-10-10 16:23:28~16:23:32)。『卡带该结束』的判定优先级本就应高于『返回 tp3 继续采』的路由,故对调。",
         "recognition": "OCR",
         "roi": [
             408,
@@ -406,8 +423,8 @@
         "timeout": 3000,
         "next": [
             "[JumpBack]Collect_TargetMap_Special_ClickTpCircleIco",
-            "Collect_TargetMap4_Special",
             "Collect_QuickCart_TargetMapEnd",
+            "Collect_TargetMap4_Special",
             "Collect_QuickCart_FastUI",
             "Collect_Architecture_Underlying_Logic_Protection",
             "[JumpBack]Collect_ClickTelepor_ButNotActive",
@@ -422,6 +439,941 @@
             "Global_Null_Panic"
         ],
         "focus": "确认区域地图tp4"
+    },
+    "Collect_C3_Battle1_Done": {
+        "desc": "[C3·入口]按序采集用:战斗1 采完之后接续战斗2(本卡能采的图按序各走一遍)。判据=And[区域地图名条=战斗I, CheckTag(C3_Battle2,max=1)]:采完战斗1 切图时、名条还是'战斗I' ⇒ 人就在战斗1(本卡的战斗已采完)且本轮还没走过战斗2 ⇒ 立刻接管,直接寻路去战斗2,不再右翻页找战斗II 页。挂在 `Collect_OperationsMain_OperationsEnd.next` **首位**(排在 Collect_MapRight / 所有 Collect_TargetMap* 之前)。其余卡带没有 C3_Battle1_Done 锚点 ⇒ 本节点不会解析,自动跳过。★2026-10-02 修复:此节点原挂 `Collect_OperationsMain_ToAreaMap.next` 首位(面板刚打开),但「面板刚打开、名条=战斗I」分不清「战斗1已采(续跑)」和「角色初始就停在战斗1、战斗1还没采」,后者会抢跑跳过地图1(用户实测);改挂 OperationsEnd(采完战斗1 切图)后,名条=战斗I 才可靠。tag-only 的 Collect_C3_Trip 保留在 Collect_TargetMap3.next 与 Collect_QuickCart_TargetMapEnd.next 两处兜底。",
+        "max_hit": 1,
+        "recognition": "And",
+        "all_of": [
+            {
+                "recognition": "OCR",
+                "roi": [
+                    408,
+                    622,
+                    466,
+                    47
+                ],
+                "expected": [
+                    "战斗I",
+                    "战斗 I",
+                    "战斗\\s*[1IⅠ!！](?!I)(?!Ⅰ)(?!！)(?!!)",
+                    "战斗[1IⅠ](?!I)(?!Ⅰ)"
+                ]
+            },
+            {
+                "recognition": "Custom",
+                "custom_recognition": "CheckTag",
+                "custom_recognition_param": {
+                    "tag": "C3_Battle2",
+                    "max": 1
+                }
+            }
+        ],
+        "action": "DoNothing",
+        "post_delay": 0,
+        "next": [
+            "Collect_C3_S1_Close"
+        ],
+        "focus": "C3.按序:战斗1已完成-接着去战斗2(禁闭室)"
+    },
+    "Collect_C3_Trip": {
+        "desc": "[角色卡3=Character_3_美丽无望]战斗2(=禁闭室)这张图的**按序采集**入口。★口径(2026-10-02 用户):本卡能采的图 = 地图1 / 战斗1 / 战斗2,一律\"按序各走一遍\";前两张走通用流程(名条认页→点页内传送阵→采集),战斗2 走到这里接续,不是额外\"补采\"。★完整顺序(用户 2026-10-02 口径):进卡带 → 复位 → 采集地图1 → **传送**战斗1 → 采集战斗1 → 寻路去战斗2 → 采集战斗2 → 置位 C3_Battle2 → 退卡带 —— 地图1/战斗1 走通用流程(面板页+页内传送阵);战斗2 面板里没有传送阵,只能开导航地图→点禁闭室→自动寻路(到达自动切图)。识别面只有一个 per-run tag `C3_Battle2`(max=1)=本轮还没走过;而它能被触发,是因为它被挂在共享节点 `Collect_QuickCart_TargetMapEnd.next` 首位的 `[Anchor]C3_Battle2_Trip`,该锚只由 `Collect_Pack_Character_3.anchor` 声明 ⇒ **只有点开角色卡3 时才解析**,别的卡带自动跳过。背景:上游把'禁闭室'写进了 `Cpt_Collect_TargetMapEnd_Ocr` 的'卡带该结束'白名单,所以采完战斗1、面板切到禁闭室页时,流程直接判卡带结束退卡带 ⇒ 战斗2 永远不采(用户 2026-10-01 报的问题)。",
+        "max_hit": 2,
+        "recognition": "Custom",
+        "custom_recognition": "CheckTag",
+        "custom_recognition_param": {
+            "tag": "C3_Battle2",
+            "max": 1
+        },
+        "action": "DoNothing",
+        "post_delay": 0,
+        "next": [
+            "Collect_C3_S1_Close"
+        ],
+        "focus": "C3.按序采集:下一张=战斗2(禁闭室)-寻路过去"
+    },
+    "Collect_C3_S1_Close": {
+        "desc": "[C3·第1步]先关掉区域地图(点左上通用返回)回到战斗1的箱庭——导航地图要从场景HUD的小地图打开。",
+        "max_hit": 3,
+        "recognition": "Or",
+        "any_of": [
+            "Global_BackPageHub_Once"
+        ],
+        "action": "Click",
+        "target": "Global_BackPageHub_Once",
+        "post_delay": 2000,
+        "next": [
+            "Collect_C3_S2_Open_NviMap"
+        ],
+        "on_error": [
+            "Collect_C3_S2_Open_NviMap"
+        ],
+        "focus": "C3.关面板回战斗1"
+    },
+    "Collect_C3_S2_Open_NviMap": {
+        "desc": "[C3·第2步]点左上小地图打开导航地图(固定点击位 148,119,34,38,同项目自带写法)。",
+        "max_hit": 4,
+        "recognition": "Or",
+        "any_of": [
+            "Rec_SandBox_Pin_Tpl",
+            "Rec_SandBox_Run_Tpl",
+            "Collect_TeleporCircle_OnFoot_NviMap"
+        ],
+        "action": "Click",
+        "target": [
+            148,
+            119,
+            34,
+            38
+        ],
+        "post_delay": 2500,
+        "next": [
+            "Collect_C3_S3_ClickBlock",
+            "Collect_C3_S2_Open_NviMap"
+        ],
+        "on_error": [
+            "Collect_C3_S2_Open_NviMap",
+            "Collect_C3_S_Abort"
+        ],
+        "focus": "C3.打开导航地图"
+    },
+    "Collect_C3_S3_ClickBlock": {
+        "desc": "[C3·第3步]**点导航地图上的'禁闭室'(它就是战斗2)**(OCR 认标签 roi 465,175,85,32,实测 1280 系标签中心≈(500,193)),`target_offset:[0,18,0,0]` 下移 18px 落在它正下方的图标上(深色圆+红色交叉双剑)。点下去会**自动寻路过去**,到达后**游戏自动切换地图**(用户口径)。",
+        "max_hit": 3,
+        "recognition": "OCR",
+        "roi": [
+            465,
+            175,
+            85,
+            32
+        ],
+        "expected": [
+            "禁闭室"
+        ],
+        "action": "Click",
+        "target_offset": [
+            0,
+            18,
+            0,
+            0
+        ],
+        "post_delay": 3000,
+        "next": [
+            "Collect_C3_S4_Walk"
+        ],
+        "on_error": [
+            "Collect_C3_S_Abort"
+        ],
+        "focus": "C3.点'禁闭室'-自动寻路(到达后自动切图)"
+    },
+    "Collect_C3_S4_Walk": {
+        "desc": "[C3·第4步]等自动寻路 + 自动切图结束(到达后就是战斗2/禁闭室)。★2026-10-10 对齐 M14 公共件:原先只靠『画面连续静止 1.5s』单一判据;现 next 前两位照抄已实机跑通的 Collect_S06_OnFoot_WaitArrive —— [JumpBack]Collect_IM_OnFoot_Moveing(自动寻路中) 与 [JumpBack]Global_WaitingForLoading(切图/载入中),任一命中即回本节点继续等,都不命中才落 Collect_C3_S5_Verify。★同时删掉原 max_hit:3:MaaFW 中 [JumpBack] 回到本节点会计入 max_hit(Collect_WayPoint_Entry 那次实测已证实),保留会在人还在走时就把 3 次额度耗光而抢跑到下一步;循环上限改由 timeout 180000 兜。",
+        "recognition": "DirectHit",
+        "action": "DoNothing",
+        "post_wait_freezes": 1500,
+        "post_delay": 1000,
+        "timeout": 180000,
+        "next": [
+            "[JumpBack]Collect_IM_OnFoot_Moveing",
+            "[JumpBack]Global_WaitingForLoading",
+            "Collect_C3_S5_Verify"
+        ],
+        "on_error": [
+            "Collect_C3_S_Abort"
+        ],
+        "focus": "C3.等待到达战斗2"
+    },
+    "Collect_C3_S5_Verify": {
+        "desc": "[C3·第5步a]复核'真的换到战斗2那张图了':点小地图开导航地图。",
+        "max_hit": 4,
+        "recognition": "Or",
+        "any_of": [
+            "Rec_SandBox_Pin_Tpl",
+            "Rec_SandBox_Run_Tpl",
+            "Collect_TeleporCircle_OnFoot_NviMap"
+        ],
+        "action": "Click",
+        "target": [
+            148,
+            119,
+            34,
+            38
+        ],
+        "post_delay": 2500,
+        "next": [
+            "Collect_C3_S5_Verify_Ck",
+            "Collect_C3_S5_Verify"
+        ],
+        "on_error": [
+            "Collect_C3_S5_Verify",
+            "Collect_C3_S_Abort"
+        ],
+        "focus": "C3.打开导航地图复核战斗2"
+    },
+    "Collect_C3_S5_Verify_Ck": {
+        "desc": "[C3·第5步b]导航地图标题含'战斗II/战斗Ⅱ'**或'禁闭室'** ⇒ 人已在战斗2(用户口径:**禁闭室就是战斗2**,到达后游戏会自动切到这张图,标题可能写成'战斗 II 禁闭室'这类格式)。确认后点左上返回关掉地图,进采集。",
+        "max_hit": 3,
+        "recognition": "OCR",
+        "roi": [
+            171,
+            15,
+            555,
+            48
+        ],
+        "expected": [
+            "战斗II",
+            "战斗Ⅱ",
+            "战斗 II",
+            "战斗 Ⅱ",
+            "战斗\\s*([1Il|Ⅰ!！][1Il|Ⅰ!！]|Ⅱ|II)(?!\\d)(?![a-zA-Z])",
+            "战斗([1Il|Ⅰ!！][1Il|Ⅰ!！]|Ⅱ|II)(?!\\d)(?![a-zA-Z])",
+            "禁闭室"
+        ],
+        "action": "Click",
+        "target": [
+            111,
+            41
+        ],
+        "post_delay": 1200,
+        "next": [
+            "Collect_C3_S6_Skill"
+        ],
+        "on_error": [
+            "Collect_C3_S_Abort"
+        ],
+        "focus": "C3.[校验]已到战斗2"
+    },
+    "Collect_C3_S6_Skill": {
+        "desc": "[C3·第6步]战斗2(=禁闭室)采集:调上游技能模块 Collect_Skill_Start,出口锚 QuickSkill_Egress → Collect_C3_S6_Done(先补施)。",
+        "max_hit": 2,
+        "recognition": "Or",
+        "any_of": [
+            "Rec_SandBox_Pin_Tpl",
+            "Rec_SandBox_Run_Tpl"
+        ],
+        "action": "DoNothing",
+        "anchor": {
+            "QuickSkill_Egress": "Collect_C3_S6_Done"
+        },
+        "next": [
+            "[JumpBack]Global_WaitingForLoading",
+            "Collect_Skill_Start",
+            "[JumpBack]Global_ToSandBox"
+        ],
+        "on_error": [
+            "Collect_C3_S_Abort"
+        ],
+        "focus": "C3.战斗2采集"
+    },
+    "Collect_C3_S6_Done": {
+        "desc": "[C3·第6步b]战斗2(=禁闭室)技能模块正常出口:复用异教塔那套'哪格亮就点哪格'的补施 Collect_S06_Extra_Skills(召集/压制),补完由锚 S06_Done_Ck 回到 Collect_C3_S7_Tag。",
+        "max_hit": 2,
+        "recognition": "DirectHit",
+        "action": "DoNothing",
+        "anchor": {
+            "S06_Done_Ck": "Collect_C3_S7_Tag"
+        },
+        "next": [
+            "Collect_S06_Extra_Skills"
+        ],
+        "focus": "C3.战斗2采集收尾(先补施)"
+    },
+    "Collect_C3_S7_Tag": {
+        "desc": "[C3·第7步]置位 C3_Battle2=1(本卡这一轮不再重复走),然后退卡带——按用户口径,战斗2(=禁闭室)是本卡带最后一个采集地图,采完本卡带即算完成。",
+        "max_hit": 2,
+        "recognition": "DirectHit",
+        "action": "Custom",
+        "custom_action": "UpdateTag",
+        "custom_action_param": {
+            "tag": "C3_Battle2",
+            "value": 1
+        },
+        "post_delay": 0,
+        "next": [
+            "Collect_C3_S8_Finish"
+        ],
+        "focus": "C3.战斗2已采完-本卡带完成"
+    },
+    "Collect_C3_S8_Finish": {
+        "desc": "[C3·收尾]战斗1 + 战斗2(=禁闭室) 都采完 ⇒ 本卡带采集完成。先关掉可能残留的面板/地图,再走既有收尾退卡带(Collect_QuickCart_FastUI → Collect_PackEnd_Ck 会由卡带节点 Collect_Pack_Character_3 的 PatchPipeline 打完成标记)。★2026-10-02 本地:加 max_hit:1 并把 next 收敛为 ['Collect_QuickCart_FastUI', '[JumpBack]Global_QuickCart_MenuReset', '[JumpBack]Global_ToSandBox']。原因:本节点是 DirectHit(永远命中),而 next 里的候选都'不成立就返回'(Global_BackPageHub_Once 是 [JumpBack]、FastUI 识别不中、MenuReset 跑完即回) ⇒ 候选轮完回到本节点重评 ⇒ 原地死循环(实测日志 11:26:36~11:26:55 反复'打开/关闭卡带列表')。max_hit 保证只跑一次。",
+        "max_hit": 1,
+        "recognition": "DirectHit",
+        "action": "DoNothing",
+        "post_delay": 500,
+        "next": [
+            "Collect_QuickCart_FastUI",
+            "[JumpBack]Global_QuickCart_MenuReset",
+            "[JumpBack]Global_ToSandBox"
+        ],
+        "on_error": [
+            "Collect_QuickCart_FastUI",
+            "[JumpBack]Global_QuickCart_MenuReset",
+            "[JumpBack]Global_ToSandBox"
+        ],
+        "focus": "C3.采集完成-退出卡带"
+    },
+    "Collect_C3_S_Abort": {
+        "desc": "[C3·断臂]去战斗2(=禁闭室)途中任一环失败:先关掉可能残留的面板,再直接结束卡带内流程回快速卡带菜单(与 Collect_S06_Abort/Collect_S18_S_Abort 同思路:最多丢本卡剩余资源,不把状态机卡死)。★2026-10-02 本地:加 max_hit:1 并把 next 收敛为 ['Collect_QuickCart_FastUI', '[JumpBack]Global_QuickCart_MenuReset', '[JumpBack]Global_ToSandBox']。原因:本节点是 DirectHit(永远命中),而 next 里的候选都'不成立就返回'(Global_BackPageHub_Once 是 [JumpBack]、FastUI 识别不中、MenuReset 跑完即回) ⇒ 候选轮完回到本节点重评 ⇒ 原地死循环(实测日志 11:26:36~11:26:55 反复'打开/关闭卡带列表')。max_hit 保证只跑一次。",
+        "max_hit": 1,
+        "recognition": "DirectHit",
+        "action": "DoNothing",
+        "post_delay": 0,
+        "next": [
+            "Collect_QuickCart_FastUI",
+            "[JumpBack]Global_QuickCart_MenuReset",
+            "[JumpBack]Global_ToSandBox"
+        ],
+        "focus": "C3.[WRN]战斗2采集失败-结束卡带",
+        "on_error": [
+            "Collect_QuickCart_FastUI",
+            "[JumpBack]Global_QuickCart_MenuReset",
+            "[JumpBack]Global_ToSandBox"
+        ]
+    },
+    "Collect_RunTags_Reset": {
+        "desc": "[全局·2026-10-07]每轮任务开始时,一次性清零所有『per-run 卡带标签』。★为什么需要(与 S18_Map1_Trip 同一个根因):counter.py 的 TAG_STORE 是**进程内存**(注释:保存在 RAM 中、MAA 重启才清零),标签**不随任务重跑重置** ⇒ 上一轮跑过的卡带把标签置位后,只要 MFAA/Agent 没重启,下一轮这些步骤就被判『本轮已做过』⇒ **漏采**(S18 的表现是钩子不接管、退回通用链)。★清单只含『只置位、无清零』的卡带链路标签:S06_F1/F2/F5/F6(异教塔四层)、C3_Battle2(角色3 战斗2)、IM_Skill_1/IM_Skill_End(活动卡 IM 模块)、S18_Map1_Trip(卡带18 地图1)。不动别的功能标签(SRef=半自动、Intimacy_*=每日好感);已有各自清零的(LocPage_SmartSwip / NviMap_Sub_Err / Tab3_OnFoot / PackLocation_ToggleSwitch / IM_Skill_OnlyOnec)也没必要重复清。★max_hit:1:DirectHit 恒命中,防被反复评估执行(同 S18_Tags_Reset 的教训)。",
+        "max_hit": 1,
+        "recognition": "DirectHit",
+        "action": "Custom",
+        "custom_action": "ResetTag",
+        "custom_action_param": {
+            "tags": [
+                "S06_F1",
+                "S06_F2",
+                "S06_F5",
+                "S06_F6",
+                "C3_Battle2",
+                "IM_Skill_1",
+                "IM_Skill_End",
+                "S18_Map1_Trip"
+            ]
+        },
+        "focus": "每轮开始-清零卡带标签"
+    },
+    "Collect_S18_Map1_Trip": {
+        "desc": "[卡带18=Story_18_救赎]地图1(科库托斯暗黑神殿)这张图的**按序采集**入口。★口径(2026-10-02 用户):本卡能采的图一律\"按序各走一遍\";地图1 在区域地图面板里没有传送阵、通用流程碰不到它,所以从这条支路过去采集,不是额外\"补采\"。识别面=And[Or[箱庭HUD(Rec_SandBox_Pin_Tpl/Run_Tpl)], CheckTag(S18_Map1_Trip,max=1)]。两处引用它:①`Collect_OperationsMain_Sandplay.next` 首位的 `[Anchor]S18_Map1_Trip`(由 Collect_Pack_Story_18 的 anchor 声明,**只有点开卡带18时才会解析成这个节点** ⇒ 一进卡带箱庭就命中,早于老流程的'找传送阵/点手标'(实测 2026-10-01 20:02:23~51 老流程先在那打转 `Collect_TeleporCircle_OnFoot_TPIcoCk_IntSubMenu ⇄ Collect_IM_Move_MGS`);②`Collect_OperationsMain_ToAreaMap.next` 里(排在 C3 锚之后,直接引用节点名、不走锚)是面板已开时的第二次机会。命中→关面板回箱庭→快捷移动去酒馆→导航地图点绿房子→地图1;采完置位标签,本轮不再触发。★★2026-10-07 修复:next 由 [S1_Close] 改为 [S1_Close, S2_Butt] —— 本节点最主要的挂点是 `Collect_OperationsMain_Sandplay.next` 首位(一进卡带箱庭就命中),**那一刻区域地图面板根本没开**,而 S1_Close 的识别是返回按钮模板 ⇒ 连着识别失败 20s ⇒ 整个 next 列表失败 ⇒ 超时退栈 ⇒ 落到定位链(列表没开)空滑 ⇒ 误判触底误打 Pack_Story_SimpleDone、剧情分支提前结束(2026-10-07 11:03 实测:进了卡带18 一张图没采就退出来)。**坑点(2026-10-01 回归6 已踩过一次):候选节点识别失败只会被跳过,不会走它自己的 on_error** ⇒ 写在 S1_Close.on_error 里的 S2_Butt 是死代码。正确写法=把兜底放进 next 列表的下一个候选:面板开着→S1_Close 命中关面板;面板没开→S1_Close 被跳过→直接 S2_Butt 点快捷移动去酒馆。",
+        "max_hit": 2,
+        "recognition": "And",
+        "all_of": [
+            {
+                "recognition": "Or",
+                "any_of": [
+                    "Rec_SandBox_Pin_Tpl",
+                    "Rec_SandBox_Run_Tpl"
+                ]
+            },
+            {
+                "recognition": "Custom",
+                "custom_recognition": "CheckTag",
+                "custom_recognition_param": {
+                    "tag": "S18_Map1_Trip",
+                    "max": 1
+                }
+            }
+        ],
+        "action": "DoNothing",
+        "post_delay": 0,
+        "next": [
+            "Collect_S18_S1_Close",
+            "Collect_S18_S2_Butt"
+        ],
+        "focus": "S18.按序采集:下一张=地图1(科库托斯暗黑神殿)"
+    },
+    "Collect_S18_S1_Close": {
+        "desc": "[S18·第1步]先关掉区域地图,再回箱庭(快捷移动按钮在箱庭里)。",
+        "max_hit": 3,
+        "recognition": "Or",
+        "any_of": [
+            "Global_BackPageHub_Once"
+        ],
+        "action": "Click",
+        "target": "Global_BackPageHub_Once",
+        "post_delay": 2000,
+        "next": [
+            "[JumpBack]Global_ToSandBox",
+            "Collect_S18_S2_Butt"
+        ],
+        "on_error": [
+            "Collect_S18_S2_Butt"
+        ],
+        "focus": "S18.关面板回箱庭"
+    },
+    "Collect_S18_S2_Butt": {
+        "desc": "[S18·第2步a]点箱庭左上角的**快捷移动**按钮(借现成 Arbitrage_NviGuide_Butt / Nvi_SandGuideButt.png)。这正是用户口径『初始位置不对时,点击箱庭左上角快捷移动去酒馆』;与既有猫咪流程 Collect_FindPickupCat_LeaveCircle_Ty1 同源。",
+        "max_hit": 3,
+        "recognition": "Or",
+        "any_of": [
+            "Arbitrage_NviGuide_Butt"
+        ],
+        "action": "Click",
+        "target": "Arbitrage_NviGuide_Butt",
+        "post_delay": 800,
+        "next": [
+            "Collect_S18_S2_Ocr"
+        ],
+        "on_error": [
+            "Collect_S18_S_Abort"
+        ],
+        "focus": "S18.点快捷移动(箱庭左上)"
+    },
+    "Collect_S18_S2_Ocr": {
+        "desc": "[S18·第2步b]在快捷移动菜单列表里点'酒馆'(OCR roi 260,64,190,307,与猫咪流程 Collect_FindPickupCat_LeaveCircle_Ty2 同一块面板)。",
+        "max_hit": 3,
+        "recognition": "OCR",
+        "roi": [
+            260,
+            64,
+            190,
+            307
+        ],
+        "expected": [
+            "酒馆"
+        ],
+        "action": "Click",
+        "post_delay": 800,
+        "next": [
+            "Collect_S18_S2_Walk",
+            "Collect_S18_S2_Ocr"
+        ],
+        "on_error": [
+            "Collect_S18_S_Abort"
+        ],
+        "focus": "S18.菜单点'酒馆'"
+    },
+    "Collect_S18_S2_Walk": {
+        "desc": "[S18·第2步c]等自动寻路走完(post_wait_freezes:画面连续静止1.5s才算到;走路/转场时画面一直在动,所以这一条天然把整段路都吃掉)。走完直接进导航地图(下一步固定为 Collect_S18_S3_NviMap_Open)。★2026-10-07 修复:原 next=[Anchor]S18_AfterWalk,而该锚只由 S1_Close 声明;给 Map1_Trip 加的'面板没开时绕过 S1_Close 直走 S2_Butt'路径会让 S1_Close 被跳过、锚未声明,于是 S2_Walk 走完寻路后 next 解析失败→on_error S_Abort→S_Abort 的 max_hit=1 用尽后 error handling loop(实测 11:31~11:33 卡 283s,任务失败)。该锚本就单声明单引用,去掉间接层,next 直接写死。★2026-10-10 对齐 M14 公共件:next 前两位加 [JumpBack]Collect_IM_OnFoot_Moveing / [JumpBack]Global_WaitingForLoading(写法照抄已实机跑通的 Collect_S06_OnFoot_WaitArrive,两者都是 TeleportRecall/Global 里的公共节点),寻路中或载入中就回本节点继续等,不再只依赖『画面连续静止 1.5s』这一条判据。★同时删掉原 max_hit:3 —— [JumpBack] 回到本节点会计入 max_hit(Collect_WayPoint_Entry 那次已实测证实),留着会在人还在走时把 3 次额度耗光、进而落到 on_error 的 Collect_S18_S_Abort 把卡带断掉;循环上限改由 timeout 120000 兜。",
+        "recognition": "DirectHit",
+        "action": "DoNothing",
+        "post_wait_freezes": 1500,
+        "post_delay": 1000,
+        "timeout": 120000,
+        "next": [
+            "[JumpBack]Collect_IM_OnFoot_Moveing",
+            "[JumpBack]Global_WaitingForLoading",
+            "Collect_S18_S3_NviMap_Open"
+        ],
+        "on_error": [
+            "Collect_S18_S_Abort"
+        ],
+        "focus": "S18.等自动寻路结束"
+    },
+    "Collect_S18_S3_NviMap_Open": {
+        "desc": "[S18·第3步a]点**左上小地图**打开导航地图。写法照抄项目自带的 'S06.打开导航地图'(Collect_S06_Floor_Read)与 'C14.展开导航地图'(Collect_Special_M14_NviMap_Open):识别面=箱庭HUD(Rec_SandBox_Pin_Tpl/Run_Tpl),**点击位写成固定框 [148,119,34,38]**。★教训(实测 2026-10-01 19:33):原先写 Or[Collect_TeleporCircle_OnFoot_GoinNviMap] + target 指给该节点 —— 它没有自己的匹配框(它的识别是箱庭HUD模板),于是点击落到模板框上=点空,导航地图一直没打开,日志在 'S18.打开导航地图(酒馆)' 打转。",
+        "max_hit": 3,
+        "recognition": "Or",
+        "any_of": [
+            "Rec_SandBox_Pin_Tpl",
+            "Rec_SandBox_Run_Tpl",
+            "Collect_TeleporCircle_OnFoot_NviMap"
+        ],
+        "action": "Click",
+        "target": [
+            148,
+            119,
+            34,
+            38
+        ],
+        "post_delay": 2500,
+        "next": [
+            "Collect_S18_S3_AtHotel_Ck",
+            "Collect_S18_S3_NviMap_Open"
+        ],
+        "on_error": [
+            "Collect_S18_S3_NviMap_Open",
+            "Collect_S18_S_Abort"
+        ],
+        "focus": "S18.打开导航地图(酒馆)"
+    },
+    "Collect_S18_S3_AtHotel_Ck": {
+        "desc": "[S18·第3步b]确认站在酒馆(该区域在导航地图上的标题=儿童房,实机帧确认)。不动作——保持导航地图开着,下一步要在地图上点地图1的图标。",
+        "max_hit": 2,
+        "recognition": "OCR",
+        "roi": [
+            171,
+            15,
+            555,
+            48
+        ],
+        "expected": [
+            "儿童房"
+        ],
+        "action": "DoNothing",
+        "post_delay": 500,
+        "next": [
+            "Collect_S18_S4_Click_Map1"
+        ],
+        "on_error": [
+            "Collect_S18_S_Abort"
+        ],
+        "focus": "S18.[校验]已到酒馆(导航地图标题=儿童房)"
+    },
+    "Collect_S18_S4_Click_Map1": {
+        "desc": "[S18·第4步]点导航地图上那枚**绿色小房子**图标(标签'科库托斯暗黑神殿'就在它正上方)——点它即自动寻路去地图1。模板 S18_Map1_Icon.png(33x33,2026-10-01 由用户提供的实机帧裁;同帧匹配 0.992、换重采样 1.000、地图区域内无其它 >0.55 命中)。整屏 ROI:图标位置随镜头/区域页变化,模板跟着图标走。",
+        "max_hit": 3,
+        "recognition": "TemplateMatch",
+        "roi": [
+            0,
+            0,
+            1280,
+            720
+        ],
+        "template": [
+            "S18_Map1_Icon.png"
+        ],
+        "threshold": 0.85,
+        "action": "Click",
+        "post_delay": 3000,
+        "next": [
+            "Collect_S18_S4_Walk"
+        ],
+        "on_error": [
+            "Collect_S18_S_Abort"
+        ],
+        "focus": "S18.点绿房子图标-自动寻路去地图1"
+    },
+    "Collect_S18_S4_Walk": {
+        "desc": "[S18·第4步b]等自动寻路+转场走完(同 S2_Walk 的画静止判据)。★2026-10-10 对齐 M14 公共件:next 前两位加 [JumpBack]Collect_IM_OnFoot_Moveing / [JumpBack]Global_WaitingForLoading(照抄已跑通的 Collect_S06_OnFoot_WaitArrive),寻路/载入中回本节点继续等。★删掉原 max_hit:3 —— [JumpBack] 回本节点会计入 max_hit,留着会在人还在走时耗尽额度直接断到 Collect_S18_S_Abort;上限改由 timeout 120000 兜。",
+        "recognition": "DirectHit",
+        "action": "DoNothing",
+        "post_wait_freezes": 1500,
+        "post_delay": 1000,
+        "timeout": 120000,
+        "next": [
+            "[JumpBack]Collect_IM_OnFoot_Moveing",
+            "[JumpBack]Global_WaitingForLoading",
+            "Collect_S18_S5_FindRedX"
+        ],
+        "on_error": [
+            "Collect_S18_S_Abort"
+        ],
+        "focus": "S18.等到达地图1"
+    },
+    "Collect_S18_S6_Skill": {
+        "desc": "[S18·第6步]地图1采集:调上游技能模块(Collect_Skill_Start,识别=箱庭HUD),出口锚 QuickSkill_Egress 指到 Collect_S18_S6_Done(先补施召集/压制,再置位'本次已走地图1'并回酒馆)。采集期间 UI 还在动的话由 [JumpBack]Global_ToSandBox 兜。",
+        "max_hit": 2,
+        "recognition": "Or",
+        "any_of": [
+            "Rec_SandBox_Pin_Tpl",
+            "Rec_SandBox_Run_Tpl"
+        ],
+        "action": "DoNothing",
+        "anchor": {
+            "QuickSkill_Egress": "Collect_S18_S6_Done"
+        },
+        "next": [
+            "Collect_Skill_Start",
+            "[JumpBack]Global_ToSandBox"
+        ],
+        "on_error": [
+            "Collect_S18_S_Abort"
+        ],
+        "focus": "S18.地图1采集"
+    },
+    "Collect_S18_S6_Done": {
+        "desc": "[S18·第6步b]技能模块正常出口:先声明补施的收尾目标(S06_Done_Ck → Collect_S18_S7_Tag),再复用异教塔那套'哪格亮就点哪格'的补施节点 Collect_S06_Extra_Skills(3-3召集/3-5压制)。",
+        "max_hit": 2,
+        "recognition": "DirectHit",
+        "action": "DoNothing",
+        "anchor": {
+            "S06_Done_Ck": "Collect_S18_S7_Tag"
+        },
+        "next": [
+            "Collect_S06_Extra_Skills"
+        ],
+        "focus": "S18.地图1采集收尾(先补施)"
+    },
+    "Collect_S18_S5_FindRedX": {
+        "desc": "[S18·第5步]到层判据(替代原来'开导航地图读标题'那 5 秒):**看见地图1地上的红叉**就说明到了。红叉=橙色交叉双剑(战斗入口标记),模板 S18_Fight1_RedX.png 25x31 由用户提供的实机帧裁;实测 NCC 0.91,次高 0.76(顶部 HUD 图标)⇒ 阈值取 0.85。人物刚走完自动寻路时镜头未必对着红叉,所以 on_error 回自己重试(最多 15 拍 x1s)。",
+        "max_hit": 15,
+        "recognition": "TemplateMatch",
+        "roi": [
+            0,
+            0,
+            1280,
+            720
+        ],
+        "template": [
+            "S18_Fight1_RedX.png"
+        ],
+        "threshold": 0.85,
+        "action": "DoNothing",
+        "post_delay": 1000,
+        "next": [
+            "Collect_S18_S6_Skill"
+        ],
+        "on_error": [
+            "Collect_S18_S5_FindRedX",
+            "Collect_S18_S_Abort"
+        ],
+        "focus": "S18.[校验]到地图1(看见地上的红叉)"
+    },
+    "Collect_S18_S7_Tag": {
+        "desc": "[S18·第7步]地图1采集完,置位 S18_Map1_Trip=1(本轮不再重复走这一趟),**不返回酒馆**——按用户口径直接接着打:下一点红叉底下去战斗1(科库托斯圣域)。",
+        "max_hit": 2,
+        "recognition": "DirectHit",
+        "action": "Custom",
+        "custom_action": "UpdateTag",
+        "custom_action_param": {
+            "tag": "S18_Map1_Trip",
+            "value": 1
+        },
+        "post_delay": 0,
+        "next": [
+            "Collect_S18_S8_ClickFight1"
+        ],
+        "focus": "S18.地图1已采完(置位,不返回)"
+    },
+    "Collect_S18_S8_ClickFight1": {
+        "desc": "[S18·第8步]点**红叉底下**(target_offset=[20,38]:下移 38px + **右移 20px**;标记画在地面上,实际可交互点在它下方偏右一点)。★2026-10-07 用户实测:只下移 38px 时**有时候走过去了却不触发转场**,故再往右 +20px。→ 自动寻路/转场去战斗1 科库托斯圣域 → 由 S8_Walk 等画面静下来再采集。目标框不写 target(TemplateMatch 自带匹配框;只有 Or 节点才必须显式指定 target)。",
+        "max_hit": 3,
+        "recognition": "TemplateMatch",
+        "roi": [
+            0,
+            0,
+            1280,
+            720
+        ],
+        "template": [
+            "S18_Fight1_RedX.png"
+        ],
+        "threshold": 0.85,
+        "action": "Click",
+        "target_offset": [
+            20,
+            38,
+            0,
+            0
+        ],
+        "post_delay": 3000,
+        "next": [
+            "Collect_S18_S8_Walk"
+        ],
+        "on_error": [
+            "Collect_S18_S_Abort"
+        ],
+        "focus": "S18.点红叉底下-去战斗1 科库托斯圣域"
+    },
+    "Collect_S18_S8_Walk": {
+        "desc": "[S18·第8步b]等转场/寻路结束(画面连续静止 1.5s)。战斗1 场景里没有可用的固定标志物模板,所以到没到由'画面静下来 + 箱庭HUD'共同兜(S8_Skill 的识别就是箱庭HUD);若实测会抢跑,给一帧战斗1的标志物我再收紧。★2026-10-10 对齐 M14 公共件:next 前两位加 [JumpBack]Collect_IM_OnFoot_Moveing / [JumpBack]Global_WaitingForLoading(照抄已跑通的 Collect_S06_OnFoot_WaitArrive),寻路/载入中回本节点继续等。★删掉原 max_hit:3 —— [JumpBack] 回本节点会计入 max_hit,留着会在人还在走时耗尽额度直接断到 Collect_S18_S_Abort;上限改由 timeout 120000 兜。",
+        "next": [
+            "[JumpBack]Collect_IM_OnFoot_Moveing",
+            "[JumpBack]Global_WaitingForLoading",
+            "Collect_S18_S8_Skill"
+        ],
+        "on_error": [
+            "Collect_S18_S_Abort"
+        ],
+        "focus": "S18.等待进入战斗1",
+        "recognition": "DirectHit",
+        "action": "DoNothing",
+        "post_wait_freezes": 1500,
+        "post_delay": 1000,
+        "timeout": 120000
+    },
+    "Collect_S18_S8_Skill": {
+        "desc": "[S18·第8步c]战斗1(科库托斯圣域)采集:调上游技能模块 Collect_Skill_Start,出口锚 QuickSkill_Egress → Collect_S18_S8_Done(先补施)。刚转场完可能还在读条,所以先排 [JumpBack]Global_WaitingForLoading。",
+        "max_hit": 2,
+        "recognition": "Or",
+        "any_of": [
+            "Rec_SandBox_Pin_Tpl",
+            "Rec_SandBox_Run_Tpl"
+        ],
+        "action": "DoNothing",
+        "anchor": {
+            "QuickSkill_Egress": "Collect_S18_S8_Done"
+        },
+        "next": [
+            "[JumpBack]Global_WaitingForLoading",
+            "Collect_Skill_Start",
+            "[JumpBack]Global_ToSandBox"
+        ],
+        "on_error": [
+            "Collect_S18_S_Abort"
+        ],
+        "focus": "S18.战斗1(科库托斯圣域)采集"
+    },
+    "Collect_S18_S8_Done": {
+        "desc": "[S18·第8步d]战斗1 技能模块出口:先补施(复用 Collect_S06_Extra_Skills:哪格亮就点哪格),补完去点传送技能打战斗3。",
+        "max_hit": 2,
+        "recognition": "DirectHit",
+        "action": "DoNothing",
+        "anchor": {
+            "S06_Done_Ck": "Collect_S18_S9_TpSkill"
+        },
+        "next": [
+            "Collect_S06_Extra_Skills"
+        ],
+        "focus": "S18.战斗1采集收尾(先补施)"
+    },
+    "Collect_S18_S9_TpSkill": {
+        "desc": "[S18·第9步a]点**传送技能**(借现成 Collect_Skill3_4 / Skill3-1.png,技能栏 3-1)开移动魔法阵面板,去战斗3(第一记忆空间)。★站在魔法阵附近时游戏会拒绝天赋技能,那时才轮到'手'标 → on_error 走 S9_ByHand 兜底(与异教塔那条同源)。",
+        "max_hit": 3,
+        "recognition": "Or",
+        "any_of": [
+            "Collect_Skill3_4"
+        ],
+        "action": "Click",
+        "target": "Collect_Skill3_4",
+        "post_delay": 3000,
+        "next": [
+            "Collect_S18_S9_Panel_Ck",
+            "Collect_S18_S9_TpSkill"
+        ],
+        "on_error": [
+            "Collect_S18_S9_ByHand",
+            "Collect_S18_S_Abort"
+        ],
+        "focus": "S18.点传送技能(开魔法阵面板)"
+    },
+    "Collect_S18_S9_ByHand": {
+        "desc": "[S18·第9步a']传送技能被拒(人在魔法阵附近)时的兜底:点右下'手'标开面板(Collect_TeleporCircle_Ico_Enter)。",
+        "max_hit": 2,
+        "recognition": "Or",
+        "any_of": [
+            "Collect_TeleporCircle_Ico_Enter"
+        ],
+        "action": "Click",
+        "target": "Collect_TeleporCircle_Ico_Enter",
+        "post_delay": 2000,
+        "next": [
+            "Collect_S18_S9_Panel_Ck"
+        ],
+        "on_error": [
+            "Collect_S18_S_Abort"
+        ],
+        "focus": "S18.手标兜底-开魔法阵面板"
+    },
+    "Collect_S18_S9_Panel_Ck": {
+        "desc": "[S18·第9步b]确认区域地图/魔法阵面板已打开(借上游的面板判据 Collect_OperationsMain_ToAreaMap)。",
+        "max_hit": 3,
+        "recognition": "Or",
+        "any_of": [
+            "Collect_OperationsMain_ToAreaMap"
+        ],
+        "action": "DoNothing",
+        "post_delay": 500,
+        "next": [
+            "Collect_S18_S9_Panel_Lift"
+        ],
+        "on_error": [
+            "Collect_S18_S_Abort"
+        ],
+        "focus": "S18.[校验]魔法阵面板已打开"
+    },
+    "Collect_S18_S9_Panel_Lift": {
+        "desc": "[S18·第9步b']**把魔法阵面板翻到最左页**再开始找战斗3。★为什么要这一步(实测 2026-10-01 20:2x):面板打开时停在人物当前所在的那一页(当时是'战斗 Ⅴ 通往暗夜世界入口之路'),而原来只会点右箭头往右翻⇒ 永远翻不到排在它前面的'战斗 Ⅲ'。写法完全照抄上游 Collect_MapLift:借面板左箭头模板 Rec_AreaMap_ButtLift_Tmp,左键连点 7 下(页面总数就 5~6 页)。左箭头没认出来也不致命(on_error 直接进找页)。★2026-10-07 修复:next/on_error 由只挂 [FindBattle3] 改为 [FindBattle3, FindBattle3_Top, PageRight] —— **翻页闭环必须放在 next 列表里**。原来只挂 FindBattle3 一项,而找页的后续(Top 顶部标题兜底 → PageRight 右翻页 → 回 FindBattle3)全挂在 on_error 链上;**候选节点识别失败只会被跳过、不走它自己的 on_error** ⇒ 翻到最左页时名条是地图1/战斗Ⅰ,FindBattle3 不命中 ⇒ 整个 next 列表失败、永远轮不到翻页 ⇒ 战斗3 找不到(2026-10-07 12:55 实测:面板翻到最左页后就停住)。★2026-10-07 曾改成 [FindBattle3, FindBattle3_Top, PageRight]（想补翻页闭环），**已回退**:用户指出『传送技能打开地图时游戏自己就翻到最左页了,再往右翻一页没有意义』;且实测(13:40)加了 PageRight 后反而 `面板右翻一页` → `地图1流程失败-结束卡带`,今天的改动破坏了原本能跑通的逻辑。恢复为原始写法。★2026-10-07 终版(adb 截图确认):传送技能打开面板时**游戏自动落在最左页**(名条=安全 科库托斯暗黑神殿,底部页码条约 10 页),战斗3 在右边某页 ⇒ **必须循环右翻**:next=[FindBattle3, PageRight] —— 先认当前页名条,不是战斗Ⅲ就右翻一页;PageRight.next 同为 [FindBattle3, PageRight] 形成循环,每翻一页认一次,直到 FindBattle3 命中(PageRight max_hit 14 足够翻完所有页)。此前两版失败原因:①只挂 FindBattle3 一项(不命中即整个列表失败,翻页永远轮不到);②PageRight.next 只有 FindBattle3(只翻一页不中就退栈,实测 13:40 翻一页后直接失败)。",
+        "max_hit": 3,
+        "recognition": "Or",
+        "any_of": [
+            "Rec_AreaMap_ButtLift_Tmp"
+        ],
+        "action": "Click",
+        "repeat": 7,
+        "repeat_delay": 150,
+        "post_delay": 1500,
+        "next": [
+            "Collect_S18_S9_FindBattle3",
+            "Collect_S18_S9_PageRight"
+        ],
+        "on_error": [
+            "Collect_S18_S9_FindBattle3",
+            "Collect_S18_S9_PageRight"
+        ],
+        "focus": "S18.魔法阵面板翻到最左页"
+    },
+    "Collect_S18_S9_PageRight": {
+        "desc": "[S18·第9步c']点右箭头翻一页(点击位 977,342 与上游维护点C04 的翻页节点一致),然后回 S9_FindBattle2 再认。识别面=上游的面板判据 Collect_OperationsMain_ToAreaMap('是否区域地图界面'):面板一旦被传送收掉,本节点自然不再命中,流程就落到 S9_Walk —— 这样翻页与'已传送'两条路不会互相抢。★2026-10-07:next/on_error 改为 [FindBattle3, PageRight] 形成**循环翻页**——翻一页认一次名条(底部页码条约 10 页,战斗Ⅲ 在右边),没到战斗Ⅲ就继续翻;此前 next 只有 FindBattle3,翻一页不中即退栈失败(实测 13:40)。",
+        "max_hit": 14,
+        "recognition": "Or",
+        "any_of": [
+            "Collect_OperationsMain_ToAreaMap"
+        ],
+        "action": "Click",
+        "target": [
+            977,
+            342,
+            2,
+            2
+        ],
+        "post_delay": 1200,
+        "next": [
+            "Collect_S18_S9_FindBattle3",
+            "Collect_S18_S9_PageRight"
+        ],
+        "on_error": [
+            "Collect_S18_S9_FindBattle3",
+            "Collect_S18_S9_PageRight"
+        ],
+        "focus": "S18.面板右翻一页"
+    },
+    "Collect_S18_S9_Walk": {
+        "desc": "[S18·第9步e]等传送转场结束(画面连续静止 1.5s)。★2026-10-10 对齐 M14 公共件:next 前两位加 [JumpBack]Collect_IM_OnFoot_Moveing / [JumpBack]Global_WaitingForLoading(照抄已跑通的 Collect_S06_OnFoot_WaitArrive),寻路/载入中回本节点继续等。★删掉原 max_hit:3 —— [JumpBack] 回本节点会计入 max_hit,留着会在人还在走时耗尽额度直接断到 Collect_S18_S_Abort;上限改由 timeout 120000 兜。",
+        "next": [
+            "[JumpBack]Collect_IM_OnFoot_Moveing",
+            "[JumpBack]Global_WaitingForLoading",
+            "Collect_S18_S9_NviMap_Opened",
+            "Collect_S18_S9_Verify3"
+        ],
+        "on_error": [
+            "Collect_S18_S_Abort"
+        ],
+        "focus": "S18.等待进入战斗3",
+        "recognition": "DirectHit",
+        "action": "DoNothing",
+        "post_wait_freezes": 1500,
+        "post_delay": 1000,
+        "timeout": 120000
+    },
+    "Collect_S18_S9_Verify3": {
+        "desc": "[S18·第9步e]复核'确实到了战斗3':点左上小地图开导航地图(固定点击位 148,119,34,38),再 OCR 顶部标题是否含'战斗Ⅲ/第一记忆空间'。到了就点左上返回关掉地图(111,41,同 S06 那套),然后采集。★★2026-10-10 重要修正:**本节点的固定点击只能在导航地图没开时执行**。原实现里 any_of 含 Collect_TeleporCircle_OnFoot_NviMap(=导航地图已开)且 next/on_error 都自引用,于是小地图**已经开着**时本节点照样命中并**再点一次 (148,119)** ⇒ 这一下落在小地图内部的入口按钮上(左下角=守山人休息处/狩猎场,用户确认该处与卡带18无关、只能从小地图左下角进入)⇒ 人物被寻路去狩猎场、顶部标题读成『守山人休息处』⇒ 校验 20 秒失败 ⇒ S_Abort ⇒ 卡带18 误打完成标记(实测 16:42:14~34)。现改为:①调用方 Collect_S18_S9_Walk.next 在它之前插入 Collect_S18_S9_NviMap_Opened(图已开 ⇒ 直接进校验,**不执行本节点的点击**);②next/on_error 去掉自引用,不再自我重试点击;③max_hit 4→2(防御上限;因 next/on_error 已不再自引用,实际不会重试点击——'点了没打开'宁可直接 Abort,也不能在已开的地图上再点)+ timeout 5000(不吃 20 秒默认超时)。",
+        "max_hit": 2,
+        "recognition": "Or",
+        "any_of": [
+            "Rec_SandBox_Pin_Tpl",
+            "Rec_SandBox_Run_Tpl",
+            "Collect_TeleporCircle_OnFoot_NviMap"
+        ],
+        "action": "Click",
+        "target": [
+            148,
+            119,
+            34,
+            38
+        ],
+        "post_delay": 2500,
+        "timeout": 5000,
+        "next": [
+            "Collect_S18_S9_NviMap_Opened",
+            "Collect_S18_S9_Verify3_Ck"
+        ],
+        "on_error": [
+            "Collect_S18_S_Abort"
+        ],
+        "focus": "S18.打开导航地图复核战斗3"
+    },
+    "Collect_S18_S9_NviMap_Opened": {
+        "desc": "[S18·第9步e-前置]导航地图**已经打开**的分流节点(识别=上游 Collect_TeleporCircle_OnFoot_NviMap:OCR 底部『在战场中查看/探索/世界地图』)。★存在理由:Verify3 的固定点击位 (148,119) 只在小地图**没开**时才等于'左上小地图按钮';一旦图已开,同一个坐标落在小地图内部的入口按钮上(左下角=守山人休息处/狩猎场)⇒ 会把人物寻路去别处。所以它必须排在 Verify3 **之前**,图已开时直接进 Collect_S18_S9_Verify3_Ck 校验,彻底跳过那一下点击。放在 Collect_S18_S9_Walk.next 与 Verify3.next 里各一处。",
+        "recognition": "Or",
+        "any_of": [
+            "Collect_TeleporCircle_OnFoot_NviMap"
+        ],
+        "action": "DoNothing",
+        "post_delay": 300,
+        "next": [
+            "Collect_S18_S9_Verify3_Ck"
+        ],
+        "focus": "S18.导航地图已开(跳过点击直接校验)"
+    },
+    "Collect_S18_S9_Verify3_Ck": {
+        "desc": "[S18·第9步e']导航地图标题含'战斗Ⅲ/第一记忆空间' ⇒ 人已在战斗3。点左上返回关掉地图,进采集。",
+        "max_hit": 2,
+        "recognition": "OCR",
+        "roi": [
+            171,
+            15,
+            555,
+            48
+        ],
+        "expected": [
+            "战斗III",
+            "战斗Ⅲ",
+            "战斗 III",
+            "战斗 Ⅲ",
+            "战斗3",
+            "战斗❸",
+            "第一记忆空间",
+            "第一記憶空間",
+            "战斗\\s*([1Il|Ⅰ!！]{3}|Ⅲ|III)(?!\\d)(?![a-zA-Z])",
+            "战斗([1Il|Ⅰ!！]{3}|Ⅲ|III)(?!\\d)(?![a-zA-Z])"
+        ],
+        "action": "Click",
+        "target": [
+            111,
+            41
+        ],
+        "post_delay": 1200,
+        "next": [
+            "Collect_S18_S9_Skill"
+        ],
+        "on_error": [
+            "Collect_S18_S_Abort"
+        ],
+        "focus": "S18.[校验]已到战斗3(导航地图标题=战斗Ⅲ)"
+    },
+    "Collect_S18_S9_Skill": {
+        "desc": "[S18·第10步]战斗3(第一记忆空间)采集:调上游技能模块,出口锚 → S9_Done(补施)。",
+        "max_hit": 2,
+        "recognition": "Or",
+        "any_of": [
+            "Rec_SandBox_Pin_Tpl",
+            "Rec_SandBox_Run_Tpl"
+        ],
+        "action": "DoNothing",
+        "anchor": {
+            "QuickSkill_Egress": "Collect_S18_S9_Done"
+        },
+        "next": [
+            "[JumpBack]Global_WaitingForLoading",
+            "Collect_Skill_Start",
+            "[JumpBack]Global_ToSandBox"
+        ],
+        "on_error": [
+            "Collect_S18_S_Abort"
+        ],
+        "focus": "S18.战斗3(第一记忆空间)采集"
+    },
+    "Collect_S18_S9_Done": {
+        "desc": "[S18·第10步b]战斗3 技能模块出口:补施后收尾。",
+        "max_hit": 2,
+        "recognition": "DirectHit",
+        "action": "DoNothing",
+        "anchor": {
+            "S06_Done_Ck": "Collect_S18_S10_Finish"
+        },
+        "next": [
+            "Collect_S06_Extra_Skills"
+        ],
+        "focus": "S18.战斗3采集收尾(先补施)"
+    },
+    "Collect_S18_S10_Finish": {
+        "desc": "[S18·收尾]地图1 + 战斗1(科库托斯圣域) + 战斗3(第一记忆空间) 都采完 ⇒ **本卡带采集完成**,按既有收尾退卡带(Collect_QuickCart_FastUI → 由卡带节点 Collect_Pack_Story_18 的 PatchPipeline 在 Collect_PackEnd_Ck 打完成标记),回到快速卡带菜单等下一张。★若你希望采完仍回到卡带内流程(而非直接退卡带),把下一行换成 Collect_OperationsMain_Sandplay 即可。★2026-10-01 本地:next 首位补两次通用返回 [JumpBack]Global_BackPageHub_Once——实测残留的'移动魔法阵'面板会挡住卡带列表,导致 Collect_QuickCart_Menu 等节点全部匹配不上、Task timeout(20:21:15 / 20:21:35)。★2026-10-02 本地:加 max_hit:1 并把 next 收敛为 ['Collect_QuickCart_FastUI', '[JumpBack]Global_QuickCart_MenuReset', '[JumpBack]Global_ToSandBox']。原因:本节点是 DirectHit(永远命中),而 next 里的候选都'不成立就返回'(Global_BackPageHub_Once 是 [JumpBack]、FastUI 识别不中、MenuReset 跑完即回) ⇒ 候选轮完回到本节点重评 ⇒ 原地死循环(实测日志 11:26:36~11:26:55 反复'打开/关闭卡带列表')。max_hit 保证只跑一次。",
+        "max_hit": 1,
+        "recognition": "DirectHit",
+        "action": "DoNothing",
+        "post_delay": 500,
+        "next": [
+            "[JumpBack]Collect_S18_Tags_Reset",
+            "Collect_QuickCart_FastUI",
+            "[JumpBack]Global_QuickCart_MenuReset",
+            "[JumpBack]Global_ToSandBox"
+        ],
+        "on_error": [
+            "[JumpBack]Collect_S18_Tags_Reset",
+            "Collect_QuickCart_FastUI",
+            "[JumpBack]Global_QuickCart_MenuReset",
+            "[JumpBack]Global_ToSandBox"
+        ],
+        "focus": "S18.采集完成-退出卡带"
+    },
+    "Collect_S18_S_Abort": {
+        "desc": "[S18·断臂]去/回地图1途中任一环节失败:不再硬试,直接结束卡带内流程回快速卡带菜单(与 Collect_S06_Abort、Collect_Architecture_Underlying_Logic_Protection 同一思路:最多丢本卡剩余资源,不把状态机卡死)。★同上:先关掉可能残留的面板再退卡带。★2026-10-02 本地:加 max_hit:1 并把 next 收敛为 ['Collect_QuickCart_FastUI', '[JumpBack]Global_QuickCart_MenuReset', '[JumpBack]Global_ToSandBox']。原因:本节点是 DirectHit(永远命中),而 next 里的候选都'不成立就返回'(Global_BackPageHub_Once 是 [JumpBack]、FastUI 识别不中、MenuReset 跑完即回) ⇒ 候选轮完回到本节点重评 ⇒ 原地死循环(实测日志 11:26:36~11:26:55 反复'打开/关闭卡带列表')。max_hit 保证只跑一次。",
+        "max_hit": 1,
+        "recognition": "DirectHit",
+        "action": "DoNothing",
+        "post_delay": 0,
+        "next": [
+            "[JumpBack]Collect_S18_Tags_Reset",
+            "Collect_QuickCart_FastUI",
+            "[JumpBack]Global_QuickCart_MenuReset",
+            "[JumpBack]Global_ToSandBox"
+        ],
+        "focus": "S18.[WRN]地图1流程失败-结束卡带",
+        "on_error": [
+            "[JumpBack]Collect_S18_Tags_Reset",
+            "Collect_QuickCart_FastUI",
+            "[JumpBack]Global_QuickCart_MenuReset",
+            "[JumpBack]Global_ToSandBox"
+        ]
     },
     "Collect_TargetMap1_Special_PerRight": {
         "desc": "[维护点C05]复位到箱庭1图时需要特殊跳过的图,用来跳过图1非目标图,(EP18)需要持续维护!",
@@ -505,8 +1457,9 @@
         ]
     },
     "Collect_TargetMap4_Special": {
-        "desc": "[维护点C??]当能吸的图超过4个时候,在4→End之间插入特殊路由，让状态机返回4开头。无需操作，只改状态机。这里是定向识别,需要持续维护!",
+        "desc": "[维护点C??]当能吸的图超过4个时候,在4→End之间插入特殊路由，让状态机返回4开头。无需操作，只改状态机。这里是定向识别,需要持续维护!★2026-10-10 补 timeout 3000:它是**定向识别的纯路由节点**(只改状态机、next 仅指向 Collect_TargetMap3),识别失败本就该立刻跳过让后续候选(Collect_QuickCart_TargetMapEnd / Collect_MapRight_NoFind 等)接手收尾;原先没写 timeout ⇒ 不命中时吃满框架默认的 20 秒 reco_timeout,整条 next 链被拖到超时后退栈 —— 实测卡带19(2026-10-10 16:08:08→16:08:28 正好 20 秒)因此退栈到定位链 Collect_LocatePackFrame_Loc8,而那时**区域地图还开着**,定位链第一候选 SmartSwipe 就在区域地图上滑动、画面静止 4 次判『触底』,用户看到的就是『打开了地图却在翻卡带』。取值 3000 与上游 Collect_TargetMap_Special_M14 同款。",
         "recognition": "OCR",
+        "timeout": 3000,
         "roi": [
             408,
             622,
@@ -523,7 +1476,9 @@
     "Collect_MapRight_NoFind": {
         "desc": "EP6.特殊地图，最后一图是紧接战斗2的狩猎图,特征是无右侧箭头。处理，直接结束箱庭内流程|EP.15/17吸取第三图直接是最后一图,需要这个方式退出",
         "recognition": "Or",
-        "any_of": ["Rec_AreaMap_ButtRight_Tmp"],
+        "any_of": [
+            "Rec_AreaMap_ButtRight_Tmp"
+        ],
         "inverse": true,
         "next": [
             "Collect_QuickCart_FastUI",
@@ -535,7 +1490,9 @@
     "Collect_TargetMapEnd_End": {
         "desc": "维护点C02末端.快速卡带pipeline_override了此处next，去了C_QuickCart_TargetMapEnd,因为是中断内next，故必须结束退回上一个流程，单独end",
         "recognition": "Or",
-        "any_of": ["Collect_QuickCart_TargetMapEnd"],
+        "any_of": [
+            "Collect_QuickCart_TargetMapEnd"
+        ],
         "target": [
             120,
             35
@@ -630,7 +1587,9 @@
     "Collect_TeleporNotFind_Right": {
         "desc": "方案1:识别到存在右侧按键,点一下.next:1.若是旅馆安全图,异常消除,退出中断/2.有传送阵,点进去(非安全),尝试吸取【？，万一是狩猎场呢，逻辑又漏洞！】/3.还是没传送标,前位循环",
         "recognition": "Or",
-        "any_of": ["Rec_AreaMap_ButtRight_Tmp"],
+        "any_of": [
+            "Rec_AreaMap_ButtRight_Tmp"
+        ],
         "action": "Click",
         "post_delay": 1000,
         "next": [
@@ -643,7 +1602,9 @@
     "Collect_TeleporNotFind_NORight": {
         "desc": "方案2:识别到右侧按键不存在,这是卡带中最后一图,如火片.操作,切到快速卡带界面,传递退出信号",
         "recognition": "Or",
-        "any_of": ["Rec_AreaMap_ButtRight_Tmp"],
+        "any_of": [
+            "Rec_AreaMap_ButtRight_Tmp"
+        ],
         "inverse": true,
         "post_delay": 1000,
         "next": [
@@ -738,18 +1699,35 @@
         "focus": "CM.N.选择次选传送阵"
     },
     "Collect_ClickTelepor_TargetClass_White": {
-        "desc": "详细地图内传送阵选择",
-        "recognition": "Or",
-        "any_of": ["Collect_ClickTeleporCircleIco"],
+        "desc": "[区域地图·点传送阵②]非紫色首选 ⇒ 点该页圈图标。★2026-10-02 本地:①识别面加【仍在面板上】的守卫 —— `And[Or[面板标题OCR Collect_OperationsMain_ToAreaMap, 右箭头 Collect_MapRight, 左箭头 Collect_OperationsEnd_NORight], Or[圈模板 Collect_ClickTeleporCircleIco]]`。原因:圈模板 `TpCircleMap.png` **在场景里也命中地面传送阵图标**,next 里的自我重试会在到达后再次命中 ⇒ 实测把【技能传送】之后的第二次点击打在了地面传送阵上(传送阵1 → 传送阵2,即用户 2026-10-02 报的多余传送)。加守卫后面板一关就不再点击 ✓。②next 顺序:把 `[JumpBack]Global_WaitingForLoading` 提到自我重试**之前** —— 转场还在载入时先等载入,只有【面板还在且第一次真空点】才重试。动作与点击目标(target=Collect_ClickTeleporCircleIco)未变。 ★2026-10-02 修:And 的子识别顺序必须【圈在前、面板守卫在后】—— And 的 box 取 box_index(默认0)对应子识别的框,实测(13:14:04) 面板守卫排前面时点击框变成面板标题框 [154,20,178,40] ⇒ 点偏;圈排前面后点击框回到圈图标框(与改动前一致)。",
+        "recognition": "And",
         "action": "Click",
+        "target": "Collect_ClickTeleporCircleIco",
         "post_delay": 5000,
         "next": [
             "[Anchor]SandBox_Bypass",
             "Collect_Skill_Entry",
-            "Collect_ClickTelepor_TargetClass_White",
-            "[JumpBack]Global_WaitingForLoading"
+            "[JumpBack]Global_WaitingForLoading",
+            "Collect_ClickTelepor_TargetClass_White"
         ],
-        "focus": "CM.N.区域地图.tp1.选择首选传送阵图标"
+        "focus": "CM.N.区域地图.tp1.选择首选传送阵图标",
+        "all_of": [
+            {
+                "recognition": "Or",
+                "any_of": [
+                    "Collect_ClickTeleporCircleIco"
+                ]
+            },
+            {
+                "recognition": "Or",
+                "any_of": [
+                    "Collect_OperationsMain_ToAreaMap",
+                    "Collect_MapRight",
+                    "Collect_OperationsEnd_NORight"
+                ]
+            }
+        ],
+        "box_index": 0
     },
     "Collect_Skill_Entry": {
         "desc": "[入口]调用快捷技能模块,传入状态参数。当前只传出口锚QuickSkill_Egress→Collect_Skill_Egress,清锚由Egress自己做。【识别不可改成DirectHit】它同时兼任'确实已进箱庭'的门禁,必中会让上游调用点的自引用重试永远轮不到。",
@@ -763,7 +1741,9 @@
             "QuickSkill_Egress": "Collect_Skill_Egress"
         },
         "post_delay": 0,
-        "next": ["Collect_Skill_Start"]
+        "next": [
+            "Collect_Skill_Start"
+        ]
     },
     "Collect_Skill_Egress": {
         "desc": "[出口]技能模块返回卡带主线:确认技能页已复位(色核)→清出口锚→继续切图。原名Collect_Skill_End,自Collect_skills.json迁入——它做的是导航的事,不属于技能模块。",
@@ -880,11 +1860,14 @@
         "focus": "CM.N.区域地图.tp1.已正确"
     },
     "Collect_OperationsMain_OperationsEnd": {
-        "desc": "确认区域地图，准备切图",
+        "desc": "[区域地图-收尾/切图入口]识别到区域地图面板(标题=移动魔法阵) ⇒ 准备翻页/切图。★2026-10-02 本地:next 首位挂 [Anchor]C3_Battle1_Done —— 角色卡3 战斗1 采集完后,通用流程会先用场景里的地面传送阵把区域地图面板打开、走到本节点;此刻名条=人物真实所在图(战斗Ⅰ) ⇒ 立刻被 C3 钩子接管去寻路战斗2,**不必再右翻页翻到战斗II 那页**(实测省 ≈6s:原先要 MapRight→TargetMap2→TargetMap3 三轮识别才轮到钩子)。该锚只由 Collect_Pack_Character_3 声明,别的卡带自动跳过。",
         "recognition": "Or",
-        "any_of": ["Collect_OperationsMain_ToAreaMap"],
+        "any_of": [
+            "Collect_OperationsMain_ToAreaMap"
+        ],
         "timeout": 3000,
         "next": [
+            "[Anchor]C3_Battle1_Done",
             "Collect_MapRight",
             "Collect_OperationsEnd_NORight",
             "[JumpBack]Collect_FindTeleporCircle"
@@ -915,7 +1898,9 @@
     "Collect_MapRight": {
         "desc": "详细地图内右图标，目的右移动1格[缺陷，此步骤缺乏验证方法]",
         "recognition": "Or",
-        "any_of": ["Rec_AreaMap_ButtRight_Tmp"],
+        "any_of": [
+            "Rec_AreaMap_ButtRight_Tmp"
+        ],
         "action": "Custom",
         "custom_action": "SmartAction",
         "custom_action_param": {
@@ -944,7 +1929,9 @@
     },
     "Collect_FindTeleporCircle0.9": {
         "recognition": "And",
-        "all_of": ["Collect_TeleporCircle_Ico_Enter"],
+        "all_of": [
+            "Collect_TeleporCircle_Ico_Enter"
+        ],
         "action": "Custom",
         "custom_action": "SmartAction",
         "custom_action_param": {
@@ -1012,7 +1999,9 @@
     "Collect_MapLift": {
         "desc": "详细地图内左图标，目的移动到最左,直接5连击.",
         "recognition": "Or",
-        "any_of": ["Rec_AreaMap_ButtLift_Tmp"],
+        "any_of": [
+            "Rec_AreaMap_ButtLift_Tmp"
+        ],
         "action": "Click",
         "repeat": 7,
         "repeat_delay": 150,
@@ -1020,7 +2009,9 @@
     },
     "Collect_QuickCart_FastUI": {
         "recognition": "Or",
-        "any_of": ["Global_QuickCart_MenuReset_Ocr"],
+        "any_of": [
+            "Global_QuickCart_MenuReset_Ocr"
+        ],
         "next": [
             "Collect_PackEnd_Ck"
         ],
@@ -1031,10 +2022,13 @@
         "focus": "CM.卡带内流程结束-执行完成打标记"
     },
     "Collect_QuickCart_TargetMapEnd": {
-        "desc": "维护点C02开端",
+        "desc": "维护点C02开端★2026-10-01 本地:next 首位挂 [Anchor]C3_Battle2_Trip —— 只有角色卡3(Collect_Pack_Character_3)声明了这个锚,命中时先把战斗2 按序采完再退卡带。★2026-10-01 本地:首位挂 [Anchor]C3_Battle2_Trip(角色卡3 去战斗2 的兜底入口)。",
         "recognition": "Or",
-        "any_of": ["Cpt_Collect_TargetMapEnd_Ocr"],
+        "any_of": [
+            "Cpt_Collect_TargetMapEnd_Ocr"
+        ],
         "next": [
+            "[Anchor]C3_Battle2_Trip",
             "Collect_QuickCart_FastUI",
             "[JumpBack]Global_QuickCart_MenuReset",
             "[JumpBack]Global_ToSandBox"
@@ -1044,7 +2038,9 @@
     "Collect_QuickCart_TargetMapEnd_End": {
         "desc": "维护点C02末端，同步_QuickCart_TargetMapEnd判定与动作，保留后续空节点",
         "recognition": "Or",
-        "any_of": ["Cpt_Collect_TargetMapEnd_Ocr"],
+        "any_of": [
+            "Cpt_Collect_TargetMapEnd_Ocr"
+        ],
         "focus": "CCB.[退出中断]快速卡带-卡带内流程进入END环节"
     },
     "Collect_OnlyOnce_SkillUsed": {
@@ -1072,7 +2068,9 @@
             "card_name": "Collect_OnlyOnce",
             "cycle_type": "g_weekly"
         },
-        "next": ["Collect_PackEnd_Ck_OnlyOnce_StopTask"]
+        "next": [
+            "Collect_PackEnd_Ck_OnlyOnce_StopTask"
+        ]
     },
     "Collect_PackEnd_Ck_OnlyOnce_StopTask": {
         "action": "StopTask",
@@ -1103,7 +2101,7 @@
         "green_mask": true
     },
     "Cpt_Collect_TargetMapEnd_Ocr": {
-        "desc": "[判定]识别区域地图名称,卡带应该结束",
+        "desc": "[判定]识别区域地图名称,卡带应该结束。★2026-10-10 本地追加 `^战斗Ⅲ被遗忘的神殿`(卡带19=被遗忘的战争的第4张图):用户口径该卡带按通用序列只采 3 张(地图1=安全 / 战斗1 / 战斗2),采完第3张『战斗Ⅱ通往神殿之路』后翻页看到的就是这张图,应判卡带结束、不再往后采。★为什么用带前缀的锚定正则而不是裸的『被遗忘的神殿』:END 白名单对所有卡带生效,裸串会误伤任何名字含该词的图(全库里『神殿』系图名很多:洞穴神殿/剑之神殿左右回廊/隐藏神殿/科库托斯暗黑神殿…);带 `^战斗Ⅲ` 前缀只匹配 19 这一张(实测 OCR 输出正是『战斗Ⅲ被遗忘的神殿』)。★降级行为:若 OCR 没认出前缀导致本项不命中,会回退到原来的行为(Collect_TargetMap4 白名单仍含『被遗忘的神殿』⇒ 多采一张),属『宁可多采不可漏采』,可接受。",
         "recognition": "OCR",
         "roi": [
             408,
@@ -1122,7 +2120,8 @@
             "学校操场",
             "^禁闭室",
             "旅馆$",
-            "安全"
+            "安全",
+            "^战斗Ⅲ被遗忘的神殿"
         ],
         "focus": "CM.N.卡带内流程进入END环节"
     },
@@ -1164,7 +2163,9 @@
                 "I"
             ]
         ],
-        "anchor": {"SandBox_Bypass": "Collect_Special_M14_NviMap_Open"},
+        "anchor": {
+            "SandBox_Bypass": "Collect_Special_M14_NviMap_Open"
+        },
         "post_delay": 200,
         "timeout": 3000,
         "next": [
@@ -1197,22 +2198,172 @@
             34,
             38
         ],
-        "anchor": {"SandBox_Bypass": ""},
+        "anchor": {
+            "SandBox_Bypass": ""
+        },
         "post_delay": 2500,
         "timeout": 5000,
-        "next": ["Collect_Special_M14_NviMap_Enter"],
+        "next": [
+            "Collect_Special_M14_NviMap_Enter"
+        ],
         "focus": "C14.展开导航地图"
     },
     "Collect_Special_M14_NviMap_Enter": {
         "desc": "点击导航地图左边的剑之神殿左侧回廊。",
         "max_hit": 2,
         "recognition": "And",
-        "all_of": ["Collect_TeleporCircle_OnFoot_NviMap"],
+        "all_of": [
+            "Collect_TeleporCircle_OnFoot_NviMap"
+        ],
         "post_delay": 1000,
         "timeout": 5000,
         "next": [
             "Collect_InitiatingManual_Onfoot_Start"
         ],
         "focus": "C14.步行前往剑之神殿左侧回廊"
+    },
+    "Collect_TargetMap_Special_S06": {
+        "desc": "[维护点C07·异教塔/施塔因之塔=Story_06]单独旁路。该卡带只有第1/2/5/6层需要采集,其中第2层与第5层没有传送阵、区域地图(移动魔法阵)里也没有它们的页,通用切图状态机(区域地图传送阵+右箭头单向递进)在它上面既不认楼层名也切不动。此节点识别到区域地图名条='施塔因之塔第1层'即整卡交给 Collect_S06_* 模块,采集/传送/收尾全部复用既有节点。★★位置:置于 `Collect_OperationsMain_ToAreaMap.next` 的**首位**(即 `[JumpBack]Collect_MapLift` 之前)。★2026-10-10 已移除 `Collect_TargetMap1-2.next` 的兜底:那处兜底在 MapLift 之后求值,名条只代表「翻到哪一页」(人在狩猎场/第6层时名条照样显示「安全 施塔因之塔第1层」),误命中会关面板去「采第1层」、点楼梯点空、断臂一次并污染 S06_F1 标签致第2层漏采(CodeRabbit 指出)。接管只靠本节点(名条=第1层)与 `Collect_TargetMap_Special_S06_NotAtF1`(名条=其它页)这两颗「面板刚打开」时的钩子。原因见 ToAreaMap.desc:面板是**刚打开**、还停在「人物当前所在层」那一页时,名条才等于真实楼层;一旦被 MapLift 翻到最左页,名条就只代表「翻到哪一页」了(实测踩过两次:人在第6层/狩猎场,名条照样显示「安全 施塔因之塔第1层」)。曾经把钩子挪到 `[JumpBack]Collect_ClickTeleporCircleIco` **之后**想'先让上游把人传送过去再接管',实测**反而全盘失效**:上游那个'点页面传送阵图标'每轮都先命中,于是又回到'页1→页2(第6层)→…'的老行为,2层/5层照旧漏采(2026-10-01 16:23 那轮日志里 S06 节点零出现)。所以:接管权必须抢在最前面,名条的真假问题由'钩子位置'解决——不再另做一次导航地图复核(用户 2026-10-01 要求去掉,多余动作)。 ★续跑分流:钩子进入本模块时先读阶段标签——第2层已采(S06_F2)→直接用面板去第6层;第1层已采(S06_F1)→关掉面板去第2层;都没采→照常关面板从第1层开始。这样技能模块出口崩掉导致的'被踢回卡带列表再重进'不会白跑。★2026-10-10 补 timeout 3000:同 Collect_TargetMap4_Special 那一处,定向识别的纯路由节点不命中时应立刻跳过(不吃框架默认 20 秒),取值 3000 与上游 Collect_TargetMap_Special_M14 同款。",
+        "recognition": "OCR",
+        "timeout": 3000,
+        "roi": [
+            408,
+            622,
+            466,
+            47
+        ],
+        "expected": [
+            "施塔因之塔第1层",
+            "施塔因之塔第1層"
+        ],
+        "next": [
+            "Collect_S06_Resume_F2",
+            "Collect_S06_Resume_F1_Ck",
+            "Collect_S06_1F_Panel_Back"
+        ],
+        "focus": "S06.异教塔旁路启动(第1层)"
+    },
+    "Collect_TargetMap_Special_S06_NotAtF1": {
+        "desc": "[维护点C07·异教塔/施塔因之塔=Story_06]旁路钩子的第二颗:同样挂在 `Collect_OperationsMain_ToAreaMap.next` 首位、紧跟在第1层那颗后面,识别区域地图名条=施塔因之塔的**其它页**(第6层/第8层/宿舍/第13层/封印指定室)。命中就说明'面板刚打开、人物当前所在的层不是第1层'(残留状态:比如上一轮停在6层),交给 Collect_S06_To1F_Panel→Collect_S06_To1F_Click:左键连点7下翻到最左页(固定第1层页)→点该页六芒星图标触发传送→直接采集第1层(传送后不再做楼层复核,用户要求)。★注意'面板翻到第1层页'≠'人到了第1层',必须点图标才会真的传送(用户实测指出)。★2026-10-10 补 timeout 3000:同 Collect_TargetMap4_Special 那一处,定向识别的纯路由节点不命中时应立刻跳过(不吃框架默认 20 秒),取值 3000 与上游 Collect_TargetMap_Special_M14 同款。",
+        "recognition": "OCR",
+        "timeout": 3000,
+        "roi": [
+            408,
+            622,
+            466,
+            47
+        ],
+        "expected": [
+            "施塔因之塔第6层",
+            "施塔因之塔第6層",
+            "施塔因之塔第8层",
+            "施塔因之塔第8層",
+            "施塔因之塔宿舍",
+            "施塔因之塔第13层",
+            "施塔因之塔第13層",
+            "封印指定室"
+        ],
+        "next": [
+            "Collect_S06_To1F_Panel"
+        ],
+        "focus": "S06.[WRN]异教塔-人不在第1层,用面板传送过去"
+    },
+    "Collect_S18_S9_FindBattle3": {
+        "desc": "[S18·第9步c]在魔法阵面板上找**战斗3**那一页。白名单=页面标签'战斗Ⅲ/战斗III/战斗 Ⅲ'(实机导航地图帧确认:该图标题正是'战斗Ⅲ **第一记忆空间**')**以及地图名'第一记忆空间'**——两个都认,免得哪一处先透出哪一个不确定。识别位置用区域地图底部那条名条 roi(408,622,466,47);若面板其实像导航地图一样把标题放顶部,on_error 会转到 S9_FindBattle3_Top 再按顶部 roi(171,15,555,48) 认一次;都不中才翻页。",
+        "max_hit": 16,
+        "recognition": "OCR",
+        "roi": [
+            408,
+            622,
+            466,
+            47
+        ],
+        "expected": [
+            "战斗III",
+            "战斗Ⅲ",
+            "战斗 III",
+            "战斗 Ⅲ",
+            "战斗3",
+            "战斗❸",
+            "第一记忆空间",
+            "第一記憶空間",
+            "战斗\\s*([1Il|Ⅰ!！]{3}|Ⅲ|III)(?!\\d)(?![a-zA-Z])",
+            "战斗([1Il|Ⅰ!！]{3}|Ⅲ|III)(?!\\d)(?![a-zA-Z])"
+        ],
+        "action": "DoNothing",
+        "post_delay": 400,
+        "next": [
+            "Collect_S18_S9_ClickTpIco"
+        ],
+        "on_error": [
+            "Collect_S18_S9_FindBattle3_Top"
+        ],
+        "focus": "S18.面板找'战斗Ⅲ'(战斗3)页"
+    },
+    "Collect_S18_S9_FindBattle3_Top": {
+        "desc": "[S18·第9步c'']同 S9_FindBattle3,但识别位置换成**顶部标题**(roi 171,15,555,48)——实机截图里'战斗Ⅲ 第一记忆空间'就在导航地图左上角标题处,而魔法阵面板很可能也是这个排版。",
+        "max_hit": 2,
+        "recognition": "OCR",
+        "roi": [
+            171,
+            15,
+            555,
+            48
+        ],
+        "expected": [
+            "战斗III",
+            "战斗Ⅲ",
+            "战斗 III",
+            "战斗 Ⅲ",
+            "战斗3",
+            "战斗❸",
+            "第一记忆空间",
+            "第一記憶空間",
+            "战斗\\s*([1Il|Ⅰ!！]{3}|Ⅲ|III)(?!\\d)(?![a-zA-Z])",
+            "战斗([1Il|Ⅰ!！]{3}|Ⅲ|III)(?!\\d)(?![a-zA-Z])"
+        ],
+        "action": "DoNothing",
+        "post_delay": 300,
+        "next": [
+            "Collect_S18_S9_ClickTpIco"
+        ],
+        "on_error": [
+            "Collect_S18_S9_PageRight"
+        ],
+        "focus": "S18.面板找'战斗Ⅲ'(顶部标题)"
+    },
+    "Collect_S18_S9_ClickTpIco": {
+        "desc": "[S18·第9步d]点**战斗3页上的传送阵图标**触发传送。★关键:**没生成过魔法阵时会弹'生成魔法阵…生成×5'确认框,必须点掉才会真的传送**——这就是用户说的'一直没点生成按钮'。所以 next 首位挂 `[JumpBack]Collect_IM_Move_MGS`(上游的确认弹框节点:OCR roi 623,352,198,173 期望'生成'/'确认',点了等 5s)。点图标沿用上游 Collect_ClickTeleporCircleIco(TpCircleMap.png);Or 节点没有自己的匹配框,必须显式 target 指过去。",
+        "max_hit": 3,
+        "recognition": "Or",
+        "any_of": [
+            "Collect_ClickTeleporCircleIco"
+        ],
+        "action": "Click",
+        "target": "Collect_ClickTeleporCircleIco",
+        "post_delay": 3000,
+        "next": [
+            "[JumpBack]Collect_IM_Move_MGS",
+            "[JumpBack]Global_WaitingForLoading",
+            "Collect_S18_S9_Walk",
+            "Collect_S18_S9_ClickTpIco"
+        ],
+        "on_error": [
+            "Collect_S18_S_Abort"
+        ],
+        "focus": "S18.点战斗3页传送阵图标(带生成确认)"
+    },
+    "Collect_S18_Tags_Reset": {
+        "max_hit": 1,
+        "desc": "[S18]清零本轮标签 S18_Map1_Trip。★max_hit:1 必写(2026-10-07):它是 DirectHit 恒命中,挂在两个出口的 next/on_error 首位,没有上限时会被反复执行(实测 13:41 每 0.5s 一次刷了几十条『S18.清零本轮标签』)。★为什么需要(2026-10-07 实测):counter.py 的 TAG_STORE 是进程内存(注释写明:保存在 RAM 中、MAA 重启才清零),标签不随任务重跑重置 -> 上一轮采完地图1 置位(Collect_S18_S7_Tag)后,只要 MFAA/Agent 没重启,下一轮再进卡带18 时 CheckTag(S18_Map1_Trip,max=1) 恒为 false -> 钩子不接管 -> 落到通用链 放传送技能+徒步前往传送阵(12:10 实测);而卡带18 的正确去法是 S2_Butt 借 Arbitrage_NviGuide_Butt(小地图旁快捷移动)去酒馆。挂在 S18 的两个出口(正常收尾 S10_Finish / 断臂 S_Abort)首位,保证下一轮重新开始。",
+        "recognition": "DirectHit",
+        "action": "Custom",
+        "custom_action": "ResetTag",
+        "custom_action_param": {
+            "tags": [
+                "S18_Map1_Trip"
+            ]
+        },
+        "focus": "S18.清零本轮标签"
     }
 }
