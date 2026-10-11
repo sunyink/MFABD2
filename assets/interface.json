@@ -7140,7 +7140,7 @@
                             "enabled": true
                         },
                         "Arbitrage_Cooking_B11_Entry": {
-                            "enabled": true
+                            "enabled": false
                         },
                         "Arbitrage_Cooking_B11": {
                             "enabled": true
@@ -7276,7 +7276,6 @@
                 "煤炭饼干",
                 "卢戈山参烤串",
                 "香草牛排",
-                "洛克菲勒生蚝",
                 "橄榄油意面",
                 "街头烤鸡肉串",
                 "汉堡排便当",
