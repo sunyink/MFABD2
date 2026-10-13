@@ -7,6 +7,7 @@ from maa.custom_action import CustomAction
 from maa.context import Context
 from maa.agent.agent_server import AgentServer
 from utils import mfaalog
+from utils.arbitrage_name_rows import is_price_subrow_noise
 from utils.account_sync import sync_from_context
 from utils.arbitrage_store import (
     get_market_snapshot,
@@ -880,6 +881,9 @@ class ArbitrageSellController(CustomAction):
         # 名锚:名列内非数字文本 = 各商品行(与上子行同高),按 y 升序、近距去重
         anchors = []
         for t in sorted(names, key=lambda t: t["cy"]):
+            if is_price_subrow_noise(t, names, anchors):
+                mfaalog.info(f"[Arbitrage] 基础价格行图标不作为商品名: {t['text']}")
+                continue
             cleaned = re.sub(r'[^\w一-龥]', '', t["text"])
             if cleaned and not cleaned.isdigit():
                 if not any(abs(t["cy"] - a["cy"]) < 30 for a in anchors):
