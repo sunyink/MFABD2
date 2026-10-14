@@ -129,15 +129,20 @@ def align_window(api, hwnd, budget, options):
             )
     mode = "普通窗口"
     if not options.minimize and api.pseudo_minimized(hwnd):
-        # 伪最小化是 MaaFramework 自己的后台截图机制：FramePool / PrintWindow 在窗口被
-        # 最小化时把它设为透明并开启点击穿透，以不激活的方式恢复，从而继续截图；框架的
-        # monitor 线程会持续 apply/revert。它对截图与输入都完全正常，既不是故障，也没有
-        # 任何公开 API 能令其回退（post_inactive 只管取消置顶与解除输入阻断）。
-        # 所以这里只报告状态，绝不报错——把它当故障曾让整个任务队列全灭。
-        mode = (
-            "窗口当前处于框架的后台截图模式（透明并点击穿透，这是 MaaFramework 自身机制，"
-            "不影响识别）；点任务栏中的游戏即可恢复查看"
-        )
+        # 伪最小化是 MaaFramework 自己的后台截图机制：窗口被最小化时把它设为
+        # 透明并开启点击穿透，以不激活的方式恢复，从而继续截图；框架的 monitor
+        # 线程会持续 apply/revert。没有任何公开 API 能令其回退（post_inactive 只管
+        # 取消置顶与解除输入阻断），所以绝不报错——把它当故障曾让整个任务队列全灭。
+        # 但实测（260930）该状态跨任务残留时，游戏场景切换（交换链重建）会让
+        # PrintWindow 持续返回过期帧，识别静默失效、任务空转仍报“已完成”。
+        # 用户未启用“PC启动后最小化”时，主动恢复为普通窗口，截图随之恢复。
+        if api.restore_pseudo_minimize(hwnd):
+            mode = (
+                "检测到上一任务残留的后台截图模式（透明+点击穿透），已恢复为普通窗口；"
+                "该残留状态在游戏场景切换后可能导致截图冻结、识别静默失效"
+            )
+        else:
+            mode = "普通窗口"
     if options.minimize and not geometry_ready:
         mode = "窗口尺寸尚未确认稳定，本次不再最小化；下个任务重新检查"
     elif options.minimize:
