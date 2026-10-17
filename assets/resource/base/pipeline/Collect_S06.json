@@ -1,0 +1,1018 @@
+{
+    "Collect_S06_ReadMe": {
+        "desc": "异教塔（Story_06）整卡旁路说明 | 第2、5层没有传送阵，移动魔法阵面板里也没有它们的页，通用切图流程处理不了，具名卡用 Pack_Bypass 把整卡交给本模块。路线：快速移动到狩猎场（脚下即传送阵）→ 面板向左选第1层传送 → 采第1层 → 走楼梯上第2层采集 → 快速移动回狩猎场 → 面板选第6层传送 → 采第6层 → 点红叉下第5层采集 → 公共成功收尾。 | 进度记在本轮标签 S06_F1/F2/F6/F5，只在该层采完并补放后置位，同轮重进卡带时跳过已采楼层。主轴全用 next 串在选卡扫描压下的同一层栈里，任何一步失败都直接退栈回 Collect_PackScan_Frame，由 PackScan_Return 恢复卡带列表，不写完成。入口清零本模块计数并清空返回锚，返回锚用前设置、正常收尾再清：QuickSkill_Egress（技能模块出口）、S06_Done_Ck（补放出口）、S06_Arrive_Ck 与 S06_Leg_Ck（换层后核对与重走）。"
+    },
+    "Collect_S06_Entry": {
+        "desc": "异教塔整卡入口 | 确认箱庭后清零本模块所有节点的 max_hit 计数，设置快速移动参数（去狩猎场，成功到 AtHunt，失败退栈）；已站在传送阵上看得到手标时直接开面板。 | 同轮补采会再次进入，这里把计数与返回锚都清成首次进入时的状态；进卡总次数由 Collect_Pack_Story_6 的 max_hit 限制。本模块新增带 max_hit 的节点时要补进这份清单。引用空锚只会被跳过退栈，不会跳到旧去向。本卡绕过通用箱庭入口，顺带清掉 Pack_Click 与 SandBox_Bypass 这两个通用锚。",
+        "recognition": "Or",
+        "any_of": [
+            "Global_ToSandBox_Enter"
+        ],
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "ClearNodeHitCount",
+        "custom_action_param": {
+            "node_name": [
+                "Collect_S06_2F_Entry",
+                "Collect_S06_2F_Check",
+                "Collect_S06_6F_Check",
+                "Collect_S06_5F_Check",
+                "Collect_S06_Resume_F2",
+                "Collect_S06_Resume_F1_Ck",
+                "Collect_S06_Extra_Gather",
+                "Collect_S06_Extra_Suppress",
+                "Collect_S06_ExtraEntry_F1",
+                "Collect_S06_ExtraEntry_F2",
+                "Collect_S06_ExtraEntry_F6",
+                "Collect_S06_ExtraEntry_F5",
+                "Collect_S06_Stage_Done_F1",
+                "Collect_S06_Stage_Done_F2",
+                "Collect_S06_Stage_Done_F6",
+                "Collect_S06_Stage_Done_F5",
+                "Collect_S06_1F_Skill",
+                "Collect_S06_1F_To2F",
+                "Collect_S06_2F_Skill",
+                "Collect_S06_ReturnToHunt",
+                "Collect_S06_Panel_Open",
+                "Collect_S06_Panel_Left",
+                "Collect_S06_Panel_TeleportF1",
+                "Collect_S06_Panel_Ck_F6",
+                "Collect_S06_6F_Skill",
+                "Collect_S06_NotYetF5",
+                "Collect_S06_6F_To5F",
+                "Collect_S06_5F_Skill",
+                "Collect_S06_Floor_Read",
+                "Collect_S06_Ck_Retry",
+                "Collect_S06_Ck_F5",
+                "Collect_S06_Ck_F6_Collect"
+            ]
+        },
+        "anchor": {
+            "QuickMove_Target": "Collect_QuickMove_ToHunt",
+            "QuickMove_Success": "Collect_S06_AtHunt",
+            "QuickMove_Failure": "Global_Null",
+            "Pack_Click": "",
+            "SandBox_Bypass": "",
+            "QuickSkill_Egress": "",
+            "S06_Done_Ck": "",
+            "S06_Arrive_Ck": "",
+            "S06_Leg_Ck": ""
+        },
+        "post_delay": 0,
+        "next": [
+            "Collect_S06_Panel_Open",
+            "Collect_QuickMove_Entry"
+        ],
+        "focus": "S06.整卡旁路启动，快速移动到狩猎场"
+    },
+    "Collect_S06_AtHunt": {
+        "desc": "到达狩猎场后的选页准备 | 清零选页相关节点的 max_hit，再用手标打开传送阵面板。 | 同一次进卡会到两次狩猎场（开局、第2层采完），max_hit 整个 task 累计，不清零第二次选页会没有翻页次数。",
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "ClearNodeHitCount",
+        "custom_action_param": {
+            "node_name": [
+                "Collect_S06_Panel_Open",
+                "Collect_S06_Panel_Left",
+                "Collect_S06_Panel_TeleportF1",
+                "Collect_S06_Panel_Ck_F6"
+            ]
+        },
+        "post_delay": 0,
+        "timeout": 5000,
+        "next": [
+            "Collect_S06_Panel_Open"
+        ],
+        "focus": "S06.已到狩猎场，打开传送阵面板"
+    },
+    "Collect_S06_2F_Entry": {
+        "desc": "第1层走到第2层后的接点 | 确认在箱庭后看进度：第2层未采去采集，已采直接快速移动回狩猎场。 | 本段不开导航地图核对楼层，点楼梯的去向是固定的。",
+        "max_hit": 3,
+        "recognition": "Or",
+        "any_of": [
+            "Rec_SandBox_Pin_Tpl",
+            "Rec_SandBox_Run_Tpl"
+        ],
+        "action": "DoNothing",
+        "next": [
+            "Collect_S06_2F_Check",
+            "Collect_S06_ReturnToHunt"
+        ],
+        "focus": "S06.到达第2层(箱庭)"
+    },
+    "Collect_S06_2F_Check": {
+        "desc": "第2层本轮未采时去采集 | CheckTag(S06_F2, max=1)，命中 = 未采。 | max 必须写 1，写 0 永远不命中（agent/recognition/counter.py 判定当前值 < max 才命中）；落选由调用方列表的下一项接走。",
+        "max_hit": 30,
+        "recognition": "Custom",
+        "custom_recognition": "CheckTag",
+        "custom_recognition_param": {
+            "tag": "S06_F2",
+            "max": 1
+        },
+        "action": "DoNothing",
+        "post_delay": 0,
+        "next": [
+            "Collect_S06_2F_Skill"
+        ],
+        "focus": "S06.第2层这次还没采-去采集"
+    },
+    "Collect_S06_6F_Check": {
+        "desc": "第6层本轮未采时去采集 | CheckTag(S06_F6, max=1)，命中 = 未采。 | max 必须写 1，写 0 永远不命中（agent/recognition/counter.py 判定当前值 < max 才命中）；落选由调用方列表的下一项接走。",
+        "max_hit": 30,
+        "recognition": "Custom",
+        "custom_recognition": "CheckTag",
+        "custom_recognition_param": {
+            "tag": "S06_F6",
+            "max": 1
+        },
+        "action": "DoNothing",
+        "post_delay": 0,
+        "next": [
+            "Collect_S06_6F_Skill"
+        ],
+        "focus": "S06.第6层这次还没采-去采集"
+    },
+    "Collect_S06_5F_Check": {
+        "desc": "第5层本轮未采时去采集 | CheckTag(S06_F5, max=1)，命中 = 未采。 | max 必须写 1，写 0 永远不命中（agent/recognition/counter.py 判定当前值 < max 才命中）；落选由调用方列表的下一项接走。",
+        "max_hit": 30,
+        "recognition": "Custom",
+        "custom_recognition": "CheckTag",
+        "custom_recognition_param": {
+            "tag": "S06_F5",
+            "max": 1
+        },
+        "action": "DoNothing",
+        "post_delay": 0,
+        "next": [
+            "Collect_S06_5F_Skill"
+        ],
+        "focus": "S06.第5层这次还没采-去采集"
+    },
+    "Collect_S06_Resume_F2": {
+        "desc": "第2层本轮已采时改选第6层 | 与 2F_Check 同一标签加 inverse，命中 = 已采，在狩猎场打开的面板里向左找第6层页。 | 未命中时由 Panel_Select 的下一项去选第1层。",
+        "max_hit": 30,
+        "recognition": "Custom",
+        "custom_recognition": "CheckTag",
+        "custom_recognition_param": {
+            "tag": "S06_F2",
+            "max": 1
+        },
+        "inverse": true,
+        "action": "DoNothing",
+        "post_delay": 0,
+        "next": [
+            "Collect_S06_Panel_SeekF6"
+        ],
+        "focus": "S06.第2层已完成，选择第6层"
+    },
+    "Collect_S06_Resume_F1_Ck": {
+        "desc": "第1层本轮已采时直接去第2层 | CheckTag(S06_F1) 加 inverse，命中 = 已采，跳过第1层采集，按原站位走楼梯。 | 只有第2层未采才会传到第1层，这里不必再查第2层。",
+        "max_hit": 30,
+        "recognition": "Custom",
+        "custom_recognition": "CheckTag",
+        "custom_recognition_param": {
+            "tag": "S06_F1",
+            "max": 1
+        },
+        "inverse": true,
+        "action": "DoNothing",
+        "post_delay": 0,
+        "next": [
+            "Collect_S06_1F_To2F"
+        ],
+        "focus": "S06.续跑-第1层已采过、第2层还没采,先去第2层"
+    },
+    "Collect_S06_Extra_Skills": {
+        "desc": "补放召集/压制的循环入口，异教塔四层共用 |依次看召集、压制两格，亮着就点，点完回到这里再看；都不亮时经 [Anchor]S06_Done_Ck 回到调用方。 | 上游 Collect_Skill3_5 的压制判据按别的卡带写，认不出异教塔的白色压制图标（模板仅 0.528），所以另判一次。调用方进来前必须先设 S06_Done_Ck。",
+        "recognition": "DirectHit",
+        "action": "DoNothing",
+        "post_delay": 0,
+        "next": [
+            "Collect_S06_Extra_Gather",
+            "Collect_S06_Extra_Suppress",
+            "[Anchor]S06_Done_Ck"
+        ],
+        "focus": "S06.补施召集/压制(自查亮着的格子)"
+    },
+    "Collect_S06_Extra_Gather": {
+        "desc": "补放召集（技能栏 3-3）| 模板 Skill2-1-2.png 认格子（异教塔实测 0.947），ColorMatch 数亮白像素判断是否可用，可用就点槽位中心 (1006,480)。 | 可用阈值 count≥80，灰态实测 0；点成功后转灰不再命中。",
+        "max_hit": 30,
+        "recognition": "And",
+        "all_of": [
+            {
+                "recognition": "TemplateMatch",
+                "roi": [
+                    966,
+                    437,
+                    80,
+                    86
+                ],
+                "template": [
+                    "Skill2-1-2.png"
+                ]
+            },
+            {
+                "recognition": "ColorMatch",
+                "roi": [
+                    978,
+                    448,
+                    56,
+                    44
+                ],
+                "lower": [
+                    200,
+                    200,
+                    200
+                ],
+                "upper": [
+                    255,
+                    255,
+                    255
+                ],
+                "count": 80
+            }
+        ],
+        "action": "Click",
+        "target": [
+            1006,
+            480,
+            2,
+            2
+        ],
+        "post_delay": 2500,
+        "next": [
+            "Collect_S06_Extra_Skills"
+        ],
+        "focus": "S06.补施召集(3-3,亮着才点)"
+    },
+    "Collect_S06_Extra_Suppress": {
+        "desc": "补放压制（技能栏 3-5）| 模板 S06_Skill_Suppress.png 认格子（58×30，只裁图标主体、避开会变的次数数字），亮白像素判断是否可用，可用就点 (1180,485)。 | 可用帧亮像素 298/1740=17.1%、灰态 0，阈值 count≥60。",
+        "max_hit": 30,
+        "recognition": "And",
+        "all_of": [
+            {
+                "recognition": "TemplateMatch",
+                "roi": [
+                    1140,
+                    442,
+                    81,
+                    87
+                ],
+                "template": [
+                    "S06_Skill_Suppress.png"
+                ]
+            },
+            {
+                "recognition": "ColorMatch",
+                "roi": [
+                    1152,
+                    462,
+                    58,
+                    30
+                ],
+                "lower": [
+                    200,
+                    200,
+                    200
+                ],
+                "upper": [
+                    255,
+                    255,
+                    255
+                ],
+                "count": 60
+            }
+        ],
+        "action": "Click",
+        "target": [
+            1180,
+            485,
+            2,
+            2
+        ],
+        "post_delay": 2500,
+        "next": [
+            "Collect_S06_Extra_Skills"
+        ],
+        "focus": "S06.补施压制(3-5,亮着才点)"
+    },
+    "Collect_S06_ExtraEntry_F1": {
+        "desc": "第1层技能模块正常出口的落点 | 设 S06_Done_Ck=Stage_Done_F1，再进 Extra_Skills 补放召集/压制。 | 补放放在完成置位之前；技能模块中途失败到不了这里，本层标签保持未置位。",
+        "max_hit": 4,
+        "recognition": "DirectHit",
+        "action": "DoNothing",
+        "anchor": {
+            "S06_Done_Ck": "Collect_S06_Stage_Done_F1"
+        },
+        "post_delay": 0,
+        "next": [
+            "Collect_S06_Extra_Skills"
+        ],
+        "focus": "S06.第F层-技能模块出口(补施入口)"
+    },
+    "Collect_S06_ExtraEntry_F2": {
+        "desc": "第2层技能模块正常出口的落点 | 设 S06_Done_Ck=Stage_Done_F2，再进 Extra_Skills 补放召集/压制。 | 补放放在完成置位之前；技能模块中途失败到不了这里，本层标签保持未置位。",
+        "max_hit": 4,
+        "recognition": "DirectHit",
+        "action": "DoNothing",
+        "anchor": {
+            "S06_Done_Ck": "Collect_S06_Stage_Done_F2"
+        },
+        "post_delay": 0,
+        "next": [
+            "Collect_S06_Extra_Skills"
+        ],
+        "focus": "S06.第F层-技能模块出口(补施入口)"
+    },
+    "Collect_S06_ExtraEntry_F6": {
+        "desc": "第6层技能模块正常出口的落点 | 设 S06_Done_Ck=Stage_Done_F6，再进 Extra_Skills 补放召集/压制。 | 补放放在完成置位之前；技能模块中途失败到不了这里，本层标签保持未置位。",
+        "max_hit": 4,
+        "recognition": "DirectHit",
+        "action": "DoNothing",
+        "anchor": {
+            "S06_Done_Ck": "Collect_S06_Stage_Done_F6"
+        },
+        "post_delay": 0,
+        "next": [
+            "Collect_S06_Extra_Skills"
+        ],
+        "focus": "S06.第F层-技能模块出口(补施入口)"
+    },
+    "Collect_S06_ExtraEntry_F5": {
+        "desc": "第5层技能模块正常出口的落点 | 设 S06_Done_Ck=Stage_Done_F5，再进 Extra_Skills 补放召集/压制。 | 补放放在完成置位之前；技能模块中途失败到不了这里，本层标签保持未置位。",
+        "max_hit": 4,
+        "recognition": "DirectHit",
+        "action": "DoNothing",
+        "anchor": {
+            "S06_Done_Ck": "Collect_S06_Stage_Done_F5"
+        },
+        "post_delay": 0,
+        "next": [
+            "Collect_S06_Extra_Skills"
+        ],
+        "focus": "S06.第F层-技能模块出口(补施入口)"
+    },
+    "Collect_S06_Stage_Done_F1": {
+        "desc": "第1层采完 | UpdateTag(S06_F1,1) 后去点楼梯上第2层。 | 只在本层采完并补放后置位：技能模块中途失败到不了这里，同轮重进卡带时本层会重采，宁可重采不漏采。",
+        "max_hit": 30,
+        "recognition": "DirectHit",
+        "action": "Custom",
+        "custom_action": "UpdateTag",
+        "custom_action_param": {
+            "tag": "S06_F1",
+            "value": 1
+        },
+        "post_delay": 0,
+        "next": [
+            "Collect_S06_1F_To2F"
+        ],
+        "focus": "S06.第1层已采完-去第2层"
+    },
+    "Collect_S06_Stage_Done_F2": {
+        "desc": "第2层采完 | UpdateTag(S06_F2,1) 后快速移动回狩猎场，再选第6层。 | 只在本层采完并补放后置位：技能模块中途失败到不了这里，同轮重进卡带时本层会重采，宁可重采不漏采。",
+        "max_hit": 30,
+        "recognition": "DirectHit",
+        "action": "Custom",
+        "custom_action": "UpdateTag",
+        "custom_action_param": {
+            "tag": "S06_F2",
+            "value": 1
+        },
+        "post_delay": 0,
+        "next": [
+            "Collect_S06_ReturnToHunt"
+        ],
+        "focus": "S06.第2层已采完，返回狩猎场传送阵"
+    },
+    "Collect_S06_Stage_Done_F6": {
+        "desc": "第6层采完 | UpdateTag(S06_F6,1) 后点红叉下第5层。 | 只在本层采完并补放后置位：技能模块中途失败到不了这里，同轮重进卡带时本层会重采，宁可重采不漏采。",
+        "max_hit": 30,
+        "recognition": "DirectHit",
+        "action": "Custom",
+        "custom_action": "UpdateTag",
+        "custom_action_param": {
+            "tag": "S06_F6",
+            "value": 1
+        },
+        "post_delay": 0,
+        "next": [
+            "Collect_S06_6F_To5F"
+        ],
+        "focus": "S06.第6层已采完-下第5层"
+    },
+    "Collect_S06_Stage_Done_F5": {
+        "desc": "第5层采完 | UpdateTag(S06_F5,1) 后整卡成功收尾，不再走回第6层。 | 只在本层采完并补放后置位：技能模块中途失败到不了这里，同轮重进卡带时本层会重采，宁可重采不漏采。",
+        "max_hit": 30,
+        "recognition": "DirectHit",
+        "action": "Custom",
+        "custom_action": "UpdateTag",
+        "custom_action_param": {
+            "tag": "S06_F5",
+            "value": 1
+        },
+        "post_delay": 0,
+        "next": [
+            "Collect_S06_Finish"
+        ],
+        "focus": "S06.第5层已采完-收尾退卡带"
+    },
+    "Collect_S06_1F_Skill": {
+        "desc": "第1层采集 | 设技能模块出口 QuickSkill_Egress=ExtraEntry_F1 后调用技能模块，正常出口经补放与完成置位后去第2层。 | 本节点先认出箱庭才命中，进场时不在箱庭由调用方处理；命中后到开技能前箱庭判据消失，才由 [JumpBack]Global_ToSandBox 复位再认。",
+        "max_hit": 2,
+        "recognition": "Or",
+        "any_of": [
+            "Rec_SandBox_Pin_Tpl",
+            "Rec_SandBox_Run_Tpl"
+        ],
+        "anchor": {
+            "QuickSkill_Egress": "Collect_S06_ExtraEntry_F1"
+        },
+        "timeout": 3000,
+        "next": [
+            "Collect_Skill_Start",
+            "[JumpBack]Global_ToSandBox"
+        ],
+        "focus": "S06.第1层采集"
+    },
+    "Collect_S06_1F_To2F": {
+        "desc": "第1层走楼梯去第2层 | 静候 3 秒后点画面顶部偏左的楼梯 (212,9)，SmartAction 看画面有没有整体位移：动了即已开始寻路，没动原地重点，最多 3 轮；设好到达去向（2F_Entry）与重走去向（本节点）后进 WaitArrive。 | (212,9) 由 1920×1080 截图系 (318,13) 乘 2/3 得来。pre_delay 3000 等技能收尾动画停下，点早了会被吃掉。三轮都没动静时 on_error 重走本节点，max_hit 3 用完退栈。",
+        "max_hit": 3,
+        "recognition": "Or",
+        "any_of": [
+            "Rec_SandBox_Pin_Tpl",
+            "Rec_SandBox_Run_Tpl"
+        ],
+        "pre_delay": 3000,
+        "action": "Custom",
+        "custom_action": "SmartAction",
+        "custom_action_param": {
+            "proxy_node": "Agt_Proxy_Blank",
+            "proxy_override": {
+                "action": "Click",
+                "target": [
+                    212,
+                    9,
+                    2,
+                    2
+                ],
+                "post_delay": 500
+            },
+            "detect_roi": [
+                400,
+                240,
+                480,
+                320
+            ],
+            "threshold": 5.0,
+            "settle_delay": 1000,
+            "on_changed": "next",
+            "on_unchanged": "loop",
+            "loop_limit": 3,
+            "loop_exhausted": "error"
+        },
+        "anchor": {
+            "S06_Arrive_Ck": "Collect_S06_2F_Entry",
+            "S06_Leg_Ck": "Collect_S06_1F_To2F"
+        },
+        "next": [
+            "Collect_S06_OnFoot_WaitArrive"
+        ],
+        "on_error": [
+            "Collect_S06_1F_To2F",
+            "Global_Null"
+        ],
+        "focus": "S06.第1层→第2层-点楼梯"
+    },
+    "Collect_S06_2F_Skill": {
+        "desc": "第2层采集 | 设技能模块出口 QuickSkill_Egress=ExtraEntry_F2 后调用技能模块，正常出口经补放与完成置位后快速移动回狩猎场。 | 本节点先认出箱庭才命中，进场时不在箱庭由调用方处理；命中后到开技能前箱庭判据消失，才由 [JumpBack]Global_ToSandBox 复位再认。",
+        "max_hit": 2,
+        "recognition": "Or",
+        "any_of": [
+            "Rec_SandBox_Pin_Tpl",
+            "Rec_SandBox_Run_Tpl"
+        ],
+        "anchor": {
+            "QuickSkill_Egress": "Collect_S06_ExtraEntry_F2"
+        },
+        "timeout": 3000,
+        "next": [
+            "Collect_Skill_Start",
+            "[JumpBack]Global_ToSandBox"
+        ],
+        "focus": "S06.第2层采集"
+    },
+    "Collect_S06_ReturnToHunt": {
+        "desc": "快速移动回狩猎场 | 设快速移动参数（去狩猎场，成功到 AtHunt，失败退栈）后调用快速移动模块。 | 第2层采完、第6层到达核对失败重走时都经这里，每次重设参数，不依赖上次残留。",
+        "max_hit": 3,
+        "recognition": "Or",
+        "any_of": [
+            "Global_ToSandBox_Enter"
+        ],
+        "pre_delay": 0,
+        "anchor": {
+            "QuickMove_Target": "Collect_QuickMove_ToHunt",
+            "QuickMove_Success": "Collect_S06_AtHunt",
+            "QuickMove_Failure": "Global_Null"
+        },
+        "post_delay": 0,
+        "next": [
+            "Collect_QuickMove_Entry"
+        ],
+        "focus": "S06.快速移动到狩猎场传送阵"
+    },
+    "Collect_S06_Panel_Open": {
+        "desc": "用传送阵手标打开移动魔法阵面板 | 站在传送阵上点手标，面板出现后交 Panel_Select；载入中先等载入。点开时清掉快速移动三参数：入口直开面板与快速移动到狩猎场两条路线都在这里汇合，之后再快速移动由 ReturnToHunt 重设。 | 没打开时重点自身，max_hit 3 由入口和 AtHunt 清零。",
+        "max_hit": 3,
+        "recognition": "Or",
+        "any_of": [
+            "Collect_TeleporCircle_Ico_Enter"
+        ],
+        "action": "Click",
+        "anchor": {
+            "QuickMove_Target": "",
+            "QuickMove_Success": "",
+            "QuickMove_Failure": ""
+        },
+        "post_delay": 1000,
+        "timeout": 10000,
+        "next": [
+            "Collect_S06_Panel_Select",
+            "[JumpBack]Global_WaitingForLoading",
+            "Collect_S06_Panel_Open"
+        ],
+        "focus": "S06.用手标打开传送阵面板"
+    },
+    "Collect_S06_Panel_Select": {
+        "desc": "按进度选目的楼层 | 确认面板已打开后：第2层已采去选第6层，否则去选第1层。",
+        "recognition": "Or",
+        "any_of": [
+            "Collect_OperationsMain_ToAreaMap"
+        ],
+        "pre_delay": 0,
+        "post_delay": 0,
+        "next": [
+            "Collect_S06_Resume_F2",
+            "Collect_S06_Panel_SeekF1"
+        ]
+    },
+    "Collect_S06_Panel_SeekF1": {
+        "desc": "选到第1层页 | 先 OCR 名条，不是第1层就 [JumpBack] 左翻一页，回来再核对。 | 翻到页不等于已传送，名条核对后才点传送图标；翻页次数用完后 5 秒内认不出第1层即退栈。",
+        "pre_delay": 0,
+        "post_delay": 0,
+        "timeout": 5000,
+        "next": [
+            "Collect_S06_Panel_Ck_F1",
+            "[JumpBack]Collect_S06_Panel_Left"
+        ]
+    },
+    "Collect_S06_Panel_SeekF6": {
+        "desc": "选到第6层页 | 先 OCR 名条，不是第6层就 [JumpBack] 左翻一页，回来再核对。 | 翻页次数用完后 5 秒内认不出第6层即退栈。",
+        "pre_delay": 0,
+        "post_delay": 0,
+        "timeout": 5000,
+        "next": [
+            "Collect_S06_Panel_Ck_F6",
+            "[JumpBack]Collect_S06_Panel_Left"
+        ]
+    },
+    "Collect_S06_Panel_Left": {
+        "desc": "面板向左翻一页 | 借 Collect_MapLift 的识别与点击，把它的连点 7 下覆盖成 1 下；SmartAction 确认画面变了才算翻成。 | max_hit 7 是一次选页的翻页次数，由 AtHunt 清零；本节点不写 next，翻完退栈回 Seek 节点重新核对。",
+        "max_hit": 7,
+        "recognition": "Or",
+        "any_of": [
+            "Rec_AreaMap_ButtLift_Tmp"
+        ],
+        "action": "Custom",
+        "custom_action": "SmartAction",
+        "custom_action_param": {
+            "proxy_node": "Collect_MapLift",
+            "proxy_override": {
+                "repeat": 1,
+                "repeat_delay": 0,
+                "post_delay": 500
+            },
+            "detect_roi": [
+                454,
+                272,
+                369,
+                217
+            ],
+            "settle_delay": 1000,
+            "on_changed": "next",
+            "on_unchanged": "loop",
+            "loop_limit": 3,
+            "loop_exhausted": "error"
+        },
+        "post_delay": 500,
+        "timeout": 5000,
+        "on_error": [
+            "Global_Null"
+        ],
+        "focus": "S06.传送面板向左翻一页"
+    },
+    "Collect_S06_Panel_Ck_F1": {
+        "desc": "名条确认是第1层页 | OCR 名条为施塔因之塔第1层后，交 Panel_TeleportF1 点该页传送图标。",
+        "recognition": "OCR",
+        "roi": [
+            408,
+            622,
+            466,
+            47
+        ],
+        "expected": [
+            "施塔因之塔第1层",
+            "施塔因之塔第1層"
+        ],
+        "timeout": 5000,
+        "next": [
+            "Collect_S06_Panel_TeleportF1",
+            "Collect_S06_FirstFloorReady"
+        ],
+        "on_error": [
+            "[JumpBack]Global_ToSandBox",
+            "Global_Null"
+        ]
+    },
+    "Collect_S06_Panel_TeleportF1": {
+        "desc": "点第1层页的传送图标 | 借 Collect_ClickTeleporCircleIco 的识别点图标，处理生成确认与载入后交 FirstFloorReady。 | 只借识别，不进它后面的通用采集链。",
+        "max_hit": 3,
+        "recognition": "Or",
+        "any_of": [
+            "Collect_ClickTeleporCircleIco"
+        ],
+        "action": "Click",
+        "post_delay": 5000,
+        "timeout": 10000,
+        "next": [
+            "[JumpBack]Collect_IM_Move_MGS",
+            "[JumpBack]Global_WaitingForLoading",
+            "Collect_S06_FirstFloorReady"
+        ],
+        "focus": "S06.从狩猎场传送到第1层"
+    },
+    "Collect_S06_FirstFloorReady": {
+        "desc": "传到第1层后的分流 | 确认回到箱庭：第1层已采直接去第2层，否则采第1层。",
+        "recognition": "Or",
+        "any_of": [
+            "Global_ToSandBox_Enter"
+        ],
+        "pre_delay": 0,
+        "post_delay": 0,
+        "next": [
+            "Collect_S06_Resume_F1_Ck",
+            "Collect_S06_1F_Skill"
+        ]
+    },
+    "Collect_S06_Panel_Ck_F6": {
+        "desc": "名条确认是第6层页并传送 | OCR 名条为第6层后，SmartAction 点该页传送图标的固定位置 (715,340)，画面变了才算点成；再处理生成确认与载入。 | 这里点固定坐标，第1层那边用模板找图标，两边写法不同。",
+        "max_hit": 3,
+        "recognition": "OCR",
+        "roi": [
+            408,
+            622,
+            466,
+            47
+        ],
+        "expected": [
+            "施塔因之塔第6层",
+            "施塔因之塔第6層",
+            "施塔因之塔第6 层"
+        ],
+        "action": "Custom",
+        "custom_action": "SmartAction",
+        "custom_action_param": {
+            "proxy_node": "Agt_Proxy_Blank",
+            "proxy_override": {
+                "action": "Click",
+                "target": [
+                    715,
+                    340,
+                    30,
+                    10
+                ],
+                "post_delay": 500
+            },
+            "detect_roi": [
+                400,
+                240,
+                480,
+                320
+            ],
+            "threshold": 5.0,
+            "settle_delay": 1500,
+            "on_changed": "next",
+            "on_unchanged": "loop",
+            "loop_limit": 3,
+            "loop_exhausted": "error"
+        },
+        "next": [
+            "[JumpBack]Collect_IM_Move_MGS",
+            "[JumpBack]Global_WaitingForLoading",
+            "Collect_S06_Panel_Arrive"
+        ],
+        "focus": "S06.点第6层魔法阵图标"
+    },
+    "Collect_S06_Panel_Arrive": {
+        "desc": "传送第6层后的到达设置 | 设到达后核对第6层（Ck_F6_Collect）、重走时快速移动回狩猎场重新选页，再进 WaitArrive。",
+        "recognition": "DirectHit",
+        "action": "DoNothing",
+        "anchor": {
+            "S06_Arrive_Ck": "Collect_S06_Ck_F6_Collect",
+            "S06_Leg_Ck": "Collect_S06_ReturnToHunt"
+        },
+        "next": [
+            "Collect_S06_OnFoot_WaitArrive"
+        ],
+        "focus": "S06.传送第6层-等到达"
+    },
+    "Collect_S06_6F_Skill": {
+        "desc": "第6层采集 | 设技能模块出口 QuickSkill_Egress=ExtraEntry_F6 后调用技能模块，正常出口经补放与完成置位后下第5层。 | 本节点先认出箱庭才命中，进场时不在箱庭由调用方处理；命中后到开技能前箱庭判据消失，才由 [JumpBack]Global_ToSandBox 复位再认。",
+        "max_hit": 2,
+        "recognition": "Or",
+        "any_of": [
+            "Rec_SandBox_Pin_Tpl",
+            "Rec_SandBox_Run_Tpl"
+        ],
+        "anchor": {
+            "QuickSkill_Egress": "Collect_S06_ExtraEntry_F6"
+        },
+        "timeout": 3000,
+        "next": [
+            "Collect_Skill_Start",
+            "[JumpBack]Global_ToSandBox"
+        ],
+        "focus": "S06.第6层采集"
+    },
+    "Collect_S06_NotYetF5": {
+        "desc": "第6层已采、第5层未采时下第5层 | CheckTag(S06_F5, max=1)，命中 = 未采。 | 只在第6层已采时被问到，服务于同轮重进卡带；正常顺序由 Stage_Done_F6 直接去点红叉。",
+        "max_hit": 30,
+        "recognition": "Custom",
+        "custom_recognition": "CheckTag",
+        "custom_recognition_param": {
+            "tag": "S06_F5",
+            "max": 1
+        },
+        "action": "DoNothing",
+        "post_delay": 0,
+        "next": [
+            "Collect_S06_6F_To5F"
+        ],
+        "focus": "S06.第5层这次还没采-先下去"
+    },
+    "Collect_S06_6F_To5F": {
+        "desc": "第6层点红叉下到第5层 | 静候 3 秒后由 SmartAction 代点 Mark_F6_Click，画面没动原地重点，最多 3 轮；设好到达核对（Ck_F5）与重走去向（本节点）后进 WaitArrive，转场约 10 秒。 | 三轮都没动静时 on_error 按固定坐标再点一次，仍不行退栈。",
+        "max_hit": 3,
+        "recognition": "Or",
+        "any_of": [
+            "Rec_SandBox_Pin_Tpl",
+            "Rec_SandBox_Run_Tpl"
+        ],
+        "pre_delay": 3000,
+        "action": "Custom",
+        "custom_action": "SmartAction",
+        "custom_action_param": {
+            "proxy_node": "Collect_S06_Mark_F6_Click",
+            "detect_roi": [
+                400,
+                240,
+                480,
+                320
+            ],
+            "threshold": 5.0,
+            "settle_delay": 1000,
+            "on_changed": "next",
+            "on_unchanged": "loop",
+            "loop_limit": 3,
+            "loop_exhausted": "error"
+        },
+        "anchor": {
+            "S06_Arrive_Ck": "Collect_S06_Ck_F5",
+            "S06_Leg_Ck": "Collect_S06_6F_To5F"
+        },
+        "next": [
+            "Collect_S06_OnFoot_WaitArrive"
+        ],
+        "on_error": [
+            "Collect_S06_6F_To5F_Fix",
+            "Global_Null"
+        ],
+        "focus": "S06.第6层→第5层-点下一层入口红标"
+    },
+    "Collect_S06_Mark_F6_Click": {
+        "desc": "第6层红叉定位，点它下方的地面 | 全屏模板匹配红叉（交叉剑），target_offset [-34,58] 把落点从模板中心 (313,29) 移到 (279,87)。 | 红叉是悬空标记，点它本身会走到别处。模板 34×34，全屏回验 1.000，没有其它 >0.7 的误匹配。",
+        "recognition": "TemplateMatch",
+        "roi": [
+            0,
+            0,
+            1280,
+            720
+        ],
+        "template": [
+            "S06_MarkRed_F6.png"
+        ],
+        "threshold": 0.85,
+        "action": "Click",
+        "target_offset": [
+            -34,
+            58,
+            0,
+            0
+        ],
+        "post_delay": 500,
+        "focus": "S06.红标定位-第6层下一层入口"
+    },
+    "Collect_S06_6F_To5F_Fix": {
+        "desc": "第6层下第5层的固定坐标兜底 | SmartAction 三轮判画面没动时点 (279,87)，与模板落点相同，再进 WaitArrive。 | 1920×1080 截图系为 (418,130)，实测一步走到第5层。",
+        "enabled": true,
+        "recognition": "Or",
+        "any_of": [
+            "Rec_SandBox_Pin_Tpl",
+            "Rec_SandBox_Run_Tpl"
+        ],
+        "action": "Click",
+        "target": [
+            279,
+            87,
+            2,
+            2
+        ],
+        "post_delay": 500,
+        "next": [
+            "Collect_S06_OnFoot_WaitArrive"
+        ],
+        "focus": "S06.[WRN]红标模板未匹配-按固定坐标点"
+    },
+    "Collect_S06_5F_Skill": {
+        "desc": "第5层采集 | 设技能模块出口 QuickSkill_Egress=ExtraEntry_F5 后调用技能模块，正常出口经补放与完成置位后整卡收尾。 | 本节点先认出箱庭才命中，进场时不在箱庭由调用方处理；命中后到开技能前箱庭判据消失，才由 [JumpBack]Global_ToSandBox 复位再认。",
+        "max_hit": 2,
+        "recognition": "Or",
+        "any_of": [
+            "Rec_SandBox_Pin_Tpl",
+            "Rec_SandBox_Run_Tpl"
+        ],
+        "anchor": {
+            "QuickSkill_Egress": "Collect_S06_ExtraEntry_F5"
+        },
+        "timeout": 3000,
+        "next": [
+            "Collect_Skill_Start",
+            "[JumpBack]Global_ToSandBox"
+        ],
+        "focus": "S06.第5层采集"
+    },
+    "Collect_S06_OnFoot_WaitArrive": {
+        "desc": "换层后的通用等待，两段步行与第6层传送共用 | 先等画面静止，再隔 2 秒反复看：还在寻路或在转场就 [JumpBack] 回来接着等；都不是时走 [Anchor]S06_Arrive_Ck（本段的到达处理），它不命中再交 Floor_Read 开图核对。 | next 里不要放 DirectHit 兜底：转场黑屏那一两秒箱庭、寻路标、载入都可能认不到，兜底会把正在走的人判成失败。60 秒仍无结果即退栈。",
+        "recognition": "DirectHit",
+        "action": "DoNothing",
+        "post_wait_freezes": {
+            "time": 1000,
+            "rate_limit": 500,
+            "timeout": 30000
+        },
+        "post_delay": 2000,
+        "timeout": 60000,
+        "next": [
+            "[JumpBack]Collect_IM_OnFoot_Moveing",
+            "[JumpBack]Global_WaitingForLoading",
+            "[Anchor]S06_Arrive_Ck",
+            "Collect_S06_Floor_Read"
+        ],
+        "focus": "S06.等待寻路与转场结束"
+    },
+    "Collect_S06_Floor_Read": {
+        "desc": "打开导航地图读楼层名 | 箱庭 HUD 不显示楼层名，只有导航地图标题有；在箱庭或地图已开时都点小地图位置，再依次交：S06_Arrive_Ck（本段的楼层核对）→ Ck_Retry（地图开着但没对上，关图重读）→ S06_Leg_Ck（地图没开，重走本段）。 | 兜底只能写成 next 的后续候选：候选识别失败只会被跳过，不会走它自己的 on_error。地图已开时点的是标题下方空白，无害。max_hit 6 用完或 3 秒内都不命中即退栈。",
+        "max_hit": 6,
+        "recognition": "Or",
+        "any_of": [
+            "Rec_SandBox_Pin_Tpl",
+            "Rec_SandBox_Run_Tpl",
+            "Collect_TeleporCircle_OnFoot_NviMap"
+        ],
+        "action": "Click",
+        "target": [
+            148,
+            119,
+            34,
+            38
+        ],
+        "post_delay": 2000,
+        "timeout": 3000,
+        "next": [
+            "[Anchor]S06_Arrive_Ck",
+            "Collect_S06_Ck_Retry",
+            "[Anchor]S06_Leg_Ck"
+        ],
+        "focus": "S06.打开导航地图"
+    },
+    "Collect_S06_Ck_Retry": {
+        "desc": "楼层核对没对上时关图重读 | 导航地图还开着就点左上返回 (111,41) 关掉，回 Floor_Read 重新开图核对。 | max_hit 4 用完后由 Floor_Read 的下一项 S06_Leg_Ck 重走本段；3 秒内 Floor_Read 不命中即退栈。",
+        "max_hit": 4,
+        "recognition": "Or",
+        "any_of": [
+            "Collect_TeleporCircle_OnFoot_NviMap"
+        ],
+        "action": "Click",
+        "target": [
+            111,
+            41,
+            2,
+            2
+        ],
+        "post_delay": 1500,
+        "timeout": 3000,
+        "next": [
+            "Collect_S06_Floor_Read"
+        ],
+        "focus": "S06.[WRN]到层校验失败-关图并重按本段入口"
+    },
+    "Collect_S06_Ck_F5_Ocr": {
+        "desc": "读导航地图标题是否为第5层 | OCR roi 175,10,346,64，与 Collect_InitiatingManual_Onfoot_Start 同一判据。 | 只作 Ck_F5 的识别子项，动作由父节点负责。",
+        "recognition": "OCR",
+        "roi": [
+            175,
+            10,
+            346,
+            64
+        ],
+        "expected": [
+            "施塔因之塔第5层",
+            "施塔因之塔第5層"
+        ],
+        "action": "DoNothing",
+        "focus": "S06.校验-导航地图标题=施塔因之塔第5层"
+    },
+    "Collect_S06_Ck_F6_Collect_Ocr": {
+        "desc": "读导航地图标题是否为第6层 | OCR roi 175,10,346,64，与 Collect_InitiatingManual_Onfoot_Start 同一判据。 | 只作 Ck_F6_Collect 的识别子项，动作由父节点负责。",
+        "recognition": "OCR",
+        "roi": [
+            175,
+            10,
+            346,
+            64
+        ],
+        "expected": [
+            "施塔因之塔第6层",
+            "施塔因之塔第6層"
+        ],
+        "action": "DoNothing",
+        "focus": "S06.校验-导航地图标题=施塔因之塔第6层"
+    },
+    "Collect_S06_Ck_F5": {
+        "desc": "核对已到第5层 | 导航地图标题为第5层后点左上返回 (111,41) 关图，再看进度：第5层未采去采集，已采直接收尾。 | 第2、5层在移动魔法阵面板里没有页，只能靠导航地图标题认楼层。(111,41) 只能在地图打开时点，地图没开时那里是 buff 图标，会弹出『应用效果』窗口。",
+        "max_hit": 3,
+        "recognition": "Or",
+        "any_of": [
+            "Collect_S06_Ck_F5_Ocr"
+        ],
+        "action": "Click",
+        "target": [
+            111,
+            41,
+            2,
+            2
+        ],
+        "post_delay": 2000,
+        "next": [
+            "Collect_S06_5F_Check",
+            "Collect_S06_Finish"
+        ],
+        "focus": "S06.[校验]已在施塔因之塔第5层"
+    },
+    "Collect_S06_Ck_F6_Collect": {
+        "desc": "核对已到第6层 | 导航地图标题为第6层后点左上返回 (111,41) 关图，再分流：第6层未采去采集；已采但第5层未采直接下第5层；都采过就收尾。 | (111,41) 只能在地图打开时点，地图没开时那里是 buff 图标，会弹出『应用效果』窗口。",
+        "max_hit": 3,
+        "recognition": "Or",
+        "any_of": [
+            "Collect_S06_Ck_F6_Collect_Ocr"
+        ],
+        "action": "Click",
+        "target": [
+            111,
+            41,
+            2,
+            2
+        ],
+        "post_delay": 2000,
+        "next": [
+            "Collect_S06_6F_Check",
+            "Collect_S06_NotYetF5",
+            "Collect_S06_Finish"
+        ],
+        "focus": "S06.[校验]已在施塔因之塔第6层(去采集)"
+    },
+    "Collect_S06_Finish": {
+        "desc": "异教塔整卡成功出口 | 清掉本卡设过的返回锚（技能出口、补放出口、换层到达与重走），交公共成功收尾。 | 快速移动三参数已在 Panel_Open 清掉；Pack_Bypass 由选卡扫描在每张卡前清理。失败不经这里，直接退栈。",
+        "recognition": "DirectHit",
+        "action": "DoNothing",
+        "anchor": {
+            "QuickSkill_Egress": "",
+            "S06_Done_Ck": "",
+            "S06_Arrive_Ck": "",
+            "S06_Leg_Ck": ""
+        },
+        "next": [
+            "Collect_PackFinish"
+        ],
+        "focus": "S06.异教塔采集收尾-退出卡带"
+    }
+}

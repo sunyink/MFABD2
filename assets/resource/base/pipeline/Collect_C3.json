@@ -1,0 +1,316 @@
+{
+    "Collect_C3_ReadMe": {
+        "desc": "美丽无望（Character_3）禁闭室采集说明 | 本卡可采地图1、战斗1、禁闭室三张图。禁闭室没有传送阵，移动魔法阵面板翻到它时只能判卡带结束，要从战斗1开导航地图点禁闭室自动寻路过去；路上有巡逻怪，撞到人会把人送回固定位置，从那里重走被发现的概率小，所以失败就重走。 | 两个入口：进卡时由 Pack_Bypass 进 Entry，开导航地图看人在不在禁闭室，在就当场采集并经 WayPoint 回到传送阵，再交通用箱庭入口；通用流程采完地图1与战斗1翻到第3页（名条实测「战斗Ⅱ禁闭室」）时，由 Collect_TargetMap3 的 Jail 接走，走过去采集后交公共成功收尾。采完人留在禁闭室，下次进卡当场就能采，不必再从战斗1走过去。 | 本轮进度记在标签 C3_Jail，只在采完后置位，两个入口都看它，已采就跳过。主轴全用 next 串在选卡扫描压下的同一层栈里，任何一步失败都直接退栈回 Collect_PackScan_Frame，由 PackScan_Return 恢复卡带列表，不写完成。"
+    },
+    "Collect_C3_Entry": {
+        "desc": "美丽无望进卡入口 | 确认箱庭后清零本模块带 max_hit 的节点，再开导航地图看位置。 | 同轮补采会再次进卡，清零后每次都从首次状态开始；进卡总次数由 Collect_Pack_Character_3 的 max_hit 限制。本模块新增带 max_hit 的节点时要补进这份清单。",
+        "recognition": "Or",
+        "any_of": [
+            "Global_ToSandBox_Enter"
+        ],
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "ClearNodeHitCount",
+        "custom_action_param": {
+            "node_name": [
+                "Collect_C3_Locate",
+                "Collect_C3_Rehome",
+                "Collect_C3_Jail_Open",
+                "Collect_C3_Jail_Walk"
+            ]
+        },
+        "post_delay": 0,
+        "next": [
+            "Collect_C3_Locate"
+        ],
+        "focus": "C3.进卡-查看是否在禁闭室"
+    },
+    "Collect_C3_Locate": {
+        "desc": "打开导航地图看当前位置 | 在箱庭或地图已开时都点左上小地图，标题是禁闭室交 InJail，是别处交 NotJail，没打开重点自身。 | 只借 TeleportRecall 的开图点击位与开图判据，不调用它的步行返程。max_hit 3 用完或超时都不命中即退栈。",
+        "max_hit": 3,
+        "recognition": "Or",
+        "any_of": [
+            "Rec_SandBox_Pin_Tpl",
+            "Rec_SandBox_Run_Tpl",
+            "Collect_TeleporCircle_OnFoot_NviMap"
+        ],
+        "action": "Click",
+        "target": [
+            148,
+            119,
+            34,
+            38
+        ],
+        "post_delay": 2000,
+        "next": [
+            "Collect_C3_InJail",
+            "Collect_C3_NotJail",
+            "Collect_C3_Locate"
+        ]
+    },
+    "Collect_C3_InJail": {
+        "desc": "进卡时人在禁闭室 | 关地图并把技能出口设为 Entry_Done，本轮未采先当场采集，已采直接回传送阵。 | 禁闭室没有传送阵，通用入口在这里开不了面板，必须先复位到传送阵。",
+        "recognition": "Or",
+        "any_of": [
+            "Rec_Collect_C3_Jail_Ocr"
+        ],
+        "action": "Click",
+        "target": [
+            111,
+            41,
+            2,
+            2
+        ],
+        "anchor": {
+            "QuickSkill_Egress": "Collect_C3_Entry_Done"
+        },
+        "post_delay": 1500,
+        "next": [
+            "Collect_C3_Skill",
+            "[JumpBack]Collect_C3_Rehome",
+            "Collect_C3_Rehome_Ck"
+        ],
+        "focus": "C3.人在禁闭室"
+    },
+    "Collect_C3_NotJail": {
+        "desc": "进卡时人不在禁闭室 | 关地图后交通用箱庭入口，按通用流程从最左页采地图1与战斗1。",
+        "recognition": "Or",
+        "any_of": [
+            "Collect_TeleporCircle_OnFoot_NviMap"
+        ],
+        "action": "Click",
+        "target": [
+            120,
+            30
+        ],
+        "post_delay": 1500,
+        "next": [
+            "Collect_OperationsMain_Sandplay"
+        ]
+    },
+    "Collect_C3_Skill": {
+        "desc": "禁闭室采集，进卡当场采与走过去采共用 | 本轮未采且在箱庭时调用技能模块，技能出口由 InJail / Jail_Arrived 预先设好。 | 不在箱庭时先 [JumpBack]Global_ToSandBox 复位再认。",
+        "recognition": "And",
+        "all_of": [
+            {
+                "recognition": "Custom",
+                "custom_recognition": "CheckTag",
+                "custom_recognition_param": {
+                    "tag": "C3_Jail",
+                    "max": 1
+                }
+            },
+            "Global_ToSandBox_Enter"
+        ],
+        "action": "DoNothing",
+        "timeout": 5000,
+        "next": [
+            "Collect_Skill_Start",
+            "[JumpBack]Global_ToSandBox"
+        ],
+        "focus": "C3.禁闭室采集"
+    },
+    "Collect_C3_Entry_Done": {
+        "desc": "进卡当场采完禁闭室 | 置位 C3_Jail、清技能出口，然后回传送阵交通用流程。",
+        "recognition": "DirectHit",
+        "action": "Custom",
+        "custom_action": "UpdateTag",
+        "custom_action_param": {
+            "tag": "C3_Jail",
+            "value": 1
+        },
+        "anchor": {
+            "QuickSkill_Egress": ""
+        },
+        "post_delay": 0,
+        "next": [
+            "[JumpBack]Collect_C3_Rehome",
+            "Collect_C3_Rehome_Ck"
+        ]
+    },
+    "Collect_C3_Rehome": {
+        "desc": "从禁闭室回到传送阵，每次进卡只调用一次 | 清零 WayPoint 入口、告示板与到达的任务级计数后调用 Collect_WayPoint_Entry，在寻路列表里选旅馆，到达后步行回传送阵。 | 那几个 max_hit 是给单次调用防重跑的，别的卡先用掉会让这里无路可走，所以每次调用前重给一份。本节点 max_hit 1 由 Entry 清零。",
+        "max_hit": 1,
+        "recognition": "Or",
+        "any_of": [
+            "Global_ToSandBox_Enter"
+        ],
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "ClearNodeHitCount",
+        "custom_action_param": {
+            "node_name": [
+                "Collect_WayPoint_Entry",
+                "Collect_WayPoint_Board",
+                "Collect_WayPoint_Arrived"
+            ]
+        },
+        "post_delay": 0,
+        "next": [
+            "Collect_WayPoint_Entry"
+        ],
+        "focus": "C3.回到传送阵"
+    },
+    "Collect_C3_Rehome_Ck": {
+        "desc": "确认已站上传送阵再交通用流程 | 看得到传送阵手标才进通用箱庭入口；复位没成功时不命中，调用方超时退栈，本卡不写完成。",
+        "recognition": "Or",
+        "any_of": [
+            "Collect_TeleporCircle_Ico_Enter"
+        ],
+        "action": "DoNothing",
+        "post_delay": 0,
+        "next": [
+            "Collect_OperationsMain_Sandplay"
+        ]
+    },
+    "Collect_C3_Jail": {
+        "desc": "通用流程翻到禁闭室页时转去采集 | 挂在 Collect_TargetMap3.next（S18 之后），名条含禁闭室且本轮未采才命中；已采时由同一列表后面的 Collect_QuickCart_TargetMapEnd 收尾。 | 禁闭室页只在本卡出现，所以不设锚点区分卡带；先复位箱庭关掉面板，再开导航地图。",
+        "recognition": "And",
+        "all_of": [
+            {
+                "recognition": "OCR",
+                "roi": [
+                    408,
+                    622,
+                    466,
+                    47
+                ],
+                "expected": [
+                    "禁闭室"
+                ]
+            },
+            {
+                "recognition": "Custom",
+                "custom_recognition": "CheckTag",
+                "custom_recognition_param": {
+                    "tag": "C3_Jail",
+                    "max": 1
+                }
+            }
+        ],
+        "action": "DoNothing",
+        "post_delay": 0,
+        "next": [
+            "Collect_C3_Jail_Open",
+            "[JumpBack]Global_ToSandBox"
+        ],
+        "focus": "C3.地图1与战斗1已采-去禁闭室"
+    },
+    "Collect_C3_Jail_Open": {
+        "desc": "开导航地图看是否已到禁闭室 | 去程开头与每次寻路结束后都经这里：在箱庭时点左上小地图，标题是禁闭室交 Jail_Arrived，不是就交 Jail_Walk 重走，没打开重点自身。 | max_hit 6 = 去程开头一次 + 三次寻路后各一次 + 余量，由 Entry 清零；用完或 3 秒内都不命中即退栈。",
+        "max_hit": 6,
+        "recognition": "Or",
+        "any_of": [
+            "Rec_SandBox_Pin_Tpl",
+            "Rec_SandBox_Run_Tpl"
+        ],
+        "action": "Click",
+        "target": [
+            148,
+            119,
+            34,
+            38
+        ],
+        "post_delay": 2000,
+        "timeout": 3000,
+        "next": [
+            "Collect_C3_Jail_Arrived",
+            "Collect_C3_Jail_Walk",
+            "Collect_C3_Jail_Open"
+        ]
+    },
+    "Collect_C3_Jail_Walk": {
+        "desc": "点导航地图上的禁闭室开始自动寻路 | OCR 认标签，下移 18px 点在它下面的图标上，到达后游戏自动切图；点后弹确认框先点掉，地图还开着、标签还在就重点（计入三次）。 | 被巡逻怪送回固定位置后，导航地图上同一处仍能点到禁闭室；max_hit 3 即最多走三次，由 Entry 清零。",
+        "max_hit": 3,
+        "recognition": "OCR",
+        "roi": [
+            465,
+            175,
+            85,
+            32
+        ],
+        "expected": [
+            "禁闭室"
+        ],
+        "action": "Click",
+        "target_offset": [
+            0,
+            18,
+            0,
+            0
+        ],
+        "post_delay": 3000,
+        "next": [
+            "[JumpBack]Collect_IM_Move_MGS",
+            "Collect_C3_Jail_Walk",
+            "[JumpBack]Global_WaitingForLoading",
+            "Collect_C3_Jail_Wait"
+        ],
+        "focus": "C3.点禁闭室-自动寻路"
+    },
+    "Collect_C3_Jail_Wait": {
+        "desc": "等寻路与切图结束 | 先等画面静止 3 秒，再反复看：还在寻路或在转场就 [JumpBack] 回来接着等，都不是时交 Jail_Open 开图核对。 | next 里不放兜底：转场黑屏那一两秒箱庭、寻路标、载入都可能认不到。超时仍无结果即退栈。",
+        "recognition": "DirectHit",
+        "action": "DoNothing",
+        "post_wait_freezes": {
+            "time": 3000,
+            "timeout": 30000
+        },
+        "next": [
+            "[JumpBack]Collect_IM_OnFoot_Moveing",
+            "[JumpBack]Global_WaitingForLoading",
+            "Collect_C3_Jail_Open"
+        ]
+    },
+    "Collect_C3_Jail_Arrived": {
+        "desc": "已到禁闭室 | 关地图并把技能出口设为 Jail_Done，交共用采集节点。",
+        "recognition": "Or",
+        "any_of": [
+            "Rec_Collect_C3_Jail_Ocr"
+        ],
+        "action": "Click",
+        "target": [
+            120,
+            35
+        ],
+        "anchor": {
+            "QuickSkill_Egress": "Collect_C3_Jail_Done"
+        },
+        "post_delay": 1500,
+        "next": [
+            "Collect_C3_Skill"
+        ],
+        "focus": "C3.已到禁闭室"
+    },
+    "Collect_C3_Jail_Done": {
+        "desc": "走过去采完禁闭室 | 置位 C3_Jail、清技能出口，交公共成功收尾。 | 人留在禁闭室，下次进卡由入口当场采集。",
+        "recognition": "DirectHit",
+        "action": "Custom",
+        "custom_action": "UpdateTag",
+        "custom_action_param": {
+            "tag": "C3_Jail",
+            "value": 1
+        },
+        "anchor": {
+            "QuickSkill_Egress": ""
+        },
+        "post_delay": 0,
+        "next": [
+            "Collect_PackFinish"
+        ],
+        "focus": "C3.禁闭室已采完"
+    },
+    "Rec_Collect_C3_Jail_Ocr": {
+        "desc": "[识别]导航地图标题是不是禁闭室 | 箱庭 HUD 不显示图名，只有导航地图标题有，调用方须在点开地图之后用。",
+        "recognition": "OCR",
+        "roi": [
+            171,
+            15,
+            555,
+            48
+        ],
+        "expected": [
+            "禁闭室"
+        ]
+    }
+}

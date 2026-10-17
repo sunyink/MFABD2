@@ -104,6 +104,14 @@ class StartupGuard:
             return self._remember(key, None)
         except Exception as exc:
             reason = str(exc) or type(exc).__name__
+            # 只有 PreparationError（超时/取不到身份/命令未结束等环境类判据）才配
+            # 上升为会话级失败。代码级异常是 bug，按任务级失败处理——否则一次偶发
+            # 就把整轮队列全灭，而重试一次的代价只有 0.2 秒。
+            if not isinstance(exc, PreparationError):
+                self.error(f"[启动准备] {type(exc).__name__}：{reason}；本任务已停止，"
+                           "下个任务会重新检查（不需要重启软件）")
+                self.stop(tasker)
+                return self._remember(key, None)
             if key is not None and key[0] in PERSIST_FAILURE_KINDS:
                 self.failures[(key[0], key[1])] = reason
                 self.error(f"[启动准备] {reason}；本会话该控制器的后续任务将停止执行，请修复后重新启动软件")

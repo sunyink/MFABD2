@@ -4,6 +4,7 @@ from maa.context import Context
 from maa.custom_action import CustomAction
 from maa.agent.agent_server import AgentServer
 from utils import mfaalog
+from utils.num_list import parse_number_list
 
 @AgentServer.custom_action("BatchNumericPatch")
 class BatchNumericPatch(CustomAction):
@@ -158,3 +159,131 @@ class BatchNumericPatch(CustomAction):
             mfaalog.debug(f"[BatchPatch] 致命异常: {e}\n{traceback.format_exc()}")
             # [修正] 即使异常也建议返回 Success=True 防止卡死，或者 False 中断任务
             return CustomAction.RunResult(success=True)
+
+# ==============================================================================
+# 卡带名单：自选采集范围（WhiteListPatch）与调试直采（DebugListPatch）
+# ==============================================================================
+# 两者都从各自节点的 attach 读三类编号（StoryPack / CharacterPack / EventPack，界面输入框注入，
+# 语法同屏蔽：1,3~5），只改具名卡带节点 Collect_Pack_<类>_<N> 的 enabled；节点范围从节点表枚举。
+#   范围：全局生效，只做减法——范围外的具名卡带全部禁用，没填的类别整类关闭，无名卡兜底也关闭，不启用任何节点。
+#         与排除（屏蔽）重叠时自然以排除为准，默认不支持采集的卡带（Story_20 / Character_8）也不会被打开。
+#         三类都没有有效编号时视为没开，不修改。
+#   调试：名单内的卡带启用（含默认不支持的），其余具名卡带与无名卡兜底全部禁用，没填的类整类不进。
+#         名单内的卡带由独立的调试选卡分支放行，不受彩色徽章条件限制。
+# 本周还有没有要采的，由下游 Collect_PackType_Select（action/pack_type_select.py）统一判断。
+WHITE_LIST_NODE = "Collect_WhiteList_User"
+DEBUG_LIST_NODE = "Collect_DebugList_User"
+UNNAMED_PACK_NODE = "Collect_Pack_Unnamed"
+PACK_TYPES = (
+    ("StoryPack", "Collect_Pack_Story_"),
+    ("CharacterPack", "Collect_Pack_Character_"),
+    ("EventPack", "Collect_Pack_Event_"),
+)
+
+
+def _parse_param(raw):
+    return raw if isinstance(raw, dict) else json.loads(str(raw) or "{}")
+
+
+def _read_attach(context, node_name):
+    try:
+        return dict(getattr(context.get_node_object(node_name), "attach", None) or {})
+    except Exception as e:
+        mfaalog.warning(f"[卡带名单] 读取节点 {node_name} 的 attach 失败: {e}")
+        return {}
+
+
+def _pack_nodes(context, prefix):
+    """节点表里的 <prefix><数字> -> {数字: 节点名}。"""
+    try:
+        names = [str(n) for n in context.tasker.resource.node_list]
+    except Exception as e:
+        mfaalog.error(f"[卡带名单] 读取节点表失败: {e}")
+        return {}
+    return {int(n[len(prefix):]): n for n in names
+            if n.startswith(prefix) and n[len(prefix):].isdigit()}
+
+
+def _is_enabled(context, node_name):
+    try:
+        data = context.get_node_data(node_name)
+    except Exception:
+        return True
+    return not (isinstance(data, dict) and data.get("enabled") is False)
+
+
+@AgentServer.custom_action("WhiteListPatch")
+class WhiteListPatch(CustomAction):
+    def run(self, context: Context, argv: CustomAction.RunArg) -> CustomAction.RunResult:
+        try:
+            params = _parse_param(argv.custom_action_param)
+        except Exception as e:
+            mfaalog.error(f"[采集范围] 参数解析失败，本次不修改: {e}")
+            return CustomAction.RunResult(success=True)
+        attach = _read_attach(context, params.get("node_name", WHITE_LIST_NODE))
+
+        keep = {}
+        nodes_by_type = {}
+        for key, prefix in PACK_TYPES:
+            nums = parse_number_list(attach.get(key, ""))
+            nodes = nodes_by_type[key] = _pack_nodes(context, prefix)
+            keep[key] = [nodes[n] for n in nums if n in nodes]
+            missing = [n for n in nums if n not in nodes]
+            if missing:
+                mfaalog.warning(f"[采集范围] {key} 的编号 {missing} 没有对应卡带，已忽略")
+        if not any(keep.values()):
+            mfaalog.warning("[采集范围] 已开启但没有有效编号，按未开启处理，不限制范围")
+            return CustomAction.RunResult(success=True)
+
+        patches = {}
+        for key, nodes in nodes_by_type.items():
+            for nm in nodes.values():
+                if nm not in keep[key]:
+                    patches[nm] = {"enabled": False}
+            closed = [nm for nm in keep[key] if not _is_enabled(context, nm)]
+            if closed:
+                mfaalog.info(f"[采集范围] {key} 中 {closed} 已被排除或暂不支持采集，保持关闭")
+            mfaalog.info(f"[采集范围] {key} 只保留 {keep[key] or '（无，整类不采）'}")
+        # 没有具名节点的新卡也在范围外
+        patches[UNNAMED_PACK_NODE] = {"enabled": False}
+
+        try:
+            context.override_pipeline(patches)
+        except Exception as e:
+            mfaalog.error(f"[采集范围] override_pipeline 失败: {e}")
+        return CustomAction.RunResult(success=True)
+
+
+@AgentServer.custom_action("DebugListPatch")
+class DebugListPatch(CustomAction):
+    def run(self, context: Context, argv: CustomAction.RunArg) -> CustomAction.RunResult:
+        try:
+            params = _parse_param(argv.custom_action_param)
+        except Exception as e:
+            mfaalog.error(f"[卡带调试] 参数解析失败，本次不修改: {e}")
+            return CustomAction.RunResult(success=True)
+        attach = _read_attach(context, params.get("node_name", DEBUG_LIST_NODE))
+
+        patches = {}
+        picked = []
+        for key, prefix in PACK_TYPES:
+            nums = set(parse_number_list(attach.get(key, "")))
+            nodes = _pack_nodes(context, prefix)
+            missing = sorted(nums - set(nodes))
+            if missing:
+                mfaalog.warning(f"[卡带调试] {key} 的编号 {missing} 没有对应卡带，已忽略")
+            for n, nm in nodes.items():
+                patches[nm] = {"enabled": n in nums}
+                if n in nums:
+                    picked.append(nm)
+        patches[UNNAMED_PACK_NODE] = {"enabled": False}
+
+        if not picked:
+            mfaalog.warning("[卡带调试] 调试直采已开启但名单为空，本次不会进入任何卡带")
+        else:
+            mfaalog.info(f"[卡带调试] 只进入 {picked}，其余卡带与无名卡兜底全部关闭")
+        try:
+            context.override_pipeline(patches)
+        except Exception as e:
+            mfaalog.error(f"[卡带调试] override_pipeline 失败: {e}")
+        return CustomAction.RunResult(success=True)

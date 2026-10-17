@@ -91,19 +91,19 @@ utils.mfaalog.info(f"[周期检查] 周期策略管理器已加载。")
 # ⚠️ 它**不返回**"哪几项可跑"。CustomAction 读不到识别的 detail，身份信息传不下去。
 #    要按项分发仍然得靠 pipeline 把候选展开成多个节点；批量只适合做总闸。
 #
-# "Collect_AllLibGone": {
+# "Example_AllDone": {
 #     "recognition": "Custom",
 #     "custom_recognition": "CheckCoolDown",
 #     "custom_recognition_param": {
 #         "targets": [                       // ← 有 targets 就走批量，否则走单个
-#             { "card_name": "Pack_Story_SimpleDone", "cycle_type": "g_weekly" },
-#             { "card_name": "Pack_Event_SimpleDone", "cycle_type": "g_weekly" }
+#             { "card_name": "Map_Boss_Reward", "cycle_type": "g_weekly" },
+#             { "card_name": "Map_Hidden_Path", "cycle_type": "g_weekly" }
 #         ],
 #         "match": "all_done"                // ← 见下表，缺省 "any"
 #     },
 #     "pre_delay": 0,
 #     "post_delay": 0,
-#     "focus": "全类已完成,收尾"
+#     "focus": "全部目标已有完成记录,收尾"
 #     // 不写 next = 命中后退栈收尾；要硬停整个 task 才写 "action": "StopTask"
 # }
 #

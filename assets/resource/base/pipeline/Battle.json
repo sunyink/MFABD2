@@ -1,21 +1,97 @@
 {
     "QuickHunt_Start": {
+        "desc": "task入口,先排除Agent失联,再交给QuickHunt_Daily_Switch判存档。闸不通过时本节点next耗尽,整个task直接结束。Env_AgentLost_Stop必须排在闸前:闸是Custom识别,Agent失联时它只会静默不命中",
+        "timeout": 1,
         "next": [
             "Env_AgentLost_Stop",
+            "QuickHunt_Daily_Switch"
+        ]
+    },
+    "QuickHunt_Daily_Switch": {
+        "desc": "快速狩猎存档闸:本游戏日已确认免费米饭与火把都扫空(QuickHunt_Daily_Mark打过标)则不命中,整个task直接结束。想强制重跑用选项<快速狩猎日常-强制重跑>",
+        "recognition": "Custom",
+        "custom_recognition": "CheckCoolDown",
+        "custom_recognition_param": {
+            "card_name": "QuickHunt_Daily",
+            "cycle_type": "g_daily"
+        },
+        "pre_delay": 0,
+        "post_delay": 0,
+        "next": [
+            "QuickHunt_Daily_ResetTags"
+        ]
+    },
+    "QuickHunt_Daily_ResetTags": {
+        "desc": "本轮快速狩猎开始前清零米饭、火把耗尽tag,避免沿用上轮或其他存档的内存标记。0表示未确认,检测耗尽后UpdateTag写为-1",
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "ResetTag",
+        "custom_action_param": {
+            "tags": [
+                "RiceAP_Zero",
+                "TorchAP_Zero"
+            ]
+        },
+        "post_delay": 0,
+        "next": [
             "QuickHunt_Hub"
         ]
     },
     "QuickHunt_Hub": {
-        "desc": "使用调度器控制是否打-4.2重构",
+        "desc": "使用调度器控制是否打-4.2重构。末尾QuickHunt_Daily_Ck以And检查本轮米饭、火把耗尽tag,两者都有才走QuickHunt_Daily_Mark,缺一个则不打标。interface<米饭分配次数>整表覆盖本next,改这里要同步",
         "timeout": 1,
         "next": [
             "[JumpBack]QuickHunt_OpenGui",
             "[JumpBack]QuickHunt_HuntingGrounds",
             "[JumpBack]QuickHunt_AdventureRoute",
             "[JumpBack]QuickHunt_RiceRecheck",
-            "[JumpBack]QuickHunt_CrystalCave"
+            "[JumpBack]QuickHunt_RiceZero_Ck",
+            "[JumpBack]QuickHunt_CrystalCave",
+            "[JumpBack]QuickHunt_Daily_Ck"
         ],
         "focus": "B.M 快速狩猎调度器"
+    },
+    "QuickHunt_Daily_Ck": {
+        "desc": "完成条件检查(jb1):And确认本轮米饭、火把耗尽tag均小于0才记日常完成。CheckTag只支持当前值<max,故清零为0、耗尽写-1、检查max为0,缺标或检查失败均不通过",
+        "max_hit": 1,
+        "recognition": "And",
+        "all_of": [
+            {
+                "sub_name": "RiceTag",
+                "recognition": "Custom",
+                "custom_recognition": "CheckTag",
+                "custom_recognition_param": {
+                    "tag": "RiceAP_Zero",
+                    "max": 0
+                }
+            },
+            {
+                "sub_name": "TorchTag",
+                "recognition": "Custom",
+                "custom_recognition": "CheckTag",
+                "custom_recognition_param": {
+                    "tag": "TorchAP_Zero",
+                    "max": 0
+                }
+            }
+        ],
+        "pre_delay": 0,
+        "post_delay": 0,
+        "next": [
+            "QuickHunt_Daily_Mark"
+        ]
+    },
+    "QuickHunt_Daily_Mark": {
+        "desc": "快速狩猎存档打标,只经QuickHunt_Daily_Ck到达:本轮米饭、火把耗尽tag均已确认,记本游戏日完成,之后进任务由QuickHunt_Daily_Switch直接跳过",
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "MarkComplete",
+        "custom_action_param": {
+            "card_name": "QuickHunt_Daily",
+            "cycle_type": "g_daily"
+        },
+        "post_delay": 0,
+        "focus": "BM.免费米饭与火把均已确认用尽,今日快速狩猎记为完成"
     },
     "QuickHunt_OpenGui": {
         "desc": "初始界面到狩猎地图",
@@ -81,6 +157,7 @@
         "focus": "CM.狩猎场-红点存在"
     },
     "QuickHunt_CollectNoDot": {
+        "desc": "没找到红点就终止。不在此打标:没找到红点不等于免费AP已用完(也可能是红点漏检或界面不对),打标只在QuickHunt_Hub末尾读到两种AP都为0之后",
         "action": "StopTask",
         "focus": "[WRN]狩猎场红点不存在,终止任务"
     },
@@ -724,12 +801,31 @@
             "[火水光风火暗]之洞穴"
         ],
         "next": [
+            "[JumpBack]QuickHunt_TorchZero_Ck",
             "QuickHunt_NoTorchesAP_Skip",
             "QuickHunt_FastBattleTouch_StoneSelect_Smart",
             "QuickHunt_FastBattleTouch_StoneSelect"
         ]
     },
+    "QuickHunt_TorchZero_Ck": {
+        "desc": "火把清空确认(jb1,挂洞穴页签分流最前):复用QuickHunt_NoTorchesAP_Skip读到免费火把0/N才将TorchAP_Zero写为-1,打标后返回分流再跳过洞穴。进洞穴与打完后的复核都经过这里",
+        "max_hit": 1,
+        "recognition": "And",
+        "all_of": [
+            "QuickHunt_NoTorchesAP_Skip"
+        ],
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "UpdateTag",
+        "custom_action_param": {
+            "tag": "TorchAP_Zero",
+            "value": -1
+        },
+        "post_delay": 0,
+        "focus": "BM.免费火把已确认用尽"
+    },
     "QuickHunt_NoTorchesAP_Skip": {
+        "desc": "免费火把读到0/N则跳过圣石洞穴回箱庭。耗尽tag由前置jb1节点QuickHunt_TorchZero_Ck复用本识别写入",
         "recognition": "OCR",
         "roi": [
             1040,
@@ -1200,6 +1296,23 @@
         ],
         "focus": "BM.#327 免费米饭未清空,续打消化"
     },
+    "QuickHunt_RiceZero_Ck": {
+        "desc": "米饭清空确认(jb1,挂Hub在RiceRecheck后):复用QuickHunt_NoRiceAP_Skip读到免费米饭0/N才将RiceAP_Zero写为-1;读不到0就不命中,本轮不打标",
+        "max_hit": 1,
+        "recognition": "And",
+        "all_of": [
+            "QuickHunt_NoRiceAP_Skip"
+        ],
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "UpdateTag",
+        "custom_action_param": {
+            "tag": "RiceAP_Zero",
+            "value": -1
+        },
+        "post_delay": 0,
+        "focus": "BM.免费米饭已确认用尽"
+    },
     "QuickHunt_RiceRecheck_Initialize": {
         "desc": "限定次数复位",
         "max_hit": 3,
@@ -1299,15 +1412,26 @@
         "focus": "BB.快速狩猎-异常(进入地图复位模块)"
     },
     "QuickHunt_CrystalCave_End": {
-        "desc": "返回本子地图",
+        "desc": "返回本子地图。首次先回洞穴页签复核火把(QuickHunt_TorchRecheck),第二次起直接回箱庭",
         "recognition": "And",
         "all_of": [
             "QuickHunt_CollectMap_Initialize_Out_Ty2"
         ],
         "next": [
+            "QuickHunt_TorchRecheck",
             "Global_ToSandBox"
         ],
         "focus": "BM.流程可以结束"
+    },
+    "QuickHunt_TorchRecheck": {
+        "desc": "火把清空复核:打完圣石洞穴后重进洞穴页签,读到0/N由QuickHunt_TorchZero_Ck打tag,再经QuickHunt_NoTorchesAP_Skip回箱庭;仍有剩余就顺路再打一轮。max_hit:1防OCR读不出0时反复重打",
+        "max_hit": 1,
+        "pre_delay": 0,
+        "post_delay": 0,
+        "next": [
+            "QuickHunt_CollectMapCrystalCave"
+        ],
+        "focus": "BM.圣石洞穴-复核火把余量"
     },
     "QuickHunt_TurnCharact_Start": {
         "desc": "均衡打圣石,无判定开关节点插入,开启则进入均衡模式.",
