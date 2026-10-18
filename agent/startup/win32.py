@@ -35,6 +35,7 @@ class WindowsAPI:
             (self.user, "IsWindowVisible", W.BOOL, [W.HWND]),
             (self.user, "IsIconic", W.BOOL, [W.HWND]),
             (self.user, "IsZoomed", W.BOOL, [W.HWND]),
+            (self.user, "GetForegroundWindow", W.HWND, []),
             (self.user, "GetWindowThreadProcessId", W.DWORD, [W.HWND, C.POINTER(W.DWORD)]),
             (self.user, "GetClassNameW", C.c_int, [W.HWND, W.LPWSTR, C.c_int]),
             (self.user, "GetWindowTextW", C.c_int, [W.HWND, W.LPWSTR, C.c_int]),
@@ -190,6 +191,9 @@ class WindowsAPI:
 
     def maximized(self, hwnd):
         return bool(self.user.IsZoomed(hwnd))
+
+    def foreground(self, hwnd):
+        return (self.user.GetForegroundWindow() or 0) == hwnd
 
     def pseudo_minimized(self, hwnd):
         style = self.user.GetWindowLongW(hwnd, -20)

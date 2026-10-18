@@ -1,6 +1,7 @@
 """Per-task PC startup gate; ADB preparation is opt-in for research only."""
 
 from collections import OrderedDict
+from functools import partial
 
 from .common import Budget, Cancelled, Prepared, PreparationError
 from .options import PCOptions
@@ -21,12 +22,14 @@ class StartupGuard:
         self.warn = warn or report
         self.budget_factory = budget_factory
         self.adb_prepare = adb_prepare
-        self.pc_prepare = pc_prepare or self._pc_prepare
+        self.pc_prepare = pc_prepare or partial(self._pc_prepare, watch=self._keep_minimized)
         self.tasks = OrderedDict()
         self.failures = {}
+        # 当前「最小化保持」线程的停止信号；新任务或任务结束时置位。
+        self.minimize_watch = None
 
     @staticmethod
-    def _pc_prepare(controller, info, budget, options):
+    def _pc_prepare(controller, info, budget, options, watch=None):
         # controller 保留在注入契约中；窗口准备本身只使用原生窗口接口。
         del controller
         from .pc import prepare
@@ -41,7 +44,36 @@ class StartupGuard:
         # 但多个控制器可能把彼此制造的透明状态保存成原始状态，inactive 也会恢复成
         # 透明。应避免重复截图控制器，不能在每个任务中靠 inactive 掩盖该生命周期问题。
         with WindowsAPI() as api:
-            return prepare(api, budget, hwnd=hwnd, options=options)
+            result = prepare(api, budget, hwnd=hwnd, options=options)
+            # 只在 sink 真的把窗口压下去之后盯；它判定「本次不最小化」时窗口本来就该亮着。
+            if watch and options.minimize and (api.minimized(hwnd) or api.pseudo_minimized(hwnd)):
+                watch(hwnd)
+        return result
+
+    def _keep_minimized(self, hwnd):
+        """后台线程跑 pc.keep_minimized，不阻塞 pipeline；任务结束（task_finished）即停。"""
+        import threading
+        import time
+
+        from .pc import keep_minimized
+        from .win32 import WindowsAPI
+
+        self.task_finished()
+        stop = self.minimize_watch = threading.Event()
+
+        def run():
+            try:
+                with WindowsAPI() as api:
+                    keep_minimized(api, hwnd, clock=time.monotonic, pause=stop.wait,
+                                   stopped=stop.is_set, report=self.report)
+            except Exception as exc:
+                self.warn(f"[PC窗口] 最小化保持检查出错（{str(exc) or type(exc).__name__}），不影响任务")
+
+        threading.Thread(target=run, name="PCKeepMinimized", daemon=True).start()
+
+    def task_finished(self):
+        if self.minimize_watch is not None:
+            self.minimize_watch.set()
 
     @staticmethod
     def stop(tasker):

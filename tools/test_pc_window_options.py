@@ -57,6 +57,7 @@ class FakeAPI:
         self.zoomed = maximized
         self.full = fullscreen
         self.pseudo = pseudo
+        self.fg = False
         self.calls = []
         self.restore_ok = self.resize_ok = self.exit_ok = self.minimize_ok = True
 
@@ -95,6 +96,8 @@ class FakeAPI:
 
     def pseudo_minimized(self, hwnd):
         return self.pseudo
+    def foreground(self, hwnd):
+        return self.fg
 
     def restore(self, hwnd):
         self.calls.append(('restore',))
@@ -538,11 +541,90 @@ class Contracts(unittest.TestCase):
         self.assertIn('[sink]', self.logs[-1])
         self.assertIn('最小化', self.logs[-1])
 
+    # ---- 最小化后被拉回前台的补发（keep_minimized） ----
+
+    def keep(self, api, stopped=lambda: False):
+        reports = []
+        retries = pc.keep_minimized(api, 0x123, clock=self.clock, pause=self.clock.sleep,
+                                    stopped=stopped, report=reports.append)
+        return retries, reports
+
+    def test_reminimizes_once_when_the_game_takes_the_foreground(self):
+        # 2026-10-18 实机：框架施加伪最小化约 60ms 后游戏成了前台，监视线程随即撤销。
+        # 被抢之后再最小化，系统当场取消激活，伪最小化就保持住了。
+        api = FakeAPI(size=(1280, 720), pseudo=True)
+        real_pseudo, real_minimize = api.pseudo_minimized, api.minimize
+        stolen = []
+
+        def pseudo(hwnd):
+            if self.clock.now >= 0.3 and not stolen:
+                stolen.append(self.clock.now)
+                api.pseudo, api.fg = False, True
+            return real_pseudo(hwnd)
+
+        def minimize(hwnd):
+            real_minimize(hwnd)
+            api.fg = False
+
+        api.pseudo_minimized, api.minimize = pseudo, minimize
+        retries, reports = self.keep(api)
+        self.assertEqual(retries, 1)
+        self.assertEqual(api.calls.count(('minimize',)), 1)
+        self.assertTrue(api.pseudo)
+        self.assertIn('第 1 次', reports[0])
+        self.assertGreaterEqual(self.clock.now, pc.REMINIMIZE_WINDOW)
+
+    def test_visible_window_without_foreground_is_left_alone(self):
+        # 例如任务结束时框架的 post_inactive：窗口露出来，但前台不是游戏。
+        api = FakeAPI(size=(1280, 720))
+        retries, reports = self.keep(api)
+        self.assertEqual(retries, 0)
+        self.assertNotIn(('minimize',), api.calls)
+        self.assertEqual(reports, [])
+
+    def test_repeated_steals_give_up_after_the_limit(self):
+        api = FakeAPI(size=(1280, 720))
+        api.fg, api.minimize_ok = True, False
+        retries, reports = self.keep(api)
+        self.assertEqual(retries, pc.MAX_REMINIMIZE)
+        self.assertEqual(api.calls.count(('minimize',)), pc.MAX_REMINIMIZE)
+        self.assertIn('仍未保持', reports[-1])
+        self.assertLess(self.clock.now, pc.REMINIMIZE_WINDOW)
+
+    def test_finished_task_stops_the_watch_at_once(self):
+        api = FakeAPI(size=(1280, 720))
+        api.fg = True
+        retries, _ = self.keep(api, stopped=lambda: True)
+        self.assertEqual(retries, 0)
+        self.assertNotIn(('minimize',), api.calls)
+        self.assertEqual(self.clock.now, 0.0)
+
+    def test_watch_starts_only_after_a_real_minimize(self):
+        cases = (
+            ('最小化已确认', dict(size=(1280, 720)), True, [0x123]),
+            ('未选最小化', dict(size=(1280, 720)), False, []),
+            ('尺寸未稳定本次不最小化', dict(size=(1920, 1080), resize_ok=False), True, []),
+        )
+        for name, setup, minimize, expected in cases:
+            with self.subTest(name):
+                self.setUp()
+                resize_ok = setup.pop('resize_ok', True)
+                api = FakeAPI(**setup)
+                api.resize_ok = resize_ok
+                fake_module = types.ModuleType('startup.win32')
+                fake_module.WindowsAPI = lambda: api
+                controller = context().tasker.controller
+                watched = []
+                with patch.dict(sys.modules, {'startup.win32': fake_module}):
+                    guard.StartupGuard._pc_prepare(controller, controller.info, self.budget,
+                                                   options.PCOptions(minimize=minimize), watch=watched.append)
+                self.assertEqual(watched, expected)
+
     # ---- guard 的失败收场 ----
 
     def test_guard_never_calls_post_inactive(self):
-        # post_inactive 的语义是取消置顶 + 解除输入阻断，不碰 layered/alpha，
-        # 拿它「救援」伪最小化只会空转然后二次报错。别再加回来。
+        # post_inactive 只撤销本控制器自己施加的伪最小化；别处（另一个控制器）造成的透明
+        # 它不认，拿它「救援」只会空转然后二次报错。别再加回来。
         api = FakeAPI(size=(1280, 720), pseudo=True)
         fake_module = types.ModuleType('startup.win32')
         fake_module.WindowsAPI = lambda: api

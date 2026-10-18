@@ -11,6 +11,10 @@ RESIZE_WINDOW = 15.0
 GEOMETRY_STABLE_WINDOW = 0.5
 # 最小化同样只投递一次，再等待系统/框架确认状态。
 MINIMIZE_WINDOW = 6.0
+# 最小化确认之后再盯这么久：框架施加伪最小化时游戏可能被拉到前台，框架自己随即撤销
+# （见 keep_minimized）。只在这段时间里补发，之后用户自己打开游戏不会被抢回。
+REMINIMIZE_WINDOW = 3.0
+MAX_REMINIMIZE = 2
 # 客户区长宽比相对目标的容许偏差。短边 720 上 1px 取整误差是 0.14%，这里留足余量。
 ASPECT_TOLERANCE = 0.02
 # 短边低于这个值时，框架的短边缩放会变成放大，识别精度会掉。此时即使长宽比对得上
@@ -187,6 +191,36 @@ def align_window(api, hwnd, budget, options):
     line = f"[PC窗口][sink] 分辨率 {_fmt(before)} → {_fmt(actual)}（{resized}{extra}）；{mode}{note}"
     # 降级整行走 warn，否则这条「为什么继续跑」会被埋在一堆 info 里。
     (budget.warn if note or not geometry_ready else budget.report)(line)
+
+
+def keep_minimized(api, hwnd, *, clock, pause, stopped, report):
+    """sink 最小化之后的短时间里，把被框架自己撤销的伪最小化补回去；返回补发次数。
+
+    框架的后台点击每次都先给游戏发 WM_ACTIVATE，游戏线程于是把自己当活动窗口。这时
+    sink 再最小化，系统不会替它取消激活（它不在前台）；框架施加伪最小化、以不激活方式
+    还原窗口时，游戏随即成了前台，框架的监视线程把这当成「用户点开了游戏」而撤销，
+    窗口整个任务都亮着（2026-10-18 两轮探针 10/10）。被抢之后游戏就在前台，此时再最小化
+    会被系统当场取消激活，伪最小化就能保持住。
+
+    只在「窗口露出来、且游戏是前台」时补发；窗口露出来但前台不是游戏（例如任务结束时
+    框架的 post_inactive）不碰。stopped() 为真立即退出：任务一结束就不该再动窗口。
+    """
+    until = clock() + REMINIMIZE_WINDOW
+    retries = 0
+    while not stopped() and clock() < until:
+        if not api.is_game(hwnd):
+            break
+        if not (api.minimized(hwnd) or api.pseudo_minimized(hwnd)) and api.foreground(hwnd):
+            if retries >= MAX_REMINIMIZE:
+                report(f"[PC窗口] 最小化后游戏又被拉回前台，补发 {retries} 次仍未保持；本任务窗口保持可见")
+                break
+            api.minimize(hwnd)
+            retries += 1
+            report(f"[PC窗口] 最小化后游戏被拉回前台，已补发最小化（第 {retries} 次）")
+        remaining = until - clock()
+        if remaining > 0:
+            pause(min(0.1, remaining))
+    return retries
 
 
 def settle_after_launch(api, hwnd, budget):
