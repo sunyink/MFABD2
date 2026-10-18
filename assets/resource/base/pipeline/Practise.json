@@ -1,5 +1,7 @@
 {
-    "Practise_Start": {},
+    "Practise_Start": {
+        "focus": "开始生活技能练习"
+    },
     "Practise_Skill_Bargaining": {
         "anchor": "PractiseBargaining_Per",
         "next": [
@@ -7,7 +9,8 @@
             "Practise_Skill_Bargaining_Verify",
             "Arbitrage_Merchant_Entry",
             "Arbitrage_Start"
-        ]
+        ],
+        "focus": "砍价练习：检查商店与技能页面"
     },
     "Practise_Merchant_Menu_Return": {
         "recognition": "Or",
@@ -23,7 +26,8 @@
         "next": [
             "Practise_Merchant_Menu_Return_Ck",
             "Practise_Merchant_Menu_Return"
-        ]
+        ],
+        "focus": "砍价练习：退出商店，准备再次练习"
     },
     "Practise_Merchant_Menu_Return_Ck": {
         "recognition": "Or",
@@ -31,7 +35,8 @@
             "Arbitrage_Merchant_Close_Ck"
         ],
         "action": "Click",
-        "post_delay": 1000
+        "post_delay": 1000,
+        "focus": "砍价练习：确认关闭商店"
     },
     "Practise_Skill_Bargaining_Verify": {
         "desc": "确认到砍价技能,准备判定等级",
@@ -43,7 +48,8 @@
             "Practise_Skill_Bargaining_Until",
             "[JumpBack]Practise_Skill_Bargaining_Upgrade",
             "Practise_Skill_Bargaining_Succeed"
-        ]
+        ],
+        "focus": "已识别砍价技能，正在判断等级或升星状态"
     },
     "Practise_Skill_Bargaining_Verify_Err": {
         "recognition": "OCR",
@@ -75,7 +81,8 @@
         ],
         "next": [
             "Arbitrage_Bargaining_SkillList"
-        ]
+        ],
+        "focus": "砍价技能尚未达到传说，继续使用技能练习"
     },
     "Practise_Skill_Bargaining_Succeed": {
         "recognition": "OCR",
@@ -140,7 +147,8 @@
         "post_wait_freezes": 200,
         "next": [
             "Practise_Skill_Bargaining_Upgrade_Return"
-        ]
+        ],
+        "focus": "确认升星，等待升星结果"
     },
     "Practise_Skill_Bargaining_Upgrade_Return": {
         "desc": "已升星",

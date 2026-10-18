@@ -20,6 +20,12 @@
         ]
     },
     "Practise_Skill_Bargaining_Until": {
+        "roi_offset": [
+            -10,
+            35,
+            21,
+            27
+        ],
         "expected": [
             "新手",
             "进阶",

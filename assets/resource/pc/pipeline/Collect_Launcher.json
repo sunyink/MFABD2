@@ -759,6 +759,14 @@
             0.85
         ]
     },
+    "Collect_Pack_Click": {
+        "target_offset": [
+            -10,
+            5,
+            0,
+            0
+        ]
+    },
     "Collect_FirstPack": {
         "desc": "事件图可能会有新卡带||全是猜的",
         "roi": [
