@@ -110,6 +110,14 @@ def bootstrap(fault):
         assert not (root / "save").exists(), "Import must not write user saves"
         if fault == "missing-registration":
             server._custom_action_holder.pop("FishingAction")
+        elif fault == "missing-sink-registration":
+            from maa.tasker import TaskerEventSink
+            sinks = list(server._sink_holder.items())
+            # Some source branches only declare context callbacks. Prefer the
+            # tasker callback when present, but always remove a real registration.
+            tasker_sinks = [(sink_id, sink) for sink_id, sink in sinks if isinstance(sink, TaskerEventSink)]
+            sink_id, _ = (tasker_sinks or sinks)[0]
+            del server._sink_holder[sink_id]
         counts = verify_business_sources(server)
         check_log_events()
     print(f"Simulated Android bootstrap passed: {counts}")
@@ -130,7 +138,8 @@ def verify_stub_contract():
     from maa.agent.agent_server import AgentServer
     from android_test_support import AgentServer as StubServer
     for name in ("_set_api_properties", "custom_action", "register_custom_action",
-                 "custom_recognition", "register_custom_recognition", "context_sink", "add_context_sink"):
+                 "custom_recognition", "register_custom_recognition", "context_sink", "add_context_sink",
+                 "tasker_sink", "add_tasker_sink"):
         assert signature_shape(getattr(StubServer, name)) == signature_shape(getattr(AgentServer, name)), name
     for module_name, class_name, members in (
         ("maa.custom_action", "CustomAction", ("RunArg", "RunResult", "run")),
@@ -150,7 +159,8 @@ def verify_stub_contract():
 
 def real_binding(python_version, maafw_version):
     assert platform.python_version() == python_version, (platform.python_version(), python_version)
-    assert version("MaaFw") == maafw_version, (version("MaaFw"), maafw_version)
+    installed_maafw = version("MaaFw").removeprefix("v")
+    assert installed_maafw == maafw_version, (version("MaaFw"), maafw_version)
     settings = json.loads((ROOT / "android/release.json").read_text(encoding="utf-8"))
     for name, constraint in settings["python_requirements"].items():
         assert constraint.startswith("=="), f"Expected exact Android dependency pin: {name}"
@@ -200,7 +210,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("mode", choices=("bootstrap", "real"))
     parser.add_argument("--fault", choices=("missing-event-module", "missing-tasker-base", "bad-registration",
-                                          "missing-registration", "business-import"))
+                                          "missing-registration", "missing-sink-registration", "business-import"))
     parser.add_argument("--python-version")
     parser.add_argument("--maafw-version")
     args = parser.parse_args()

@@ -161,6 +161,21 @@ class AgentServer:
             return sink
         return wrapper
 
+    @staticmethod
+    def add_tasker_sink(sink):
+        if not isinstance(sink, TaskerEventSink):
+            raise TypeError("add_tasker_sink requires a TaskerEventSink instance")
+        if not AgentServer._api_properties_initialized:
+            raise AssertionError("Tasker sink registration requires API initialization")
+        AgentServer._sink_holder[len(AgentServer._sink_holder) + 1] = sink
+
+    @staticmethod
+    def tasker_sink():
+        def wrapper(sink):
+            AgentServer.add_tasker_sink(sink=sink())
+            return sink
+        return wrapper
+
     start_up = staticmethod(forbidden)
     join = staticmethod(forbidden)
     shut_down = staticmethod(forbidden)
@@ -209,7 +224,7 @@ def install_maa_stub():
 
 def expected_registrations():
     """Read declared decorators independently of the runtime registration code."""
-    expected = {"custom_action": {}, "custom_recognition": {}, "context_sink": {}}
+    expected = {"custom_action": {}, "custom_recognition": {}, "context_sink": {}, "tasker_sink": {}}
     paths = [ROOT / "agent/fishing_agent.py"]
     for directory in ("action", "recognition", "startup"):
         paths.extend((ROOT / "agent" / directory).glob("*.py"))
@@ -230,7 +245,7 @@ def expected_registrations():
                 if kind not in expected:
                     raise AssertionError(f"Unmodelled registration decorator: {kind}")
                 identity = f"{module}.{node.name}"
-                key = ast.literal_eval(decorator.args[0]) if kind != "context_sink" else identity
+                key = identity if kind.endswith("_sink") else ast.literal_eval(decorator.args[0])
                 if key in expected[kind]:
                     raise AssertionError(f"Duplicate declared {kind}: {key}")
                 expected[kind][key] = identity
@@ -238,15 +253,29 @@ def expected_registrations():
 
 
 def verify_business_sources(server):
+    from maa.context import ContextEventSink
+    from maa.tasker import TaskerEventSink
+
     expected = expected_registrations()
     actual = {
         "custom_action": {name: f"{type(obj).__module__}.{type(obj).__name__}"
                           for name, obj in server._custom_action_holder.items()},
         "custom_recognition": {name: f"{type(obj).__module__}.{type(obj).__name__}"
                                for name, obj in server._custom_recognition_holder.items()},
-        "context_sink": {f"{type(obj).__module__}.{type(obj).__name__}":
-                         f"{type(obj).__module__}.{type(obj).__name__}" for obj in server._sink_holder.values()},
+        "context_sink": {},
+        "tasker_sink": {},
     }
+    for obj in server._sink_holder.values():
+        identity = f"{type(obj).__module__}.{type(obj).__name__}"
+        if isinstance(obj, ContextEventSink):
+            kind = "context_sink"
+        elif isinstance(obj, TaskerEventSink):
+            kind = "tasker_sink"
+        else:
+            raise AssertionError(f"Unmodelled registered sink: {identity}")
+        if identity in actual[kind]:
+            raise AssertionError(f"Duplicate registered {kind}: {identity}")
+        actual[kind][identity] = identity
     if actual != expected:
         raise AssertionError(f"Registration mismatch: expected={expected}, actual={actual}")
     names = {"action", "recognition", "fishing_agent", "startup.sink", "utils.log_event_sink"}

@@ -167,8 +167,13 @@ def prepare_ui(upstream: Path, settings: dict, code: int, identity: str = RELEAS
     app = app_path.read_text(encoding="utf-8")
     app = replace_once(app, 'private const val BASE_APPLICATION_ID = "com.aliothmoon.maafw"',
                        f'private const val BASE_APPLICATION_ID = "{prefix}"')
-    app = replace_once(app, 'private val SHIPPED_ABIS = listOf("arm64-v8a", "x86_64")',
-                       'private val SHIPPED_ABIS = listOf("arm64-v8a")')
+    # v0.2.2 reads this setting from local.properties, not Gradle -P arguments.
+    properties_path = upstream / "local.properties"
+    properties = properties_path.read_text(encoding="utf-8") if properties_path.is_file() else ""
+    lines = [line for line in properties.splitlines()
+             if not re.match(r"^\s*build\.releaseAbi\s*[=:]", line)]
+    lines.append("build.releaseAbi=arm64-v8a")
+    properties_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     version_path = gradle / "GitVersion.kt"
     version = version_path.read_text(encoding="utf-8")
     marker = "internal fun Project.gitVersionCode(): Int {"
@@ -184,7 +189,7 @@ def prepare_ui(upstream: Path, settings: dict, code: int, identity: str = RELEAS
     source = module.read_text(encoding="utf-8")
     source = replace_once(source, "import com.aliothmoon.maafw.update.GitHubUpdateClient",
                           "import com.aliothmoon.maafw.update.Mfabd2GitHubUpdateClient")
-    source = replace_once(source, "single { GitHubUpdateClient(get()) }",
+    source = replace_once(source, "single { GitHubUpdateClient(get(), get<MirrorChyanUpdateClient>()::latestRelease) }",
                           "single { Mfabd2GitHubUpdateClient(get(), get()) }")
     source = replace_once(source, "get<GitHubUpdateClient>()", "get<Mfabd2GitHubUpdateClient>()")
     module.write_text(source, encoding="utf-8")

@@ -104,6 +104,11 @@ class AndroidRuntimeTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("Registration mismatch", result.stderr)
 
+    def test_bootstrap_rejects_missing_event_sink_registration(self):
+        result = self.bootstrap_probe("missing-sink-registration")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Registration mismatch", result.stderr)
+
     def test_bootstrap_does_not_hide_business_import_errors(self):
         result = self.bootstrap_probe("business-import")
         self.assertNotEqual(result.returncode, 0)

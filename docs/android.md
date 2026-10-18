@@ -24,23 +24,23 @@ APK 文件名为 `MFABD2-<项目版本>-android-arm64.apk`，与桌面 ZIP 同�
 独立的 `android.yml` 发布构建按目标版本单独分组，不被开发分支的新推送取消；同一版本已有发布构建运行时，后续请求等待。
 普通开发构建仍只保留同分支的最新运行。GitHub 默认每组只保留一个等待请求，不保证重复派发的请求全部执行。
 
-- MaaFwApp 固定 commit `f4f6f220e21e3a1b7b0cf5df4bdbe0ec04c668f7`。
-- **MaaFramework 版本没有一处是手写的。** 桌面那个由 `scripts/detect_maa_version.py` 下载根
+- MaaFwApp 固定正式版 **v0.2.2**，commit `de65f7a43fc6a110706f44d756a0bf82b5c296d7`。
+- 桌面 MaaFramework 由 `scripts/detect_maa_version.py` 下载根
   `requirements.txt` 钉住的 MFAAvalonia、用 ctypes 调其 `libMaaFramework.so` 的 `MaaVersion()`
   读出（`# MFA_CORE_TAG=` 填了就是覆盖后的版本），与 `install-build.yml` 的 meta job 同源；
-  安卓那个由上游 MaaFwApp 的 `CORE_TAG` 决定。
-  **两者当前不在同一条次版本线上（桌面 5.14.3、安卓 5.12.3），这是有意接受的**：桌面为修
-  Agent 通道堵死的内核缺陷先升了，上游还没跟上。
-  安卓侧的原生库 tag、pip 版本、`install.py` 参数、APK 校验期望值全部由**上游那个值**派生——
-  上游会丢弃我们钉的 maafw 而用 agent core 自带的，跟着桌面走会让 APK 内部自相矛盾。
-  桌面探测值在安卓这边只做一件事：喂给一致性校验。差补丁号只警告；差一个次版本默认停止构建，
-  除非根 `requirements.txt` 用 `# ANDROID_MAAFW_LINE=主.次` 点名了安卓所在的那条线。
-  点名与上游实际不符时照样停，两边回到同一条线后会提示删掉那一行。
-  同一份 `agent/` 代码因此要同时兼容两条线，例如 5.13 起禁止动作与识别重名。
-- Android agent core 的 tag 形如 `<CPython 版本>-maafw<框架版本>`，**由上游自己钉死**在
-  `MaaFwApp/scripts/build_agent_bundle.py` 的 `CORE_TAG` 常量里——它的 Kotlin 侧与 core 里
-  那份 CPython/框架是一起验过的组合。`agent-core-tag` 子命令只读那个常量，不替上游挑版本。
-  当前上游钉的是 `3.13.15-maafw5.12.3`，提供 CPython 3.13.15 与 NumPy 2.3.2。
+  安卓通过根 `requirements.txt` 的 `# ANDROID_AGENT_CORE_TAG=3.13.15-maafw5.14.3`
+  选择已发布的 MaaAgentCoreAndroid，传给上游构建器的 `--core-tag`；**两端现在均为 5.14.3**。
+  安卓原生库 tag、pip 版本、`install.py` 参数和 APK 校验期望值全部由选中的 core 派生，
+  避免 Python 自带的 maafw 与 App 原生库不一致。
+- Android agent core 的 tag 形如 `<CPython 版本>-maafw<框架版本>`。MaaFwApp v0.2.2
+  默认 `CORE_TAG` 仍为 `3.13.15-maafw5.13.0`；本项目显式选择 5.14.3，Python 仍为
+  3.13.15、NumPy 仍为 2.3.2。显式选择必须与桌面框架版本完全一致，且 Python 版本必须
+  匹配构建器的 `CORE_PY`，否则检查失败；此时不得同时配置 `ANDROID_MAAFW_LINE`。
+  未配置显式 core 时才使用上游默认值：差补丁号警告，差次版本默认失败，除非
+  `ANDROID_MAAFW_LINE` 明确接受上游所在的线。版本检查通过不代替 APK 与真机验证。
+- v0.2.2 通过临时上游目录的 `local.properties` 中 `build.releaseAbi=arm64-v8a`
+  选择手机架构；`prepare` 写入该配置并保留其他本地配置。MFABD2 继续接入自身按安装编号
+  选包的更新客户端，不采用上游新增的 Mirror酱优先版本选择。
 - 打进 APK 的 pip 清单由 `android_build.py requirements` 从根 `requirements.txt` 生成，
   仓库里不再有第二份手写清单。只有平台逼迫的三项在 `android/release.json` 的
   `python_requirements` 里覆盖：numpy 与 Pillow 带 C 扩展，必须落在 Chaquopy 实际发布了
@@ -222,9 +222,9 @@ controller 声明，实际运行使用 AndroidNativeController；该版本未按
 
 ## 上游依据
 
-- [MaaFwApp 接入文档](https://github.com/Aliothmoon/MaaFwApp/blob/f4f6f220e21e3a1b7b0cf5df4bdbe0ec04c668f7/INTEGRATION.md)
-- [MaaFwApp 资源替换](https://github.com/Aliothmoon/MaaFwApp/blob/f4f6f220e21e3a1b7b0cf5df4bdbe0ec04c668f7/app/src/main/java/com/aliothmoon/maafw/project/PiInstaller.kt)
-- [Android agent core](https://github.com/Aliothmoon/MaaAgentCoreAndroid/releases)（具体 tag 由构建按框架版本查出，不在此钉死）
+- [MaaFwApp 接入文档](https://github.com/Aliothmoon/MaaFwApp/blob/de65f7a43fc6a110706f44d756a0bf82b5c296d7/INTEGRATION.md)
+- [MaaFwApp 资源替换](https://github.com/Aliothmoon/MaaFwApp/blob/de65f7a43fc6a110706f44d756a0bf82b5c296d7/app/src/main/java/com/aliothmoon/maafw/project/PiInstaller.kt)
+- [Android agent core](https://github.com/Aliothmoon/MaaAgentCoreAndroid/releases)（具体 tag 由根 `requirements.txt` 选择）
 - [MFAAvalonia Android 资源替换](https://github.com/MaaXYZ/MFAAvalonia/blob/v2.16.1/MFAAvalonia.Android/AndroidAssetBootstrap.cs)
 - [Android 版本名与版本码](https://developer.android.com/studio/publish/versioning)
 - [Android 应用签名](https://developer.android.com/studio/publish/app-signing)

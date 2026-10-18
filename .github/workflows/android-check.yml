@@ -67,7 +67,7 @@ jobs:
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
         with:
           repository: Aliothmoon/MaaFwApp
-          ref: f4f6f220e21e3a1b7b0cf5df4bdbe0ec04c668f7
+          ref: de65f7a43fc6a110706f44d756a0bf82b5c296d7 # v0.2.2
           path: android-upstream
           persist-credentials: false
       - name: Record checked Android UI

@@ -1,8 +1,7 @@
-"""Single source of truth for the MaaFramework version every target ships.
+"""Resolve desktop MaaFramework and the Android agent core from requirements.txt.
 
-The version is never written down anywhere: it is read out of the MFAAvalonia
-binary pinned by requirements.txt, so desktop and Android cannot disagree.
-Both install.yml and android.yml call this script.
+Desktop reads the selected MFAAvalonia binary. Android uses an explicit core tag
+or MaaFwApp's default, and checks that the selected versions are compatible.
 """
 
 import argparse
@@ -20,6 +19,7 @@ ROOT = Path(__file__).resolve().parents[1]
 TAG_PATTERNS = {
     "mfaa_tag": re.compile(r"^#\s*MFAA_TAG=(v[\w.\-]+)"),
     "mfa_core_tag": re.compile(r"^#\s*MFA_CORE_TAG=(v[\w.\-]+)"),
+    "android_agent_core_tag": re.compile(r"^#\s*ANDROID_AGENT_CORE_TAG=(\S+)\s*$"),
     # 明知安卓停在哪条次版本线还要发版时填，如 5.12；见 agent_core_tag。
     "android_maafw_line": re.compile(r"^#\s*ANDROID_MAAFW_LINE=(\d+\.\d+)$"),
 }
@@ -27,6 +27,7 @@ TAG_PATTERNS = {
 AGENT_CORE_PATTERN = re.compile(r"^(\d+)\.(\d+)\.(\d+)-maafw(.+)$")
 # MaaFwApp pins its agent core as a module constant in the bundle builder.
 CORE_TAG_PATTERN = re.compile(r"""^CORE_TAG\s*=\s*["']([^"']+)["']""", re.MULTILINE)
+CORE_PY_PATTERN = re.compile(r"""^CORE_PY\s*=\s*["']([^"']+)["']""", re.MULTILINE)
 RELEASE_LINE = re.compile(r"^(\d+)\.(\d+)\.")
 
 
@@ -116,29 +117,37 @@ def release_line(version: str) -> tuple[str, str]:
     raise ValueError(f"版本号 {version} 解析不出主次版本")
 
 
-def agent_core_tag(maafw: str, upstream: Path, accepted_line: str = "") -> tuple[str, str]:
-    """读上游钉住的 agent core，返回 (tag, 该 core 内嵌的框架版本)。
+def agent_core_tag(maafw: str, upstream: Path, accepted_line: str = "",
+                   override_tag: str = "") -> tuple[str, str]:
+    """Return the selected core tag and its bundled framework version.
 
-    MaaFwApp 的 Kotlin 侧、agent core 里的 CPython、以及 core 内嵌的框架是一个
-    一起验过的组合，我们不替它挑版本，只读它自己写下的常量。**安卓侧的框架版本
-    因此由上游决定，可能与桌面差一个补丁号**——APK 内部必须自洽（上游会丢弃
-    core 已自带的 maafw，所以 Python 侧版本无论如何都是 core 那个），跨平台的
-    补丁差异才是那个已知可接受的口子。
-
-    差一个 minor 或 major 就不再是"口子"而是分叉，默认直接停。只有 requirements.txt
-    用 ANDROID_MAAFW_LINE 点名了安卓所在的那条线（accepted_line），才降为警告：
-    桌面为修内核缺陷先走一步、上游还没跟上时，这是有人拍过板的分叉，不是漂过去的。
+    An explicit core uses upstream's --core-tag switch and must match both the
+    desktop framework and the builder's Python version. Without an override,
+    retain the upstream default and the existing declared-line policy.
     """
     source = upstream / "scripts" / "build_agent_bundle.py"
     if not source.is_file():
         raise ValueError(f"找不到 {source}，确认 MaaFwApp 已 checkout 到 {upstream}")
-    found = CORE_TAG_PATTERN.search(source.read_text(encoding="utf-8"))
+    source_text = source.read_text(encoding="utf-8")
+    found = CORE_TAG_PATTERN.search(source_text)
     if not found:
         raise ValueError(f"{source} 里读不到 CORE_TAG 常量——上游换了写法，这里要跟着改")
     tag = found.group(1)
     match = AGENT_CORE_PATTERN.match(tag)
     if not match:
         raise ValueError(f"上游的 CORE_TAG={tag} 不是 <CPython版本>-maafw<框架版本> 格式")
+    if override_tag:
+        selected = re.fullmatch(r"(\d+\.\d+\.\d+)-maafw(\d+\.\d+\.\d+)", override_tag)
+        if not selected:
+            raise ValueError(f"ANDROID_AGENT_CORE_TAG={override_tag} 不是正式版 agent core tag")
+        python = CORE_PY_PATTERN.search(source_text)
+        if python is None or selected.group(1) != python.group(1):
+            raise ValueError(f"ANDROID_AGENT_CORE_TAG={override_tag} 与上游 CORE_PY 不一致")
+        if selected.group(2) != maafw:
+            raise ValueError(f"ANDROID_AGENT_CORE_TAG={override_tag} 与桌面框架 {maafw} 不一致")
+        if accepted_line:
+            raise ValueError("显式选择 ANDROID_AGENT_CORE_TAG 时请删除 ANDROID_MAAFW_LINE")
+        return override_tag, selected.group(2)
     pinned = match.group(4)
     pinned_line = ".".join(release_line(pinned))
     if accepted_line and release_line(pinned) == release_line(maafw):
@@ -180,6 +189,7 @@ def main() -> int:
     core = commands.add_parser("agent-core-tag", help="读上游钉住的 agent core 并校验版本一致")
     core.add_argument("--maafw", required=True)
     core.add_argument("--upstream", type=Path, default=ROOT / "android-upstream", help="MaaFwApp 的 checkout 目录")
+    core.add_argument("--core-tag", help="显式选择 agent core；默认读 requirements.txt 的 ANDROID_AGENT_CORE_TAG")
     args = parser.parse_args()
 
     try:
@@ -198,8 +208,9 @@ def main() -> int:
             emit(version=version, tag=f"v{version}")
         else:
             # 安卓侧的构建一律用 maafw_version，不用桌面探测值——APK 内部必须自洽。
-            accepted = parse_tags(ROOT / "requirements.txt")["android_maafw_line"]
-            tag, version = agent_core_tag(args.maafw, args.upstream, accepted)
+            tags = parse_tags(ROOT / "requirements.txt")
+            selected = tags["android_agent_core_tag"] if args.core_tag is None else args.core_tag
+            tag, version = agent_core_tag(args.maafw, args.upstream, tags["android_maafw_line"], selected)
             python_version = tag.split("-maafw", 1)[0]
             emit(agent_core_tag=tag, maafw_version=version, maafw_tag=f"v{version}", python_version=python_version)
     except (ValueError, OSError, subprocess.CalledProcessError) as error:

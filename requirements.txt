@@ -19,16 +19,14 @@ Pillow>=9.0.0
 #     MFAA 改带 >=5.14.1 的内核后清空此行，回到跟着 MFAA_TAG 浮动。
 # MFA_CORE_TAG=v5.14.3
 #
-# 1.6 安卓允许停在哪条次版本线 (主.次，如 5.12)
-#     安卓侧的框架版本由上游 MaaFwApp 的 pin 决定，与桌面差补丁号时只警告；差到次版本
-#     默认让构建停下，除非在这里点名安卓所在的那条线，表示「知道、接受」。
-#     点名的线与上游实际钉的不一致时照样停；两边回到同一条线后构建会提示删掉此行。
-#     例: # ANDROID_MAAFW_LINE=5.12
-#     当前：桌面 5.14.3（上面的覆盖），上游 MaaFwApp 钉 5.12.3。
-# ANDROID_MAAFW_LINE=5.12
+# 1.6 安卓 agent core (Aliothmoon/MaaAgentCoreAndroid 的 release tag)
+#     通过上游 build_agent_bundle.py 的 --core-tag 选择；原生库、pip 与 APK 校验跟随此值。
+#     显式选择时框架版本必须与桌面完全一致，Python 版本必须与 MaaFwApp 构建器一致。
+#     MaaFwApp v0.2.2 默认仍为 5.13.0；本项目选择已发布的 5.14.3，与桌面对齐。
+# ANDROID_AGENT_CORE_TAG=3.13.15-maafw5.14.3
 #
-# 2. maafw 不在本文件钉版本：
-#    发布包由 CI 从上方 Tag 的 MFAAvalonia 探测内核版本后安装；
+# 2. 桌面 maafw 不单独维护 pip 版号：
+#    桌面发布包由 CI 从上方 Tag 的 MFAAvalonia 探测内核版本后安装；
 #    开发侧 .venv 跟随客户端注入的 PI_CLIENT_MAAFW_VERSION：agent 启动时核对，
 #    不一致就拉起独立的同步窗口 (见 agent/utils/venv_ops.py)
 # -------------------------------------------------------
