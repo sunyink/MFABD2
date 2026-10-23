@@ -957,6 +957,15 @@
         "template": [
             "TpCircleMap.png"
         ],
+        "action": "Custom",
+        "custom_action": "ResetTag",
+        "custom_action_param": {
+            "tags": [
+                "Collect_TpTry_First",
+                "Collect_TpTry_Second",
+                "Collect_TpSwitched"
+            ]
+        },
         "next": [
             "Collect_ClickTelepor_TargetClass_Purple",
             "Collect_ClickTelepor_TargetClass_White"
@@ -1006,7 +1015,7 @@
         "next": [
             "[Anchor]SandBox_Bypass",
             "Collect_Skill_Entry",
-            "Collect_ClickTelepor_TargetClass_PurpleProcess",
+            "Collect_ClickTelepor_Retry_Second",
             "[JumpBack]Global_WaitingForLoading"
         ],
         "focus": "CM.N.选择次选传送阵"
@@ -1038,9 +1047,135 @@
             "[Anchor]SandBox_Bypass",
             "Collect_Skill_Entry",
             "[JumpBack]Global_WaitingForLoading",
-            "Collect_ClickTelepor_TargetClass_White"
+            "Collect_ClickTelepor_Retry_First"
         ],
         "focus": "CM.N.区域地图.tp1.选择首选传送阵图标"
+    },
+    "Collect_ClickTelepor_Retry_First": {
+        "desc": "[区域地图·点传送阵③]点首选后仍在面板上 ⇒ 重试或换次选。★2026-10-19: 原 White 的 next 自环无界,首选为灰色未激活阵时点了不传送就无限循环(10-19 沙漠之花 tp2 实测 130+ 圈;PC 08-23 实录 2778 圈)。现每次选阵(Collect_ClickTeleporCircleIco 清零计数)首选最多补点 3 次,仍不传送则最多换到次选一次(次选同样最多补点 3 次);两边都用完 ⇒ on_error 结束本卡带。只挂在 base next 上,Setup_ResetLoc_JumpBackUse 整份替换 next 时不受影响。",
+        "recognition": "Or",
+        "any_of": [
+            "Collect_ClickTelepor_TargetClass_White"
+        ],
+        "pre_delay": 0,
+        "post_delay": 0,
+        "timeout": 1000,
+        "next": [
+            "Collect_ClickTelepor_Retry_First_Count",
+            "Collect_ClickTelepor_Switch_ToSecond"
+        ],
+        "on_error": [
+            "Collect_OperationsMain_OperationsEnd",
+            "Global_Null_Exception",
+            "Global_Null_Panic"
+        ]
+    },
+    "Collect_ClickTelepor_Retry_First_Count": {
+        "recognition": "Custom",
+        "custom_recognition": "CheckTag",
+        "custom_recognition_param": {
+            "tag": "Collect_TpTry_First",
+            "max": 3
+        },
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "UpdateTag",
+        "custom_action_param": {
+            "tag": "Collect_TpTry_First",
+            "value": 1
+        },
+        "post_delay": 0,
+        "next": [
+            "Collect_ClickTelepor_TargetClass_White"
+        ]
+    },
+    "Collect_ClickTelepor_Switch_ToSecond": {
+        "recognition": "Custom",
+        "custom_recognition": "CheckTag",
+        "custom_recognition_param": {
+            "tag": "Collect_TpSwitched",
+            "max": 1
+        },
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "UpdateTag",
+        "custom_action_param": {
+            "tag": "Collect_TpSwitched",
+            "value": 1
+        },
+        "post_delay": 0,
+        "next": [
+            "Collect_ClickTelepor_TargetClass_PurpleProcess"
+        ],
+        "on_error": [
+            "Collect_OperationsMain_OperationsEnd",
+            "Global_Null_Exception",
+            "Global_Null_Panic"
+        ],
+        "focus": "CM.N.[WRN]首选传送阵点了不传送,改点次选"
+    },
+    "Collect_ClickTelepor_Retry_Second": {
+        "desc": "[区域地图·点传送阵③]点次选后仍在面板上 ⇒ 重试或换首选。★2026-10-19: 原 PurpleProcess 的 next 自环无界,紫色判定(count=1)误中可用的首选时会一直点不可用的次选(10-12/10-19 血骑士 tp2 实测)。规则同 Collect_ClickTelepor_Retry_First。",
+        "recognition": "Or",
+        "any_of": [
+            "Collect_ClickTelepor_TargetClass_PurpleProcess"
+        ],
+        "pre_delay": 0,
+        "post_delay": 0,
+        "timeout": 1000,
+        "next": [
+            "Collect_ClickTelepor_Retry_Second_Count",
+            "Collect_ClickTelepor_Switch_ToFirst"
+        ],
+        "on_error": [
+            "Collect_OperationsMain_OperationsEnd",
+            "Global_Null_Exception",
+            "Global_Null_Panic"
+        ]
+    },
+    "Collect_ClickTelepor_Retry_Second_Count": {
+        "recognition": "Custom",
+        "custom_recognition": "CheckTag",
+        "custom_recognition_param": {
+            "tag": "Collect_TpTry_Second",
+            "max": 3
+        },
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "UpdateTag",
+        "custom_action_param": {
+            "tag": "Collect_TpTry_Second",
+            "value": 1
+        },
+        "post_delay": 0,
+        "next": [
+            "Collect_ClickTelepor_TargetClass_PurpleProcess"
+        ]
+    },
+    "Collect_ClickTelepor_Switch_ToFirst": {
+        "recognition": "Custom",
+        "custom_recognition": "CheckTag",
+        "custom_recognition_param": {
+            "tag": "Collect_TpSwitched",
+            "max": 1
+        },
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "UpdateTag",
+        "custom_action_param": {
+            "tag": "Collect_TpSwitched",
+            "value": 1
+        },
+        "post_delay": 0,
+        "next": [
+            "Collect_ClickTelepor_TargetClass_White"
+        ],
+        "on_error": [
+            "Collect_OperationsMain_OperationsEnd",
+            "Global_Null_Exception",
+            "Global_Null_Panic"
+        ],
+        "focus": "CM.N.[WRN]次选传送阵点了不传送,改点首选"
     },
     "Collect_Skill_Entry": {
         "desc": "[入口]调用快捷技能模块,传入状态参数。当前只传出口锚QuickSkill_Egress→Collect_Skill_Egress,清锚由Egress自己做。【识别不可改成DirectHit】它同时兼任'确实已进箱庭'的门禁,必中会让上游调用点的自引用重试永远轮不到。",

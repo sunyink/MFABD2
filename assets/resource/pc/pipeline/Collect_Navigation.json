@@ -389,12 +389,12 @@
         ]
     },
     "Collect_ClickTelepor_TargetClass_White": {
-        "desc": "[PC覆盖·2026-08-23] 仅改 next:在自环候选(本节点)之前插入灰阵门卫,技能调用(已传送)仍优先。base 该节点无 max_hit,点灰阵无效时自环无界(08-23 02:46~07:00 实录 2778 圈)。⚠️本覆盖是 base next 的整份快照(规则f),base 改这条链必须同步这里——08-28 技能模块入口化时第2项已由 Collect_Skill_Start 改为 Collect_Skill_Entry。",
+        "desc": "[PC覆盖·2026-08-23] 仅改 next:在自环候选(本节点)之前插入灰阵门卫,技能调用(已传送)仍优先。base 该节点无 max_hit,点灰阵无效时自环无界(08-23 02:46~07:00 实录 2778 圈)。⚠️本覆盖是 base next 的整份快照(规则f),base 改这条链必须同步这里——08-28 技能模块入口化时第2项已由 Collect_Skill_Start 改为 Collect_Skill_Entry。 ⚠️2026-10-19 同步 base:自环候选改为 Collect_ClickTelepor_Retry_First(有界重试+换次选)。",
         "next": [
             "[Anchor]SandBox_Bypass",
             "Collect_Skill_Entry",
             "Collect_ClickTelepor_TargetClass_Inactive_PC",
-            "Collect_ClickTelepor_TargetClass_White",
+            "Collect_ClickTelepor_Retry_First",
             "[JumpBack]Global_WaitingForLoading"
         ]
     },
