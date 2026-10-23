@@ -114,7 +114,10 @@
             137,
             54
         ],
-        "expected": "阵形设置"
+        "expected": [
+            "阵形设置",
+            "設定陣形"
+        ]
     },
     "Rec_PVP_Drill_Tmp": {
         "recognition": "TemplateMatch",
@@ -164,7 +167,8 @@
             284
         ],
         "expected": [
-            "^确认$"
+            "^确认$",
+            "^確認$"
         ],
         "action": "Click",
         "post_delay": 1500,
@@ -193,7 +197,8 @@
             33
         ],
         "expected": [
-            "战场角色设置"
+            "战场角色设置",
+            "場域角色設定"
         ],
         "action": "Click",
         "target": [
@@ -245,7 +250,8 @@
             71
         ],
         "expected": [
-            "自动战斗"
+            "自动战斗",
+            "自動戰鬥"
         ],
         "pre_delay": 1000,
         "action": "Click",
@@ -273,7 +279,8 @@
             156
         ],
         "expected": [
-            "鲜血鸡尾酒"
+            "鲜血鸡尾酒",
+            "血之雞尾酒"
         ],
         "next": [
             "PVP_JustUseFree"
@@ -543,7 +550,10 @@
             209,
             167
         ],
-        "expected": "确认",
+        "expected": [
+            "确认",
+            "確認"
+        ],
         "action": "Click",
         "post_wait_freezes": 500,
         "next": [
@@ -562,7 +572,9 @@
             55
         ],
         "expected": [
-            "战斗开始"
+            "战斗开始",
+            "開始戰鬥",
+            "BATTLE"
         ],
         "action": "Click",
         "post_delay": 10000,
@@ -586,7 +598,8 @@
             69
         ],
         "expected": [
-            "正在进行"
+            "正在进行",
+            "之中進行"
         ],
         "post_delay": 5000,
         "focus": "PM.PVP.PVP战斗进行中..."
@@ -601,7 +614,8 @@
             78
         ],
         "expected": [
-            "反复战斗结果"
+            "反复战斗结果",
+            "重複戰鬥結果"
         ],
         "action": "Click",
         "target": [
@@ -650,7 +664,8 @@
             43
         ],
         "expected": [
-            "离开"
+            "离开",
+            "離開"
         ],
         "action": "Click",
         "post_delay": 2000,
@@ -671,7 +686,8 @@
             32
         ],
         "expected": [
-            "离开"
+            "离开",
+            "離開"
         ],
         "action": "Click",
         "post_delay": 2000,
@@ -691,7 +707,8 @@
             35
         ],
         "expected": [
-            "确认"
+            "确认",
+            "確認"
         ],
         "action": "Click",
         "post_wait_freezes": 500,
@@ -886,7 +903,8 @@
             429
         ],
         "expected": [
-            "确认"
+            "确认",
+            "確認"
         ],
         "action": "Click",
         "post_wait_freezes": 500

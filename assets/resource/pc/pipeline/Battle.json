@@ -34,10 +34,6 @@
             113,
             62,
             26
-        ],
-        "expected": [
-            "狩猎场",
-            "狩獵場"
         ]
     },
     "QuickHunt_CollectMapHuntingGrounds_1": {
@@ -185,9 +181,6 @@
             369,
             72,
             26
-        ],
-        "expected": [
-            "[水光风風火暗][之的]洞穴"
         ]
     },
     "QuickHunt_NoTorchesAP_Skip": {
@@ -259,10 +252,6 @@
             96,
             43
         ],
-        "expected": [
-            "火之洞穴",
-            "火的洞穴"
-        ],
         "only_rec": false
     },
     "QuickHunt_StoneSelect_Water": {
@@ -271,10 +260,6 @@
             75,
             94,
             245
-        ],
-        "expected": [
-            "水之洞穴",
-            "水的洞穴"
         ]
     },
     "QuickHunt_StoneSelect_Wind": {
@@ -283,10 +268,6 @@
             75,
             94,
             245
-        ],
-        "expected": [
-            "风之洞穴",
-            "風的洞穴"
         ]
     },
     "QuickHunt_StoneSelect_Light": {
@@ -295,10 +276,6 @@
             75,
             94,
             245
-        ],
-        "expected": [
-            "光之洞穴",
-            "光的洞穴"
         ]
     },
     "QuickHunt_StoneSelect_Duck": {
@@ -307,10 +284,6 @@
             75,
             94,
             245
-        ],
-        "expected": [
-            "暗之洞穴",
-            "暗的洞穴"
         ]
     },
     "QuickHunt_NoAP_Torch": {
@@ -337,12 +310,6 @@
                 "only_rec": true
             },
             "Sub_Ocr_Enable_Clr"
-        ]
-    },
-    "QuickHunt_FastBattleStart": {
-        "expected": [
-            "狩猎",
-            "狩獵"
         ]
     },
     "QuickHunt_NoFreeAP": {
@@ -378,12 +345,6 @@
             14,
             193,
             56
-        ]
-    },
-    "QuickHunt_CollectMap_Initialize_Out_BedReset": {
-        "expected": [
-            "废弃矿山",
-            "廢棄的礦山"
         ]
     },
     "QuickHunt_CollectMap_Initialize_Out_Ty2": {

@@ -17,30 +17,6 @@
             13,
             110,
             48
-        ],
-        "expected": [
-            "活动服装",
-            "活動服装"
-        ]
-    },
-    "Rec_<Event_Event_Main>_Ocr_02": {
-        "expected": [
-            "普通战斗",
-            "魔兽追踪者",
-            "一般戰鬥",
-            "魔獸追蹤者"
-        ]
-    },
-    "SeasonEvent_EnterlBattle_Normal": {
-        "expected": [
-            "普通",
-            "一般戰鬥"
-        ]
-    },
-    "SeasonEvent_EnterlBattle_Challenge": {
-        "expected": [
-            "挑战",
-            "挑戰戰鬥"
         ]
     },
     "SeasonEvent_Battle_Recon_AP_Full": {
@@ -65,10 +41,6 @@
             184,
             190,
             73
-        ],
-        "expected": [
-            "在战斗中获胜",
-            "在戰鬥中獲勝"
         ]
     },
     "SeasonEvent_FastBattle_SubMenu": {
@@ -77,16 +49,6 @@
             149,
             174,
             105
-        ],
-        "expected": [
-            "快速战斗",
-            "快速戰鬥"
-        ]
-    },
-    "Event_FastNormalBattle": {
-        "expected": [
-            "快速战斗",
-            "快速戰鬥"
         ]
     },
     "SeasonEvent_NormlBattle": {
@@ -95,10 +57,6 @@
             635,
             164,
             52
-        ],
-        "expected": [
-            "战斗",
-            "戰鬥"
         ]
     },
     "SeasonEvent_TabTo_Nomarl": {
@@ -107,11 +65,6 @@
             1,
             245,
             66
-        ],
-        "expected": [
-            "挑战",
-            "血界中死战",
-            "挑戰"
         ]
     },
     "SeasonEvent_TabTo_Challenge": {
@@ -172,10 +125,6 @@
             146,
             223
         ],
-        "expected": [
-            "小活动",
-            "迷你[游遊][戏戲]"
-        ],
         "post_wait_freezes": {
             "target": [
                 857,
@@ -186,10 +135,6 @@
         }
     },
     "SeasonEvent_MiniGame_Quiz_GoAction": {
-        "expected": [
-            "^答题",
-            "^問答"
-        ],
         "post_wait_freezes": {
             "target": [
                 489,
@@ -205,10 +150,6 @@
             160,
             122,
             58
-        ],
-        "expected": [
-            "能力测试",
-            "能力測驗"
         ]
     },
     "SeasonEvent_MiniGame_Quiz_Enter": {
@@ -217,10 +158,6 @@
             176,
             99,
             391
-        ],
-        "expected": [
-            "开始答题",
-            "^解[题題]"
         ]
     },
     "SeasonEvent_MiniGame_Quiz_Swipe": {
@@ -279,10 +216,6 @@
             519,
             72,
             41
-        ],
-        "expected": [
-            "战斗",
-            "戰鬥"
         ]
     },
     "Event_NormalBattleIsOver": {
@@ -293,22 +226,12 @@
             1
         ]
     },
-    "Even_MamonoFollowUp_InMamono": {
-        "expected": [
-            "魔兽追踪者",
-            "魔獸追蹤者"
-        ]
-    },
     "Even_MamonoFollowUp_MamonoEnter": {
         "roi": [
             182,
             19,
             58,
             31
-        ],
-        "expected": [
-            "魔兽",
-            "魔獸"
         ]
     },
     "Rec_<SeasonEvent_MamonoFollow_Practice>_Ocr_01": {
@@ -318,10 +241,6 @@
             208,
             43
         ],
-        "expected": [
-            "距离开始还",
-            "距離開始還"
-        ],
         "only_rec": false
     },
     "Rec_<SeasonEvent_MamonoFollow_Practice>_Ocr_02": {
@@ -330,10 +249,6 @@
             225,
             213,
             74
-        ],
-        "expected": [
-            "狩猎期间开始解除",
-            "於狩獵期間起解鎖"
         ]
     },
     "Even_MamonoFollow_lv1_Ck": {
@@ -350,10 +265,6 @@
             168,
             175,
             37
-        ],
-        "expected": [
-            "完成讨伐",
-            "完成討伐"
         ]
     },
     "SeasonEvent_MamonoFollow_UnChallenged": {
@@ -427,10 +338,6 @@
             637,
             159,
             43
-        ],
-        "expected": [
-            "去战斗",
-            "前往戰鬥"
         ]
     },
     "SeasonEvent_MamonoFollow_Team_Troubleshoot": {
@@ -447,10 +354,6 @@
             624,
             142,
             69
-        ],
-        "expected": [
-            "编辑队伍",
-            "編制隊伍"
         ]
     },
     "SeasonEvent_MamonoFollow_Team_UsePreset": {
@@ -459,10 +362,6 @@
             660,
             100,
             37
-        ],
-        "expected": [
-            "推荐部署",
-            "推薦配置"
         ]
     },
     "SeasonEvent_MamonoFollow_Team_FindPreset": {
@@ -480,10 +379,6 @@
             514,
             84,
             34
-        ],
-        "expected": [
-            "確認",
-            "确认"
         ]
     },
     "Even_MamonoFollowUp_onSubMain": {
@@ -492,12 +387,6 @@
             171,
             113,
             37
-        ],
-        "expected": [
-            "阶段最高",
-            "階段最高",
-            "最高伤害",
-            "最高傷害"
         ]
     },
     "SeasonEvent_Mamono_HP_Lift_Red": {
@@ -557,17 +446,7 @@
         ]
     },
     "Event_MiniGame_Run_Goin": {
-        "desc": "全猜的",
-        "expected": [
-            "小活动",
-            "小活動"
-        ]
-    },
-    "Event_Battle_TabAutoBattle_ChangeDifficulty_TryGeneral": {
-        "expected": [
-            "普通",
-            "一般"
-        ]
+        "desc": "全猜的"
     },
     "SeasonEvent_ReMamono_Enter": {
         "desc": "",
@@ -576,10 +455,6 @@
             132,
             222,
             148
-        ],
-        "expected": [
-            "回归赛季",
-            "回歸賽季"
         ]
     },
     "Event_GoinEvent_OcrCk": {

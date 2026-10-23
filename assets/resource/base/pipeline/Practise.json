@@ -60,7 +60,8 @@
             21
         ],
         "expected": [
-            "偷窃"
+            "偷窃",
+            "偷竊"
         ],
         "focus": "[ERR]技能顺序错误 或 没有砍价技能"
     },
@@ -76,8 +77,10 @@
         "expected": [
             "新手",
             "进阶",
+            "進階",
             "高手",
-            "达人"
+            "达人",
+            "達人"
         ],
         "next": [
             "Arbitrage_Bargaining_SkillList"
@@ -94,7 +97,8 @@
             15
         ],
         "expected": [
-            "传说"
+            "传说",
+            "傳說"
         ],
         "next": [
             "Global_ToSandBox"

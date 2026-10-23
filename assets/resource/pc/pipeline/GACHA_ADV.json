@@ -19,10 +19,6 @@
             398,
             134,
             98
-        ],
-        "expected": [
-            "兑换",
-            "兌换"
         ]
     },
     "GachaADV_PageEnter_1#": {
@@ -31,22 +27,6 @@
             178,
             216,
             314
-        ],
-        "expected": [
-            "查看概率",
-            "兑换",
-            "必得.*服装",
-            "每个账号限购1次",
-            "查看机率",
-            "兌换",
-            "每個帳號可購買1次",
-            "必出.*服装"
-        ],
-        "replace": [
-            [
-                "機",
-                "机"
-            ]
         ]
     },
     "GachaADV_AREA1#": {
@@ -245,10 +225,6 @@
             15,
             233,
             41
-        ],
-        "expected": [
-            "抽抽乐",
-            "抽抽樂"
         ]
     },
     "GachaADV_Slip_Action": {
@@ -271,10 +247,6 @@
             399,
             186,
             94
-        ],
-        "expected": [
-            "兑换",
-            "兌换"
         ]
     },
     "GachaADV_PaidDiamond_90LotFind_Tp1": {
@@ -299,16 +271,6 @@
             381,
             239,
             147
-        ],
-        "expected": [
-            "付费抽抽乐",
-            "付费抽抽樂"
-        ]
-    },
-    "GachaADV_TouchFreeGacha": {
-        "expected": [
-            "免费1次",
-            "免費1次"
         ]
     },
     "GachaADV_TouchFreeGachaConfirmMenu": {
@@ -317,10 +279,6 @@
             227,
             201,
             130
-        ],
-        "expected": [
-            "确认抽抽乐",
-            "確認抽抽樂"
         ]
     },
     "GachaADV_TouchFreeGachaBuy": {
@@ -329,10 +287,6 @@
             393,
             171,
             88
-        ],
-        "expected": [
-            "购买",
-            "購買"
         ]
     },
     "GachaADV_TouchFreeGachaSkip": {
@@ -383,11 +337,6 @@
             178,
             47
         ],
-        "expected": [
-            "抽抽乐点数",
-            "抽抽樂點数",
-            "抽抽樂點數"
-        ],
         "target": [
             108,
             29,
@@ -409,17 +358,6 @@
             608,
             185,
             78
-        ],
-        "expected": [
-            "所有免费抽抽乐",
-            "全部免费抽取",
-            "全部免費抽取"
-        ]
-    },
-    "Gacha_Quick_All_SubMsg_Ck": {
-        "expected": [
-            "确认",
-            "確認"
         ]
     },
     "Gacha_Quick_5X": {

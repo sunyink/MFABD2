@@ -85,7 +85,8 @@
             483
         ],
         "expected": [
-            "活动"
+            "活动",
+            "活動"
         ],
         "next": [
             "Activities_FindActive",
@@ -140,7 +141,8 @@
             37
         ],
         "expected": [
-            "全部领取"
+            "全部领取",
+            "全部領取"
         ],
         "action": "Click",
         "post_delay": 2000,
@@ -176,7 +178,8 @@
             37
         ],
         "expected": [
-            "自动进行"
+            "自动进行",
+            "自動進行"
         ],
         "timeout": 3000,
         "next": [
@@ -257,7 +260,8 @@
             78
         ],
         "expected": [
-            "兑换[0-9]+次"
+            "兑换[0-9]+次",
+            "交换[0-9]+次"
         ],
         "action": "Click",
         "post_delay": 1000,
@@ -280,7 +284,8 @@
             29
         ],
         "expected": [
-            "确认"
+            "确认",
+            "確認"
         ],
         "action": "Click",
         "post_delay": 5000,
@@ -302,7 +307,8 @@
             49
         ],
         "expected": [
-            "全部解锁"
+            "全部解锁",
+            "開啟全部"
         ],
         "action": "Click",
         "post_delay": 2000,
@@ -324,7 +330,8 @@
             54
         ],
         "expected": [
-            "全部解锁"
+            "全部解锁",
+            "開啟全部"
         ],
         "action": "Click",
         "post_wait_freezes": 2000,
@@ -341,7 +348,8 @@
     "Activities_Roulette": {
         "recognition": "OCR",
         "expected": [
-            "1次免费"
+            "1次免费",
+            "1次免費"
         ],
         "action": "Click",
         "post_delay": 6000,
@@ -365,7 +373,8 @@
                     81
                 ],
                 "expected": [
-                    "旋转"
+                    "旋转",
+                    "^轉[0-9]+次$"
                 ]
             },
             "Sub_Ocr_Enable_Clr"
@@ -473,7 +482,9 @@
             44
         ],
         "expected": [
-            "免费1次"
+            "免费1次",
+            "1次免費",
+            "免費1次"
         ],
         "action": "Click",
         "target_offset": [
@@ -498,7 +509,8 @@
             136
         ],
         "expected": [
-            "购买"
+            "购买",
+            "購買"
         ],
         "action": "Click",
         "post_delay": 2000,

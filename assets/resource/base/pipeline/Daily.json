@@ -95,7 +95,8 @@
             61
         ],
         "expected": [
-            "公会"
+            "公会",
+            "公會"
         ],
         "post_delay": 5000,
         "next": [
@@ -114,7 +115,8 @@
             195
         ],
         "expected": [
-            "确认"
+            "确认",
+            "確認"
         ],
         "action": "Click",
         "post_delay": 1000
@@ -130,7 +132,8 @@
             69
         ],
         "expected": [
-            "奖励已发放至邮箱"
+            "奖励已发放至邮箱",
+            "獎勵已發送至"
         ],
         "action": "Click",
         "target": [
@@ -154,7 +157,8 @@
                     65
                 ],
                 "expected": [
-                    "公会"
+                    "公会",
+                    "公會"
                 ]
             },
             "Sub_Ocr_Enable_Clr"
@@ -270,7 +274,8 @@
             29
         ],
         "expected": [
-            "经营管理"
+            "经营管理",
+            "經营管理"
         ]
     },
     "Rec_<Daily_Busin_Claim>_Tpl": {
@@ -300,7 +305,10 @@
         "expected": [
             "餐馆营业额",
             "立刻前往",
-            "累计奖励"
+            "累计奖励",
+            "餐廳營業額",
+            "立即前往",
+            "累計獎勵"
         ],
         "timeout": 8000,
         "next": [
@@ -329,7 +337,8 @@
                     500
                 ],
                 "expected": [
-                    "键获得"
+                    "键获得",
+                    "鍵獲得"
                 ]
             },
             "Sub_Ocr_Enable_Clr"
@@ -360,7 +369,8 @@
             139
         ],
         "expected": [
-            "立刻前往"
+            "立刻前往",
+            "立即前往"
         ],
         "action": "Click",
         "post_delay": 1000,
@@ -572,7 +582,10 @@
             94,
             35
         ],
-        "expected": "常客笔记",
+        "expected": [
+            "常客笔记",
+            "熟客錄"
+        ],
         "only_rec": true,
         "action": "Click",
         "target_offset": [
@@ -597,7 +610,10 @@
             122,
             51
         ],
-        "expected": "常客笔记",
+        "expected": [
+            "常客笔记",
+            "熟客錄"
+        ],
         "only_rec": true,
         "next": [
             "[JumpBack]Daily_Busin_DiaDetour",
@@ -620,7 +636,8 @@
                     49
                 ],
                 "expected": [
-                    "全部获得"
+                    "全部获得",
+                    "全部獲得"
                 ]
             },
             "Sub_Ocr_Enable_Clr"
@@ -737,7 +754,8 @@
             116
         ],
         "expected": [
-            "常客"
+            "常客",
+            "熟客"
         ],
         "next": [
             "Daily_Busin_End"
@@ -995,7 +1013,8 @@
             91
         ],
         "expected": [
-            "向女神像许愿"
+            "向女神像许愿",
+            "對女神像許願"
         ],
         "action": "Click",
         "post_delay": 2000,
@@ -1167,7 +1186,10 @@
             91,
             34
         ],
-        "expected": "亲密度",
+        "expected": [
+            "亲密度",
+            "親密度"
+        ],
         "next": [
             "Daily_Intimacy_RedHeart",
             "Daily_Intimacy_TalkClear"
@@ -1223,7 +1245,10 @@
             95,
             27
         ],
-        "expected": "亲密度增益",
+        "expected": [
+            "亲密度增益",
+            "親密度加成"
+        ],
         "only_rec": true,
         "next": [
             "[JumpBack]Daily_Intimacy_Switch_Set",
@@ -1351,7 +1376,10 @@
             118,
             118
         ],
-        "expected": "确认",
+        "expected": [
+            "确认",
+            "確認"
+        ],
         "action": "Click",
         "post_delay": 1000,
         "next": [
@@ -1485,7 +1513,7 @@
             88
         ],
         "expected": [
-            "^[a-zA-Z\u4e00-\u9fa5]+$"
+            "^[a-zA-Z一-龥]+$"
         ],
         "action": "Custom",
         "custom_action": "SmartSwipe",

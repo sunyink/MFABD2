@@ -53,7 +53,8 @@
             33
         ],
         "expected": [
-            "装备制作"
+            "装备制作",
+            "製作装備"
         ],
         "action": "Click",
         "post_delay": 2000,
@@ -72,7 +73,8 @@
             37
         ],
         "expected": [
-            "立刻前往装备"
+            "立刻前往装备",
+            "立即前往装備"
         ],
         "action": "Click",
         "target": [
@@ -118,7 +120,8 @@
             120
         ],
         "expected": [
-            "制作"
+            "制作",
+            "製作"
         ],
         "action": "Click",
         "post_delay": 3000,
@@ -192,7 +195,9 @@
             27
         ],
         "expected": [
-            "键强化"
+            "键强化",
+            "鍵強化",
+            "键強化"
         ],
         "only_rec": true,
         "action": "Click",
@@ -232,7 +237,14 @@
             69
         ],
         "expected": [
-            "级别"
+            "级别",
+            "等级"
+        ],
+        "replace": [
+            [
+                "級",
+                "级"
+            ]
         ],
         "next": [
             "[Anchor]Setup_EquipUp",
@@ -393,6 +405,7 @@
         ],
         "expected": [
             "进行中",
+            "進行中",
             "\\d+/\\d+"
         ],
         "post_delay": 5000,
@@ -406,7 +419,10 @@
             211,
             295
         ],
-        "expected": "请选择装备后重新尝试",
+        "expected": [
+            "请选择装备后重新尝试",
+            "請選擇裝備後重新嘗試"
+        ],
         "next": [
             "Equip_Refine_filter"
         ],
@@ -422,7 +438,8 @@
             127
         ],
         "expected": [
-            "强化"
+            "强化",
+            "強化"
         ],
         "action": "Click",
         "post_delay": 3000,
@@ -442,7 +459,8 @@
             133
         ],
         "expected": [
-            "确认"
+            "确认",
+            "確認"
         ],
         "action": "Click",
         "post_delay": 3000,
@@ -482,7 +500,14 @@
             154
         ],
         "expected": [
-            "装备筛选"
+            "装备筛选",
+            "裝備筛選"
+        ],
+        "replace": [
+            [
+                "篩",
+                "筛"
+            ]
         ],
         "next": [
             "[JumpBack]Equip_filter_SubMenu_Mamono",
@@ -727,7 +752,8 @@
             35
         ],
         "expected": [
-            "确认"
+            "确认",
+            "確認"
         ],
         "action": "Click",
         "post_delay": 3000,
@@ -798,7 +824,15 @@
             101
         ],
         "expected": [
-            "自定义标记"
+            "自定义标记",
+            "自訂標記",
+            "自订標記"
+        ],
+        "replace": [
+            [
+                "訂",
+                "订"
+            ]
         ],
         "action": "Click",
         "post_delay": 1500,
@@ -999,7 +1033,8 @@
         "expected": [
             "专\\S*",
             "\\S*用",
-            "制作"
+            "制作",
+            "製作"
         ],
         "action": "Click",
         "post_delay": 1000,
@@ -1040,7 +1075,8 @@
             26
         ],
         "expected": [
-            "精炼"
+            "精炼",
+            "煉製"
         ],
         "only_rec": true,
         "action": "Click",
@@ -1060,7 +1096,10 @@
             316,
             146
         ],
-        "expected": "达到最大强化级别",
+        "expected": [
+            "达到最大强化级别",
+            "達成最高強化等級"
+        ],
         "next": [
             "Equip_Overdrive_RefLvMax_filter",
             "[JumpBack]Global_BackPageHub_Once"
@@ -1077,7 +1116,8 @@
             37
         ],
         "expected": [
-            "精炼"
+            "精炼",
+            "[煉炼]製"
         ],
         "action": "Click",
         "post_delay": 3000,
@@ -1186,7 +1226,10 @@
             55,
             39
         ],
-        "expected": "装备",
+        "expected": [
+            "装备",
+            "裝備"
+        ],
         "only_rec": true,
         "next": [
             "Equip_Backpack_Equip_Up&Dec_Entry"

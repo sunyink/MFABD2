@@ -34,10 +34,6 @@
             14,
             115,
             40
-        ],
-        "expected": [
-            "每日任务",
-            "每日任務"
         ]
     },
     "RewardsDaily_TabWeeklyReward": {

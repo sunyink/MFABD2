@@ -68,7 +68,8 @@
             124
         ],
         "expected": [
-            "赛季奖励"
+            "赛季奖励",
+            "賽季獎勵"
         ],
         "action": "Click",
         "post_delay": 2500

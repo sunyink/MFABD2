@@ -733,7 +733,8 @@
                 },
                 "Collect_TargetMap1-2": {
                     "expected": [
-                        "卢戈森林"
+                        "卢戈森林",
+                        "盧戈森林"
                     ],
                     "next": [
                         "Collect_ClickTeleporCircleIco",
@@ -743,7 +744,8 @@
                 "Collect_ClickBackOnSecureMap": {
                     "next": [],
                     "expected": [
-                        "卢戈森林"
+                        "卢戈森林",
+                        "盧戈森林"
                     ]
                 },
                 "Collect_ClickTelepor_TargetClass_PurpleProcess": {
@@ -778,7 +780,8 @@
             47
         ],
         "expected": [
-            "卢戈镇"
+            "卢戈镇",
+            "盧戈鎮"
         ],
         "action": "Click",
         "target": [
@@ -882,7 +885,8 @@
             609
         ],
         "expected": [
-            "设置"
+            "设置",
+            "設定"
         ],
         "action": "Click",
         "post_wait_freezes": 500,
@@ -900,7 +904,8 @@
             397
         ],
         "expected": [
-            "点击地面"
+            "点击地面",
+            "點擊地板"
         ],
         "next": [
             "Setup_Main_Move_Ck",
@@ -942,7 +947,8 @@
             363
         ],
         "expected": [
-            "图像"
+            "图像",
+            "圖像"
         ],
         "action": "Click",
         "target_offset": [
@@ -1067,7 +1073,8 @@
             40
         ],
         "expected": [
-            "主界面"
+            "主界面",
+            "主畫面"
         ],
         "next": [
             "Setup_Main_StartUI_Ck",
@@ -1546,7 +1553,8 @@
             45
         ],
         "expected": [
-            "装备"
+            "装备",
+            "裝備"
         ],
         "anchor": "Setup_EquipUp",
         "next": [
@@ -1564,7 +1572,8 @@
             69
         ],
         "expected": [
-            "级别"
+            "级别",
+            "等級"
         ],
         "next": [
             "[JumpBack]Setup_EquipUp_MJ",
@@ -2079,7 +2088,8 @@
             99
         ],
         "expected": [
-            "天赋技能"
+            "天赋技能",
+            "天賦技能"
         ],
         "action": "Swipe",
         "begin": [
@@ -2198,7 +2208,8 @@
             33
         ],
         "expected": [
-            "探查"
+            "探查",
+            "搜索"
         ],
         "action": "Click",
         "target_offset": [
@@ -2450,7 +2461,8 @@
             33
         ],
         "expected": [
-            "生成魔法阵"
+            "生成魔法阵",
+            "創建魔法陣"
         ],
         "action": "Click",
         "target_offset": [
@@ -2534,7 +2546,8 @@
             33
         ],
         "expected": [
-            "制伏"
+            "制伏",
+            "壓制"
         ],
         "action": "Click",
         "target_offset": [

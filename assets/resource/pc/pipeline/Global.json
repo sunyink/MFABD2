@@ -80,10 +80,6 @@
             178,
             64
         ],
-        "expected": [
-            "游戏卡珍藏集",
-            "^遊戲卡.收藏集"
-        ],
         "next": [
             "[JumpBack]StartGame_Special",
             "[JumpBack]Global_RankSettleModal_Confirm",
@@ -102,10 +98,6 @@
             81,
             92,
             30
-        ],
-        "expected": [
-            "店长游戏卡",
-            "店長遊戲卡"
         ]
     },
     "Global_BackToPve_CardMenu_Tp3": {
@@ -255,10 +247,6 @@
             96,
             91
         ],
-        "expected": [
-            "确认",
-            "確認"
-        ],
         "only_rec": false
     },
     "Rec_HomePage_GA_Ocr": {
@@ -268,10 +256,6 @@
             660,
             82,
             30
-        ],
-        "expected": [
-            "抽抽?乐",
-            "抽抽?樂"
         ]
     },
     "Rec_HomePage_GA_Clr": {
@@ -340,10 +324,6 @@
             613,
             96,
             56
-        ],
-        "expected": [
-            "阵形",
-            "陣形"
         ]
     },
     "Rec_Pack_GlupyDiner": {
@@ -352,10 +332,6 @@
             11,
             145,
             67
-        ],
-        "expected": [
-            "格鲁菲餐厅",
-            "格魯菲餐廳"
         ]
     },
     "Global_ArenaEscape_PC": {

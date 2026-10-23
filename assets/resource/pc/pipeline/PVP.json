@@ -14,10 +14,6 @@
             620,
             137,
             54
-        ],
-        "expected": [
-            "阵形设置",
-            "設定陣形"
         ]
     },
     "Rec_PVP_Drill_Tmp": {
@@ -44,22 +40,12 @@
         "desc": "位置异常复位(点红⚔位置标记回擂台)。|[PC覆盖·2026-07-13实录·禁用] PC上角色站在擂台旁时该⚔标记同样可见(pvplocreset实测0.84~0.94两轮开局均误命中)→每轮误判'位置异常',点击+offset(0,100)落在围观NPC上(等同进阵型设置)→自己把位置破坏→NoFindSrena游走不收敛(21:38/21:48两轮实录)。正常站位下PVPStart擂台识别0.991直接可用,此防错节点PC上弊大于利,禁用;真异常兜底仍有NoFindSrena。",
         "enabled": false
     },
-    "PVP_PVPMes": {
-        "expected": [
-            "^确认$",
-            "^確認$"
-        ]
-    },
     "PVP_Errmsg1#_Clear": {
         "roi": [
             215,
             179,
             123,
             34
-        ],
-        "expected": [
-            "战场角色设置",
-            "場域角色設定"
         ]
     },
     "PVP_PVPStart": {
@@ -89,10 +75,6 @@
             96,
             64
         ],
-        "expected": [
-            "自动战斗",
-            "自動戰鬥"
-        ],
         "target": [
             1006,
             645,
@@ -104,12 +86,6 @@
             "PVP_AutoBattle_SucCK",
             "PVP_AutoBattle",
             "[JumpBack]PVP_Errmsg2#_Clear"
-        ]
-    },
-    "PVP_AutoBattle_SucCK": {
-        "expected": [
-            "鲜血鸡尾酒",
-            "血之雞尾酒"
         ]
     },
     "PVP_SeasonSettling": {
@@ -193,12 +169,6 @@
             "^(?=.*[血之雞尾酒])(?=.*[消耗量])(?=.*[設定]).{6,12}$"
         ]
     },
-    "PVP_Multiplier_Adjust_Enter": {
-        "expected": [
-            "确认",
-            "確認"
-        ]
-    },
     "PVP_AutoBattleStart": {
         "desc": "点'40倍战斗开始'按钮。|[PC覆盖·2026-07-09卡帧实测] 按钮'40倍战斗开始🍷40'在720 (600-793,525-559),base roi[614,552,180,55](y552-607)只与按钮交叠~7px基本错过。roi修为罩全按钮,OCR命中'战斗开始'点字即点按钮.|[2026-07-13追加] 游戏版本更新后该按钮文案变为英文全大写'BATTLE'(用户实见),expected补入;中文词保留兼容旧版/回滚。",
         "roi": [
@@ -206,11 +176,6 @@
             515,
             200,
             52
-        ],
-        "expected": [
-            "战斗开始",
-            "開始戰鬥",
-            "BATTLE"
         ]
     },
     "PVP_AutoBattle_Battling": {
@@ -219,10 +184,6 @@
             591,
             204,
             70
-        ],
-        "expected": [
-            "正在进行",
-            "之中進行"
         ]
     },
     "PVP_BattleResult": {
@@ -231,10 +192,6 @@
             187,
             202,
             79
-        ],
-        "expected": [
-            "反复战斗结果",
-            "重複戰鬥結果"
         ]
     },
     "PVP_BattleWaitingLoad": {
@@ -251,10 +208,6 @@
             655,
             97,
             44
-        ],
-        "expected": [
-            "离开",
-            "離開"
         ]
     },
     "PVP_BattleFaildLeave": {
@@ -263,16 +216,6 @@
             635,
             73,
             55
-        ],
-        "expected": [
-            "离开",
-            "離開"
-        ]
-    },
-    "PVP_PVPMes_Back": {
-        "expected": [
-            "确认",
-            "確認"
         ]
     },
     "PVP_AutoBattle_APShortage": {
@@ -298,12 +241,6 @@
             25,
             120,
             27
-        ]
-    },
-    "PVP_PerOperationsMain_Error_Processing": {
-        "expected": [
-            "确认",
-            "確認"
         ]
     },
     "PVP_Sandplay_NoFindSrena": {
