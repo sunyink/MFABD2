@@ -21,6 +21,7 @@ _EXIT = "Arbitrage_Sell_Item_BatchExit"
 _END = "Arbitrage_Sell_Item_BatchEnd"
 _FAILED = "Arbitrage_Sell_Item_BatchExitFailed"
 _SWIPE = "Arbitrage_ItemList_Swip"
+_LOCKED = "Arbitrage_Sell_PackShopSwich_Locked"
 
 
 def check_scope(context, batch):
@@ -200,6 +201,9 @@ def execute_sale_item(context, item_name, base_override, *, reserve=0, target=No
                     raise RuntimeError(f"无法重置出售节点计数：{name}")
             gold_verify.clear_verdict()
             detail = local.run_task(entry, pipeline_override=_overrides(base_override, request))
+            if (batch.status == "new" and detail is not None
+                    and any(node.name == _LOCKED and node.completed for node in detail.nodes)):
+                batch.locked()
             if batch.status not in ("confirmed", "skipped", "rejected", "unknown"):
                 batch.fail("出售链未取得本批确认结果")
         except Exception as exc:
