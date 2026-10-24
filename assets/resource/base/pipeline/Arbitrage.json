@@ -2836,6 +2836,19 @@
             ]
         ]
     },
+    "Arbitrage_Sell_Col_Label": {
+        "desc": "数据节点:出售解析·「当前／每月N日」标签列带。py 只认「当前」，其后那个框即本件「每月」，在两框空隙正中画大行线与中位线切格；左界不碰名字，右界停在金额列金币之前。",
+        "recognition": "OCR",
+        "roi": [
+            714,
+            209,
+            86,
+            344
+        ],
+        "attach": {
+            "current_pattern": "^.?前$"
+        }
+    },
     "Arbitrage_Sell_Col_Amount": {
         "desc": "数据节点:出售解析·金额列带；与溢价率分列,用于按当前金额==月峰值金额判满价",
         "recognition": "OCR",

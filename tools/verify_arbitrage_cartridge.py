@@ -63,8 +63,9 @@ class CartridgeGeometryTests(unittest.TestCase):
                 carts = [det("剧情游戏卡", 982, ty, 68, th), det("14", 1028, num_y, 21, num_h),
                          det("剧情游戏卡", 982, mon_ty, 68, mon_h), det("14", 1028, mon_num_y, 21, 17)]
                 original = deepcopy(carts)
-                day, month, bounds = ar._cart_regions(carts, current_y, base_y + 4, current_y + 88,
-                                                      [960, 209, 102, 344], split_y=(current_y + base_y) / 2)
+                # 与旧 _cart_regions 当时算出的上沿／下沿相同（行距 88、月度行在基础价下 4px）
+                day, month, bounds = ar._cart_cells(carts, current_y - 26.25, (current_y + base_y) / 2,
+                                                    current_y + 61.75, [960, 209, 102, 344])
                 reader = Reader(image=row_image(carts[0], "14"))
                 result = ar._current_cart(day, reader, reader.image, ar._RESCUE_CFG, bounds, name)
                 self.assertEqual(result[0], "剧情游戏卡14")
@@ -74,7 +75,7 @@ class CartridgeGeometryTests(unittest.TestCase):
     def test_number_follows_type_even_below_midline(self):
         carts = [det("剧情游戏卡", 980, 300, 70, 17), det("19", 1030, 321, 20, 17),
                  det("剧情游戏卡12", 960, 347, 90, 17)]
-        day, month, _ = ar._cart_regions(carts, 310, 355, 400, [950, 200, 120, 350], split_y=327)
+        day, month, _ = ar._cart_cells(carts, 287.5, 327, 377.5, [950, 200, 120, 350])
         self.assertEqual(ar._cart_group(day)[0], "剧情游戏卡19")
         self.assertEqual(ar._cart_group(month)[0], "剧情游戏卡12")
         self.assertEqual(day[0]["cy"], 308.5)
@@ -103,21 +104,6 @@ class CartridgeGeometryTests(unittest.TestCase):
         self.assertEqual(ar._cart_group(groups[0])[0], "剧情游戏卡5")
         self.assertFalse(orphans)
 
-    def test_name_and_base_midpoint_precedes_quote_fallback(self):
-        names = [det("大蒜", 480, 482, 44, 28), det("45", 480, 514, 51, 27)]
-        quotes = [det("54", 845, 478, 49, 24), det("54", 844, 518, 51, 27)]
-        self.assertEqual(ar._cart_split_y(names, quotes, 496, 531, 584), 511.75)
-        self.assertEqual(ar._cart_split_y(names[:1], quotes, 496, 531, 584), 510.75)
-
-    def test_missing_or_ambiguous_quotes_cannot_guess_split(self):
-        quote = det("54", 845, 478, 49, 24)
-        self.assertIsNone(ar._cart_split_y([], [quote], 496, 531, 584))
-        self.assertIsNone(ar._cart_split_y([], [quote, deepcopy(quote),
-                                              det("54", 844, 518, 51, 27)], 496, 531, 584))
-
-    def test_base_amount_can_locate_split_when_right_quotes_missing(self):
-        self.assertEqual(ar._cart_split_y([det("45", 480, 514, 51, 27)], [], 496, None, 584), 511.75)
-
     def test_compatibility_rescue_uses_complete_pixel_crops(self):
         typed = det("剧情游戏卡", 982, 297, 67, 18)
         number = det("11", 1030, 314, 17, 14)
@@ -142,8 +128,10 @@ class CartridgeGeometryTests(unittest.TestCase):
         self.assertTrue(all(y + h <= 333 for x, y, w, h in reader.rois))
         self.assertGreater(len({r[3] for r in reader.rois}), 1)
 
-    def test_parser_reuses_four_columns_and_keeps_day_month_separate(self):
+    def test_parser_reuses_columns_and_keeps_day_month_separate(self):
         columns = {
+            # 标签与同行卡带类型大致平齐（page03 实测：当前 y=245，卡带类型 y=246）
+            ar._COL_LABEL: [det("当前", 730, 296, 30, 17), det("每月5日", 730, 334, 50, 17)],
             ar._COL_NAME: [det("大蒜", 480, 300, 44, 24), det("45", 480, 332, 51, 24)],
             ar._COL_AMOUNT: [det("54", 845, 294, 49, 24), det("54", 844, 336, 51, 24)],
             ar._COL_PRICE: [det("120%", 898, 294, 60, 24), det("120%", 898, 336, 60, 24)],
@@ -310,17 +298,17 @@ class CartridgeRescueTests(unittest.TestCase):
         ar._merge_cartridge_observation(saved, {"target_cartridge": "剧情游戏卡5"})
         self.assertEqual(saved["target_cartridge"], "")
 
-    def test_version_five_cache_does_not_survive_failed_version_six_scan(self):
+    def test_version_six_cache_does_not_survive_failed_version_seven_scan(self):
         original = {"untouched": {"gold_fact": 123}, "arbitrage": {"market": {"days": {"today": {
-            "complete": True, "parser_version": 5, "items": [{"name": "咖啡豆", "target_cartridge": "剧情游戏卡3"}]}}}}}
+            "complete": True, "parser_version": 6, "items": [{"name": "咖啡豆", "target_cartridge": "剧情游戏卡3"}]}}}}}
         data = deepcopy(original)
-        self.assertEqual(store.MARKET_PARSER_VERSION, 6)
+        self.assertEqual(store.MARKET_PARSER_VERSION, 7)
         with patch.object(store.SharedStore, "load", return_value=data), \
              patch.object(store.SharedStore, "save", return_value=True) as save:
             self.assertIsNone(store.get_market_snapshot("today"))
             store.save_market_snapshot({"complete": False, "items": []}, "today")
             self.assertIsNone(store.get_market_snapshot("today"))
-            self.assertEqual(data["arbitrage"]["market"]["days"]["today"]["parser_version"], 6)
+            self.assertEqual(data["arbitrage"]["market"]["days"]["today"]["parser_version"], 7)
             self.assertEqual(data["untouched"], original["untouched"])
             save.assert_called_once()
 

@@ -7,7 +7,6 @@ from maa.custom_action import CustomAction
 from maa.context import Context
 from maa.agent.agent_server import AgentServer
 from utils import mfaalog
-from utils.arbitrage_name_rows import is_price_subrow_noise
 from utils.account_sync import sync_from_context
 from utils.arbitrage_store import (
     get_market_snapshot,
@@ -23,6 +22,14 @@ from utils.arbitrage_pricelist import (
     confirm_prices as _confirm_prices,
     price_issues as _price_issues,
     money_value as _parse_money_value,
+)
+from utils.arbitrage_price_grid import (
+    LABEL_NODE as _COL_LABEL,
+    digits_only as _base_digits,
+    draw_rows as _draw_price_rows,
+    in_cell as _in_cell,
+    join_cell as _join_cell,
+    load_patterns as _load_label_patterns,
 )
 from utils.arbitrage_material_policy import read_material_reserve_policy
 from utils.arbitrage_cartridge import (
@@ -55,19 +62,16 @@ _SELL_NAME_SLOTS = "Agt_SellList_NameSlot"
 _SELL_QUANTITY = "Arbitrage_Sell_Item_Quantity"
 
 # ==========================================
-# 子行断界(2026-07-24,#Q2)：价目表每个商品占两行
-#   上子行 = 今天的实际行情(溢价率/该去哪个卡带卖) —— 与商品名同高
-#   下子行 = 该商品每月最高价日的行情(仅供比对,不可当目标)
-# 断界不再读「当前/每月」文字(语言相关,繁/简/英/日各异,曾是硬编码语义依赖),改纯几何:
-#   名锚 y 即上子行 y;同一商品带(名锚 i → 名锚 i+1)内、名字下方最近的价格行即下子行。
-# 名锚分带令每个价格文本只归属唯一商品,结构性根除跨行假交集(旧赤道法分配阈值50px>行距
-# 73px,上一商品的下子行被吸进本行凑假交集误判满价,07-22实录:流浪美食家/桑格利亚酒);
-# 带内按 y 升序天然区分上/下,无需任何语言标记。
+# 分行(2026-10-22,PR #536 重构)：价目表每个商品占两行
+#   上子行 = 今天的实际行情(溢价率/该去哪个卡带卖) —— 与商品名、「当前」同高
+#   下子行 = 该商品每月最高价日的行情(仅供比对,不可当目标) —— 与金币+基础价、「每月N日」同高
+# 行骨架只认中间标签列的「当前」，其后那个框即本件「每月」；线画在两框空隙正中，切出格子。
+# 名字只取上格，下格的金币与基础价无论读成什么都不进名称识别器(#536 的 `è`、半行 `XT`)。
+# 07-24 曾因语言依赖弃用标签；名称词表本就只认简繁，正则放在标签节点 attach，扩语言时改那里。
 # ==========================================
 # 溢价率取两三位数+%:排除OCR把装饰符读成"4"/"A"的噪声,并吃'18120%'粘连(取靠%的三位)
 RE_PCT = re.compile(r'(\d{2,3})\s*%')
 RE_MONEY = re.compile(r'(?:[0-9]+|[0-9]{1,3}(?P<sep>[,.])[0-9]{3}(?:(?P=sep)[0-9]{3})*)')
-SUBROW_TOL = 14      # 同子行 y 容差(子行间距约30px,商品行距约73px)
 SCORE_MIN = 0.6      # 卡带选中组组分低于此=低置信,打WRN(实录错读曾得0.51,正确读数更高,#B)
 
 
@@ -223,37 +227,11 @@ def _cart_groups(carts):
     return groups, orphans
 
 
-def _cart_split_y(names, amounts, current_y, monthly_y, next_y):
-    """复用现有OCR：名称/基础金额中线优先，当前/月峰值收购金额中线备用。"""
-    bases = [d for d in names if current_y + SUBROW_TOL < d['cy'] < next_y
-             and re.fullmatch(r'[\s0-9,.]+', d['text']) and _money_token_value(d['text']) is not None]
-    if len(bases) == 1:
-        return (current_y + bases[0]['cy']) / 2
-    if monthly_y is None:
-        return None
-    current = [d for d in amounts if abs(d['cy'] - current_y) <= SUBROW_TOL
-               and _money_token_value(d['text']) is not None]
-    monthly = [d for d in amounts if abs(d['cy'] - monthly_y) <= SUBROW_TOL
-               and _money_token_value(d['text']) is not None]
-    if len(current) == len(monthly) == 1 and current[0]['cy'] < monthly[0]['cy']:
-        return (current[0]['cy'] + monthly[0]['cy']) / 2
-    return None
-
-
-def _cart_regions(carts, current_y, monthly_y, next_y, column_roi, *, split_y=None, previous_monthly_y=None):
-    """先拼类型/编号，再按类型中心分当前/月度；裁剪边界独立保留完整编号。"""
-    if split_y is None:
-        if monthly_y is None or not current_y < monthly_y < next_y:
-            return [], [], None
-        split_y = (current_y + monthly_y) / 2
-    if not current_y < split_y < next_y:
-        return [], [], None
+def _cart_cells(carts, top, split_y, bottom, column_roi):
+    """先拼类型/编号，再按类型中心落入本行上格(当前)/下格(月度)；裁剪边界独立保留完整编号。"""
     x, y, w, h = column_roi
-    monthly_y = monthly_y if monthly_y is not None else 2 * split_y - current_y
-    if previous_monthly_y is None:
-        previous_monthly_y = monthly_y - (next_y - current_y)
-    upper = max(y, (previous_monthly_y + current_y) / 2)
-    lower = min(y + h, (monthly_y + next_y) / 2)
+    upper = max(y, top)
+    lower = min(y + h, bottom)
     if not upper < split_y < lower:
         return [], [], None
     groups, orphans = _cart_groups(carts)
@@ -853,7 +831,7 @@ class ArbitrageSellController(CustomAction):
     # 附：V8 图像解析引擎
     # ==========================================
     def _parse_current_page(self, context: Context) -> list:
-        # 每商品占价目表两行:上子行(当前,与名同高)/下子行(每月最高价日)
+        # 一张截图：标签列按「当前」切格，名字取上格，金额/倍率/卡带按中位线分当前与月度
         screenshot = context.tasker.controller.post_screencap().wait().get()
         # 防御:截图失败则安全退出当前页解析
         if screenshot is None:
@@ -875,6 +853,7 @@ class ArbitrageSellController(CustomAction):
                             "score": getattr(r, "score", 1.0)})
             return out
 
+        labels = _col(_COL_LABEL)
         names = _col(_COL_NAME)
         amounts = _col(_COL_AMOUNT)
         prices = _col(_COL_PRICE)
@@ -882,53 +861,54 @@ class ArbitrageSellController(CustomAction):
         cart_roi = list(context.get_node_object(_COL_CART).recognition.param.roi)
         price_columns = {key: list(context.get_node_object(node).recognition.param.roi)
                          for key, node in (("name", _COL_NAME), ("amount", _COL_AMOUNT), ("rate", _COL_PRICE))}
+        _, list_top, _, list_height = context.get_node_object(_COL_LABEL).recognition.param.roi
 
-        # 名锚:名列内非数字文本 = 各商品行(与上子行同高),按 y 升序、近距去重
-        anchors = []
-        for t in sorted(names, key=lambda t: t["cy"]):
-            if is_price_subrow_noise(t, names, anchors):
-                mfaalog.info(f"[Arbitrage] 基础价格行图标不作为商品名: {t['text']}")
-                continue
-            cleaned = re.sub(r'[^\w一-龥]', '', t["text"])
-            if cleaned and not cleaned.isdigit():
-                if not any(abs(t["cy"] - a["cy"]) < 30 for a in anchors):
-                    identified = _read_item_name(context, screenshot, {**t, "text": cleaned})
-                    anchors.append({"name": identified["name"], "cy": t["cy"], "identity": identified})
-        if not anchors:
+        rows, problem = _draw_price_rows(labels, list_top, list_top + list_height, _load_label_patterns(context))
+        if problem:
+            # 标签结构不成立就不猜：整页不出结果，由扫描侧记为未完整
+            if labels or names:
+                mfaalog.warning(f"[Arbitrage] ⚠️ 价目表标签不成行({problem})，本页不解析："
+                                f"{[t['text'] for t in sorted(labels, key=lambda t: t['cy'])]}")
             return []
-        # 商品行距中位数:供末行下子行搜索上界(无下一名锚时的兜底跨度)
-        gaps = [anchors[i + 1]["cy"] - anchors[i]["cy"] for i in range(len(anchors) - 1)]
-        gap_bound = sorted(gaps)[len(gaps) // 2] if gaps else 4 * SUBROW_TOL
+        for t in names:
+            if not any(r["top"] <= t["cy"] < r["bottom"] for r in rows):
+                mfaalog.info(f"[Arbitrage] 价目表名称列文字不在任何商品格内，忽略: {t['text']}")
 
-        def _row_pcts(center_y):
-            """价列内、与 center_y 同高(±SUBROW_TOL)的所有溢价率数字集合。"""
+        def _cell_pcts(dets):
             out = set()
-            for t in prices:
-                if abs(t["cy"] - center_y) <= SUBROW_TOL:
-                    m = RE_PCT.search(t["text"])
-                    if m:
-                        out.add(m.group(1))
+            for t in dets:
+                m = RE_PCT.search(t["text"])
+                if m:
+                    out.add(m.group(1))
             return out
 
-        def _row_money(center_y):
-            """金额列内的整数集合；兼容金额与百分比粘成 `4.416120%`。"""
-            out = set()
-            for item in amounts:
-                if abs(item["cy"] - center_y) > SUBROW_TOL:
-                    continue
-                value = _money_token_value(item["text"])
-                if value is not None:
-                    out.add(value)
-            return out
+        def _cell_money(dets):
+            """金额格内的整数集合；兼容金额与百分比粘成 `4.416120%`。"""
+            return {v for v in (_money_token_value(t["text"]) for t in dets) if v is not None}
 
+        name_x, _, name_w, _ = price_columns["name"]
         results = []
-        previous_monthly_y = None
-        for i, row in enumerate(anchors):
+        for index, row in enumerate(rows, 1):
+            top, mid, bottom, upper_end = row["top"], row["mid"], row["bottom"], row["upper_end"]
+            # 名字：上格内所有框从左到右拼接；空格子按整格交给识别器重读
+            joined = _join_cell(_in_cell(names, top, upper_end))
+            if joined is None:
+                det = {"text": "", "score": 0.0, "x": name_x, "y": round(top), "w": name_w,
+                       "h": round(upper_end - top)}
+            else:
+                det = {**joined, "text": re.sub(r'[^\w一-龥]', '', joined["text"])}
+            identity = _read_item_name(context, screenshot, det)
+            name = identity["name"] or f"未读出名称@{round(top)}"
+            if not identity["name"]:
+                mfaalog.warning(f"[Arbitrage] 价目表第{index}行名称格没有读出文字")
+            if mid is None:
+                mfaalog.warning(f"[Arbitrage] 价目表末行 [{name}] 缺「每月」，月峰值不判定")
+
             item_data = {
-                "name": row["name"],
-                "raw_name": row["identity"]["raw"],
-                "name_confirmed": row["identity"]["confirmed"],
-                "name_evidence": row["identity"],
+                "name": name,
+                "raw_name": identity["raw"],
+                "name_confirmed": identity["confirmed"],
+                "name_evidence": identity,
                 "is_max_price": False,
                 "max_price_basis": "unreadable",
                 "current_price": None,
@@ -940,27 +920,15 @@ class ArbitrageSellController(CustomAction):
                 "cart_conflict": False,
                 "alt_cartridge": "",
             }
-            ny = row["cy"]                                    # 上子行(当前)y = 名锚 y
-            next_ny = anchors[i + 1]["cy"] if i + 1 < len(anchors) else ny + gap_bound
-
-            # 下子行(每月)y:本商品带内(next_ny 为界,防吸入下一商品上子行)、名字下方最近的价格行
-            below_ys = sorted(
-                t["cy"] for t in prices
-                if ny + SUBROW_TOL < t["cy"] < next_ny and RE_PCT.search(t["text"])
-            )
-            mon_y = below_ys[0] if below_ys else None
-            if mon_y is None:
-                # 倍率漏读时仍可由金额行定位；不借用月度卡带自身来猜当前编号。
-                money_ys = sorted(t["cy"] for t in amounts if ny + SUBROW_TOL < t["cy"] < next_ny
-                                  and _money_token_value(t["text"]) is not None)
-                mon_y = money_ys[0] if money_ys else None
 
             # 金额相等才是最终满价判据。低价物品会因向下取整在 117%/118% 提前撞到峰值金额；
             # 只比溢价率会漏卖。金额列有一侧读不到时才退回旧的溢价率交集判据。
-            top_money = _row_money(ny)
-            bot_money = _row_money(mon_y) if mon_y is not None else set()
-            top_pct = _row_pcts(ny)
-            bot_pct = _row_pcts(mon_y) if mon_y is not None else set()
+            current_dets = _in_cell(amounts, top, upper_end)
+            monthly_dets = _in_cell(amounts, mid, bottom) if mid is not None else []
+            current_rates = [d for d in _in_cell(prices, top, upper_end) if RE_PCT.search(d["text"])]
+            monthly_rates = [d for d in _in_cell(prices, mid, bottom) if RE_PCT.search(d["text"])] if mid is not None else []
+            top_money, bot_money = _cell_money(current_dets), _cell_money(monthly_dets)
+            top_pct, bot_pct = _cell_pcts(current_rates), _cell_pcts(monthly_rates)
             if len(top_money) == 1:
                 item_data["current_price"] = next(iter(top_money))
             if len(bot_money) == 1:
@@ -969,31 +937,25 @@ class ArbitrageSellController(CustomAction):
                 item_data["current_rate"] = int(next(iter(top_pct)))
             if len(bot_pct) == 1:
                 item_data["peak_rate"] = int(next(iter(bot_pct)))
-            current_dets = [d for d in amounts if abs(d["cy"] - ny) <= SUBROW_TOL]
-            monthly_dets = [d for d in amounts if mon_y is not None and abs(d["cy"] - mon_y) <= SUBROW_TOL]
-            bases = [d for d in names if ny + SUBROW_TOL < d["cy"] < next_ny
-                     and _money_token_value(d["text"]) is not None]
-            current_centers = [d["cy"] for d in prices if abs(d["cy"] - ny) <= SUBROW_TOL
-                               and RE_PCT.search(d["text"])]
-            quote_y = sum(current_centers) / len(current_centers) if current_centers else ny
+            # 下格的基础价位置已定，删掉金币等非数字后按整数读，只作交叉核对
+            bases = _base_digits(_in_cell(names, mid, bottom)) if mid is not None else []
+            # 局部救援的裁剪中心优先用实读倍率框，缺读时退到标签框
+            quote_y = (sum(d["cy"] for d in current_rates) / len(current_rates) if current_rates
+                       else row["current"]["cy"])
+            mon_y = None
+            if mid is not None:
+                mon_y = (sum(d["cy"] for d in monthly_rates) / len(monthly_rates) if monthly_rates
+                         else row["monthly"]["cy"])
             _read_prices(context, screenshot, item_data, current=current_dets, monthly=monthly_dets,
                          bases=bases, centers=(quote_y, mon_y), columns=price_columns, cfg=price_cfg)
 
-            split_y = _cart_split_y(names, amounts, ny, mon_y, next_ny)
-            if len(anchors) == 1 and split_y is not None:
-                # 单项画面没有相邻名称可量行距，改用实读上下行距补足商品范围。
-                lower_y = mon_y if mon_y is not None else 2 * split_y - ny
-                next_ny = max(next_ny, ny + 2 * (lower_y - ny))
-            if split_y is None:
-                day_dets, month_dets, bounds = [], [], None
-            else:
-                day_dets, month_dets, bounds = _cart_regions(
-                    carts, ny, mon_y, next_ny, cart_roi, split_y=split_y,
-                    previous_monthly_y=previous_monthly_y)
-            previous_monthly_y = mon_y if mon_y is not None else (
-                2 * split_y - ny if split_y is not None else None)
+            # 末行缺「每月」时上格仍完整，照读今天的卡带；被截断的月度卡带不采信
+            day_dets, month_dets, bounds = _cart_cells(carts, top, mid if mid is not None else upper_end,
+                                                       bottom, cart_roi)
+            if mid is None:
+                month_dets = []
             day_cart, day_score, basis, evidence = _read_cartridge(
-                day_dets, context, screenshot, rescue_cfg, bounds, row['name'])
+                day_dets, context, screenshot, rescue_cfg, bounds, name)
             item_data["target_cartridge"] = day_cart
             item_data["current_cartridge"] = day_cart
             item_data["current_cartridge_raw"] = _cart_group(day_dets)[0]
