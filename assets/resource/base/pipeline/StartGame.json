@@ -19,6 +19,7 @@
         "action": "Custom",
         "custom_action": "StartupCheckApp",
         "next": [
+            "StartGame_GameIsMaint",
             "StartGame_Update_Data",
             "StartGame_Update_Data_DownLoading",
             "StartGame_Loading",
@@ -137,6 +138,7 @@
         "post_delay": 5000,
         "timeout": 120000,
         "next": [
+            "StartGame_GameIsMaint",
             "StartGame_Update_PGM",
             "StartGame_Update_Data",
             "[JumpBack]StartGame_PayFailed",
@@ -145,8 +147,7 @@
             "StartGame_TouchStart",
             "StartGame_Loading",
             "StartGame_LoadingPage",
-            "[JumpBack]StartGame_ModMsg",
-            "StartGame_GameIsMaint"
+            "[JumpBack]StartGame_ModMsg"
         ],
         "focus": "SM.main"
     },
@@ -313,6 +314,7 @@
         "action": "Click",
         "post_delay": 30000,
         "next": [
+            "StartGame_GameIsMaint",
             "StartGame_Update_Data_DownLoading",
             "StartGame_Loading",
             "StartGame_TouchStart"
@@ -337,11 +339,11 @@
         "post_delay": 30000,
         "timeout": 8000,
         "next": [
-            "[JumpBack]StartGame_Update_Data_DownLoading",
             "[JumpBack]StartGame_PayFailed",
+            "StartGame_GameIsMaint",
+            "[JumpBack]StartGame_Update_Data_DownLoading",
             "StartGame_Loading",
-            "StartGame_TouchStart",
-            "StartGame_GameIsMaint"
+            "StartGame_TouchStart"
         ],
         "on_error": [
             "StartGame_LoadingPage"
@@ -359,10 +361,14 @@
         ],
         "expected": [
             "维护和更新",
-            "无法连接和使用游戏"
+            "无法连接和使用游戏",
+            "无法登入及使用游戏"
         ],
         "action": "StopTask",
         "focus": {
+            "start": [
+                "游戏服务器维护中"
+            ],
             "toast": [
                 "游戏服务器维护中"
             ],
@@ -384,14 +390,14 @@
         "post_delay": 5000,
         "timeout": 120000,
         "next": [
+            "StartGame_GameIsMaint",
             "StartGame_Update_PGM",
             "StartGame_Update_Data",
             "[JumpBack]StartGame_PayFailed",
             "[JumpBack]StartGame_LinkDown",
             "StartGame_TouchStart",
             "StartGame_LoadingPage",
-            "StartGame_Loading",
-            "StartGame_GameIsMaint"
+            "StartGame_Loading"
         ],
         "focus": "SM.ORC游戏启动中"
     },

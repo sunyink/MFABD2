@@ -38,6 +38,60 @@ class HotUpdateTransitions(unittest.TestCase):
             self.assertIn('StartGame_Loading', self.nodes[node]['next'])
             self.assertIn('StartGame_TouchStart', self.nodes[node]['next'])
 
+    def test_maintenance_precedes_background_title_and_loading(self):
+        """维护公告居中且不遮挡背景标题与启动中字样，各入口及加载节点需先判维护。"""
+        for entry in (
+            'StartGame_Check_App_Alive',
+            'StartGame_RunApp',
+            'StartGame_RunApp_Shell',
+            'StartGame_LoadingPage',
+            'StartGame_Loading',
+            'StartGame_Update_Data_Click',
+            'StartGame_Update_Data_DownLoading',
+        ):
+            following = self.nodes[entry]['next']
+            self.assertIn('StartGame_GameIsMaint', following, entry)
+            maint_idx = following.index('StartGame_GameIsMaint')
+            for bg_node in (
+                'StartGame_Update_Data_DownLoading',
+                '[JumpBack]StartGame_Update_Data_DownLoading',
+                'StartGame_Loading',
+                'StartGame_LoadingPage',
+            ):
+                if bg_node in following:
+                    self.assertLess(maint_idx, following.index(bg_node), f'{entry}: {bg_node}')
+
+    def test_nt_pc_maintenance_precedes_background_title_and_loading(self):
+        """PC 独立启动入口需先判维护，且热更新下载循环继承 base 的 next 顺序。"""
+        path = Path(__file__).resolve().parents[1] / 'assets/resource/pc/pipeline/StartGame.json'
+        nodes = json.loads(path.read_text(encoding='utf-8'))
+        following = nodes['StartGame_Check_Win32_SetSize']['next']
+        self.assertIn('StartGame_GameIsMaint', following)
+        maint_idx = following.index('StartGame_GameIsMaint')
+        for bg_node in ('StartGame_Loading', 'StartGame_LoadingPage'):
+            self.assertLess(maint_idx, following.index(bg_node), bg_node)
+        self.assertNotIn('next', nodes['StartGame_Update_Data_DownLoading'])
+
+    def test_maintenance_expected_and_focus_log(self):
+        """维护节点需覆盖实机『无法登入及使用游戏』文案，并在日志和通知中同时输出提示。"""
+        maint = self.nodes['StartGame_GameIsMaint']
+        self.assertEqual('StopTask', maint['action'])
+        self.assertEqual(['游戏服务器维护中'], maint['focus']['start'])
+        self.assertEqual(['游戏服务器维护中'], maint['focus']['toast'])
+        self.assertIs(maint['focus']['aborted'], True)
+        matches = lambda patterns, text: any(re.search(p, text) for p in patterns)
+        for text in ('将于 10月22日（四）进行定期维护和更新。', '维护影响：将无法登入及使用游戏'):
+            self.assertTrue(matches(maint['expected'], text), text)
+        path = Path(__file__).resolve().parents[1] / 'assets/resource/pc/pipeline/StartGame.json'
+        pc_expected = json.loads(path.read_text(encoding='utf-8'))['StartGame_GameIsMaint']['expected']
+        for text in (
+            '将于 10月22日（四）进行定期维护和更新。',
+            '维护影响：将无法登入及使用游戏',
+            '將於 10月22日（四）進行定期維護和更新。',
+            '維護影響：將無法登入及使用遊戲',
+        ):
+            self.assertTrue(matches(pc_expected, text), text)
+
     def test_download_timeout_does_not_request_apk_update(self):
         self.assertEqual(['StartGame_LoadingPage'], self.nodes['StartGame_Update_Data_DownLoading']['on_error'])
         self.assertEqual(['StartGame_UpdateCloseGame'], self.nodes['StartGame_Update_PGM_Click']['next'])

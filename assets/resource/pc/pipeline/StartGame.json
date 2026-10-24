@@ -43,20 +43,16 @@
                 "載",
                 "载"
             ]
-        ],
-        "next": [
-            "StartGame_Update_Data_DownLoading",
-            "[JumpBack]StartGame_PayFailed",
-            "StartGame_Loading",
-            "StartGame_TouchStart"
         ]
     },
     "StartGame_GameIsMaint": {
         "expected": [
             "维护和更新",
             "无法连接和使用游戏",
+            "无法登入及使用游戏",
             "維護和更新",
-            "無法連線和使用遊戲"
+            "無法連線和使用遊戲",
+            "無法登入及使用遊戲"
         ]
     },
     "StartGame_Loading": {
@@ -161,6 +157,7 @@
     "StartGame_Check_Win32_SetSize": {
         "desc": "[PC覆盖] PC 启动入口，只路由：由 next 的识别节点判断游戏当前在哪一步。|窗口尺寸、退出全屏与最小化统一由任务首节点的 startup sink（agent/startup/pc.py）按「PC 窗口分辨率」选项处理。这里原先调 PC_ResizeWindow 固定改成 1280x720，会把用户选的 1080p 改回去，窗口已最小化时还会 SW_RESTORE 把它弹出来（2026-10-18 实机日志），已去掉。",
         "next": [
+            "StartGame_GameIsMaint",
             "StartGame_Update_Data",
             "StartGame_Update_Data_DownLoading",
             "StartGame_Loading",
