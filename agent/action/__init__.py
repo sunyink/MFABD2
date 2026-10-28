@@ -21,6 +21,7 @@ from .shop_buy_fav_controller import *
 from .pc_window import *
 from .startup_prepare import *
 from .cooking_stock import *
+from .bag_scan import *
 from .bag_stock import *
 from .clear_node_hit_count import *
 from .arbitrage_flow import *

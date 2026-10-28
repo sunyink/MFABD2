@@ -8,7 +8,7 @@ Wiring inventory:
 - Sale list: _sell_item_override -> OCRItemName name slots (type-tag anchored cards).
 - Precise-buy list: buy_overrides -> OCRItemName over the whole list.
 - Sale, purchase confirmation and sale retry details: QuantityAdjuster.inventory_state.
-- Bag stock names: BagScanner.inspect (existing).
+- Bag stock names: BagScanEngine._read (utils/bag_scan_engine.py; tests in verify_bag_stock_names).
 Cartridge names, configured identities, template-derived material names and
 cooking recipe-title metadata are outside this trade-name change.
 """

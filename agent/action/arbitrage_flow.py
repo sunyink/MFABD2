@@ -2,12 +2,14 @@
 
 from collections import OrderedDict
 from dataclasses import replace
+from uuid import uuid4
 
 from maa.agent.agent_server import AgentServer
 from maa.custom_action import CustomAction
 
 from .arbitrage_replenish_buy import ensure_shop
-from .bag_stock import bag_catalog, pending_materials, request_bag_materials
+from .bag_scan import run_bag_scan
+from .bag_stock import bag_catalog, bag_summary, forget_bag_run, pending_materials, register_bag_run
 from .cooking_stock import get_cooking_scan_start
 from .cartridge_lib import MarkCompleteAction
 from utils import arbitrage_store as store, mfaalog
@@ -134,34 +136,53 @@ class ArbitrageCookingPrepare(CustomAction):
             return False
 
 
-@AgentServer.custom_action("ArbitrageBagPrepare")
-class ArbitrageBagPrepare(CustomAction):
+@AgentServer.custom_action("ArbitrageBagScan")
+class ArbitrageBagScan(CustomAction):
+    """③仓检：算本轮还缺有效读数的食材，交给通用背包仓检读取，再按旧形状写本轮汇总。"""
+
     def run(self, context, argv):
+        task_id = argv.task_detail.task_id
+        forget_bag_run(task_id)
         try:
-            task_id = argv.task_detail.task_id
-            if not sync_from_context(context, where="ArbitrageBagPrepare"):
+            if not sync_from_context(context, where="ArbitrageBagScan"):
                 return False
             if not cooking_stage_active(task_id) or not node_enabled(context, "Arbitrage_Cooking_Replenish"):
-                _patch(context, {argv.node_name: {"next": []}})
                 return True
             data = load_replenish_data()
             # 读取常规制作及材料保护之后的最终状态，不能重新开启被跳过的料理。
             entries = [entry for entry in replenishment_entries(context, task_id) if entry.enabled]
             required = {name for entry in entries if entry.name in data["recipes"]
                         for name in data["recipes"][entry.name]["ingredients"]}
-            request_bag_materials(task_id, required)
-            config = context.get_node_object("Agt_BagStock_Config").attach
-            catalog = bag_catalog(context, config)
-            pending = pending_materials(dict.fromkeys(required), store.get_inventory_items(),
+            catalog = bag_catalog(context)
+            pending = pending_materials(dict.fromkeys(sorted(required)), store.get_inventory_items(),
                                         get_cooking_scan_start(task_id))
-            scan = set(pending) & catalog.keys()
-            route = "Arbitrage_BagStockScan_Open" if scan else "Arbitrage_BagStockScan_Record"
-            _patch(context, {argv.node_name: {"next": [route]}})
+            scan = sorted(set(pending) & catalog.keys())
             mfaalog.info(f"[③仓检] 配方需要{len(required)}项，需进背包核对{len(scan)}项")
-            return True
         except Exception as exc:
             mfaalog.error(f"[③仓检] 准备失败：{exc}")
             return False
+        run_id, observed_at, result = uuid4().hex, store.utc_now(), None
+        register_bag_run(task_id, run_id)
+        try:
+            # 料理可能已消耗这些材料：开扫前先作废旧量，读不到的保持未知，不沿用旧数。
+            if not store.invalidate_inventory_quantities(pending, "bag_scan_pending"):
+                raise RuntimeError("待补查库存未能标记为未知")
+            if scan:
+                result = run_bag_scan(context, label="套利料理后补查", targets=scan)
+        except Exception as exc:
+            result = {"executed": False, "error": str(exc)}
+            mfaalog.warning(f"[③仓检] 补查提前结束：{exc}")
+        finally:
+            summary = bag_summary(task_id, run_id, observed_at, required, pending, catalog, result)
+            try:
+                if not store.save_bag_stock_summary(summary):
+                    mfaalog.error("[③仓检] 补查汇总写入失败")
+            except Exception as exc:
+                mfaalog.error(f"[③仓检] 补查汇总存档异常：{exc}")
+        mfaalog.info(f"[③仓检] 已读 {len(summary['read_item_names'])}，确认没有 {len(summary['absent_item_names'])}，"
+                     f"仍未知 {len(summary['unknown_item_names'])}，完整={summary['complete']}")
+        # 允许继续补买与出售；业务是否完整只看持久化汇总 complete，页面由下一阶段自行恢复。
+        return True
 
 
 @AgentServer.custom_action("ArbitrageMarketEnsure")

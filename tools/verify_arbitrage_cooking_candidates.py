@@ -88,17 +88,49 @@ class CandidateTests(unittest.TestCase):
     def test_zero_successful_cooking_requests_bag_materials(self):
         self.finish()
         materials = {"兽肉", "香草", "盐", "黄油", "胡椒"}
+        scan = {"executed": True, "returned": True, "scan_id": "s1", "pages": 3,
+                "quantities": {"兽肉": 12, "盐": 5}, "absent": ["香草"], "unknown": {"胡椒": "detail_unreadable"}}
         with patch.object(flow, "discover_recipe_entries", return_value=(RECIPE,)), \
-             patch.object(flow, "request_bag_materials") as request, \
-             patch.object(flow, "bag_catalog", return_value=dict.fromkeys(materials)), \
+             patch.object(flow, "bag_catalog", return_value=dict.fromkeys(materials - {"黄油"})), \
              patch.object(flow.store, "get_inventory_items", return_value={}), \
+             patch.object(flow.store, "invalidate_inventory_quantities", return_value=True) as invalidate, \
+             patch.object(flow.store, "save_bag_stock_summary", return_value=True) as save, \
              patch.object(flow, "get_cooking_scan_start", return_value=None), \
+             patch.object(flow, "run_bag_scan", return_value=scan) as run_scan, \
              patch.object(flow.mfaalog, "info") as log:
             argv = NS(node_name="Arbitrage_BagStockScan", task_detail=NS(task_id=99))
-            self.assertTrue(flow.ArbitrageBagPrepare().run(self.context, argv))
-        request.assert_called_once_with(99, materials)
-        self.assertEqual(self.overrides[-1]["Arbitrage_BagStockScan"]["next"], ["Arbitrage_BagStockScan_Open"])
-        self.assertIn("配方需要5项", log.call_args.args[0])
+            self.assertTrue(flow.ArbitrageBagScan().run(self.context, argv))
+        # 缺模板的黄油不进背包，但同样作废旧量、记为未知。
+        invalidate.assert_called_once_with(sorted(materials), "bag_scan_pending")
+        run_scan.assert_called_once_with(self.context, label="套利料理后补查",
+                                         targets=sorted(materials - {"黄油"}))
+        summary = save.call_args.args[0]
+        self.assertEqual(summary["read_item_names"], ["兽肉", "盐"])
+        self.assertEqual(summary["absent_item_names"], ["香草"])
+        self.assertEqual(summary["unknown_item_names"], ["胡椒", "黄油"])
+        self.assertEqual(summary["errors"], {"黄油": "template_missing", "胡椒": "detail_unreadable"})
+        self.assertFalse(summary["complete"])
+        from action.bag_stock import get_bag_scan_run
+        self.assertEqual(get_bag_scan_run(99), summary["run_id"])
+        self.assertIn("配方需要5项", log.call_args_list[0].args[0])
+
+    def test_nothing_to_scan_still_records_reuse_without_entering_bag(self):
+        self.finish()
+        items = {name: {"quantity": 3, "quantity_status": "known", "quantity_observed_at": "2026-10-28T01:00:00"}
+                 for name in ("兽肉", "香草", "盐", "黄油", "胡椒")}
+        with patch.object(flow, "discover_recipe_entries", return_value=(RECIPE,)), \
+             patch.object(flow, "bag_catalog", return_value=dict.fromkeys(items)), \
+             patch.object(flow.store, "get_inventory_items", return_value=items), \
+             patch.object(flow.store, "invalidate_inventory_quantities", return_value=True), \
+             patch.object(flow.store, "save_bag_stock_summary", return_value=True) as save, \
+             patch.object(flow, "get_cooking_scan_start", return_value="2026-10-28T00:00:00"), \
+             patch.object(flow, "run_bag_scan") as run_scan:
+            argv = NS(node_name="Arbitrage_BagStockScan", task_detail=NS(task_id=99))
+            self.assertTrue(flow.ArbitrageBagScan().run(self.context, argv))
+        run_scan.assert_not_called()
+        summary = save.call_args.args[0]
+        self.assertTrue(summary["complete"])
+        self.assertEqual(summary["reused_item_names"], sorted(items))
 
     def test_new_cooking_attempt_clears_old_completion_even_for_empty_selection(self):
         self.finish()
