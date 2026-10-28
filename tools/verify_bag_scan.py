@@ -41,13 +41,18 @@ def layout(*items, end=True):
 class Bag:
     """合成的背包列表：每行 6 格、行距 100，每个物品一块固定的随机纹理，滚动就是改视窗偏移。"""
 
-    def __init__(self, rows, swipe=440):
+    def __init__(self, rows, swipe=440, footer=0, toast_frames=0):
         self.rows = rows
         self.swipe = swipe
         self.offset = 0
+        # footer：压在列表区最下方、不随滚动的界面（实机模拟器约 64 行），列表留出同样的底部余量。
+        self.footer = footer
+        # toast_frames：前几次截图里底栏上半截叠着会消失的提示（10-28 第三轮试跑：底栏只有 17 行两帧相同）。
+        self.toast_frames = toast_frames
+        self.footer_pixels = np.random.default_rng(99).integers(0, 255, (footer, GRID[2], 3), np.uint8)
         height = len(rows) * ROW
-        self.max_offset = max(0, height - GRID[3])
-        self.canvas = np.full((max(height, GRID[3]), GRID[2], 3), 40, np.uint8)
+        self.max_offset = max(0, height + footer - GRID[3])
+        self.canvas = np.full((max(height + footer, GRID[3]), GRID[2], 3), 40, np.uint8)
         textures = {}
         for r, row in enumerate(rows):
             for c, item in enumerate(row):
@@ -62,13 +67,18 @@ class Bag:
         image = np.full((720, 1280, 3), 20, np.uint8)
         x, y, w, h = GRID
         image[y:y + h, x:x + w] = self.canvas[self.offset:self.offset + h]
+        if self.footer:
+            image[y + h - self.footer:y + h, x:x + w] = self.footer_pixels
+            if self.toast_frames:
+                self.toast_frames -= 1
+                image[y + h - self.footer:y + h - 17, x:x + w] = 230
         return image
 
     def cells(self):
-        """视窗里完整可见的格子：(物品, 屏幕上的框)。"""
+        """视窗里完整可见（没被底栏挡住）的格子：(物品, 屏幕上的框)。"""
         for r, row in enumerate(self.rows):
             top = r * ROW + 10 - self.offset
-            if top < 0 or top + 80 > GRID[3]:
+            if top < 0 or top + 80 > GRID[3] - self.footer:
                 continue
             for c, item in enumerate(row):
                 if item is not None:
@@ -230,6 +240,29 @@ class EngineTests(unittest.TestCase):
         self.assertEqual(result["absent"], ["盐"])
         self.assertTrue(result["complete"])
 
+    def test_fixed_footer_run_reaches_real_bottom_and_concludes(self):
+        # 10-28 试跑：底栏让每页都报接不上，最后一页又被误判成没动、提前收尾，4 项缺货没能判 0。
+        names = ["兽肉", "米", "白糖", "鸡蛋", "胡椒"]
+        bag = Bag(layout("兽肉", *fillers(40), "米", *fillers(40, 40), "白糖", "鸡蛋", *fillers(30, 80), "胡椒",
+                         end=False), footer=64)
+        device = Device(bag, amounts(*names))
+        result = run(device, [*names, "盐", "肉桂"])
+        self.assertEqual(result["continuity"], "verified")
+        self.assertEqual(result["termination"], "list_bottom")
+        self.assertEqual(bag.offset, bag.max_offset)
+        self.assertEqual(result["quantities"], amounts(*names))
+        self.assertEqual(result["absent"], ["盐", "肉桂"])
+
+    def test_changing_footer_needs_fixed_footer_rows(self):
+        # 底栏内容在第一页时不同（提示没消失），自动剔除只剔得掉最下 17 行：不给底栏行数会报接不上，给 64 行就正常。
+        def scan(**options):
+            bag = Bag(layout("兽肉", *fillers(60), "胡椒", end=False), footer=64, toast_frames=1)
+            return run(Device(bag, amounts("兽肉", "胡椒")), ["兽肉", "胡椒", "盐"], **options)
+
+        self.assertEqual(scan()["continuity"], "broken")
+        result = scan(footer_rows=64)
+        self.assertEqual((result["continuity"], result["absent"]), ("verified", ["盐"]))
+
     def test_template_hit_on_another_item_blocks_zero(self):
         bag = Bag(layout("米", *fillers(30)))
         device = Device(bag, {"米": 9}, decoys={"盐": ("米",)})
@@ -319,9 +352,42 @@ class ShiftTests(unittest.TestCase):
         before = self.grid()
         self.assertEqual(estimate_shift(before, self.grid(), ROW, 12.0)[1], "same")
         self.bag.offset = 440
-        self.assertEqual(estimate_shift(before, self.grid(), ROW, 12.0), (440, "moved"))
+        self.assertEqual(estimate_shift(before, self.grid(), ROW, 12.0)[:2], (440, "moved"))
         self.bag.offset = 560
         self.assertEqual(estimate_shift(before, self.grid(), ROW, 12.0)[1], "broken")
+
+    def test_fixed_footer_is_ignored(self):
+        # 10-28 实机：列表区最下 64 行是固定底栏。底栏不能让「真动了」变成「接不上」或「没动」。
+        self.bag = Bag(layout(*fillers(120)), footer=64)
+        before = self.grid()
+        self.assertEqual(estimate_shift(before, self.grid(), ROW, 12.0)[1], "same")
+        self.bag.offset = 440
+        shift, state, info = estimate_shift(before, self.grid(), ROW, 12.0)
+        self.assertEqual((shift, state), (440, "moved"))
+        self.assertEqual(info["trimmed"][1], 64)
+        # 可视高度只剩 570：滚 500 已超过「可视高度减一行」，必须报接不上。
+        self.bag.offset = 500
+        self.assertEqual(estimate_shift(before, self.grid(), ROW, 12.0)[1], "broken")
+        self.bag.offset = 40
+        self.assertEqual(estimate_shift(before, self.grid(), ROW, 12.0)[:2], (40, "moved"))
+
+
+class CatalogTests(unittest.TestCase):
+    """目录项必须有对应资源包自带的模板图：PC 目录只能引用 PC 包里的图，退回 base 的图尺寸不对，会把有的物品扫成 0。"""
+
+    def test_every_catalog_template_exists_in_its_own_pack(self):
+        import json
+        from utils.name_i18n import canon
+        items = json.loads((ROOT / "agent/data/bd2_item_names_i18n.json").read_text(encoding="utf-8"))
+        ingredients = {item["cn"] for item in items if item.get("category") == "Ingredients"}
+        for pack in ("base", "pc"):
+            pipeline = json.loads((ROOT / f"assets/resource/{pack}/pipeline/BagScan.json").read_text(encoding="utf-8"))
+            catalog = pipeline["Agt_BagScan_Ingredients_Catalog"]["attach"]["templates"]
+            for name, path in catalog.items():
+                with self.subTest(pack=pack, name=name):
+                    self.assertTrue((ROOT / f"assets/resource/{pack}/image" / path).is_file(), path)
+                    self.assertEqual(canon(name), name)
+                    self.assertIn(name, ingredients)
 
 
 class MemoryAccountStore:

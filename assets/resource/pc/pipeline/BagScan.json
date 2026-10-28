@@ -172,7 +172,8 @@
             600
         ],
         "attach": {
-            "row_height": 113
+            "row_height": 113,
+            "footer_rows": 0
         }
     },
     "Rec_BagScan_Name_Ocr": {
@@ -259,19 +260,23 @@
                 "调味海苔": "Shop/BagList/食材_调味海苔.png",
                 "豆子": "Shop/BagList/食材_豆子.png",
                 "番茄": "Shop/BagList/食材_番茄.png",
+                "蜂蜜": "Shop/BagList/食材_蜂蜜.png",
                 "橄榄油": "Shop/BagList/食材_橄榄油.png",
                 "哈密瓜": "Shop/BagList/食材_哈密瓜.png",
+                "胡椒": "Shop/BagList/食材_胡椒.png",
                 "胡萝卜": "Shop/BagList/食材_胡萝卜.png",
                 "黄金罗勒": "Shop/BagList/食材_黄金罗勒.png",
                 "黄油": "Shop/BagList/食材_黄油.png",
                 "鸡蛋": "Shop/BagList/食材_鸡蛋.png",
                 "姜黄": "Shop/BagList/食材_姜黄.png",
+                "芥末": "Shop/BagList/食材_芥末.png",
                 "金枪鱼罐头": "Shop/BagList/食材_金枪鱼罐头.png",
                 "咖啡豆": "Shop/BagList/食材_咖啡豆.png",
                 "凯洛药材": "Shop/BagList/食材_凯洛药材.png",
                 "辣椒": "Shop/BagList/食材_辣椒.png",
                 "辣椒素": "Shop/BagList/食材_辣椒素.png",
                 "雷瓦汀火腿": "Shop/BagList/食材_雷瓦汀火腿.png",
+                "料酒": "Shop/BagList/食材_料酒.png",
                 "萝卜缨": "Shop/BagList/食材_萝卜缨.png",
                 "米": "Shop/BagList/食材_米.png",
                 "蘑菇": "Shop/BagList/食材_蘑菇.png",
@@ -282,13 +287,16 @@
                 "苹果": "Shop/BagList/食材_苹果.png",
                 "葡萄": "Shop/BagList/食材_葡萄.png",
                 "巧克力": "Shop/BagList/食材_巧克力.png",
+                "肉桂": "Shop/BagList/食材_肉桂.png",
                 "三文鱼": "Shop/BagList/食材_三文鱼.png",
+                "闪光粉末": "Shop/BagList/食材_闪光粉末.png",
                 "生蚝": "Shop/BagList/食材_生蚝.png",
                 "兽肉": "Shop/BagList/食材_兽肉.png",
                 "水果罐头": "Shop/BagList/食材_水果罐头.png",
                 "松露油": "Shop/BagList/食材_松露油.png",
                 "甜椒": "Shop/BagList/食材_甜椒.png",
                 "甜辣酱": "Shop/BagList/食材_甜辣酱.png",
+                "透明蘑菇": "Shop/BagList/食材_透明蘑菇.png",
                 "秃鹫羽毛": "Shop/BagList/食材_秃鹫羽毛.png",
                 "土豆": "Shop/BagList/食材_土豆.png",
                 "吐司": "Shop/BagList/食材_吐司.png",
@@ -300,8 +308,12 @@
                 "盐": "Shop/BagList/食材_盐.png",
                 "洋葱": "Shop/BagList/食材_洋葱.png",
                 "樱桃": "Shop/BagList/食材_樱桃.png",
+                "永恒之爱": "Shop/BagList/食材_永恒之爱.png",
                 "鱼子酱罐头": "Shop/BagList/食材_鱼子酱罐头.png",
-                "玉米": "Shop/BagList/食材_玉米.png"
+                "玉米": "Shop/BagList/食材_玉米.png",
+                "穿山甲鳞片": "Shop/BagList/食材_穿山甲的鳞片.png",
+                "维生素B浓缩液": "Shop/BagList/食材_维生素B浓缩液.png",
+                "能量药水": "Shop/BagList/食材_能量药水.png"
             }
         }
     }

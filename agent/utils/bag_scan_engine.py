@@ -19,6 +19,7 @@ from .ocr_read import NUMBER, unique_parsed
 
 QUANTITY_PATTERN = r"(?:[拥擁]有|持有)" + NUMBER + r"[个個]"
 _CONTINUITY_MARGIN = 4.0
+_STATIC_ROW = 3.0  # 两帧同一行的平均差低于它算没动；实机静止区约 1.6～2.0
 _END_NAME_SCORE = 0.8
 _END_CHECKS = 3
 
@@ -47,11 +48,15 @@ class Reading:
 
 
 def estimate_shift(previous, current, band, threshold):
-    """找出上一页底部一条带在新截图里的竖直位置，返回 (滚动距离, 状态)。
+    """找出上一页滚动区底部一条带在新截图里的竖直位置，返回 (滚动距离, 状态, 说明)。
 
     状态：same = 没动；moved = 动了且新页至少还看得见这一条带；broken = 找不到或有歧义。
     带高取一行：找得到就说明滚动距离不超过「可见高度减一行」，任何一行至少在一页里完整出现过。
     比整块二维差值而不比行均值：格子边框按行周期重复，只比行均值会在整行倍数上出假峰。
+
+    列表区上下边缘可能压着不随列表滚动的界面（10-28 实机：模拟器列表区最下 64 行是固定底栏），
+    这些行在两帧里完全相同。先把贴着上下边缘的这类行剔掉，只在真正滚动的区域里找；否则底栏会
+    让「没动」在差值上占便宜，真动了反而对不上。误剔掉的只会让可视高度变小、判定更严，不会放宽。
     """
     a = np.asarray(previous, dtype=np.float32)
     b = np.asarray(current, dtype=np.float32)
@@ -59,9 +64,18 @@ def estimate_shift(previous, current, band, threshold):
         a = a.mean(axis=2)
     if b.ndim == 3:
         b = b.mean(axis=2)
+    if a.shape != b.shape or band <= 0:
+        return None, "broken", {}
+    full = a.shape[0]
+    moving = np.flatnonzero(np.abs(a - b).mean(axis=1) >= _STATIC_ROW)
+    if moving.size == 0:
+        return 0, "same", {"viewport": full}
+    top, bottom = int(moving[0]), int(moving[-1]) + 1
+    a, b = a[top:bottom], b[top:bottom]
     height = a.shape[0]
-    if a.shape != b.shape or not 0 < band < height:
-        return None, "broken"
+    info = {"viewport": height, "trimmed": [top, full - bottom]}
+    if height < band * 2:
+        return None, "broken", info
     strip = a[height - band:]
     scores = np.array([np.mean(np.abs(b[height - band - s:height - s] - strip))
                        for s in range(height - band + 1)])
@@ -69,13 +83,14 @@ def estimate_shift(previous, current, band, threshold):
     best = float(scores[shift])
     others = np.concatenate([scores[:max(0, shift - band // 2)], scores[shift + band // 2 + 1:]])
     second = float(others.min()) if others.size else float("inf")
+    info.update(best=round(best, 2), second=round(second, 2))
     if best > threshold or second - best < _CONTINUITY_MARGIN:
-        return shift, "broken"
-    return shift, "same" if shift <= 2 else "moved"
+        return shift, "broken", info
+    return shift, "same" if shift <= 2 else "moved", info
 
 
 class BagScanEngine:
-    def __init__(self, device, catalog, targets, *, grid_roi, row_height, ingredient_names,
+    def __init__(self, device, catalog, targets, *, grid_roi, row_height, ingredient_names, footer_rows=0,
                  max_pages=30, timeout_seconds=900, confirm_frames=4, box_tolerance=3,
                  continuity_threshold=12.0, zero_evidence="ingredient_boundary",
                  on_page=None, log=None, clock=time.monotonic):
@@ -83,6 +98,7 @@ class BagScanEngine:
         self.catalog = dict(catalog)
         self.grid_roi = list(grid_roi)
         self.row_height = int(row_height)
+        self.footer_rows = int(footer_rows)
         self.ingredients = set(ingredient_names)
         self.max_pages = int(max_pages)
         self.confirm_frames = max(2, int(confirm_frames))
@@ -355,23 +371,26 @@ class BagScanEngine:
         outcome = self.device.next_page()
         self.timing["swipe"] += self.clock() - started
         current = self._ready_image()
-        _, state = estimate_shift(self._grid(image), self._grid(current), self.row_height,
-                                  self.continuity_threshold)
+        shift, state, info = estimate_shift(self._scroll_area(image), self._scroll_area(current),
+                                            self.row_height, self.continuity_threshold)
+        detail = f"（位移 {shift}，{info}）"
+        self.log("debug", f"第 {self.pages} 页翻页：{state}{detail}")
         if state == "same":
             if outcome != "bottom":
-                self.log("warning", "翻页后列表没动，按列表结束处理")
+                self.log("warning", f"翻页后列表没动，按列表结束处理{detail}")
                 self.continuous = False
             return "bottom", current
         if outcome == "bottom":
-            self.log("warning", "滑动报到底但画面在动，按正常翻页继续")
+            self.log("warning", f"滑动报到底但画面在动，按正常翻页继续{detail}")
         if state == "broken":
-            self.log("warning", "相邻两页接不上，本轮不再判 0")
+            self.log("warning", f"相邻两页接不上，本轮不再判 0{detail}")
             self.continuous = False
         return "moved", current
 
-    def _grid(self, image):
+    def _scroll_area(self, image):
+        """列表区去掉最下方的固定底栏：底栏内容可能变（提示、按钮状态），只拿真正随列表滚动的部分比。"""
         x, y, w, h = self.grid_roi
-        return np.asarray(image)[y:y + h, x:x + w]
+        return np.asarray(image)[y:y + h - self.footer_rows, x:x + w]
 
     # ------------------------------------------------------------------ 状态
     def _ready_image(self):

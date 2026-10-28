@@ -605,7 +605,7 @@
         ]
     },
     "Agt_BagScan_Item_Tpl": {
-        "desc": "py独占，勿挂进管路。逐个目标注入模板找图；只点击图标、不读列表上的缩略数量。attach.row_height为列表行距，py用它核对翻页连续性。",
+        "desc": "py独占，勿挂进管路。逐个目标注入模板找图；只点击图标、不读列表上的缩略数量。attach.row_height为列表行距、footer_rows为列表区最下方压着的固定底栏行数，py核对翻页连续性时剔掉底栏、只比真正滚动的部分。",
         "recognition": "TemplateMatch",
         "roi": [
             578,
@@ -617,7 +617,8 @@
         "threshold": 0.9,
         "order_by": "Score",
         "attach": {
-            "row_height": 100
+            "row_height": 100,
+            "footer_rows": 64
         }
     },
     "Rec_BagScan_Name_Ocr": {

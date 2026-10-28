@@ -208,6 +208,7 @@ class BagScanRun(CustomAction):
             engine = BagScanEngine(
                 MaaBagDevice(context, profile), catalog, targets,
                 grid_roi=item.recognition.param.roi, row_height=item.attach["row_height"],
+                footer_rows=item.attach.get("footer_rows", 0),
                 ingredient_names=_ingredient_names(),
                 max_pages=profile["max_pages"], timeout_seconds=profile["timeout_seconds"],
                 confirm_frames=profile["confirm_frames"], box_tolerance=profile["box_tolerance"],
