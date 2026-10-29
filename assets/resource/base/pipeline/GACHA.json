@@ -35,8 +35,11 @@
         ],
         "expected": [
             "查看概率",
+            "查看機率",
             "必得.*服装",
-            "每个账号限购1次"
+            "必出.*服裝",
+            "每个账号限购1次",
+            "每個帳號可購買1次"
         ],
         "timeout": 10000,
         "next": [
@@ -60,7 +63,8 @@
             97
         ],
         "expected": [
-            "兑换"
+            "兑换",
+            "兌換"
         ],
         "next": [
             "Gacha_Quick_All",
@@ -79,7 +83,8 @@
             40
         ],
         "expected": [
-            "抽抽乐"
+            "抽抽乐",
+            "抽抽樂"
         ],
         "only_rec": true,
         "action": "Swipe",
@@ -202,7 +207,8 @@
             147
         ],
         "expected": [
-            "兑换"
+            "兑换",
+            "兌換"
         ],
         "next": [
             "Gacha_PaidDiamond_CustomField",
@@ -301,7 +307,8 @@
             107
         ],
         "expected": [
-            "付费抽抽乐"
+            "付费抽抽乐",
+            "付費抽抽樂"
         ],
         "action": "Click",
         "post_delay": 1000,
@@ -327,7 +334,8 @@
             293
         ],
         "expected": [
-            "免费1次"
+            "免费1次",
+            "免費1次"
         ],
         "action": "Click",
         "post_delay": 1500,
@@ -352,7 +360,8 @@
             129
         ],
         "expected": [
-            "确认抽抽乐"
+            "确认抽抽乐",
+            "確認抽抽樂"
         ],
         "next": [
             "Gacha_TouchFreeGachaBuy",
@@ -370,7 +379,8 @@
             135
         ],
         "expected": [
-            "购买"
+            "购买",
+            "購買"
         ],
         "action": "Click",
         "post_delay": 5000,
@@ -391,7 +401,8 @@
             167
         ],
         "expected": [
-            "艾莉诺"
+            "艾莉诺",
+            "艾莉諾"
         ],
         "action": "Click",
         "target": [
@@ -494,7 +505,8 @@
             66
         ],
         "expected": [
-            "抽抽乐点数"
+            "抽抽乐点数",
+            "抽抽樂點數"
         ],
         "action": "Click",
         "target": [

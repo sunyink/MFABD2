@@ -34,7 +34,10 @@
             148,
             65
         ],
-        "expected": "通行证",
+        "expected": [
+            "通行证",
+            "通行證"
+        ],
         "next": [
             "Pass_SelectPass",
             "[JumpBack]Pass_TrySwip"
@@ -121,7 +124,8 @@
             36
         ],
         "expected": [
-            "基础"
+            "基础",
+            "基本"
         ]
     },
     "Pass_GetAll": {
@@ -134,7 +138,8 @@
             66
         ],
         "expected": [
-            "全部获得"
+            "全部获得",
+            "全部獲得"
         ],
         "action": "Click",
         "post_delay": 2000,
@@ -169,7 +174,8 @@
             43
         ],
         "expected": [
-            "通行证"
+            "通行证",
+            "通行證"
         ],
         "action": "Click",
         "post_delay": 1000,

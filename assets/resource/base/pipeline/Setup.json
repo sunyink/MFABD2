@@ -756,7 +756,8 @@
                 },
                 "Collect_TargetMap1-2": {
                     "expected": [
-                        "卢戈森林"
+                        "卢戈森林",
+                        "盧戈森林"
                     ],
                     "next": [
                         "Collect_ClickTeleporCircleIco",
@@ -766,7 +767,8 @@
                 "Collect_ClickBackOnSecureMap": {
                     "next": [],
                     "expected": [
-                        "卢戈森林"
+                        "卢戈森林",
+                        "盧戈森林"
                     ]
                 },
                 "Collect_ClickTelepor_TargetClass_Purple": {
@@ -801,7 +803,8 @@
             47
         ],
         "expected": [
-            "卢戈镇"
+            "卢戈镇",
+            "盧戈鎮"
         ],
         "action": "Click",
         "target": [
@@ -905,7 +908,8 @@
             609
         ],
         "expected": [
-            "设置"
+            "设置",
+            "設定"
         ],
         "action": "Click",
         "post_wait_freezes": 500,
@@ -923,7 +927,8 @@
             397
         ],
         "expected": [
-            "点击地面"
+            "点击地面",
+            "點擊地板"
         ],
         "next": [
             "Setup_Main_Move_Ck",
@@ -965,7 +970,8 @@
             363
         ],
         "expected": [
-            "图像"
+            "图像",
+            "圖像"
         ],
         "action": "Click",
         "target_offset": [
@@ -1090,7 +1096,8 @@
             40
         ],
         "expected": [
-            "主界面"
+            "主界面",
+            "主畫面"
         ],
         "next": [
             "Setup_Main_StartUI_Ck",
@@ -1207,7 +1214,8 @@
             620
         ],
         "expected": [
-            "关闭"
+            "关闭",
+            "關閉"
         ],
         "next": [
             "Setup_Main_SkipAv_Ck",
@@ -1289,7 +1297,8 @@
             363
         ],
         "expected": [
-            "声音"
+            "声音",
+            "聲音"
         ],
         "action": "Click",
         "target_offset": [
@@ -1569,7 +1578,8 @@
             45
         ],
         "expected": [
-            "装备"
+            "装备",
+            "裝備"
         ],
         "anchor": "Setup_EquipUp",
         "next": [
@@ -1587,7 +1597,8 @@
             69
         ],
         "expected": [
-            "级别"
+            "级别",
+            "等級"
         ],
         "next": [
             "[JumpBack]Setup_EquipUp_MJ",
@@ -1767,7 +1778,8 @@
             34
         ],
         "expected": [
-            "键分解"
+            "键分解",
+            "一併分解"
         ],
         "next": [
             "Setup_EquipDec_Hub"
@@ -1790,7 +1802,8 @@
             121
         ],
         "expected": [
-            "键分解"
+            "键分解",
+            "一併分解"
         ],
         "action": "Click",
         "post_delay": 1000,
@@ -1805,7 +1818,8 @@
             56
         ],
         "expected": [
-            "级别"
+            "级别",
+            "等級"
         ],
         "next": [
             "[JumpBack]Setup_EquipDec_UP",

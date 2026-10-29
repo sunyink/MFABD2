@@ -21,56 +21,12 @@
     "StartGame_UpdateCloseGame": {
         "enabled": false
     },
-    "StartGame_Update_Data": {
-        "expected": [
-            "所需资料",
-            "所需資料"
-        ]
-    },
-    "StartGame_Update_Data_Click": {
-        "expected": [
-            "下载",
-            "下載"
-        ]
-    },
-    "StartGame_Update_Data_DownLoading": {
-        "expected": [
-            "正在下载",
-            "下载中"
-        ],
-        "replace": [
-            [
-                "載",
-                "载"
-            ]
-        ]
-    },
-    "StartGame_GameIsMaint": {
-        "expected": [
-            "维护和更新",
-            "无法连接和使用游戏",
-            "无法登入及使用游戏",
-            "維護和更新",
-            "無法連線和使用遊戲",
-            "無法登入及使用遊戲"
-        ]
-    },
     "StartGame_Loading": {
         "roi": [
             808,
             433,
             332,
             73
-        ],
-        "expected": [
-            "游戏启动中",
-            "啟動遊戲中"
-        ]
-    },
-    "StartGame_PayFailedToChick": {
-        "expected": [
-            "确认",
-            "確認"
         ]
     },
     "StartGame_TouchStart": {
@@ -81,22 +37,12 @@
             57
         ]
     },
-    "StartGame_PVPSet": {
-        "expected": [
-            "确认",
-            "確認"
-        ]
-    },
     "StartGame_7dAD_Check": {
         "roi": [
             846,
             143,
             142,
             36
-        ],
-        "expected": [
-            "7天内不再显示",
-            "7日期間不再觀看"
         ]
     },
     "StartGame_PerPetTask": {
@@ -108,29 +54,8 @@
             0.8
         ]
     },
-    "StartGame_LinkError2": {
-        "expected": [
-            "确认",
-            "確認"
-        ]
-    },
     "StartGame_Special": {
-        "desc": "另类赛季奖励接收[已适配,黄金竞技场]",
-        "expected": [
-            "赛季奖励",
-            "賽季獎勵",
-            "奖励已发放至",
-            "獎勵已發送至",
-            "奖励已通过",
-            "邮件发放",
-            "獎勵已透過郵件發放"
-        ]
-    },
-    "StartGame_LinkDown_TouchCk": {
-        "expected": [
-            "确认",
-            "確認"
-        ]
+        "desc": "另类赛季奖励接收[已适配,黄金竞技场]"
     },
     "StartGame_Setup_SoundTurnOff_Start": {
         "desc": "[PC端改设置影响游玩]在下载前关闭游戏声音,节省资源和流量",
@@ -139,19 +64,6 @@
             126,
             56,
             53
-        ]
-    },
-    "StartGame_Setup_SoundTurnOff_Intterp": {
-        "expected": [
-            "取消",
-            "确认",
-            "確認"
-        ]
-    },
-    "StartGame_Setup_SoundTurnOff_End": {
-        "expected": [
-            "确认",
-            "確認"
         ]
     },
     "StartGame_Check_Win32_SetSize": {

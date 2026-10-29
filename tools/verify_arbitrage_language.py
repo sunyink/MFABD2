@@ -29,6 +29,7 @@ from maa.agent.agent_server import AgentServer
 with patch.object(AgentServer, "custom_action", return_value=lambda cls: cls), \
      patch.object(AgentServer, "custom_recognition", return_value=lambda cls: cls), \
      patch.object(AgentServer, "_set_api_properties"), \
+     patch.object(AgentServer, "tasker_sink", return_value=lambda cls: cls), \
      patch.object(AgentServer, "context_sink", return_value=lambda cls: cls):
     from action.arbitrage_buy_precise import buy_overrides
     from action.arbitrage_sell_quantity import parse_quantity
@@ -53,10 +54,11 @@ def merged(folder):
 BASE = merged(ROOT / "assets/resource/base/pipeline")
 PC = merged(ROOT / "assets/resource/pc/pipeline")
 HAS_PC = bool(PC)
-# Real UI wording and known translations, independent of the patterns under test.
+# Real UI wording, mixed-script OCR output and 2026-10-29 game-text pairs,
+# independent of the patterns under test.
 UI_CASES = {
     "Arbitrage_NviGuide_CKMsgBox_Ocr": ["确认", "確認"],
-    "Arbitrage_Bargaining_SkillList": ["砍价", "砍價", "討價還價"],
+    "Arbitrage_Bargaining_SkillList": ["砍价", "砍價", "讨价还价", "討價還價"],
     "Arbitrage_Bargaining_Msgbox_Ck": ["砍价", "討價還價"],
     "Arbitrage_Merchant_Egress": ["购买", "購買", "出售", "販售"],
     "Arbitrage_Merchant_Close_Ck": ["关闭商店", "關閉商店"],
@@ -66,9 +68,9 @@ UI_CASES = {
     "Arbitrage_Favorit_Buy_SubMenu_BuyAction": ["确认", "確認"],
     "Arbitrage_Favorit_Buy_Empty": ["没有可以购买的商品", "沒有可以購買的商品"],
     "Arbitrage_Merchant_BuyMsg_Button": ["购买", "購買"],
-    "Arbitrage_PriceList_Open_Entry": ["价目表", "價目表", "販售行情表"],
+    "Arbitrage_PriceList_Open_Entry": ["价目表", "價目表", "贩售行情表", "販售行情表"],
     "Arbitrage_PriceList_Open_Egress": ["价目表", "販售行情表"],
-    "Arbitrage_PriceList_Sort_Select": ["溢价率", "溢價率", "加價率"],
+    "Arbitrage_PriceList_Sort_Select": ["溢价率", "溢價率", "加价率", "加價率"],
     "Arbitrage_ItemList_Sorting_Type_Not_Change": ["溢价率", "加價率"],
     "Arbitrage_Sell_Item_ListTraverse_End": ["圣石", "聖石", "装备材料", "裝備材料", "装備材料"],
     "Arbitrage_Sell_Item_ListTraverse_End_Recipes": ["圣石", "聖石", "裝備材料", "料理食材"],
@@ -78,7 +80,7 @@ UI_CASES = {
     "Arbitrage_SellB_SubMenu": ["溢价率", "加價率"],
     "Arbitrage_Cooking_Menu_Reset_SubOut": ["所需材料", "需要的材料"],
     "Arbitrage_Cooking_Menu_ReBack": ["所需材料", "需要的材料"],
-    "Arbitrage_Cooking_SubMenu": ["拥有", "擁有", "持有", "立刻恢复", "立即恢復", "1個食物"],
+    "Arbitrage_Cooking_SubMenu": ["拥有", "擁有", "持有", "立刻恢复", "立即恢复", "立即恢復", "1個食物"],
     "BagScan_Sort_Menu": ["优先", "優先", "排序"],
     "BagScan_Sort_Menu_Set": ["料理食材优先", "料理食材優先", "料理食材由多至少排序"],
     "BagScan_Sort_Egress": ["按料理食材数量从低到高排序", "料理食材由少至多排序"],
@@ -109,8 +111,8 @@ SHOPS = {
            "复仇的誓言|復仇的誓約", "三国同盟|三國同盟", "试炼之路|試煉之路", "救赎|救贖",
            "被遗忘的战争|被遺忘的戰爭"],
     "QR": ["杰登之门|傑登之門", "火晶片|火片", "美丽无望|不可能的美麗", "大逃脱|大逃脫",
-           "鲁的迷宫|魯的迷宮", "御剑传|御劍傳", "合约之战|合約之戰"],
-    "QE": ["夏日骑士|夏天騎士", "恶梦之冬|惡夢之冬", "海滨天使|海邊天使", "记忆边缘|記憶邊緣",
+           "鲁的迷宫|魯的迷宮", "御剑传|御劍傳|劍傳", "合约之战|合約之戰"],
+    "QE": ["夏日骑士|夏天騎士", "恶梦之冬|惡夢之冬|夢靨冬季", "海滨天使|海邊天使", "记忆边缘|記憶邊緣",
            "戏水女王|戲水女王"],
 }
 

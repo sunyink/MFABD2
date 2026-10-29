@@ -70,7 +70,7 @@ class HotUpdateTransitions(unittest.TestCase):
         maint_idx = following.index('StartGame_GameIsMaint')
         for bg_node in ('StartGame_Loading', 'StartGame_LoadingPage'):
             self.assertLess(maint_idx, following.index(bg_node), bg_node)
-        self.assertNotIn('next', nodes['StartGame_Update_Data_DownLoading'])
+        self.assertNotIn('next', nodes.get('StartGame_Update_Data_DownLoading', {}))
 
     def test_maintenance_expected_and_focus_log(self):
         """维护节点需覆盖实机『无法登入及使用游戏』文案，并在日志和通知中同时输出提示。"""
@@ -83,7 +83,8 @@ class HotUpdateTransitions(unittest.TestCase):
         for text in ('将于 10月22日（四）进行定期维护和更新。', '维护影响：将无法登入及使用游戏'):
             self.assertTrue(matches(maint['expected'], text), text)
         path = Path(__file__).resolve().parents[1] / 'assets/resource/pc/pipeline/StartGame.json'
-        pc_expected = json.loads(path.read_text(encoding='utf-8'))['StartGame_GameIsMaint']['expected']
+        pc_node = json.loads(path.read_text(encoding='utf-8')).get('StartGame_GameIsMaint', {})
+        pc_expected = pc_node.get('expected', maint['expected'])
         for text in (
             '将于 10月22日（四）进行定期维护和更新。',
             '维护影响：将无法登入及使用游戏',
@@ -96,9 +97,14 @@ class HotUpdateTransitions(unittest.TestCase):
         self.assertEqual(['StartGame_LoadingPage'], self.nodes['StartGame_Update_Data_DownLoading']['on_error'])
         self.assertEqual(['StartGame_UpdateCloseGame'], self.nodes['StartGame_Update_PGM_Click']['next'])
 
-    def test_existing_download_confirmation_is_unchanged(self):
-        self.assertEqual(['将下载游戏'], self.nodes['StartGame_Update_Data']['expected'])
-        self.assertEqual(['下载'], self.nodes['StartGame_Update_Data_Click']['expected'])
+    def test_download_confirmation_supports_both_languages(self):
+        for name, texts in (
+            ('StartGame_Update_Data', ('将下载游戏所需数据。', '下載遊戲所需資料。')),
+            ('StartGame_Update_Data_Click', ('下载', '下載')),
+        ):
+            patterns = self.nodes[name]['expected']
+            for text in texts:
+                self.assertTrue(any(re.search(pattern, text) for pattern in patterns), text)
         self.assertEqual('Click', self.nodes['StartGame_Update_Data_Click']['action'])
 
     def test_pvp_interrupt_ignores_download_dialog(self):
@@ -111,7 +117,10 @@ class HotUpdateTransitions(unittest.TestCase):
 
     def test_nt_pc_pvp_interrupt_ignores_download_dialog(self):
         path = Path(__file__).resolve().parents[1] / 'assets/resource/pc/pipeline/PVP.json'
-        expected = json.loads(path.read_text(encoding='utf-8'))['PVP_PVPMes']['expected']
+        pc_node = json.loads(path.read_text(encoding='utf-8')).get('PVP_PVPMes', {})
+        base_path = path.parents[2] / 'base/pipeline/PVP.json'
+        base_node = json.loads(base_path.read_text(encoding='utf-8'))['PVP_PVPMes']
+        expected = pc_node.get('expected', base_node['expected'])
         matches = lambda text: any(re.search(pattern, text) for pattern in expected)
         for text in ('正在确认下载容量100%', '正在確認下載容量100%'):
             self.assertFalse(matches(text), text)

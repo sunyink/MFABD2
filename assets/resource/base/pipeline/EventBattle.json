@@ -52,7 +52,9 @@
             47
         ],
         "expected": [
-            "活动服装"
+            "活动服装",
+            "活動服装",
+            "活動服裝"
         ]
     },
     "Rec_<Event_Event_Main>_Ocr_02": {
@@ -66,7 +68,9 @@
         ],
         "expected": [
             "普通战斗",
-            "魔兽追踪者"
+            "一般戰鬥",
+            "魔兽追踪者",
+            "魔獸追蹤者"
         ]
     },
     "Event_Battle_Hub": {
@@ -223,7 +227,8 @@
             324
         ],
         "expected": [
-            "普通"
+            "普通",
+            "一般戰鬥"
         ],
         "action": "Click",
         "target_offset": [
@@ -255,7 +260,8 @@
             324
         ],
         "expected": [
-            "挑战"
+            "挑战",
+            "挑戰戰鬥"
         ],
         "action": "Click",
         "target_offset": [
@@ -341,7 +347,8 @@
             54
         ],
         "expected": [
-            "在战斗中获胜"
+            "在战斗中获胜",
+            "在戰鬥中獲勝"
         ],
         "post_delay": 1000,
         "timeout": 4000,
@@ -372,7 +379,8 @@
             119
         ],
         "expected": [
-            "快速战斗"
+            "快速战斗",
+            "快速戰鬥"
         ],
         "next": [
             "SeasonEvent_FreeAP_Verdict"
@@ -388,7 +396,8 @@
             190
         ],
         "expected": [
-            "快速战斗"
+            "快速战斗",
+            "快速戰鬥"
         ],
         "anchor": "Ocr_clr",
         "timeout": 4000,
@@ -419,7 +428,10 @@
             38,
             27
         ],
-        "expected": "战斗",
+        "expected": [
+            "战斗",
+            "戰鬥"
+        ],
         "only_rec": true,
         "anchor": "Ocr_clr",
         "next": [
@@ -462,7 +474,9 @@
         ],
         "expected": [
             "挑战",
-            "血界中死战"
+            "挑戰",
+            "血界中死战",
+            "血界中的死鬥"
         ],
         "anchor": {
             "Auto_Battle": "SeasonEvent_EnterlBattle_Normal"
@@ -489,7 +503,8 @@
                     190
                 ],
                 "expected": [
-                    "快速战斗"
+                    "快速战斗",
+                    "快速戰鬥"
                 ]
             },
             "Sub_Ocr_Enable_Clr"
@@ -513,8 +528,11 @@
         ],
         "expected": [
             "普通",
+            "一般戰鬥",
             "修炼",
-            "血染的结界"
+            "修練",
+            "血染的结界",
+            "染血的結界"
         ]
     },
     "SeasonEvent_BackedToSubMain": {
@@ -639,7 +657,10 @@
             145,
             222
         ],
-        "expected": "小活动",
+        "expected": [
+            "小活动",
+            "迷你[游遊][戏戲]"
+        ],
         "action": "Click",
         "target_offset": [
             0,
@@ -670,7 +691,10 @@
             1062,
             582
         ],
-        "expected": "^答题",
+        "expected": [
+            "^答题",
+            "^問答"
+        ],
         "action": "Click",
         "post_wait_freezes": {
             "time": 800,
@@ -695,7 +719,8 @@
             57
         ],
         "expected": [
-            "能力测试"
+            "能力测试",
+            "能力測驗"
         ],
         "pre_delay": 0,
         "post_delay": 0,
@@ -713,7 +738,10 @@
             135,
             391
         ],
-        "expected": "开始答题",
+        "expected": [
+            "开始答题",
+            "^解[题題]"
+        ],
         "order_by": "Vertical",
         "action": "Click",
         "post_delay": 3000,
@@ -1036,7 +1064,8 @@
             40
         ],
         "expected": [
-            "战斗"
+            "战斗",
+            "戰鬥"
         ],
         "action": "Click",
         "post_delay": 8000,
@@ -1185,7 +1214,8 @@
             293
         ],
         "expected": [
-            "魔兽追踪者"
+            "魔兽追踪者",
+            "魔獸追蹤者"
         ],
         "action": "Click",
         "post_wait_freezes": 3000,
@@ -1207,7 +1237,8 @@
             32
         ],
         "expected": [
-            "魔兽"
+            "魔兽",
+            "魔獸"
         ],
         "only_rec": true,
         "next": [
@@ -1242,7 +1273,8 @@
             30
         ],
         "expected": [
-            "距离开始还"
+            "距离开始还",
+            "距離開始還"
         ],
         "only_rec": true
     },
@@ -1256,7 +1288,8 @@
             73
         ],
         "expected": [
-            "狩猎期间开始解除"
+            "狩猎期间开始解除",
+            "於狩獵期間起解鎖"
         ]
     },
     "Even_MamonoFollow_lv1_Ck": {
@@ -1350,7 +1383,8 @@
             37
         ],
         "expected": [
-            "完成讨伐"
+            "完成讨伐",
+            "完成討伐"
         ],
         "next": [
             "Even_MamonoFollowUp_MmnHpUp"
@@ -1436,7 +1470,8 @@
                     49
                 ],
                 "expected": [
-                    "快速战斗"
+                    "快速战斗",
+                    "快速戰鬥"
                 ]
             },
             "Sub_Ocr_Enable_Clr"
@@ -1467,7 +1502,8 @@
                     49
                 ],
                 "expected": [
-                    "快速战斗"
+                    "快速战斗",
+                    "快速戰鬥"
                 ]
             },
             "Sub_Ocr_Unable_Clr"
@@ -1495,7 +1531,8 @@
             49
         ],
         "expected": [
-            "去战斗"
+            "去战斗",
+            "前往戰鬥"
         ],
         "only_rec": true,
         "anchor": "Ocr_clr",
@@ -1561,7 +1598,10 @@
             141,
             68
         ],
-        "expected": "编辑队伍",
+        "expected": [
+            "编辑队伍",
+            "編制隊伍"
+        ],
         "action": "Click",
         "post_delay": 5000,
         "next": [
@@ -1577,7 +1617,10 @@
             100,
             37
         ],
-        "expected": "推荐部署",
+        "expected": [
+            "推荐部署",
+            "推薦配置"
+        ],
         "action": "Click",
         "post_delay": 8000,
         "next": [
@@ -1621,7 +1664,8 @@
             33
         ],
         "expected": [
-            "确认"
+            "确认",
+            "確認"
         ],
         "action": "Click",
         "post_delay": 2000,
@@ -1656,7 +1700,7 @@
         ]
     },
     "Even_MamonoFollowUp_onSubMain": {
-        "desc": "结束，判定处于子菜单",
+        "desc": "结束，判定处于子菜单 | 繁体沿用 PC 原文，有待实测。",
         "recognition": "OCR",
         "roi": [
             732,
@@ -1666,7 +1710,9 @@
         ],
         "expected": [
             "阶段最高",
-            "最高伤害"
+            "階段最高",
+            "最高伤害",
+            "最高傷害"
         ],
         "next": [
             "SeasonEvent_Main_Return",
@@ -1892,7 +1938,8 @@
             241
         ],
         "expected": [
-            "小活动"
+            "小活动",
+            "迷你遊戲"
         ],
         "action": "Click",
         "target_offset": [
@@ -1920,7 +1967,8 @@
             643
         ],
         "expected": [
-            "战场探索"
+            "战场探索",
+            "場域任務"
         ],
         "action": "Click",
         "post_delay": 1000,
@@ -1997,7 +2045,8 @@
             32
         ],
         "expected": [
-            "确认"
+            "确认",
+            "確認"
         ],
         "action": "Click",
         "post_delay": 5000,
@@ -2142,7 +2191,8 @@
             324
         ],
         "expected": [
-            "普通"
+            "普通",
+            "一般"
         ],
         "action": "Click",
         "target_offset": [
@@ -2216,7 +2266,8 @@
             235
         ],
         "expected": [
-            "回归赛季"
+            "回归赛季",
+            "回歸賽季"
         ],
         "action": "Click",
         "timeout": 5000,

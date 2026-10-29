@@ -1599,7 +1599,8 @@
                     "pipeline_override": {
                         "Equip_Overdrive_RefLvMax_OCR": {
                             "expected": [
-                                "制作"
+                                "制作",
+                                "製作"
                             ]
                         }
                     }

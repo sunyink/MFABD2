@@ -13,10 +13,6 @@
             370,
             124,
             179
-        ],
-        "expected": [
-            "确认",
-            "確認"
         ]
     },
     "Weekly_LastNight_Pack": {
@@ -33,18 +29,6 @@
             31,
             213,
             101
-        ],
-        "expected": [
-            "最高伤害",
-            "最高傷害",
-            "战斗分布",
-            "戰鬥分佈"
-        ]
-    },
-    "Weekly_LastNight_MenuPage": {
-        "expected": [
-            "末日之书",
-            "末日之書"
         ]
     },
     "Weekly_LastNight_GoBattle": {
@@ -53,10 +37,6 @@
             640,
             151,
             45
-        ],
-        "expected": [
-            "去战斗",
-            "去戰鬥"
         ]
     },
     "Weekly_LastNight_InBattle": {
@@ -64,6 +44,7 @@
         "expected": [
             "还剩",
             "還剩",
+            "剩餘",
             "次攻击中",
             "次攻擊中"
         ],
@@ -80,18 +61,6 @@
             653,
             123,
             39
-        ],
-        "expected": [
-            "离开",
-            "離開"
-        ]
-    },
-    "Weekly_LastNight_MaybeNew": {
-        "expected": [
-            "创造新纪录",
-            "創造新紀錄",
-            "最高伤害",
-            "最高傷害"
         ]
     },
     "Rec_<Weekly_VisitCabin_GoIn>_Tpl": {
@@ -124,10 +93,6 @@
         ]
     },
     "Weekly_VisitCabin_ModChg": {
-        "expected": [
-            "参观",
-            "觀看"
-        ],
         "target": [
             188,
             144,
@@ -136,10 +101,6 @@
         ]
     },
     "Weekly_VisitCabin_Like1": {
-        "expected": [
-            "再次探查",
-            "重新探索"
-        ],
         "target": [
             1166,
             79,
@@ -165,11 +126,7 @@
         ]
     },
     "Weekly_Arcade_InCk": {
-        "desc": "[PC覆盖·2026-07-24实测] 街机页标题'街机游戏'(PC简体)实测720(197-277,27-43),base roi[171,12,222,68]原生罩住零改动;expected补繁体防御。",
-        "expected": [
-            "街机游戏",
-            "街機遊戲"
-        ]
+        "desc": "[PC覆盖·2026-07-24实测] 街机页标题'街机游戏'(PC简体)实测720(197-277,27-43),base roi[171,12,222,68]原生罩住零改动;expected补繁体防御。"
     },
     "Weekly_LastNight_HomePageSwipe": {
         "desc": "[PC覆盖·2026-07-24] 卡集内滚动找角色游戏卡区。base swipe begin/end x=70在PC落在列表外死区(07-03珍藏集滑动x30同款病,实录连划页面纹丝不动),先验移进货架列x150;expected补繁体。待Phase B实测微调。",

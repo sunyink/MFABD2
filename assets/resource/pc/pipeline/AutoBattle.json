@@ -5,16 +5,6 @@
             651,
             110,
             32
-        ],
-        "expected": [
-            "自动战斗中",
-            "自動戰鬥結束"
-        ]
-    },
-    "Rec_<AutoBattle_Is_Auto>_Ocr_02": {
-        "expected": [
-            "自动战斗中",
-            "自動戰鬥中"
         ]
     },
     "Rec_<AutoBattle_TabTo_Auto>_Ocr_01": {
@@ -86,12 +76,6 @@
             "Sub_Ocr_Enable_Clr"
         ]
     },
-    "AutoBattle_Egress_Next_Submenu": {
-        "expected": [
-            "确认",
-            "確認"
-        ]
-    },
     "AutoBattle_Egress_TurnBack_SkipTalk": {
         "desc": "场景转换/抽卡展示跳过按钮。|[PC覆盖·2026-07-03实机,2026-07-09补green_mask] PC服装池一键抽后有逐件展示页,右上'>>|'跳过按钮(720约(1169,28)-(1194,48)),base安卓模板在PC恒miss→Gacha_Quick_Skip永不点跳过→抽后链路全断→装备池被跳过。修:从MFA on_error帧裁Chaga_ProductNext_PC.png(36x30,图标笔画外涂纯绿背景无关化)追加进template(Or语义)。⚠绿蒙版模板必须配green_mask:true——#333首版漏了,无mask时绿底被当真像素参与CCOEFF,匹配分随展示页背景摇摆(暗背景侥幸0.7+,亮白背景实测0.362,2026-07-09复发实锤;带mask同帧1.000)。base安卓模板无绿像素,green_mask对其无副作用。",
         "template": [
@@ -99,11 +83,5 @@
             "Chaga_ProductNext_PC.png"
         ],
         "green_mask": true
-    },
-    "AutoBattle_Egress_TurnBack_Msg": {
-        "expected": [
-            "确认",
-            "確認"
-        ]
     }
 }

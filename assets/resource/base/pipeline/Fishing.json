@@ -217,7 +217,8 @@
             25
         ],
         "expected": [
-            "经营管理"
+            "经营管理",
+            "經營管理"
         ],
         "only_rec": true,
         "action": "Click",
@@ -289,7 +290,8 @@
             129
         ],
         "expected": [
-            "立刻前往"
+            "立刻前往",
+            "立即前往"
         ],
         "action": "Click",
         "post_delay": 2000,
@@ -317,7 +319,8 @@
             42
         ],
         "expected": [
-            "开始钓鱼"
+            "开始钓鱼",
+            "開始釣魚"
         ],
         "action": "Click",
         "post_delay": 2000,
@@ -356,7 +359,8 @@
             327
         ],
         "expected": [
-            "确认"
+            "确认",
+            "確認"
         ],
         "action": "Click",
         "post_delay": 1000
@@ -369,7 +373,10 @@
             437,
             564
         ],
-        "expected": "活泼少女",
+        "expected": [
+            "活泼少女",
+            "活潑的少女"
+        ],
         "action": "Click",
         "target": [
             861,
@@ -396,7 +403,8 @@
             32
         ],
         "expected": [
-            "启航"
+            "启航",
+            "出航"
         ],
         "action": "Click",
         "post_delay": 2000,
@@ -441,7 +449,10 @@
             116,
             51
         ],
-        "expected": "使用时间"
+        "expected": [
+            "使用时间",
+            "使用時間"
+        ]
     },
     "Move_Forward": {
         "action": "Swipe",
@@ -515,7 +526,10 @@
             130,
             288
         ],
-        "expected": "码头",
+        "expected": [
+            "码头",
+            "碼頭"
+        ],
         "action": "Click",
         "post_delay": 2000,
         "next": [
@@ -617,7 +631,8 @@
             94
         ],
         "expected": [
-            "确认"
+            "确认",
+            "確認"
         ],
         "action": "Click",
         "post_delay": 2000,
@@ -650,7 +665,8 @@
             48
         ],
         "expected": [
-            "一键出售"
+            "一键出售",
+            "一鍵販售"
         ],
         "action": "Click",
         "post_delay": 2000,

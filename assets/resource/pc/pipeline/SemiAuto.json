@@ -5,10 +5,6 @@
             641,
             126,
             48
-        ],
-        "expected": [
-            "进入第",
-            "進入第"
         ]
     },
     "SemiAuto_Evil_SemiautoTower_OnCk": {
@@ -18,10 +14,6 @@
             384,
             124,
             76
-        ],
-        "expected": [
-            "确认",
-            "確認"
         ]
     },
     "SemiAuto_Evil_SemiautoTower_InManual": {
@@ -44,10 +36,6 @@
             600,
             140,
             54
-        ],
-        "expected": [
-            "自动战斗中",
-            "自動戰鬥中"
         ]
     },
     "SemiAuto_Evil_SemiautoTower_ToNextRound": {
@@ -56,10 +44,6 @@
             655,
             135,
             38
-        ],
-        "expected": [
-            "前往下",
-            "移動至下"
         ]
     },
     "SemiAuto_Evil_SemiautoTower_Defeat": {
@@ -68,10 +52,6 @@
             643,
             94,
             43
-        ],
-        "expected": [
-            "重新挑战",
-            "重新挑戰"
         ],
         "target": [
             574,
@@ -86,12 +66,6 @@
             35,
             213,
             101
-        ],
-        "expected": [
-            "最高伤害",
-            "最高傷害",
-            "战斗分布",
-            "戰鬥分佈"
         ]
     },
     "SemiAuto_LastNight_MenuPage": {
@@ -100,10 +74,6 @@
             3,
             207,
             67
-        ],
-        "expected": [
-            "末日之书",
-            "末日之書"
         ]
     },
     "SemiAuto_LastNight_GoBattle": {
@@ -112,20 +82,9 @@
             640,
             151,
             45
-        ],
-        "expected": [
-            "去战斗",
-            "去戰鬥"
         ]
     },
     "SemiAuto_LastNight_InBattle": {
-        "expected": [
-            "20次中",
-            "还剩",
-            "剩餘",
-            "次攻击中",
-            "次攻擊中"
-        ],
         "target": [
             1060,
             35,
@@ -139,10 +98,6 @@
             655,
             129,
             38
-        ],
-        "expected": [
-            "重新挑战",
-            "重新挑戰"
         ]
     },
     "SemiAuto_SRef_SequentialRefined": {
@@ -170,10 +125,6 @@
             159,
             133,
             76
-        ],
-        "expected": [
-            "连续精炼",
-            "連續煉製"
         ]
     },
     "SemiAuto_SRef_QuotaIsMax": {
@@ -227,10 +178,6 @@
             514,
             49,
             33
-        ],
-        "expected": [
-            "精炼",
-            "煉製"
         ]
     },
     "SemiAuto_SRef_Skip": {
@@ -251,10 +198,6 @@
             491,
             60,
             40
-        ],
-        "expected": [
-            "确认",
-            "確認"
         ]
     }
 }

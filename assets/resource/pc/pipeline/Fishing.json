@@ -6,11 +6,5 @@
             198,
             66
         ]
-    },
-    "Fishing_InMap_TalkSkip_Ck": {
-        "expected": [
-            "确认",
-            "確認"
-        ]
     }
 }

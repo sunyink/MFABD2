@@ -135,60 +135,12 @@
             "cycle_type": "g_daily"
         }
     },
-    "Setup_ResetLoc_JumpBackUse": {
-        "custom_action_param": {
-            "patches": {
-                "Collect_ClickBackOnSecureMap": {
-                    "expected": [
-                        "卢戈森林",
-                        "盧戈森林"
-                    ],
-                    "next": []
-                },
-                "Collect_ClickTelepor_TargetClass_Purple": {
-                    "max_hit": 5,
-                    "next": [
-                        "Collect_ClickTelepor_TargetClass_Purple"
-                    ],
-                    "timeout": 5000
-                },
-                "Collect_ClickTelepor_TargetClass_White": {
-                    "max_hit": 5,
-                    "next": [
-                        "Collect_ClickTelepor_TargetClass_White"
-                    ],
-                    "timeout": 5000
-                },
-                "Collect_OperationsMain_ToAreaMap": {
-                    "next": [
-                        "Collect_TargetMap1-2",
-                        "[JumpBack]Setup_ResetLoc_JumpBackUse_Mod",
-                        "[JumpBack]Collect_MapLift"
-                    ]
-                },
-                "Collect_TargetMap1-2": {
-                    "expected": [
-                        "卢戈森林",
-                        "盧戈森林"
-                    ],
-                    "next": [
-                        "Collect_ClickTeleporCircleIco",
-                        "Collect_ClickBackOnSecureMap"
-                    ]
-                }
-            }
-        }
-    },
     "Setup_ResetLoc_JumpBackUse_Mod": {
         "roi": [
             452,
             638,
             378,
             40
-        ],
-        "expected": [
-            "卢戈镇",
-            "盧戈鎮"
         ],
         "target": [
             1026,
@@ -219,16 +171,6 @@
             62,
             188,
             609
-        ],
-        "expected": [
-            "设置",
-            "設定"
-        ]
-    },
-    "Setup_Main_Move": {
-        "expected": [
-            "点击地面",
-            "點擊地板"
         ]
     },
     "Setup_Main_Tab_2": {
@@ -237,10 +179,6 @@
             82,
             95,
             364
-        ],
-        "expected": [
-            "图像",
-            "圖像"
         ]
     },
     "Setup_Main_Resolution": {
@@ -257,10 +195,6 @@
             301,
             350,
             107
-        ],
-        "expected": [
-            "主界面",
-            "主畫面"
         ]
     },
     "Setup_Main_StartUI_Ck": {
@@ -320,10 +254,6 @@
             16,
             54,
             36
-        ],
-        "expected": [
-            "装备",
-            "裝備"
         ]
     },
     "Setup_EquipUp": {
@@ -332,10 +262,6 @@
             344,
             57,
             70
-        ],
-        "expected": [
-            "级别",
-            "等級"
         ]
     },
     "Setup_EquipUp_MJ": {
@@ -539,10 +465,6 @@
             410,
             98,
             100
-        ],
-        "expected": [
-            "天赋技能",
-            "天賦技能"
         ]
     },
     "Setup_SetSkill_tab3_Reset5": {
@@ -763,10 +685,6 @@
             601,
             1146,
             34
-        ],
-        "expected": [
-            "制伏",
-            "壓制"
         ]
     },
     "Setup_SetSkill_3-5_Shake1": {

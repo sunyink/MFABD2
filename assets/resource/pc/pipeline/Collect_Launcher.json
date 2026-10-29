@@ -19,10 +19,6 @@
             563,
             1105,
             49
-        ],
-        "expected": [
-            "剧情游戏卡",
-            "故事遊戲卡"
         ]
     },
     "Collect_QuickCart_SelectType_CharacterPack": {
@@ -31,10 +27,6 @@
             563,
             1105,
             49
-        ],
-        "expected": [
-            "角色游戏卡",
-            "角色遊戲卡"
         ]
     },
     "Collect_QuickCart_SelectType_EventPack": {
@@ -43,10 +35,6 @@
             563,
             1105,
             49
-        ],
-        "expected": [
-            "活动游戏卡",
-            "活動遊戲卡"
         ]
     },
     "Collect_QuickCart_SelectType_ManagerPack": {
@@ -55,10 +43,6 @@
             563,
             1105,
             49
-        ],
-        "expected": [
-            "店长游戏卡",
-            "店長遊戲卡"
         ]
     },
     "Collect_QuickCart_SelectType_BattleplayPack": {
@@ -67,10 +51,6 @@
             563,
             1105,
             49
-        ],
-        "expected": [
-            "战斗玩法游戏卡",
-            "戰鬥遊戲卡"
         ]
     },
     "Collect_QuickCart_SelectType_LifeplayPack": {
@@ -79,10 +59,6 @@
             563,
             1105,
             49
-        ],
-        "expected": [
-            "生活玩法游戏卡",
-            "生活遊戲卡"
         ]
     },
     "Collect_QuickCart_EventPack_OcrCheck": {
@@ -774,10 +750,6 @@
             469,
             478,
             190
-        ],
-        "expected": [
-            "未插好游戏卡",
-            "未插好遊戲卡"
         ]
     },
     "Collect_FirstPack_Talk": {
@@ -802,10 +774,6 @@
             368,
             255,
             320
-        ],
-        "expected": [
-            "确认",
-            "確認"
         ]
     }
 }

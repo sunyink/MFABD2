@@ -143,7 +143,8 @@
             155
         ],
         "expected": [
-            "确认"
+            "确认",
+            "確認"
         ],
         "action": "Click",
         "post_delay": 2000,
@@ -218,7 +219,9 @@
         ],
         "expected": [
             "最高伤害",
-            "战斗分布"
+            "最高傷害",
+            "战斗分布",
+            "戰鬥分佈"
         ],
         "next": [
             "Weekly_LastNight_Move"
@@ -250,7 +253,8 @@
             66
         ],
         "expected": [
-            "末日之书"
+            "末日之书",
+            "末日之書"
         ],
         "post_delay": 1000,
         "next": [
@@ -266,7 +270,8 @@
             44
         ],
         "expected": [
-            "去战斗"
+            "去战斗",
+            "去戰鬥"
         ],
         "action": "Click",
         "post_delay": 1000,
@@ -287,7 +292,10 @@
         "expected": [
             "20次中",
             "还剩",
-            "次攻击中"
+            "還剩",
+            "剩餘",
+            "次攻击中",
+            "次攻擊中"
         ],
         "action": "Click",
         "target": [
@@ -309,7 +317,8 @@
             38
         ],
         "expected": [
-            "离开"
+            "离开",
+            "離開"
         ],
         "action": "Click",
         "post_delay": 1500,
@@ -332,7 +341,9 @@
         ],
         "expected": [
             "创造新纪录",
-            "最高伤害"
+            "創造新紀錄",
+            "最高伤害",
+            "最高傷害"
         ],
         "action": "Click",
         "target": [
@@ -468,7 +479,8 @@
             111
         ],
         "expected": [
-            "参观"
+            "参观",
+            "觀看"
         ],
         "threshold": 0.6,
         "action": "Click",
@@ -518,7 +530,8 @@
             106
         ],
         "expected": [
-            "再次探查"
+            "再次探查",
+            "重新探索"
         ],
         "action": "Click",
         "target": [
@@ -612,7 +625,8 @@
             68
         ],
         "expected": [
-            "街机游戏"
+            "街机游戏",
+            "街機遊戲"
         ],
         "action": "Custom",
         "custom_action": "MarkComplete",

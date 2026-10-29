@@ -13,10 +13,6 @@
             603,
             75,
             32
-        ],
-        "expected": [
-            "偷窃",
-            "偷竊"
         ]
     },
     "Practise_Skill_Bargaining_Until": {
@@ -25,21 +21,6 @@
             35,
             21,
             27
-        ],
-        "expected": [
-            "初级",
-            "新手",
-            "进阶",
-            "進階",
-            "高手",
-            "达人",
-            "達人"
-        ]
-    },
-    "Practise_Skill_Bargaining_Succeed": {
-        "expected": [
-            "传说",
-            "傳說"
         ]
     },
     "Practise_Skill_Bargaining_Upgrade_Ck": {
