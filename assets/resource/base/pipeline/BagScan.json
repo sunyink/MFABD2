@@ -1,0 +1,675 @@
+{
+    "BagScan_Entry": {
+        "desc": "背包仓检模块入口：从当前页面进入背包，复位、按料理食材排序后按页读取食材数量，再原路返回主页或箱庭。由启动器BagScan（agent/action/bag_scan.py）在子任务里run_task调用，也可[JumpBack]直接挂入（扫描参数在BagScan_Run.custom_action_param）。返回锚点BagReturn默认主页，从箱庭背包进入时改为箱庭。",
+        "anchor": {
+            "BagReturn": "Global_ToHomePage"
+        },
+        "next": [
+            "BagScan_InBag",
+            "BagScan_Open_Home",
+            "BagScan_Open_Sand",
+            "[JumpBack]Arbitrage_ShopOut",
+            "[JumpBack]Global_ToHomePage"
+        ]
+    },
+    "BagScan_Open_Home": {
+        "desc": "从主页底部背包按钮进入，返回锚点设为主页。",
+        "recognition": "OCR",
+        "roi": [
+            236,
+            613,
+            128,
+            89
+        ],
+        "expected": "背包",
+        "action": "Click",
+        "target_offset": [
+            0,
+            -5,
+            0,
+            0
+        ],
+        "anchor": {
+            "BagReturn": "Global_ToHomePage"
+        },
+        "post_delay": 2000,
+        "next": [
+            "BagScan_InBag",
+            "BagScan_Open_Home"
+        ]
+    },
+    "BagScan_Open_Sand": {
+        "desc": "从箱庭右上背包按钮进入，返回锚点设为箱庭。",
+        "recognition": "Or",
+        "any_of": [
+            {
+                "recognition": "TemplateMatch",
+                "roi": [
+                    886,
+                    8,
+                    344,
+                    76
+                ],
+                "template": "Bag_GE.png",
+                "green_mask": true
+            },
+            {
+                "recognition": "Custom",
+                "custom_recognition": "HSVShapeMatching",
+                "custom_recognition_param": {
+                    "hsv_map": {
+                        "Rec_BagScan_Open_Sand_Bin": {
+                            "lower": [
+                                0,
+                                0,
+                                200
+                            ],
+                            "upper": [
+                                180,
+                                25,
+                                255
+                            ]
+                        }
+                    },
+                    "edge_assist": true
+                }
+            }
+        ],
+        "action": "Click",
+        "anchor": {
+            "BagReturn": "Global_ToSandBox"
+        },
+        "post_delay": 2000,
+        "next": [
+            "BagScan_InBag",
+            "BagScan_Open_Sand"
+        ]
+    },
+    "Rec_BagScan_Open_Sand_Bin": {
+        "recognition": "TemplateMatch",
+        "roi": [
+            886,
+            8,
+            344,
+            76
+        ],
+        "template": [
+            "Bag_Bin1.png",
+            "Bag_Bin2.png"
+        ]
+    },
+    "BagScan_InBag": {
+        "desc": "背包界面确认",
+        "recognition": "Or",
+        "any_of": [
+            "Setup_Equip_Per"
+        ],
+        "next": [
+            "BagScan_Prepare"
+        ]
+    },
+    "BagScan_Prepare": {
+        "desc": "切回消耗品并复位页首，再设置料理食材排序。先清本模块的一次性计数，同一任务里第二次仓检（如吸取前、吸取后）照常复位和排序。",
+        "action": "Custom",
+        "custom_action": "ClearNodeHitCount",
+        "custom_action_param": {
+            "node_name": [
+                "BagScan_TabReset_Once",
+                "BagScan_Sort",
+                "BagScan_Sort_Open",
+                "BagScan_Sort_Menu_Swipe"
+            ]
+        },
+        "next": [
+            "[JumpBack]BagScan_TabReset_Once",
+            "[JumpBack]BagScan_Sort",
+            "BagScan_Run"
+        ]
+    },
+    "BagScan_TabReset_Once": {
+        "max_hit": 1,
+        "next": [
+            "BagScan_TabReset"
+        ]
+    },
+    "BagScan_Run": {
+        "desc": "按页读取食材精确数量并写入账号库存与扫描记录。agent/action/bag_scan.py的BagScanRun读取Agt_BagScan_Profile_Ingredients，逐页找图、点开详情读数、翻到末端或列表底部后判定未见物品为0；结束后经BagReturn锚点原路返回。参数由启动器在子任务里覆盖：label（扫描用途）、targets（all或名称列表）。",
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "BagScanRun",
+        "custom_action_param": {
+            "profile": "Agt_BagScan_Profile_Ingredients",
+            "label": "未指定",
+            "targets": "all"
+        },
+        "post_delay": 0,
+        "next": [
+            "[Anchor]BagReturn"
+        ],
+        "focus": "背包仓检：按页读取食材数量"
+    },
+    "BagScan_Sort": {
+        "max_hit": 1,
+        "next": [
+            "BagScan_Sort_Open"
+        ]
+    },
+    "BagScan_Sort_Open": {
+        "desc": "消耗品列表排序菜单",
+        "max_hit": 10,
+        "action": "Click",
+        "target": [
+            1147,
+            30,
+            6,
+            5
+        ],
+        "post_delay": 1500,
+        "next": [
+            "BagScan_Sort_Menu",
+            "BagScan_Sort_Open"
+        ]
+    },
+    "BagScan_Sort_Menu": {
+        "desc": "确定菜单已打开",
+        "recognition": "OCR",
+        "roi": [
+            885,
+            75,
+            287,
+            264
+        ],
+        "expected": [
+            "优先",
+            "排序",
+            "優先"
+        ],
+        "next": [
+            "BagScan_Sort_Egress",
+            "[JumpBack]BagScan_Sort_Menu_Set",
+            "[JumpBack]BagScan_Sort_Menu_Swipe"
+        ]
+    },
+    "BagScan_Sort_Menu_Swipe": {
+        "max_hit": 10,
+        "action": "Swipe",
+        "begin": [
+            1032,
+            310
+        ],
+        "end": [
+            1032,
+            92
+        ],
+        "end_hold": 250,
+        "post_wait_freezes": {
+            "time": 500,
+            "target": [
+                986,
+                79,
+                84,
+                237
+            ]
+        }
+    },
+    "BagScan_Sort_Menu_Set": {
+        "recognition": "OCR",
+        "roi": [
+            885,
+            75,
+            287,
+            264
+        ],
+        "expected": [
+            "料理食材优先",
+            "料理食材優先",
+            "按料理食材[数數]量[从從]高到低排序",
+            "料理食材由多至少排序"
+        ],
+        "action": "Click",
+        "post_delay": 1000
+    },
+    "BagScan_Sort_Egress": {
+        "recognition": "OCR",
+        "roi": [
+            885,
+            75,
+            287,
+            264
+        ],
+        "expected": [
+            "按料理食材[数數]量[从從]低到高排序",
+            "料理食材由少至多排序"
+        ],
+        "action": "Click",
+        "target": [
+            376,
+            138,
+            17,
+            16
+        ],
+        "repeat": 3,
+        "repeat_delay": 150
+    },
+    "BagScan_TabReset": {
+        "desc": "进行一次背包列表复位到头部，通过切换类别实现。扫描中途恢复时由py经run_task调用，以BagScan_TabReset_Egress为完成标志。",
+        "next": [
+            "BagScan_TabReset_Coll",
+            "[JumpBack]BagScan_TabReset_Coll_Act"
+        ],
+        "focus": "背包排序复位"
+    },
+    "BagScan_TabReset_Coll": {
+        "desc": "同时确认收集品页标题与按钮点亮，避免切页动画中把旧列表当成已复位",
+        "recognition": "And",
+        "all_of": [
+            {
+                "sub_name": "ColorMatch",
+                "recognition": "ColorMatch",
+                "roi": [
+                    138,
+                    357,
+                    7,
+                    6
+                ],
+                "method": 40,
+                "lower": [
+                    0,
+                    0,
+                    230
+                ],
+                "upper": [
+                    180,
+                    30,
+                    255
+                ]
+            },
+            {
+                "sub_name": "OCR",
+                "recognition": "OCR",
+                "roi": [
+                    215,
+                    15,
+                    300,
+                    50
+                ],
+                "expected": [
+                    "收集品$",
+                    "收藏品$"
+                ]
+            }
+        ],
+        "next": [
+            "BagScan_TabReset_Cons",
+            "[JumpBack]BagScan_TabReset_Cons_Act"
+        ]
+    },
+    "BagScan_TabReset_Coll_Act": {
+        "max_hit": 10,
+        "action": "Click",
+        "target": [
+            134,
+            350,
+            12,
+            13
+        ],
+        "post_delay": 800
+    },
+    "BagScan_TabReset_Cons": {
+        "desc": "同时确认消耗品页标题与按钮点亮，避免切页动画中把旧列表当成已复位",
+        "recognition": "And",
+        "all_of": [
+            "Rec_BagScan_ConsTab_Lit_Clr",
+            {
+                "sub_name": "OCR",
+                "recognition": "OCR",
+                "roi": [
+                    215,
+                    15,
+                    300,
+                    50
+                ],
+                "expected": [
+                    "^消耗品"
+                ]
+            }
+        ],
+        "next": [
+            "BagScan_TabReset_Egress"
+        ]
+    },
+    "Rec_BagScan_ConsTab_Lit_Clr": {
+        "desc": "消耗品页签按钮处于高亮。物品详情弹窗的全屏遮罩会把它压暗，所以也用来判断弹窗已关闭（BagScan_Detail_Closed）。",
+        "recognition": "ColorMatch",
+        "roi": [
+            138,
+            125,
+            4,
+            6
+        ],
+        "method": 40,
+        "lower": [
+            0,
+            0,
+            230
+        ],
+        "upper": [
+            180,
+            30,
+            255
+        ]
+    },
+    "BagScan_TabReset_Cons_Act": {
+        "max_hit": 10,
+        "action": "Click",
+        "target": [
+            134,
+            120,
+            13,
+            15
+        ],
+        "post_delay": 800
+    },
+    "BagScan_TabReset_Egress": {
+        "action": "Custom",
+        "custom_action": "ClearNodeHitCount",
+        "custom_action_param": {
+            "node_name": [
+                "BagScan_TabReset_Coll_Act",
+                "BagScan_TabReset_Cons_Act"
+            ]
+        }
+    },
+    "BagScan_Detail_Open": {
+        "desc": "py用run_task调用：点开一个物品格子的详情，坐标由py注入target。按rate_limit重试识别，直到BagScan_Detail_Ready读到名称与「拥有/持有…个」；超时即没打开，由py重试或恢复。不靠固定等待：出现动画走到一半时字可能是虚影或不在识别框内，读不全就继续重试。",
+        "pre_delay": 0,
+        "action": "Click",
+        "target": [
+            0,
+            0,
+            0,
+            0
+        ],
+        "post_delay": 0,
+        "timeout": 3000,
+        "rate_limit": 100,
+        "next": [
+            "BagScan_Detail_Ready"
+        ]
+    },
+    "BagScan_Detail_Ready": {
+        "desc": "物品详情已可读：同一帧里名称与数量（完整的「拥有/持有…个」）都读到。py从这一帧的子识别结果取名称与数量，再截一帧复核，两帧名称、数量与数量文字位置一致才采信（agent/action/bag_scan.py）。",
+        "recognition": "And",
+        "all_of": [
+            "Rec_BagScan_Name_Ocr",
+            "Rec_BagScan_Quantity_Ocr"
+        ],
+        "pre_delay": 0,
+        "post_delay": 0
+    },
+    "BagScan_Detail_Close": {
+        "desc": "py用run_task调用：点弹窗外空白处关闭物品详情，连点几下确保关掉；关闭本身有动画，按rate_limit重试识别直到消耗品页签恢复高亮。超时没亮，由py再点一轮或恢复。",
+        "pre_delay": 0,
+        "action": "Click",
+        "target": [
+            376,
+            138,
+            17,
+            16
+        ],
+        "repeat": 3,
+        "repeat_delay": 150,
+        "post_delay": 0,
+        "timeout": 2000,
+        "rate_limit": 100,
+        "next": [
+            "BagScan_Detail_Closed"
+        ]
+    },
+    "BagScan_Detail_Closed": {
+        "desc": "物品详情已关闭：消耗品页签恢复高亮（阈值接近满亮，遮罩淡出快结束才命中）。",
+        "recognition": "Or",
+        "any_of": [
+            "Rec_BagScan_ConsTab_Lit_Clr"
+        ],
+        "pre_delay": 0,
+        "post_delay": 0
+    },
+    "BagScan_Page_Next": {
+        "desc": "py用run_task调用：经SmartAction代理Agt_BagScan_Page_Swipe下滑一页，比对列表区前后两帧。画面变了走BagScan_Page_Moved；连续两次没变（滑到底）走BagScan_Page_Bottom。py另用自己的前后两页截图核对是否真的没动。代理节点自带画面静止等待，这里不另加等待。",
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "SmartAction",
+        "custom_action_param": {
+            "proxy_node": "Agt_BagScan_Page_Swipe",
+            "detect_roi": [
+                578,
+                62,
+                600,
+                634
+            ],
+            "threshold": 3.0,
+            "settle_delay": 0,
+            "on_changed": "next",
+            "on_unchanged": "error",
+            "unchanged_streak": 2
+        },
+        "post_delay": 0,
+        "timeout": 2000,
+        "next": [
+            "BagScan_Page_Moved"
+        ],
+        "on_error": [
+            "BagScan_Page_Bottom"
+        ]
+    },
+    "BagScan_Page_Moved": {
+        "desc": "翻页结果标记：列表已下滑。py只看它是否出现在子任务节点里。",
+        "pre_delay": 0,
+        "post_delay": 0
+    },
+    "BagScan_Page_Bottom": {
+        "desc": "翻页结果标记：连续两次下滑画面都没变，列表已到底。没见到成长材料也照常收尾，按列表结束判定未见物品。",
+        "pre_delay": 0,
+        "post_delay": 0,
+        "focus": "背包仓检：列表已滑到底，未见成长材料，按列表结束处理"
+    },
+    "Agt_BagScan_Page_Swipe": {
+        "desc": "py独占，勿挂进管路。BagScan_Page_Next的SmartAction代理：列表下滑一页。拖动距离小于一页可见高度减一行，保证相邻两页至少重叠一行（py按此核对连续性，接不上就不判0）。",
+        "action": "Swipe",
+        "begin": [
+            640,
+            620
+        ],
+        "end": [
+            640,
+            180
+        ],
+        "end_hold": 500,
+        "duration": 600,
+        "post_wait_freezes": {
+            "time": 500,
+            "target": [
+                986,
+                79,
+                84,
+                237
+            ]
+        }
+    },
+    "Agt_BagScan_Profile_Ingredients": {
+        "desc": "py独占，勿挂进管路。背包仓检「食材」档案：目录、识别节点与页数、时限、复核参数。坐标与模板在各自节点里，资源包按节点覆盖。",
+        "enabled": false,
+        "attach": {
+            "catalog_node": "Agt_BagScan_Ingredients_Catalog",
+            "item_node": "Agt_BagScan_Item_Tpl",
+            "ready_node": "Agt_BagScan_Ingredients_Ready",
+            "end_node": "Agt_BagScan_Ingredients_End_Tpl",
+            "zero_evidence": "ingredient_boundary",
+            "max_pages": 30,
+            "timeout_seconds": 900,
+            "confirm_frames": 4,
+            "box_tolerance": 3,
+            "continuity_threshold": 12.0
+        }
+    },
+    "Agt_BagScan_Ingredients_Catalog": {
+        "desc": "py独占，勿挂进管路。食材目录：规范名→背包模板。名称取自料理材料目录（如西蓝花的模板文件叫西兰花），资源包缺图的物品不列（PC包即如此），未列出的物品扫描时记为未知、不判0。",
+        "enabled": false,
+        "attach": {
+            "templates": {
+                "白糖": "Shop/BagList/食材_白糖.png",
+                "藏红花": "Shop/BagList/食材_藏红花.png",
+                "大麦": "Shop/BagList/食材_大麦.png",
+                "大蒜": "Shop/BagList/食材_大蒜.png",
+                "袋装鸡胸肉": "Shop/BagList/食材_袋装鸡胸肉.png",
+                "蛋黄酱": "Shop/BagList/食材_蛋黄酱.png",
+                "地狱火辣酱": "Shop/BagList/食材_地狱火辣酱.png",
+                "调味海苔": "Shop/BagList/食材_调味海苔.png",
+                "豆子": "Shop/BagList/食材_豆子.png",
+                "番茄": "Shop/BagList/食材_番茄.png",
+                "蜂蜜": "Shop/BagList/食材_蜂蜜.png",
+                "橄榄油": "Shop/BagList/食材_橄榄油.png",
+                "哈密瓜": "Shop/BagList/食材_哈密瓜.png",
+                "胡椒": "Shop/BagList/食材_胡椒.png",
+                "胡萝卜": "Shop/BagList/食材_胡萝卜.png",
+                "黄金罗勒": "Shop/BagList/食材_黄金罗勒.png",
+                "黄油": "Shop/BagList/食材_黄油.png",
+                "鸡蛋": "Shop/BagList/食材_鸡蛋.png",
+                "姜黄": "Shop/BagList/食材_姜黄.png",
+                "芥末": "Shop/BagList/食材_芥末.png",
+                "金枪鱼罐头": "Shop/BagList/食材_金枪鱼罐头.png",
+                "咖啡豆": "Shop/BagList/食材_咖啡豆.png",
+                "凯洛药材": "Shop/BagList/食材_凯洛药材.png",
+                "辣椒": "Shop/BagList/食材_辣椒.png",
+                "辣椒素": "Shop/BagList/食材_辣椒素.png",
+                "雷瓦汀火腿": "Shop/BagList/食材_雷瓦汀火腿.png",
+                "料酒": "Shop/BagList/食材_料酒.png",
+                "卢戈山参": "Shop/BagList/食材_卢戈山参.png",
+                "萝卜缨": "Shop/BagList/食材_萝卜缨.png",
+                "米": "Shop/BagList/食材_米.png",
+                "蘑菇": "Shop/BagList/食材_蘑菇.png",
+                "奶酪": "Shop/BagList/食材_奶酪.png",
+                "能量粉末": "Shop/BagList/食材_能量粉末.png",
+                "牛奶": "Shop/BagList/食材_牛奶.png",
+                "啤酒花": "Shop/BagList/食材_啤酒花.png",
+                "苹果": "Shop/BagList/食材_苹果.png",
+                "葡萄": "Shop/BagList/食材_葡萄.png",
+                "巧克力": "Shop/BagList/食材_巧克力.png",
+                "肉桂": "Shop/BagList/食材_肉桂.png",
+                "三文鱼": "Shop/BagList/食材_三文鱼.png",
+                "闪光粉末": "Shop/BagList/食材_闪光粉末.png",
+                "生命木炭": "Shop/BagList/食材_生命木炭.png",
+                "生蚝": "Shop/BagList/食材_生蚝.png",
+                "兽肉": "Shop/BagList/食材_兽肉.png",
+                "水果罐头": "Shop/BagList/食材_水果罐头.png",
+                "松露油": "Shop/BagList/食材_松露油.png",
+                "甜椒": "Shop/BagList/食材_甜椒.png",
+                "甜辣酱": "Shop/BagList/食材_甜辣酱.png",
+                "透明蘑菇": "Shop/BagList/食材_透明蘑菇.png",
+                "秃鹫羽毛": "Shop/BagList/食材_秃鹫羽毛.png",
+                "土豆": "Shop/BagList/食材_土豆.png",
+                "吐司": "Shop/BagList/食材_吐司.png",
+                "西蓝花": "Shop/BagList/食材_西兰花.png",
+                "虾": "Shop/BagList/食材_虾.png",
+                "香草": "Shop/BagList/食材_香草.png",
+                "小麦": "Shop/BagList/食材_小麦.png",
+                "杏仁": "Shop/BagList/食材_杏仁.png",
+                "盐": "Shop/BagList/食材_盐.png",
+                "洋葱": "Shop/BagList/食材_洋葱.png",
+                "樱桃": "Shop/BagList/食材_樱桃.png",
+                "永恒之爱": "Shop/BagList/食材_永恒之爱.png",
+                "鱼子酱罐头": "Shop/BagList/食材_鱼子酱罐头.png",
+                "玉米": "Shop/BagList/食材_玉米.png"
+            }
+        }
+    },
+    "Agt_BagScan_Ingredients_Ready": {
+        "desc": "py独占，勿挂进管路。每页一次的完整就绪核对：消耗品页签亮起且排序为料理食材优先；详情弹窗的遮罩在时不命中。",
+        "recognition": "And",
+        "all_of": [
+            "BagScan_TabReset_Cons",
+            {
+                "sub_name": "OCR",
+                "recognition": "OCR",
+                "roi": [
+                    850,
+                    15,
+                    300,
+                    40
+                ],
+                "expected": [
+                    "^料理食材[优優]先$"
+                ]
+            }
+        ]
+    },
+    "Agt_BagScan_Item_Tpl": {
+        "desc": "py独占，勿挂进管路。逐个目标注入模板找图；只点击图标、不读列表上的缩略数量。attach.row_height为列表行距、footer_rows为列表区最下方压着的固定底栏行数，py核对翻页连续性时剔掉底栏、只比真正滚动的部分。",
+        "recognition": "TemplateMatch",
+        "roi": [
+            578,
+            62,
+            600,
+            634
+        ],
+        "template": "Shop/BagList/食材_兽肉.png",
+        "threshold": 0.9,
+        "order_by": "Score",
+        "attach": {
+            "row_height": 100,
+            "footer_rows": 64
+        }
+    },
+    "Rec_BagScan_Name_Ocr": {
+        "desc": "背包详情名称。被BagScan_Detail_Ready引用，py重读名称时也直接调用；简繁名称交由共用名录处理。",
+        "recognition": "OCR",
+        "roi": [
+            262,
+            183,
+            215,
+            51
+        ]
+    },
+    "Rec_BagScan_Quantity_Ocr": {
+        "desc": "背包详情数量：完整读取「拥有234,937个」，先去掉逗号、句点等分隔符，只认完整一行；不接受K缩写、不拼接独立识别结果。被BagScan_Detail_Ready引用；attach.retry_scale供py放大重读。",
+        "recognition": "OCR",
+        "roi": [
+            265,
+            254,
+            280,
+            39
+        ],
+        "expected": [
+            "(?:[拥擁]有|持有)[0-9]+[个個]"
+        ],
+        "replace": [
+            [
+                "[,，.．。、·]",
+                ""
+            ]
+        ],
+        "attach": {
+            "retry_scale": 3
+        }
+    },
+    "Agt_BagScan_Ingredients_End_Tpl": {
+        "desc": "py独占，勿挂进管路。任一成长材料命中即可能到了食材末端；py会点开该格核名，读出来不是食材才算末端。同屏目标先查再判末端。",
+        "recognition": "TemplateMatch",
+        "roi": [
+            578,
+            62,
+            600,
+            634
+        ],
+        "template": [
+            "Shop/BagList/成长材料_等级突破1.png",
+            "Shop/BagList/成长材料_生活技能书1.png",
+            "Shop/BagList/成长材料_生活技能书2.png",
+            "Shop/BagList/成长材料_生活技能书3.png",
+            "Shop/BagList/成长材料_生活技能书4.png",
+            "Shop/BagList/成长材料_史莱姆1.png"
+        ],
+        "threshold": 0.9
+    }
+}

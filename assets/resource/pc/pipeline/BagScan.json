@@ -1,0 +1,320 @@
+{
+    "BagScan_Open_Home": {
+        "roi": [
+            201,
+            619,
+            92,
+            86
+        ]
+    },
+    "BagScan_Sort_Menu": {
+        "roi": [
+            938,
+            54,
+            246,
+            235
+        ]
+    },
+    "BagScan_Sort_Menu_Swipe": {
+        "begin": [
+            1053,
+            254,
+            1,
+            1
+        ],
+        "end": [
+            1053,
+            69,
+            1,
+            1
+        ],
+        "post_wait_freezes": {
+            "target": [
+                1019,
+                61,
+                85,
+                215
+            ]
+        }
+    },
+    "BagScan_Sort_Menu_Set": {
+        "roi": [
+            938,
+            54,
+            246,
+            235
+        ]
+    },
+    "BagScan_Sort_Egress": {
+        "roi": [
+            938,
+            54,
+            246,
+            235
+        ],
+        "target": [
+            384,
+            83,
+            18,
+            17
+        ]
+    },
+    "BagScan_TabReset_Coll": {
+        "all_of": [
+            {
+                "sub_name": "ColorMatch",
+                "recognition": "ColorMatch",
+                "roi": [
+                    113,
+                    297,
+                    8,
+                    7
+                ],
+                "method": 40,
+                "lower": [
+                    [
+                        0,
+                        0,
+                        230
+                    ]
+                ],
+                "upper": [
+                    [
+                        180,
+                        30,
+                        255
+                    ]
+                ]
+            },
+            {
+                "sub_name": "OCR",
+                "recognition": "OCR",
+                "roi": [
+                    155,
+                    8,
+                    217,
+                    51
+                ],
+                "expected": [
+                    "收集品$",
+                    "收藏品$"
+                ]
+            }
+        ]
+    },
+    "BagScan_TabReset_Coll_Act": {
+        "target": [
+            110,
+            289,
+            13,
+            14
+        ]
+    },
+    "BagScan_TabReset_Cons": {
+        "all_of": [
+            "Rec_BagScan_ConsTab_Lit_Clr",
+            {
+                "sub_name": "OCR",
+                "recognition": "OCR",
+                "roi": [
+                    183,
+                    10,
+                    179,
+                    51
+                ],
+                "expected": [
+                    "^消耗品"
+                ]
+            }
+        ]
+    },
+    "BagScan_TabReset_Cons_Act": {
+        "target": [
+            109,
+            99,
+            14,
+            16
+        ]
+    },
+    "Agt_BagScan_Page_Swipe": {
+        "post_wait_freezes": {
+            "target": [
+                992,
+                61,
+                60,
+                238
+            ]
+        }
+    },
+    "Agt_BagScan_Ingredients_Ready": {
+        "all_of": [
+            "BagScan_TabReset_Cons",
+            {
+                "sub_name": "OCR",
+                "recognition": "OCR",
+                "roi": [
+                    929,
+                    8,
+                    224,
+                    41
+                ],
+                "expected": [
+                    "^料理食材[优優]先$"
+                ]
+            }
+        ]
+    },
+    "Agt_BagScan_Item_Tpl": {
+        "roi": [
+            475,
+            50,
+            676,
+            600
+        ],
+        "attach": {
+            "row_height": 113,
+            "footer_rows": 0
+        }
+    },
+    "Rec_BagScan_Name_Ocr": {
+        "roi": [
+            318,
+            213,
+            216,
+            43
+        ]
+    },
+    "Rec_BagScan_Quantity_Ocr": {
+        "roi": [
+            322,
+            272,
+            281,
+            34
+        ]
+    },
+    "Agt_BagScan_Ingredients_End_Tpl": {
+        "roi": [
+            475,
+            50,
+            676,
+            600
+        ]
+    },
+    "Rec_BagScan_ConsTab_Lit_Clr": {
+        "recognition": "ColorMatch",
+        "roi": [
+            114,
+            104,
+            5,
+            7
+        ],
+        "method": 40,
+        "lower": [
+            [
+                0,
+                0,
+                230
+            ]
+        ],
+        "upper": [
+            [
+                180,
+                30,
+                255
+            ]
+        ]
+    },
+    "BagScan_Detail_Close": {
+        "target": [
+            384,
+            83,
+            18,
+            17
+        ]
+    },
+    "BagScan_Page_Next": {
+        "custom_action_param": {
+            "proxy_node": "Agt_BagScan_Page_Swipe",
+            "detect_roi": [
+                475,
+                50,
+                676,
+                600
+            ],
+            "threshold": 3.0,
+            "settle_delay": 0,
+            "on_changed": "next",
+            "on_unchanged": "error",
+            "unchanged_streak": 2
+        }
+    },
+    "Agt_BagScan_Ingredients_Catalog": {
+        "attach": {
+            "templates": {
+                "白糖": "Shop/BagList/食材_白糖.png",
+                "藏红花": "Shop/BagList/食材_藏红花.png",
+                "大麦": "Shop/BagList/食材_大麦.png",
+                "大蒜": "Shop/BagList/食材_大蒜.png",
+                "袋装鸡胸肉": "Shop/BagList/食材_袋装鸡胸肉.png",
+                "蛋黄酱": "Shop/BagList/食材_蛋黄酱.png",
+                "调味海苔": "Shop/BagList/食材_调味海苔.png",
+                "豆子": "Shop/BagList/食材_豆子.png",
+                "番茄": "Shop/BagList/食材_番茄.png",
+                "蜂蜜": "Shop/BagList/食材_蜂蜜.png",
+                "橄榄油": "Shop/BagList/食材_橄榄油.png",
+                "哈密瓜": "Shop/BagList/食材_哈密瓜.png",
+                "胡椒": "Shop/BagList/食材_胡椒.png",
+                "胡萝卜": "Shop/BagList/食材_胡萝卜.png",
+                "黄金罗勒": "Shop/BagList/食材_黄金罗勒.png",
+                "黄油": "Shop/BagList/食材_黄油.png",
+                "鸡蛋": "Shop/BagList/食材_鸡蛋.png",
+                "姜黄": "Shop/BagList/食材_姜黄.png",
+                "芥末": "Shop/BagList/食材_芥末.png",
+                "金枪鱼罐头": "Shop/BagList/食材_金枪鱼罐头.png",
+                "咖啡豆": "Shop/BagList/食材_咖啡豆.png",
+                "凯洛药材": "Shop/BagList/食材_凯洛药材.png",
+                "辣椒": "Shop/BagList/食材_辣椒.png",
+                "辣椒素": "Shop/BagList/食材_辣椒素.png",
+                "雷瓦汀火腿": "Shop/BagList/食材_雷瓦汀火腿.png",
+                "料酒": "Shop/BagList/食材_料酒.png",
+                "萝卜缨": "Shop/BagList/食材_萝卜缨.png",
+                "米": "Shop/BagList/食材_米.png",
+                "蘑菇": "Shop/BagList/食材_蘑菇.png",
+                "奶酪": "Shop/BagList/食材_奶酪.png",
+                "能量粉末": "Shop/BagList/食材_能量粉末.png",
+                "牛奶": "Shop/BagList/食材_牛奶.png",
+                "啤酒花": "Shop/BagList/食材_啤酒花.png",
+                "苹果": "Shop/BagList/食材_苹果.png",
+                "葡萄": "Shop/BagList/食材_葡萄.png",
+                "巧克力": "Shop/BagList/食材_巧克力.png",
+                "肉桂": "Shop/BagList/食材_肉桂.png",
+                "三文鱼": "Shop/BagList/食材_三文鱼.png",
+                "闪光粉末": "Shop/BagList/食材_闪光粉末.png",
+                "生蚝": "Shop/BagList/食材_生蚝.png",
+                "兽肉": "Shop/BagList/食材_兽肉.png",
+                "水果罐头": "Shop/BagList/食材_水果罐头.png",
+                "松露油": "Shop/BagList/食材_松露油.png",
+                "甜椒": "Shop/BagList/食材_甜椒.png",
+                "甜辣酱": "Shop/BagList/食材_甜辣酱.png",
+                "透明蘑菇": "Shop/BagList/食材_透明蘑菇.png",
+                "秃鹫羽毛": "Shop/BagList/食材_秃鹫羽毛.png",
+                "土豆": "Shop/BagList/食材_土豆.png",
+                "吐司": "Shop/BagList/食材_吐司.png",
+                "西蓝花": "Shop/BagList/食材_西兰花.png",
+                "虾": "Shop/BagList/食材_虾.png",
+                "香草": "Shop/BagList/食材_香草.png",
+                "小麦": "Shop/BagList/食材_小麦.png",
+                "杏仁": "Shop/BagList/食材_杏仁.png",
+                "盐": "Shop/BagList/食材_盐.png",
+                "洋葱": "Shop/BagList/食材_洋葱.png",
+                "樱桃": "Shop/BagList/食材_樱桃.png",
+                "永恒之爱": "Shop/BagList/食材_永恒之爱.png",
+                "鱼子酱罐头": "Shop/BagList/食材_鱼子酱罐头.png",
+                "玉米": "Shop/BagList/食材_玉米.png",
+                "穿山甲鳞片": "Shop/BagList/食材_穿山甲的鳞片.png",
+                "维生素B浓缩液": "Shop/BagList/食材_维生素B浓缩液.png",
+                "能量药水": "Shop/BagList/食材_能量药水.png"
+            }
+        }
+    }
+}

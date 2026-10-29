@@ -10,12 +10,8 @@ import copy
 import json
 import re
 import threading
-import unicodedata
 from collections import OrderedDict
 from datetime import datetime, timezone
-
-import numpy as np
-from PIL import Image
 
 from maa.agent.agent_server import AgentServer
 from maa.context import Context
@@ -29,6 +25,8 @@ from utils.arbitrage_store import (
     invalidate_inventory_quantities, utc_now,
 )
 from utils.name_i18n import canon
+from utils.ocr_read import NUMBER as _NUMBER, clean as _clean
+from utils.ocr_read import read_texts as _read_texts, unique_parsed as _unique_parsed
 
 
 _OBSERVATIONS = OrderedDict()
@@ -110,39 +108,6 @@ def _save(task_id: int, record: dict) -> None:
             _OBSERVATIONS.popitem(last=False)
 
 
-def _clean(text: str) -> str:
-    return re.sub(r"\s+", "", unicodedata.normalize("NFKC", text))
-
-
-def _read_texts(context: Context, node: str, image, retry: bool = False) -> tuple[list[str], int | None, bool]:
-    if retry:
-        config = context.get_node_object(node)
-        scale = config.attach.get("retry_scale", 1)
-        if not isinstance(scale, int) or not 1 < scale <= 4:
-            return [], None, False
-        x, y, width, height = config.recognition.param.roi
-        crop = image[y:y + height, x:x + width]
-        # 只缩放通道数值，不交换 BGR 顺序；不保存或改变原截图。
-        enlarged = np.asarray(Image.fromarray(crop).resize(
-            (width * scale, height * scale), Image.Resampling.BICUBIC,
-        ))
-        result = context.run_recognition(node, enlarged, {node: {"roi": [0, 0, width * scale, height * scale]}})
-    else:
-        result = context.run_recognition(node, image)
-    if result is None:
-        raise RuntimeError(f"OCR 节点未能执行: {node}")
-    reco_id = getattr(result, "reco_id", None)
-    if not result.hit:
-        return [], reco_id, False
-    items = getattr(result, "filtered_results", None) or getattr(result, "all_results", None) or []
-    texts = []
-    for item in items:
-        text = item.get("text", "") if isinstance(item, dict) else getattr(item, "text", "")
-        if text:
-            texts.append(str(text))
-    return texts, reco_id, True
-
-
 def _match_materials(context: Context, node: str, image, slot_rois: list,
                      recognition_log: list[dict] | None = None) -> list[list[dict]]:
     """逐模板扫描材料栏，按图标中心归到数量槽位；坐标来自 pipeline。"""
@@ -211,19 +176,6 @@ def _current_recipe_materials(context: Context, params: dict, image) -> list[str
     if not names or len(set(names)) != len(names):
         raise RuntimeError("配方材料缺失或重复")
     return names
-
-
-def _unique_parsed(texts: list[str], pattern: str):
-    """只接受完整且唯一的读数；不猜斜杠、不拼接互相独立的 det 结果。"""
-    values = set()
-    for text in texts:
-        match = re.fullmatch(pattern, _clean(text))
-        if match:
-            values.add(tuple(int(value.replace(",", "")) for value in match.groups()))
-    return next(iter(values)) if len(values) == 1 else None
-
-
-_NUMBER = r"(0|[1-9][0-9]*|[1-9][0-9]{0,2}(?:,[0-9]{3})+)"
 
 
 def collect_cooking_stock(context: Context, params: dict, image) -> dict:
