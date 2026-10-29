@@ -12,7 +12,7 @@ from .arbitrage_purchase_lists import PURCHASE_NAME_VERSION
 
 
 SCHEMA_VERSION = 2
-MARKET_PARSER_VERSION = 6
+MARKET_PARSER_VERSION = 8
 MARKET_RETENTION_DAYS = 62
 OBSERVATION_LIMIT = 200
 
@@ -138,14 +138,17 @@ def _normalized_market_items(items: list[dict]) -> list[dict]:
 
 
 def get_market_snapshot(day: str | None = None) -> dict | None:
-    """读取当天完整且由当前解析器生成的共享行情；旧版上下行择优缓存需重扫。"""
+    """读取当天完整且由当前解析器生成的共享行情；旧版上下行择优缓存需重扫。
+
+    名称未确认的行不使整份作废：只记在 unconfirmed_names，各消费方按 name_confirmed
+    过滤（出售目标与补买价格都不采用），一个未收录物品不至于停掉整轮。
+    """
     with _LOCK:
         data = SharedStore.load()
         days = _dict_child(_dict_child(_root(data), "market"), "days")
         snapshot = days.get(day or market_day())
         if (not isinstance(snapshot, dict) or not snapshot.get("complete")
                 or snapshot.get("parser_version") != MARKET_PARSER_VERSION
-                or not snapshot.get("names_complete", True)
                 or not snapshot.get("prices_complete", True)):
             return None
         return copy.deepcopy(snapshot)
@@ -176,8 +179,8 @@ def save_market_snapshot(scan: dict, day: str | None = None) -> bool:
         previous = days.get(snapshot["day"])
         previous_usable = (isinstance(previous, dict) and previous.get("complete")
                            and previous.get("parser_version") == MARKET_PARSER_VERSION
-                           and previous.get("names_complete", True) and previous.get("prices_complete", True))
-        fresh_usable = snapshot["complete"] and snapshot["names_complete"] and snapshot["prices_complete"]
+                           and previous.get("prices_complete", True))
+        fresh_usable = snapshot["complete"] and snapshot["prices_complete"]
         if not (previous_usable and not fresh_usable):
             days[snapshot["day"]] = snapshot
         attempts = _list_child(market, "attempts")

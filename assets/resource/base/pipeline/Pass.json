@@ -174,7 +174,8 @@
             43
         ],
         "expected": [
-            "通行证"
+            "通行证",
+            "通行證"
         ],
         "action": "Click",
         "post_delay": 1000,

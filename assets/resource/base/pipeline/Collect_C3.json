@@ -129,7 +129,7 @@
         ]
     },
     "Collect_C3_Rehome": {
-        "desc": "从禁闭室回到传送阵，每次进卡只调用一次 | 清零 WayPoint 入口、告示板与到达的任务级计数后调用 Collect_WayPoint_Entry，在寻路列表里选旅馆，到达后步行回传送阵。 | 那几个 max_hit 是给单次调用防重跑的，别的卡先用掉会让这里无路可走，所以每次调用前重给一份。本节点 max_hit 1 由 Entry 清零。",
+        "desc": "从禁闭室回到传送阵，每次进卡只调用一次 | 清零 WayPoint 入口、两个寻路按钮、告示板与到达的任务级计数后调用 Collect_WayPoint_Entry，在寻路列表里选旅馆，到达后步行回传送阵。 | 那几个 max_hit 是给单次调用防重跑的，别的卡先用掉会让这里无路可走，所以每次调用前重给一份。本节点 max_hit 1 由 Entry 清零。",
         "max_hit": 1,
         "recognition": "Or",
         "any_of": [
@@ -141,6 +141,8 @@
         "custom_action_param": {
             "node_name": [
                 "Collect_WayPoint_Entry",
+                "Collect_WayPoint_Open_Tpl",
+                "Collect_WayPoint_Csm",
                 "Collect_WayPoint_Board",
                 "Collect_WayPoint_Arrived"
             ]
@@ -231,7 +233,8 @@
             32
         ],
         "expected": [
-            "禁闭室"
+            "禁闭室",
+            "禁閉室"
         ],
         "action": "Click",
         "target_offset": [

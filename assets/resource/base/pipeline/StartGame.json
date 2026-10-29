@@ -19,6 +19,7 @@
         "action": "Custom",
         "custom_action": "StartupCheckApp",
         "next": [
+            "StartGame_GameIsMaint",
             "StartGame_Update_Data",
             "StartGame_Update_Data_DownLoading",
             "StartGame_Loading",
@@ -137,6 +138,7 @@
         "post_delay": 5000,
         "timeout": 120000,
         "next": [
+            "StartGame_GameIsMaint",
             "StartGame_Update_PGM",
             "StartGame_Update_Data",
             "[JumpBack]StartGame_PayFailed",
@@ -145,8 +147,7 @@
             "StartGame_TouchStart",
             "StartGame_Loading",
             "StartGame_LoadingPage",
-            "[JumpBack]StartGame_ModMsg",
-            "StartGame_GameIsMaint"
+            "[JumpBack]StartGame_ModMsg"
         ],
         "focus": "SM.main"
     },
@@ -161,6 +162,7 @@
         ],
         "expected": [
             "更新通知",
+            "更新公告",
             "前往商店"
         ],
         "pre_wait_freezes": 5000,
@@ -179,7 +181,8 @@
             103
         ],
         "expected": [
-            "确认"
+            "确认",
+            "確認"
         ],
         "action": "Click",
         "post_delay": 8000,
@@ -289,7 +292,8 @@
             126
         ],
         "expected": [
-            "将下载游戏"
+            "将下载游戏",
+            "下載遊戲"
         ],
         "post_delay": 10000,
         "next": [
@@ -314,6 +318,7 @@
         "action": "Click",
         "post_delay": 30000,
         "next": [
+            "StartGame_GameIsMaint",
             "StartGame_Update_Data_DownLoading",
             "StartGame_Loading",
             "StartGame_TouchStart"
@@ -334,22 +339,17 @@
         ],
         "expected": [
             "正在下载",
+            "下載中",
             "下载中"
-        ],
-        "replace": [
-            [
-                "載",
-                "载"
-            ]
         ],
         "post_delay": 30000,
         "timeout": 8000,
         "next": [
-            "[JumpBack]StartGame_Update_Data_DownLoading",
             "[JumpBack]StartGame_PayFailed",
+            "StartGame_GameIsMaint",
+            "[JumpBack]StartGame_Update_Data_DownLoading",
             "StartGame_Loading",
-            "StartGame_TouchStart",
-            "StartGame_GameIsMaint"
+            "StartGame_TouchStart"
         ],
         "on_error": [
             "StartGame_LoadingPage"
@@ -368,11 +368,16 @@
         "expected": [
             "维护和更新",
             "无法连接和使用游戏",
+            "无法登入及使用游戏",
             "維護和更新",
-            "無法連線和使用遊戲"
+            "無法連線和使用遊戲",
+            "無法登入及使用遊戲"
         ],
         "action": "StopTask",
         "focus": {
+            "start": [
+                "游戏服务器维护中"
+            ],
             "toast": [
                 "游戏服务器维护中"
             ],
@@ -395,14 +400,14 @@
         "post_delay": 5000,
         "timeout": 120000,
         "next": [
+            "StartGame_GameIsMaint",
             "StartGame_Update_PGM",
             "StartGame_Update_Data",
             "[JumpBack]StartGame_PayFailed",
             "[JumpBack]StartGame_LinkDown",
             "StartGame_TouchStart",
             "StartGame_LoadingPage",
-            "StartGame_Loading",
-            "StartGame_GameIsMaint"
+            "StartGame_Loading"
         ],
         "focus": "SM.ORC游戏启动中"
     },
@@ -416,7 +421,8 @@
             329
         ],
         "expected": [
-            "支付失败"
+            "支付失败",
+            "付款失敗"
         ],
         "post_delay": 3000,
         "next": [
@@ -498,7 +504,8 @@
             41
         ],
         "expected": [
-            "推出全新"
+            "推出全新",
+            "新Pickup抽抽樂上市"
         ],
         "action": "Click",
         "post_delay": 2000,
@@ -535,7 +542,7 @@
         ],
         "expected": [
             "7天内不再显示",
-            "7日期間不再觀看"
+            "7天內不再顯示"
         ],
         "action": "Click",
         "post_delay": 1000,
@@ -713,7 +720,8 @@
             48
         ],
         "expected": [
-            "与服务器断开连接"
+            "与服务器断开连接",
+            "與伺服器連接中斷"
         ],
         "next": [
             "StartGame_LinkError2"
@@ -744,7 +752,9 @@
         ],
         "expected": [
             "API服务器连线发生错误",
-            "登录失败"
+            "與API伺服器連線時發生錯誤",
+            "登录失败",
+            "登入失敗"
         ],
         "action": "Click",
         "target": [
@@ -768,7 +778,9 @@
             "奖励已发放至",
             "獎勵已發送至",
             "奖励已通过",
+            "獎勵已透過",
             "邮件发放",
+            "郵件發放",
             "獎勵已透過郵件發放"
         ],
         "action": "Click",
@@ -809,7 +821,9 @@
         ],
         "expected": [
             "与服务器断开连接",
-            "检查网络"
+            "與伺服器連接中斷",
+            "检查网络",
+            "檢查網路"
         ],
         "action": "Click",
         "target": [

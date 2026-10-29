@@ -105,7 +105,8 @@
             385
         ],
         "expected": [
-            "支付失败"
+            "支付失败",
+            "付款失敗"
         ],
         "next": [
             "Dummy_Err_GetProductsFail_Ck"
@@ -120,7 +121,8 @@
             385
         ],
         "expected": [
-            "确认"
+            "确认",
+            "確認"
         ],
         "action": "Click"
     },

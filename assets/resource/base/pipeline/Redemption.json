@@ -147,7 +147,8 @@
             78
         ],
         "expected": [
-            "^(?=.*[救赎])(?=.*[之塔]).{3,5}$"
+            "救赎之塔",
+            "救贖之塔"
         ],
         "action": "Click",
         "post_delay": 3000,
@@ -164,7 +165,10 @@
             283,
             106
         ],
-        "expected": "继续第",
+        "expected": [
+            "继续第",
+            "繼續"
+        ],
         "focus": "REB.[ERROR]发现已存在的开局，退出流程"
     },
     "Redemption_Evil_Redemption_ListLast": {
@@ -279,7 +283,8 @@
                     46
                 ],
                 "expected": [
-                    "快速战斗"
+                    "快速战斗",
+                    "快速戰鬥"
                 ]
             },
             "Sub_Ocr_Enable_Clr"
@@ -308,7 +313,8 @@
             105
         ],
         "expected": [
-            "快速战斗"
+            "快速战斗",
+            "快速戰鬥"
         ],
         "pre_delay": 0,
         "post_delay": 0,
@@ -447,7 +453,8 @@
             88
         ],
         "expected": [
-            "钥匙不足"
+            "钥匙不足",
+            "鑰匙不足"
         ],
         "target": [
             568,
@@ -485,7 +492,8 @@
             29
         ],
         "expected": [
-            "战斗"
+            "战斗",
+            "戰鬥"
         ],
         "action": "Click",
         "post_delay": 8000,
@@ -503,7 +511,8 @@
             85
         ],
         "expected": [
-            "点击画面继续"
+            "点击画面继续",
+            "點擊畫面繼續"
         ],
         "action": "Click",
         "post_delay": 3000,

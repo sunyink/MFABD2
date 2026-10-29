@@ -80,19 +80,7 @@
     },
     "Collect_Skill3_3": {
         "all_of": [
-            {
-                "sub_name": "TemplateMatch",
-                "recognition": "TemplateMatch",
-                "roi": [
-                    1018,
-                    489,
-                    66,
-                    64
-                ],
-                "template": [
-                    "Skill3-2_PC.png"
-                ]
-            },
+            "Rec_<Collect_Skill3_3>_Tpl",
             {
                 "sub_name": "ColorMatch",
                 "recognition": "ColorMatch",
@@ -121,6 +109,17 @@
             }
         ]
     },
+    "Rec_<Collect_Skill3_3>_Tpl": {
+        "roi": [
+            1018,
+            489,
+            66,
+            64
+        ],
+        "template": [
+            "Skill3-2_PC.png"
+        ]
+    },
     "Collect_Skill3_2_Used": {
         "all_of": [
             {
@@ -140,10 +139,10 @@
                 "sub_name": "ColorMatch",
                 "recognition": "ColorMatch",
                 "roi": [
-                    985,
-                    555,
-                    72,
-                    69
+                    1009,
+                    583,
+                    5,
+                    11
                 ],
                 "lower": [
                     [
@@ -211,20 +210,7 @@
     },
     "Collect_Skill3_5": {
         "all_of": [
-            {
-                "sub_name": "TemplateMatch",
-                "recognition": "TemplateMatch",
-                "roi": [
-                    1160,
-                    492,
-                    74,
-                    70
-                ],
-                "template": [
-                    "Skill3-5 GE.png"
-                ],
-                "green_mask": true
-            },
+            "Rec_<Collect_Skill3_5>_Tpl",
             {
                 "sub_name": "ColorMatch",
                 "recognition": "ColorMatch",
@@ -251,6 +237,14 @@
                 ],
                 "count": 30
             }
+        ]
+    },
+    "Rec_<Collect_Skill3_5>_Tpl": {
+        "roi": [
+            1160,
+            492,
+            74,
+            70
         ]
     }
 }

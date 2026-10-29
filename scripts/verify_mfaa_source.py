@@ -14,21 +14,25 @@ SHA = "00000a" + "1" * 34
 TAG = "v2.16.2-mfbd2.g00000a"
 
 
-def make_manifest():
+def make_manifest(tag=TAG, sequence=None):
     packages = []
     for rid in mfaa_source.RIDS:
-        package_name = f"MFAAvalonia-{TAG}-{rid}" + (".zip" if rid.startswith("win-") else ".tar.gz")
+        package_name = f"MFAAvalonia-{tag}-{rid}" + (".zip" if rid.startswith("win-") else ".tar.gz")
         packages.append({"name": package_name, "size": 100 + len(rid), "sha256": hashlib.sha256(rid.encode()).hexdigest()})
-    return {
-        "schema": 1,
+    manifest = {
+        "schema": 1 if sequence is None else 2,
         "repository": mfaa_source.FORK,
         "branch": mfaa_source.FORK_BRANCH,
         "commit": SHA,
         "short_commit": SHA[:6],
         "upstream_tag": "v2.16.2",
-        "tag": TAG,
+        "tag": tag,
         "packages": packages,
     }
+    if sequence is not None:
+        manifest.pop("upstream_tag")
+        manifest.update(fork_sequence=sequence, upstream_version="v2.16.2")
+    return manifest
 
 
 def make_release(manifest=None):
@@ -41,7 +45,8 @@ def make_release(manifest=None):
     ]
     assets.append({"id": 123, "name": mfaa_source.MANIFEST, "size": len(raw),
                    "state": "uploaded", "digest": f"sha256:{hashlib.sha256(raw).hexdigest()}"})
-    return {"tag_name": TAG, "prerelease": True, "draft": False, "assets": assets}, raw
+    return {"tag_name": manifest["tag"], "target_commitish": SHA,
+            "prerelease": True, "draft": False, "assets": assets}, raw
 
 
 class ResolveSourceTests(unittest.TestCase):
@@ -80,7 +85,7 @@ class ResolveSourceTests(unittest.TestCase):
                 return {"sha": SHA}
             if path == f"repos/{mfaa_source.FORK}/releases?per_page=100&page=1":
                 return releases
-            if path == f"repos/{mfaa_source.FORK}/commits/{TAG}":
+            if path == f"repos/{mfaa_source.FORK}/commits/{release['tag_name']}":
                 return {"sha": tag_commit}
             raise AssertionError(f"Unexpected fetch path: {path}")
 
@@ -91,6 +96,48 @@ class ResolveSourceTests(unittest.TestCase):
         result = mfaa_source.resolve_source("v2.16.2", "00000A", fetch, download)
         self.assertEqual(result, {"repository": mfaa_source.FORK, "tag": TAG, "commit": SHA})
         download.assert_called_once_with(123)
+
+    def test_resolves_numbered_release_using_its_exact_source_commit(self):
+        for sequence in (6, 10):
+            tag = f"v2.16.2-MFABD2.beta.{sequence}"
+            fetch, download, _ = self.resolver(manifest=make_manifest(tag, sequence))
+            with self.subTest(sequence=sequence):
+                self.assertEqual(mfaa_source.resolve_source("v2.16.2", "00000a", fetch, download),
+                                 {"repository": mfaa_source.FORK, "tag": tag, "commit": SHA})
+
+    def test_numbered_release_for_another_source_is_not_selected(self):
+        manifest = make_manifest("v2.16.2-MFABD2.beta.6", 6)
+        fetch, download, _ = self.resolver(manifest=manifest,
+            release_edits=lambda release: release.update(target_commitish="b" * 40))
+        with self.assertRaises(ValueError):
+            mfaa_source.resolve_source("v2.16.2", "00000a", fetch, download)
+        download.assert_not_called()
+
+    def test_numbered_identity_rejects_wrong_schema_counter_baseline_and_source(self):
+        for key, value in (("schema", 1), ("fork_sequence", 5), ("fork_sequence", True),
+                           ("fork_sequence", 0), ("upstream_version", "v2.16.2-beta.1"),
+                           ("upstream_version", "v2.16.3"), ("short_commit", "bbbbbb")):
+            manifest = make_manifest("v2.16.2-MFABD2.beta.6", 6)
+            manifest[key] = value
+            fetch, download, _ = self.resolver(manifest=manifest)
+            with self.subTest(key=key, value=value), self.assertRaises(ValueError):
+                mfaa_source.resolve_source("v2.16.2", "00000a", fetch, download)
+
+    def test_historical_package_can_be_selected_through_a_numbered_release(self):
+        tag = "v2.16.2-MFABD2.beta.3"
+        fetch, download, _ = self.resolver(release_edits=lambda release: release.update(tag_name=tag))
+        self.assertEqual(mfaa_source.resolve_source("v2.16.2", "00000a", fetch, download),
+                         {"repository": mfaa_source.FORK, "tag": tag, "commit": SHA})
+
+    def test_historical_package_cannot_be_reassigned_to_another_base_or_reserved_number(self):
+        for tag, sequence in (("v2.17.0-MFABD2.beta.3", None), ("v2.16.2-MFABD2.beta.3", 5)):
+            manifest = make_manifest()
+            if sequence is not None:
+                manifest["fork_sequence"] = sequence
+            fetch, download, _ = self.resolver(manifest=manifest,
+                release_edits=lambda release: release.update(tag_name=tag))
+            with self.subTest(tag=tag, sequence=sequence), self.assertRaises(ValueError):
+                mfaa_source.resolve_source("v2.16.2", "00000a", fetch, download)
 
     def test_missing_duplicate_non_prerelease_and_wrong_target_releases_are_rejected(self):
         fetch, download, release = self.resolver(releases=[])
@@ -177,6 +224,25 @@ class VerifyExtractedTests(unittest.TestCase):
             self.write_stamp(root)
             with mock.patch("builtins.print"):
                 mfaa_source.verify_extracted(root, TAG, SHA, "linux-x64")
+
+    def test_numbered_package_and_unchanged_historical_package_both_verify(self):
+        tag = "v2.16.2-MFABD2.beta.6"
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self.write_stamp(root, schema=2, upstream_version="v2.16.2", fork_sequence=6, tag=tag)
+            with mock.patch("builtins.print"):
+                mfaa_source.verify_extracted(root, tag, SHA, "linux-x64")
+            self.write_stamp(root)
+            with mock.patch("builtins.print"):
+                mfaa_source.verify_extracted(root, "v2.16.2-MFABD2.beta.3", SHA, "linux-x64")
+
+    def test_extracted_numbered_stamp_cannot_claim_another_version(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self.write_stamp(root, schema=2, upstream_version="v2.16.2", fork_sequence=6,
+                             tag="v2.16.2-MFABD2.beta.6")
+            with self.assertRaises(ValueError):
+                mfaa_source.verify_extracted(root, "v2.16.2-MFABD2.beta.7", SHA, "linux-x64")
 
     def test_missing_multiple_wrong_rid_and_wrong_commit_stamps_are_rejected(self):
         with tempfile.TemporaryDirectory() as temp:

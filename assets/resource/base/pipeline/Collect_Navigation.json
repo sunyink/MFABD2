@@ -3,12 +3,53 @@
         "desc": "《卡带内导航模块》>>●开始>>【主流程】从进入箱庭开始，Collect_TargetMap系列主流程，每一个地图节点都包含大量子流程。通过下方地图名称通用前缀控制系列进度与退出（另一种思路是录入全部小地图名称）（另：起始包含一个图标点击托举异物Collect_FindPickupCat 不完善）。注意主流程子节点顺序。●>>找传送门>>【子流程1】初始节点_OperationsMain_Sandplay特殊卡带恢复。 | 【子流程2 FTC】找不到传送门。初始节点的error为进入强制传送门恢复模块。●>>进入传送地图后>>【子流程3】区域图强制进入白名单。Collect_TargetMap_Special_ClickTpCircleIco可复用的、无视地图前缀强制进入传送门（【重要】必须置于后面黑名单出口前。TargetMap系列主流程也要加上地图名）。 | 【子流程4】区域图越过黑名单，Collect_ClickTelepor_ButNotActive温和正则地图提示无传送阵、Collect_TeleporNotFind激进越过inverse判定故日常不应该触发（考虑删掉）。●>>命中出口>>● Collect_ClickTeleporCircleIco进入【技能模组】，技能模组结束会复位到下一站区域地图 ●>>非命中出口>>●【子流程5】拥有一套退出正则：Collect_QuickCart_TargetMapEnd温和识别关键词、Collect_Architecture_Underlying_Logic_Protection激进全局退出、Collect_OperationsEnd_NORight区域图到底、Collect_MapRight_NoFind区域图到底。"
     },
     "Collect_OperationsMain_Sandplay": {
-        "desc": "章节内主要操作开始；确认进入箱庭后沿通用流程采集。S18补采由正常收尾出口调用。",
+        "desc": "章节内主要操作开始；确认进入箱庭后清零本次寻路归位的命中次数，再沿通用流程采集。无法打开传送阵面板时，先尝试寻路列表归位，最多4次，随后交原传送技能链。回跳只重查next，不重复清零。S18补采由正常收尾出口调用。",
         "recognition": "Or",
         "any_of": [
             "Rec_SandBox_Pin_Tpl",
             "Rec_SandBox_Run_Tpl"
         ],
+        "action": "Custom",
+        "custom_action": "ClearNodeHitCount",
+        "custom_action_param": {
+            "node_name": [
+                "Collect_OperationsMain_ResetTag",
+                "Collect_WayPoint_Try",
+                "Collect_WayPoint_Entry",
+                "Collect_WayPoint_Open_Tpl",
+                "Collect_WayPoint_Csm",
+                "Collect_WayPoint_Board",
+                "Collect_WayPoint_Arrived"
+            ]
+        },
+        "anchor": {
+            "Pack_Click": ""
+        },
+        "post_delay": 1000,
+        "timeout": 5000,
+        "next": [
+            "[JumpBack]Collect_OperationsMain_ResetTag",
+            "Collect_OperationsMain_ToAreaMap",
+            "[JumpBack]Collect_Special_QR7-CW",
+            "[JumpBack]Collect_FindPickupCat",
+            "[JumpBack]StartGame_PerPetTask",
+            "[JumpBack]Collect_FindTeleporCircle0.9",
+            "[JumpBack]Collect_FindTeleporCircle"
+        ],
+        "on_error": [
+            "[JumpBack]Collect_WayPoint_Try",
+            "[JumpBack]Collect_Tab3",
+            "[JumpBack]Global_ToSandBox",
+            "Global_QuickCart_MenuReset",
+            "Global_Null_Exception",
+            "Global_Null_Panic"
+        ],
+        "focus": "CM.N.箱庭模块启动"
+    },
+    "Collect_OperationsMain_ResetTag": {
+        "desc": "每次进入通用箱庭流程时清理原有运行标签 | max_hit由Collect_OperationsMain_Sandplay清零，只执行一次；归位子流程回跳时不再清理，保留Tab3_OnFoot对原传送链的次数限制。",
+        "max_hit": 1,
+        "pre_delay": 0,
         "action": "Custom",
         "custom_action": "ResetTag",
         "custom_action_param": {
@@ -18,27 +59,7 @@
                 "NviMap_Sub_Err"
             ]
         },
-        "anchor": {
-            "Pack_Click": ""
-        },
-        "post_delay": 1000,
-        "timeout": 5000,
-        "next": [
-            "Collect_OperationsMain_ToAreaMap",
-            "[JumpBack]Collect_Special_QR7-CW",
-            "[JumpBack]Collect_FindPickupCat",
-            "[JumpBack]StartGame_PerPetTask",
-            "[JumpBack]Collect_FindTeleporCircle0.9",
-            "[JumpBack]Collect_FindTeleporCircle"
-        ],
-        "on_error": [
-            "[JumpBack]Collect_Tab3",
-            "[JumpBack]Global_ToSandBox",
-            "Global_QuickCart_MenuReset",
-            "Global_Null_Exception",
-            "Global_Null_Panic"
-        ],
-        "focus": "CM.N.箱庭模块启动"
+        "post_delay": 0
     },
     "Collect_FindPickupCat": {
         "desc": "猫咪已被拿起图标，",
@@ -188,13 +209,18 @@
         ],
         "expected": [
             "达普雷镇",
+            "達雷普鎮",
             "雷瓦汀基地",
             "拉勒凯镇",
+            "拉勒凱鎮",
             "罗戴夫镇",
+            "羅戴夫鎮",
             "科库托斯圣域",
-            "学校1楼",
-            "恶梦之城1",
-            "恶梦之城I",
+            "科庫托斯聖域",
+            "学校[1IⅠ]楼",
+            "學校[1IⅠ]樓",
+            "恶梦之城[1IⅠ]",
+            "惡夢城市[1IⅠ]",
             "安全"
         ],
         "replace": [
@@ -273,21 +299,28 @@
             47
         ],
         "expected": [
-            "卢戈森林",
+            "卢戈森林(?!深处)",
+            "盧戈森林(?!深處)",
             "封锁矿山",
+            "封閉的礦山",
             "加尔顿山前段",
+            "加爾頓山前段",
             "洞穴神殿",
             "贫民区",
+            "貧民區",
             "剑之神殿左侧回廊",
+            "劍之神殿左側迴廊",
             "童话镇旅馆",
+            "童話小鎮旅館",
             "第一记忆空间",
+            "第一個記憶空間",
             "官邸地",
             "卡勒塔市",
+            "卡爾塔市",
             "恶梦之城2",
-            "战斗I",
-            "战斗 I",
-            "战斗\\s*[1IⅠ!！](?!I)(?!Ⅰ)(?!！)(?!!)",
-            "战斗[1IⅠ](?!I)(?!Ⅰ)"
+            "惡夢城市2",
+            "战斗\\s*[1Il|Ⅰ!！](?![0-9A-Za-z|ⅠⅡⅢ!！])",
+            "戰鬥\\s*[1Il|Ⅰ!！](?![0-9A-Za-z|ⅠⅡⅢ!！])"
         ],
         "replace": [
             [
@@ -342,20 +375,25 @@
         ],
         "expected": [
             "卢戈森林深处",
+            "盧戈森林深處",
             "禁地矿山",
+            "禁止的礦山",
             "加尔顿山后段",
+            "加爾頓山後段",
             "隐藏神殿",
+            "隱藏的神殿",
             "盗贼据点",
+            "盜賊的祕密基地",
             "剑之神殿右侧回廊",
+            "劍之神殿右側迴廊",
             "雷瓦汀据点",
-            "第四[记記][忆憶]空[间間]",
+            "雷瓦汀祕密基地",
+            "第四记忆空间",
+            "第四個記憶空間",
             "禁闭室",
-            "战斗II",
-            "战斗Ⅱ",
-            "战斗 II",
-            "战斗 Ⅱ",
-            "战斗\\s*([1Il|Ⅰ!！][1Il|Ⅰ!！]|Ⅱ|II)(?!\\d)(?![a-zA-Z])",
-            "战斗([1Il|Ⅰ!！][1Il|Ⅰ!！]|Ⅱ|II)(?!\\d)(?![a-zA-Z])"
+            "禁閉室",
+            "战斗\\s*(?:[1Il|Ⅰ!！]{2}|Ⅱ)(?![0-9A-Za-z|ⅠⅡⅢ!！])",
+            "戰鬥\\s*(?:[1Il|Ⅰ!！]{2}|Ⅱ)(?![0-9A-Za-z|ⅠⅡⅢ!！])"
         ],
         "replace": [
             [
@@ -475,7 +513,8 @@
                     47
                 ],
                 "expected": [
-                    "第四[记記][忆憶]空[间間]"
+                    "第四记忆空间",
+                    "第四個記憶空間"
                 ]
             },
             {
@@ -841,6 +880,7 @@
             "雷瓦汀基地救护站",
             "雷瓦汀基地救護站",
             "拉勒凯旅馆",
+            "拉勒凱旅館",
             "罗戴夫旅馆",
             "羅戴夫旅館",
             "施塔因之塔宿舍",
@@ -965,7 +1005,7 @@
         "focus": "CQB.[INF]检测到QR6,进行合约之战特殊操作"
     },
     "Collect_ClickTeleporCircleIco": {
-        "desc": "详细地图内传送阵选择",
+        "desc": "[区域地图·点传送阵①]本页有传送阵图标 ⇒ 清零各点阵节点的命中次数,再先点白阵、没有白阵才点紫阵;灰阵(未激活)不点。3 秒内一个可点的都没有 ⇒ Collect_ClickTelepor_GiveUp 放弃本页。|模板 TpCircleMap 对白阵、灰阵都命中,本节点只当入口门和白阵候选来源,分类全靠下游色核。S06、PC 回阵借它的识别,不经过这里的动作。",
         "recognition": "TemplateMatch",
         "roi": [
             209,
@@ -976,90 +1016,243 @@
         "template": [
             "TpCircleMap.png"
         ],
+        "action": "Custom",
+        "custom_action": "ClearNodeHitCount",
+        "custom_action_param": {
+            "node_name": [
+                "Collect_ClickTelepor_TargetClass_White",
+                "Collect_ClickTelepor_TargetClass_White2",
+                "Collect_ClickTelepor_TargetClass_White3",
+                "Collect_ClickTelepor_TargetClass_Purple"
+            ]
+        },
+        "timeout": 3000,
         "next": [
-            "Collect_ClickTelepor_TargetClass_Purple",
-            "Collect_ClickTelepor_TargetClass_White"
+            "Collect_ClickTelepor_TargetClass_White",
+            "Collect_ClickTelepor_TargetClass_Purple"
+        ],
+        "on_error": [
+            "Collect_ClickTelepor_GiveUp",
+            "Global_Null"
         ],
         "focus": "CM.N.区域地图.tp1.找到传送阵图标"
     },
-    "Collect_ClickTelepor_TargetClass_Purple": {
-        "desc": "紫色传送阵,点一次就消失了,留下一个位置异常.应该去点白色",
-        "recognition": "ColorMatch",
-        "roi": "Collect_ClickTeleporCircleIco",
-        "lower": [
-            119,
-            90,
-            145
-        ],
-        "upper": [
-            210,
-            144,
-            255
-        ],
-        "count": 1,
-        "timeout": 3000,
-        "next": [
-            "Collect_ClickTelepor_TargetClass_PurpleProcess"
-        ],
-        "on_error": [
-            "Collect_ClickTelepor_TargetClass_White",
-            "Global_Null_Exception",
-            "Global_Null_Panic"
-        ],
-        "focus": "CTB.[WRN]识别首选为紫色技能传送阵,尝试规避"
-    },
-    "Collect_ClickTelepor_TargetClass_PurpleProcess": {
-        "recognition": "TemplateMatch",
-        "roi": [
-            100,
-            71,
-            1133,
-            534
-        ],
-        "template": [
-            "TpCircleMap.png"
-        ],
-        "index": 1,
-        "action": "Click",
-        "post_delay": 5000,
-        "next": [
-            "[Anchor]SandBox_Bypass",
-            "Collect_Skill_Entry",
-            "Collect_ClickTelepor_TargetClass_PurpleProcess",
-            "[JumpBack]Global_WaitingForLoading"
-        ],
-        "focus": "CM.N.选择次选传送阵"
-    },
     "Collect_ClickTelepor_TargetClass_White": {
-        "desc": "[区域地图·点传送阵②]非紫色首选 ⇒ 点该页圈图标。★2026-10-02 本地:①识别面加【仍在面板上】的守卫 —— `And[Or[面板标题OCR Collect_OperationsMain_ToAreaMap, 右箭头 Collect_MapRight, 左箭头 Collect_OperationsEnd_NORight], Or[圈模板 Collect_ClickTeleporCircleIco]]`。原因:圈模板 `TpCircleMap.png` **在场景里也命中地面传送阵图标**,next 里的自我重试会在到达后再次命中 ⇒ 实测把【技能传送】之后的第二次点击打在了地面传送阵上(传送阵1 → 传送阵2,即用户 2026-10-02 报的多余传送)。加守卫后面板一关就不再点击 ✓。②next 顺序:把 `[JumpBack]Global_WaitingForLoading` 提到自我重试**之前** —— 转场还在载入时先等载入,只有【面板还在且第一次真空点】才重试。动作与点击目标(target=Collect_ClickTeleporCircleIco)未变。 ★2026-10-02 修:And 的子识别顺序必须【圈在前、面板守卫在后】—— And 的 box 取 box_index(默认0)对应子识别的框,实测(13:14:04) 面板守卫排前面时点击框变成面板标题框 [154,20,178,40] ⇒ 点偏;圈排前面后点击框回到圈图标框(与改动前一致)。",
+        "desc": "[区域地图·点传送阵②]点本页左起第 1 个白阵(已激活)。候选是 Collect_ClickTeleporCircleIco 的全部模板框,白色核(HSV 低饱和高亮,框内至少 40 像素)筛掉灰阵和串进来的紫阵;再要求区域地图面板仍开着。点了没传送 ⇒ 再点自己,max_hit 用完依次让给 White2 → White3 → Purple → GiveUp。|面板守卫:TpCircleMap 在场景里也命中地面传送阵,没有守卫时到达后会再点一次(10-02 实测多传送一次)。And 里候选在前、守卫在后,box_index 0 才是图标框(10-02 守卫排前时点到了标题)。载入等待排在自我重试之前,转场中先等载入。|2026-10-26 重构(#566):原先不分灰白只点模板最左的那个,count=1 的 RGB 紫色判定又会把图标边缘的 [144,144,145] 灰像素当紫,灰阵点了不传送就无限自环。现在点击前按颜色分类,点击后靠 max_hit 封顶,命中次数由 Collect_ClickTeleporCircleIco 每次选阵清零。色核标定(无损 PNG,框内像素):白阵 base 233–262、PC 105–116,灰阵两端 0,紫阵 0。",
+        "max_hit": 4,
         "recognition": "And",
         "all_of": [
             {
-                "recognition": "Or",
-                "any_of": [
-                    "Collect_ClickTeleporCircleIco"
-                ]
+                "recognition": "And",
+                "all_of": [
+                    "Collect_ClickTeleporCircleIco",
+                    {
+                        "recognition": "ColorMatch",
+                        "roi": "Collect_ClickTeleporCircleIco",
+                        "method": 40,
+                        "lower": [
+                            0,
+                            0,
+                            200
+                        ],
+                        "upper": [
+                            180,
+                            50,
+                            255
+                        ],
+                        "count": 40,
+                        "order_by": "Horizontal",
+                        "index": 0
+                    }
+                ],
+                "box_index": 1
             },
-            {
-                "recognition": "Or",
-                "any_of": [
-                    "Collect_OperationsMain_ToAreaMap",
-                    "Collect_MapRight",
-                    "Collect_OperationsEnd_NORight"
-                ]
-            }
+            "Cpt_Collect_AreaMapOpen_Ocr"
         ],
         "box_index": 0,
         "action": "Click",
-        "target": "Collect_ClickTeleporCircleIco",
         "post_delay": 5000,
         "next": [
             "[Anchor]SandBox_Bypass",
             "Collect_Skill_Entry",
             "[JumpBack]Global_WaitingForLoading",
-            "Collect_ClickTelepor_TargetClass_White"
+            "Collect_ClickTelepor_TargetClass_White",
+            "Collect_ClickTelepor_TargetClass_White2",
+            "Collect_ClickTelepor_TargetClass_White3",
+            "Collect_ClickTelepor_TargetClass_Purple",
+            "Collect_ClickTelepor_GiveUp"
         ],
-        "focus": "CM.N.区域地图.tp1.选择首选传送阵图标"
+        "focus": "CM.N.区域地图.tp1.点第1个白阵"
+    },
+    "Collect_ClickTelepor_TargetClass_White2": {
+        "desc": "[区域地图·点传送阵②]左起第 1 个白阵点满 max_hit 仍不传送 ⇒ 点第 2 个白阵。识别与 White 相同,只差色核的 index。本页只有 1 个白阵时识别不中,直接让给下一项。",
+        "max_hit": 4,
+        "recognition": "And",
+        "all_of": [
+            {
+                "recognition": "And",
+                "all_of": [
+                    "Collect_ClickTeleporCircleIco",
+                    {
+                        "recognition": "ColorMatch",
+                        "roi": "Collect_ClickTeleporCircleIco",
+                        "method": 40,
+                        "lower": [
+                            0,
+                            0,
+                            200
+                        ],
+                        "upper": [
+                            180,
+                            50,
+                            255
+                        ],
+                        "count": 40,
+                        "order_by": "Horizontal",
+                        "index": 1
+                    }
+                ],
+                "box_index": 1
+            },
+            "Cpt_Collect_AreaMapOpen_Ocr"
+        ],
+        "box_index": 0,
+        "action": "Click",
+        "post_delay": 5000,
+        "next": [
+            "[Anchor]SandBox_Bypass",
+            "Collect_Skill_Entry",
+            "[JumpBack]Global_WaitingForLoading",
+            "Collect_ClickTelepor_TargetClass_White2",
+            "Collect_ClickTelepor_TargetClass_White3",
+            "Collect_ClickTelepor_TargetClass_Purple",
+            "Collect_ClickTelepor_GiveUp"
+        ],
+        "focus": "CM.N.[WRN]第1个白阵点了不传送,改点第2个白阵"
+    },
+    "Collect_ClickTelepor_TargetClass_White3": {
+        "desc": "[区域地图·点传送阵②]第 2 个白阵也点满 max_hit ⇒ 点第 3 个白阵。识别与 White 相同,只差色核的 index。一页一般最多 2 个白阵,这一项是保险。",
+        "max_hit": 4,
+        "recognition": "And",
+        "all_of": [
+            {
+                "recognition": "And",
+                "all_of": [
+                    "Collect_ClickTeleporCircleIco",
+                    {
+                        "recognition": "ColorMatch",
+                        "roi": "Collect_ClickTeleporCircleIco",
+                        "method": 40,
+                        "lower": [
+                            0,
+                            0,
+                            200
+                        ],
+                        "upper": [
+                            180,
+                            50,
+                            255
+                        ],
+                        "count": 40,
+                        "order_by": "Horizontal",
+                        "index": 2
+                    }
+                ],
+                "box_index": 1
+            },
+            "Cpt_Collect_AreaMapOpen_Ocr"
+        ],
+        "box_index": 0,
+        "action": "Click",
+        "post_delay": 5000,
+        "next": [
+            "[Anchor]SandBox_Bypass",
+            "Collect_Skill_Entry",
+            "[JumpBack]Global_WaitingForLoading",
+            "Collect_ClickTelepor_TargetClass_White3",
+            "Collect_ClickTelepor_TargetClass_Purple",
+            "Collect_ClickTelepor_GiveUp"
+        ],
+        "focus": "CM.N.[WRN]第2个白阵点了不传送,改点第3个白阵"
+    },
+    "Collect_ClickTelepor_TargetClass_Purple": {
+        "desc": "[区域地图·点传送阵②]本页没有能用的白阵 ⇒ 点紫阵(传送技能放的临时阵)凑数。候选是 Rec_<Collect_ClickTelepor_TargetClass_Purple>_Tpl 的全部模板框,紫色核(HSV 紫色,框内至少 80 像素)确认,面板守卫同 White。max_hit 用完 ⇒ GiveUp。|紫模板与白阵、灰阵互相串匹配(实测 0.65),只能靠色核分。色核标定(无损 PNG,框内像素):紫阵 base 545、PC 243–245,白阵与灰阵 0。紫阵一般没有,一页最多一个。",
+        "max_hit": 4,
+        "recognition": "And",
+        "all_of": [
+            {
+                "recognition": "And",
+                "all_of": [
+                    "Rec_<Collect_ClickTelepor_TargetClass_Purple>_Tpl",
+                    {
+                        "recognition": "ColorMatch",
+                        "roi": "Rec_<Collect_ClickTelepor_TargetClass_Purple>_Tpl",
+                        "method": 40,
+                        "lower": [
+                            120,
+                            60,
+                            110
+                        ],
+                        "upper": [
+                            165,
+                            255,
+                            255
+                        ],
+                        "count": 80,
+                        "order_by": "Horizontal"
+                    }
+                ],
+                "box_index": 1
+            },
+            "Cpt_Collect_AreaMapOpen_Ocr"
+        ],
+        "box_index": 0,
+        "action": "Click",
+        "post_delay": 5000,
+        "next": [
+            "[Anchor]SandBox_Bypass",
+            "Collect_Skill_Entry",
+            "[JumpBack]Global_WaitingForLoading",
+            "Collect_ClickTelepor_TargetClass_Purple",
+            "Collect_ClickTelepor_GiveUp"
+        ],
+        "focus": "CM.N.[WRN]区域地图没有可用白阵,改点紫阵"
+    },
+    "Rec_<Collect_ClickTelepor_TargetClass_Purple>_Tpl": {
+        "desc": "[识别]区域地图上的紫阵图标候选。与 TpCircleMap 互相串匹配,单用不可靠,必须接紫色核。",
+        "recognition": "TemplateMatch",
+        "roi": [
+            209,
+            82,
+            912,
+            487
+        ],
+        "template": [
+            "TpCircleMapPurple.png"
+        ],
+        "order_by": "Horizontal"
+    },
+    "Cpt_Collect_AreaMapOpen_Ocr": {
+        "desc": "[运算]区域地图面板仍开着:标题、右箭头、或没有右箭头时的左箭头任一可见。点阵节点靠它防止面板关闭后点到场景里的地面传送阵。",
+        "recognition": "Or",
+        "any_of": [
+            "Collect_OperationsMain_ToAreaMap",
+            "Collect_MapRight",
+            "Collect_OperationsEnd_NORight"
+        ]
+    },
+    "Collect_ClickTelepor_GiveUp": {
+        "desc": "[区域地图·点传送阵③]本页没有可点的传送阵,或白阵、紫阵都点满 max_hit 仍不传送 ⇒ 放弃本页,交 Collect_OperationsMain_OperationsEnd 往右翻。识别与 OperationsEnd 相同(面板标题),保证命中后下家接得住;传送途中面板已关,不会误触。",
+        "recognition": "Or",
+        "any_of": [
+            "Collect_OperationsMain_ToAreaMap"
+        ],
+        "pre_delay": 0,
+        "post_delay": 0,
+        "next": [
+            "Collect_OperationsMain_OperationsEnd"
+        ],
+        "focus": "CM.N.[WRN]本页传送阵都不可用(未激活或点了不传送),放弃本页"
     },
     "Collect_Skill_Entry": {
         "desc": "[入口]调用快捷技能模块,传入状态参数。当前只传出口锚QuickSkill_Egress→Collect_Skill_Egress,清锚由Egress自己做。【识别不可改成DirectHit】它同时兼任'确实已进箱庭'的门禁,必中会让上游调用点的自引用重试永远轮不到。",
@@ -1122,7 +1315,10 @@
             262,
             47
         ],
-        "expected": "^(?=.*[没有])(?=.*[已激活的])(?=.*[魔法阵]).{6,}$",
+        "expected": [
+            "没有已激活的魔法阵",
+            "沒有已啟用的魔法陣"
+        ],
         "next": [
             "Collect_OperationsMain_OperationsEnd"
         ],
@@ -1173,9 +1369,12 @@
         ],
         "expected": [
             "达普雷镇",
+            "達雷普鎮",
             "雷瓦汀基地",
             "拉勒凯镇",
+            "拉勒凱鎮",
             "罗戴夫镇",
+            "羅戴夫鎮",
             "安全"
         ],
         "action": "Click",
@@ -1441,23 +1640,25 @@
         ],
         "expected": [
             "达雷普旅馆",
+            "達雷普旅館",
             "雷瓦汀基地救护站",
+            "雷瓦汀基地救護站",
             "拉勒凯旅馆",
+            "拉勒凱旅館",
             "罗戴夫旅馆",
+            "羅戴夫旅館",
             "封印指定室",
             "被遗忘的神殿",
-            "学校操场",
-            "禁闭室",
-            "第四[记記][忆憶]空[间間]",
-            "旅馆$",
-            "安全",
-            "達雷普旅館",
-            "雷瓦汀基地救護站",
-            "羅戴夫旅館",
             "被遺忘的神殿",
+            "学校操场",
             "學校操場",
+            "禁闭室",
             "禁閉室",
-            "旅館$"
+            "第四记忆空间",
+            "第四個記憶空間",
+            "旅馆$",
+            "旅館$",
+            "安全"
         ],
         "focus": "CM.N.卡带内流程进入END环节"
     },

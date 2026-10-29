@@ -29,6 +29,7 @@ from maa.agent.agent_server import AgentServer
 with patch.object(AgentServer, "custom_action", return_value=lambda cls: cls), \
      patch.object(AgentServer, "custom_recognition", return_value=lambda cls: cls), \
      patch.object(AgentServer, "_set_api_properties"), \
+     patch.object(AgentServer, "tasker_sink", return_value=lambda cls: cls), \
      patch.object(AgentServer, "context_sink", return_value=lambda cls: cls):
     from action.arbitrage_buy_precise import buy_overrides
     from action.arbitrage_sell_quantity import parse_quantity
@@ -44,10 +45,12 @@ BASE = json.loads((ROOT / "assets/resource/base/pipeline/Arbitrage.json").read_t
 PC_PATH = ROOT / "assets/resource/pc/pipeline/Arbitrage.json"
 PC = json.loads(PC_PATH.read_text("utf-8")) if PC_PATH.exists() else {}
 HAS_PC = bool(PC)
-# Real UI wording and known translations, independent of the patterns under test.
+# Game-text pairs from the 2026-10-29 export, independent of the patterns under
+# test. Pipeline rows use Simplified then the corresponding localized Traditional
+# wording. Mixed OCR parsing in Python is checked separately below.
 UI_CASES = {
     "Arbitrage_NviGuide_CKMsgBox_Ocr": ["确认", "確認"],
-    "Arbitrage_Bargaining_SkillList": ["砍价", "砍價", "討價還價"],
+    "Arbitrage_Bargaining_SkillList": ["砍价", "讨价还价", "討價還價"],
     "Arbitrage_Bargaining_Msgbox_Ck": ["砍价", "討價還價"],
     "Arbitrage_Merchant_Egress": ["购买", "購買", "出售", "販售"],
     "Arbitrage_Merchant_Close_Ck": ["关闭商店", "關閉商店"],
@@ -57,11 +60,11 @@ UI_CASES = {
     "Arbitrage_Favorit_Buy_SubMenu_BuyAction": ["确认", "確認"],
     "Arbitrage_Favorit_Buy_Empty": ["没有可以购买的商品", "沒有可以購買的商品"],
     "Arbitrage_Merchant_BuyMsg_Button": ["购买", "購買"],
-    "Arbitrage_PriceList_Open_Entry": ["价目表", "價目表", "販售行情表"],
+    "Arbitrage_PriceList_Open_Entry": ["价目表", "贩售行情表", "販售行情表"],
     "Arbitrage_PriceList_Open_Egress": ["价目表", "販售行情表"],
-    "Arbitrage_PriceList_Sort_Select": ["溢价率", "溢價率", "加價率"],
+    "Arbitrage_PriceList_Sort_Select": ["溢价率", "加价率", "加價率"],
     "Arbitrage_ItemList_Sorting_Type_Not_Change": ["溢价率", "加價率"],
-    "Arbitrage_Sell_Item_ListTraverse_End": ["圣石", "聖石", "装备材料", "裝備材料", "装備材料"],
+    "Arbitrage_Sell_Item_ListTraverse_End": ["圣石", "聖石", "装备材料", "裝備材料"],
     "Arbitrage_Sell_Item_ListTraverse_End_Recipes": ["圣石", "聖石", "裝備材料", "料理食材"],
     "Rec_<Arbitrage_Sell_Item_SellMenu>_Ocr_01": ["出售", "販售"],
     "Arbitrage_Sell_Item_Selling": ["出售", "販售"],
@@ -69,19 +72,19 @@ UI_CASES = {
     "Arbitrage_SellB_SubMenu": ["溢价率", "加價率"],
     "Arbitrage_Cooking_Menu_Reset_SubOut": ["所需材料", "需要的材料"],
     "Arbitrage_Cooking_Menu_ReBack": ["所需材料", "需要的材料"],
-    "Arbitrage_Cooking_SubMenu": ["拥有", "擁有", "持有", "立刻恢复", "立即恢復", "1個食物"],
+    "Arbitrage_Cooking_SubMenu": ["拥有", "持有", "立刻恢复", "立即恢复", "立即恢復", "1個食物"],
     "Arbitrage_BagStockScan_Sort_Menu": ["优先", "優先", "排序"],
     "Arbitrage_BagStockScan_Sort_Menu_Set": ["料理食材优先", "料理食材優先", "料理食材由多至少排序"],
     "Arbitrage_BagStockScan_Sort_Egress": ["按料理食材数量从低到高排序", "料理食材由少至多排序"],
-    "Agt_BuyQuantity_Available_Ocr": ["可购买400个", "可購買400個", "可购買400個"],
-    "Agt_BuyConfirm_Ocr": ["购买", "購買", "购買"],
+    "Agt_BuyQuantity_Available_Ocr": ["可购买400个", "可購買400個"],
+    "Agt_BuyConfirm_Ocr": ["购买", "購買"],
     "Arbitrage_Sell_Item_ListReset_Sell_Chg": ["出售", "販售"],
     "Arbitrage_Sell_Item_ListReset_PostOcr": ["食物", "料理"],
     "Rec_<Arbitrage_Merchant_Dialog>_Ocr": ["天赋技能", "天賦技能"],
 }
 COMPOSITES = {
     "Arbitrage_Favorit_Buy": (0, ["购买全部收藏", "一鍵購買全部收藏"]),
-    "Arbitrage_PriceList_Sort_Check": (0, ["从高到低", "從高到低", "降序"]),
+    "Arbitrage_PriceList_Sort_Check": (0, ["从高到低", "降序"]),
     "Arbitrage_ItemList_Sorting_Reverse": (0, ["从高到低", "降序"]),
     "Arbitrage_Bag_TabReset_Coll": (1, ["收集品", "收藏品"]),
     "Arbitrage_Bag_TabReset_Cons": (1, ["消耗品"]),
@@ -99,8 +102,8 @@ SHOPS = {
            "复仇的誓言|復仇的誓約", "三国同盟|三國同盟", "试炼之路|試煉之路", "救赎|救贖",
            "被遗忘的战争|被遺忘的戰爭"],
     "QR": ["杰登之门|傑登之門", "火晶片|火片", "美丽无望|不可能的美麗", "大逃脱|大逃脫",
-           "鲁的迷宫|魯的迷宮", "御剑传|御劍傳", "合约之战|合約之戰"],
-    "QE": ["夏日骑士|夏天騎士", "恶梦之冬|惡夢之冬", "海滨天使|海邊天使", "记忆边缘|記憶邊緣",
+           "鲁的迷宫|魯的迷宮", "御剑传|劍傳", "合约之战|合約之戰"],
+    "QE": ["夏日骑士|夏天騎士", "恶梦之冬|夢靨冬季", "海滨天使|海邊天使", "记忆边缘|記憶邊緣",
            "戏水女王|戲水女王"],
 }
 

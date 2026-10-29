@@ -53,7 +53,7 @@
         ],
         "expected": [
             "活动服装",
-            "活動服装"
+            "活動服裝"
         ]
     },
     "Rec_<Event_Event_Main>_Ocr_02": {
@@ -67,8 +67,8 @@
         ],
         "expected": [
             "普通战斗",
-            "魔兽追踪者",
             "一般戰鬥",
+            "魔兽追踪者",
             "魔獸追蹤者"
         ]
     },
@@ -286,7 +286,7 @@
         "recognition": "Or",
         "any_of": [
             "SeasonEvent_TabTo_Nomarl",
-            "SeasonEvent_TabTo_Challenge"
+            "Rec_EnterlBattle_IsNomarl"
         ],
         "pre_delay": 0,
         "post_delay": 0,
@@ -473,8 +473,9 @@
         ],
         "expected": [
             "挑战",
+            "挑戰",
             "血界中死战",
-            "挑戰"
+            "血界中的死鬥"
         ],
         "anchor": {
             "Auto_Battle": "SeasonEvent_EnterlBattle_Normal"
@@ -490,21 +491,7 @@
         "max_hit": 1,
         "recognition": "And",
         "all_of": [
-            {
-                "recognition": "OCR",
-                "roi": [
-                    175,
-                    8,
-                    296,
-                    75
-                ],
-                "expected": [
-                    "普通",
-                    "修炼",
-                    "血染的结界",
-                    "一般戰鬥"
-                ]
-            },
+            "Rec_EnterlBattle_IsNomarl",
             {
                 "sub_name": "OCR",
                 "recognition": "OCR",
@@ -529,6 +516,23 @@
             "[JumpBack]Global_BackPageHub_Once"
         ],
         "focus": "普通模式存在快速战斗,前往挑战模式"
+    },
+    "Rec_EnterlBattle_IsNomarl": {
+        "recognition": "OCR",
+        "roi": [
+            175,
+            8,
+            296,
+            75
+        ],
+        "expected": [
+            "普通",
+            "一般戰鬥",
+            "修炼",
+            "修練",
+            "血染的结界",
+            "染血的結界"
+        ]
     },
     "SeasonEvent_BackedToSubMain": {
         "recognition": "And",
@@ -653,8 +657,8 @@
             222
         ],
         "expected": [
-            "小活动",
-            "迷你[游遊][戏戲]"
+            "(?:小活动|迷你游戏)",
+            "迷你遊戲"
         ],
         "action": "Click",
         "target_offset": [
@@ -734,8 +738,8 @@
             391
         ],
         "expected": [
-            "开始答题",
-            "^解[题題]"
+            "开始答题|^解题",
+            "^解題"
         ],
         "order_by": "Vertical",
         "action": "Click",
@@ -1194,7 +1198,7 @@
                 ],
                 "expected": [
                     "可练习战斗",
-                    "可進行練習"
+                    "可進行練習戰鬥"
                 ]
             }
         ],
@@ -1269,7 +1273,7 @@
         ],
         "expected": [
             "距离开始还",
-            "距離開始還"
+            "距離開始還有"
         ],
         "only_rec": true
     },
@@ -1631,7 +1635,9 @@
             118,
             430
         ],
-        "expected": "使用",
+        "expected": [
+            "使用"
+        ],
         "action": "Click",
         "post_delay": 8000,
         "next": [
@@ -1659,8 +1665,8 @@
             33
         ],
         "expected": [
-            "確認",
-            "确认"
+            "确认",
+            "確認"
         ],
         "action": "Click",
         "post_delay": 2000,
@@ -1934,7 +1940,7 @@
         ],
         "expected": [
             "小活动",
-            "小活動"
+            "迷你遊戲"
         ],
         "action": "Click",
         "target_offset": [
@@ -1962,7 +1968,8 @@
             643
         ],
         "expected": [
-            "战场探索"
+            "战场探索",
+            "場域任務"
         ],
         "action": "Click",
         "post_delay": 1000,
@@ -2039,7 +2046,8 @@
             32
         ],
         "expected": [
-            "确认"
+            "确认",
+            "確認"
         ],
         "action": "Click",
         "post_delay": 5000,
@@ -2103,7 +2111,7 @@
         "desc": "判断当前战斗:为普通难度.(已移除:已在上方适配Event_Battle_TabAutoBattle_ChangeDifficulty_Back)",
         "recognition": "And",
         "all_of": [
-            "SeasonEvent_TabTo_Challenge"
+            "Rec_EnterlBattle_IsNomarl"
         ],
         "next": [
             "Event_Battle_TabAutoBattle_Battle"
@@ -2123,6 +2131,7 @@
     },
     "Event_Battle_TabAutoBattle_Battle": {
         "desc": "点击手动战斗",
+        "max_hit": 8,
         "recognition": "And",
         "all_of": [
             "SeasonEvent_NormlBattle"
@@ -2133,7 +2142,8 @@
             "AutoBattle_Entry",
             "[JumpBack]AutoBattle_Egress_TurnBack_SkipTalk",
             "[JumpBack]Global_WaitingForLoading",
-            "Event_NoHaveAP"
+            "Event_NoHaveAP",
+            "Event_Battle_TabAutoBattle_Battle"
         ],
         "focus": "点击非快速战斗按钮"
     },

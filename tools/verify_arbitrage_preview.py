@@ -167,6 +167,23 @@ class ArbitragePreviewTests(unittest.TestCase):
         snapshot["items"][0]["current_rate"] = None
         self.assertFalse(ar._possession_scan_plan(snapshot, recipes)["usable"])
 
+    def test_possession_plan_falls_back_when_peak_name_unconfirmed(self):
+        recipes = {"蘑菇汤"}
+        unknown = {**item("蘑菇渴", current_rate=120), "name_confirmed": False}
+        # 唯一的峰值行名字未确认：不能当作"没有峰值料理"而跳过持有物扫描。
+        plan = ar._possession_scan_plan({"complete": True, "items": [unknown]}, recipes)
+        self.assertFalse(plan["usable"])
+        self.assertFalse(plan["skip"])
+        # 同页还有已确认的峰值料理时，同样退回全量扫描，不拿部分目标收窄范围。
+        plan = ar._possession_scan_plan(
+            {"complete": True, "items": [item("蘑菇汤", current_rate=118), unknown]}, recipes)
+        self.assertFalse(plan["usable"])
+        # 未确认的只是非峰值行，不影响收窄。
+        unknown["is_max_price"] = False
+        plan = ar._possession_scan_plan({"complete": True, "items": [unknown]}, recipes)
+        self.assertTrue(plan["usable"])
+        self.assertTrue(plan["skip"])
+
     def test_possession_scan_stops_after_ordered_page_crosses_dynamic_boundary(self):
         context = Context()
         controller = ar.ArbitrageSellController()

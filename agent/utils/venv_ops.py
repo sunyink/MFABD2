@@ -140,9 +140,11 @@ def client_maafw_version():
 def installed_maafw_version():
     """只读 dist-info，不加载原生库。"""
     try:
-        return importlib.metadata.version("maafw")
+        raw = importlib.metadata.version("maafw")
     except importlib.metadata.PackageNotFoundError:
         return None
+    # maafw 5.14.3 的元数据写的是 Version: v5.14.3，pip 规范化时去掉 v，这里读到的是原样
+    return normalize_version(raw) or raw
 
 def pending_changes(project_root: Path, venv_path: Path, target) -> list:
     pending = []
@@ -283,7 +285,10 @@ def _installed_maafw(python: Path):
     result = subprocess.run( # nosec
         [str(python), "-c", "import importlib.metadata as m; print(m.version('maafw'))"],
         capture_output=True, text=True)
-    return result.stdout.strip() if result.returncode == 0 else None
+    if result.returncode != 0:
+        return None
+    raw = result.stdout.strip()
+    return normalize_version(raw) or raw  # 同 installed_maafw_version，去掉元数据里的 v
 
 def find_preferred_python() -> str:
     if sys.platform == "win32":

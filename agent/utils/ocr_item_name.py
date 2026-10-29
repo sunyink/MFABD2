@@ -26,6 +26,12 @@ def is_category_label(text):
 
 
 @lru_cache(maxsize=1)
+def _extra_item_names():
+    path = Path(__file__).resolve().parents[1] / "data" / "bd2_item_names_extra.json"
+    return json.loads(path.read_text(encoding="utf-8"))["items"]
+
+
+@lru_cache(maxsize=1)
 def item_aliases():
     data = Path(__file__).resolve().parents[1] / "data"
     items = json.loads((data / "bd2_item_names_i18n.json").read_text(encoding="utf-8"))
@@ -35,7 +41,9 @@ def item_aliases():
     # Recognize those before deciding they are not on the purchase list.
     shops = json.loads((data / "arbitrage_shop_catalog.json").read_text(encoding="utf-8"))
     allowed.update(name for shop in shops["cartridges"].values() for name in shop["items"])
-    aliases = {clean(item[key]): item["cn"] for item in items if item.get("cn") in allowed
+    extra = _extra_item_names()
+    allowed.update(item["cn"] for item in extra)
+    aliases = {clean(item[key]): item["cn"] for item in items + extra if item.get("cn") in allowed
                for key in ("cn", "tw") if item.get(key)}
     aliases.update({clean(k): v for k, v in json.loads(
         (data / "bd2_name_norm_tw2cn.json").read_text(encoding="utf-8")).items() if v in allowed})
@@ -43,6 +51,9 @@ def item_aliases():
 
 
 def name_candidates(text, aliases=None):
+    # Supplementary translations are incomplete: a one-character guess must not
+    # turn an unverified contract tier or slime color into the only known alias.
+    exact_only = {item["cn"] for item in _extra_item_names()} if aliases is None else set()
     aliases = item_aliases() if aliases is None else aliases
     text = clean(text)
     if text in aliases:
@@ -50,7 +61,8 @@ def name_candidates(text, aliases=None):
     if len(text) < 2:
         return set(), "short_unknown"
     # Collapse spelling aliases before deciding whether the item is unique.
-    candidates = {canonical for alias, canonical in aliases.items() if len(alias) == len(text)
+    candidates = {canonical for alias, canonical in aliases.items() if canonical not in exact_only
+                  and len(alias) == len(text)
                   and sum(a != b for a, b in zip(alias, text)) == 1}
     return candidates, "one_character" if len(text) >= 3 else "short_candidate"
 

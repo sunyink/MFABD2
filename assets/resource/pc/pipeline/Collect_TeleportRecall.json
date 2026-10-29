@@ -15,6 +15,31 @@
             3
         ]
     },
+    "Collect_ForceTelepor_SelectNormal": {
+        "desc": "PC技能卡等级到名称的反向点击偏移，沿用砍价练习的35像素纵向间距。",
+        "target_offset": [
+            0,
+            -35,
+            0,
+            0
+        ]
+    },
+    "Rec_<Collect_ForceTelepor_SelectNormal>_Name": {
+        "roi": [
+            80,
+            604,
+            1120,
+            30
+        ]
+    },
+    "Rec_<Collect_ForceTelepor_SelectNormal>_Rank": {
+        "roi_offset": [
+            -10,
+            35,
+            21,
+            27
+        ]
+    },
     "Collect_ForceTeleporCircle_Ico": {
         "recognition": "Or",
         "any_of": [
@@ -56,14 +81,6 @@
             "Skill3.png"
         ]
     },
-    "Collect_Skill3_1_ERR_TooClose": {
-        "expected": [
-            "^(?=.*[无法在])(?=.*[魔法阵附近])(?=.*[天赋技能]).{8,}$",
-            "^(?=.*[无法在])(?=.*[该地点])(?=.*[天赋技能]).{8,}$",
-            "^(?=.*[無法在])(?=.*[魔法陣附近])(?=.*[天賦技能]).{8,}$",
-            "^(?=.*[此地點])(?=.*[無法使用])(?=.*[天賦技能]).{8,}$"
-        ]
-    },
     "Collect_TeleporCircle_OnFoot_GoinNviMap": {
         "target": [
             132,
@@ -78,14 +95,6 @@
             600,
             727,
             105
-        ],
-        "expected": [
-            "在战场中查看",
-            "探索",
-            "世界地图",
-            "在場域中查看",
-            "任務",
-            "世界地圖"
         ]
     },
     "Collect_TeleporCircle_OnlyFoot_Entry": {
@@ -101,6 +110,7 @@
                 ],
                 "expected": [
                     "自动狩猎",
+                    "自動狩獵",
                     "离开",
                     "離開"
                 ]
@@ -153,9 +163,6 @@
             247,
             110,
             124
-        ],
-        "expected": [
-            "戰鬥區域"
         ]
     },
     "Collect_IM_OnFoot_NviMap_E01_B2_Move": {
@@ -362,55 +369,6 @@
             494
         ]
     },
-    "Collect_OnFoot_Skill3_4": {
-        "all_of": [
-            {
-                "sub_name": "TemplateMatch",
-                "recognition": "TemplateMatch",
-                "roi": [
-                    1086,
-                    455,
-                    72,
-                    68
-                ],
-                "template": [
-                    "Skill3.png"
-                ]
-            },
-            {
-                "sub_name": "ColorMatch",
-                "recognition": "ColorMatch",
-                "roi": [
-                    1117,
-                    476,
-                    11,
-                    3
-                ],
-                "method": 40,
-                "lower": [
-                    [
-                        0,
-                        0,
-                        200
-                    ]
-                ],
-                "upper": [
-                    [
-                        180,
-                        20,
-                        255
-                    ]
-                ],
-                "count": 10
-            }
-        ],
-        "target": [
-            1119,
-            488,
-            1,
-            1
-        ]
-    },
     "Collect_TeleporCircle_OnFoot_LoopFoot": {
         "roi": [
             619,
@@ -449,11 +407,6 @@
             419,
             82,
             32
-        ]
-    },
-    "Collect_ForceTelepor_IsEffect": {
-        "any_of": [
-            "Collect_ForceTelepor_MapCk"
         ]
     },
     "Rec_NavMap_Lift": {
@@ -525,10 +478,6 @@
             25,
             180,
             600
-        ],
-        "expected": [
-            "探索告示板",
-            "任務布告欄"
         ]
     },
     "Collect_WayPoint_Inn": {
@@ -650,7 +599,8 @@
                         "sub_name": "OCR",
                         "recognition": "OCR",
                         "expected": [
-                            "酒[馆館]"
+                            "酒馆",
+                            "酒館"
                         ]
                     },
                     {
@@ -663,7 +613,8 @@
                             237
                         ],
                         "expected": [
-                            "[疗療][师師]",
+                            "疗师",
+                            "治癒師",
                             "主人"
                         ]
                     }
@@ -704,7 +655,6 @@
         ]
     },
     "Collect_TeleporCircle_OnFoot_TPIcoCk": {},
-    "Collect_OnFoot_Skill3_1_Again": {},
     "Collect_OperationsMain_ToAreaMap": {
         "desc": "判断在区域地图(移动魔法阵)界面。|[PC覆盖·2026-07-13实录] base roi[183,11,249,53]左缘正好切'移'字左边条,OCR以0.989读成'多动魔法阵'→expected恒miss→传送阵界面死等(23:24实录)。roi左扩[150,11,280,53]罩全标题。注:节点属 Collect_Navigation,跑商链途经(节点命名空间全局合并)。",
         "roi": [

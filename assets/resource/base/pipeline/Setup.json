@@ -691,7 +691,30 @@
             "card_name": "SetSkill",
             "cycle_type": "g_daily"
         },
+        "next": [
+            "Setup_SkillScan_Success_Patch"
+        ],
         "focus": "Set.全技能检查通过~"
+    },
+    "Setup_SkillScan_Success_Patch": {
+        "desc": "[旁作用]全技能检查通过 ⇒ 本 task 内技能栏位不会是空的，关掉吸取技能组三个「未设置」候选（Collect_Skill3_1/3_2/3_3_Nothing），各栏分流少认一次模板。补丁只在本 task 生效；当天已检查过（Setup_Skill_Swich 不放行）或前置助手关闭时走不到这里，候选保持开启。",
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "PatchPipeline",
+        "custom_action_param": {
+            "patches": {
+                "Collect_Skill3_1_Nothing": {
+                    "enabled": false
+                },
+                "Collect_Skill3_2_Nothing": {
+                    "enabled": false
+                },
+                "Collect_Skill3_3_Nothing": {
+                    "enabled": false
+                }
+            }
+        },
+        "post_delay": 0
     },
     "Setup_Scan_Error_PreVerdict": {
         "max_hit": 1,
@@ -748,9 +771,9 @@
                         "盧戈森林"
                     ]
                 },
-                "Collect_ClickTelepor_TargetClass_PurpleProcess": {
+                "Collect_ClickTelepor_TargetClass_Purple": {
                     "next": [
-                        "Collect_ClickTelepor_TargetClass_PurpleProcess"
+                        "Collect_ClickTelepor_TargetClass_Purple"
                     ],
                     "timeout": 5000,
                     "max_hit": 5
@@ -1191,7 +1214,8 @@
             620
         ],
         "expected": [
-            "关闭"
+            "关闭",
+            "關閉"
         ],
         "next": [
             "Setup_Main_SkipAv_Ck",
@@ -1273,7 +1297,8 @@
             363
         ],
         "expected": [
-            "声音"
+            "声音",
+            "聲音"
         ],
         "action": "Click",
         "target_offset": [
@@ -1753,7 +1778,8 @@
             34
         ],
         "expected": [
-            "键分解"
+            "键分解",
+            "一併分解"
         ],
         "next": [
             "Setup_EquipDec_Hub"
@@ -1776,7 +1802,8 @@
             121
         ],
         "expected": [
-            "键分解"
+            "键分解",
+            "一併分解"
         ],
         "action": "Click",
         "post_delay": 1000,
@@ -1791,7 +1818,8 @@
             56
         ],
         "expected": [
-            "级别"
+            "级别",
+            "等級"
         ],
         "next": [
             "[JumpBack]Setup_EquipDec_UP",
@@ -2040,7 +2068,8 @@
             99
         ],
         "expected": [
-            "天赋技能"
+            "天赋技能",
+            "天賦技能"
         ],
         "action": "Click",
         "target": [
@@ -2195,11 +2224,62 @@
         ],
         "post_delay": 500,
         "next": [
+            "Setup_SetSkill_tab3_Resort1"
+        ]
+    },
+    "Setup_SetSkill_tab3_Resort1": {
+        "desc": "清空快捷栏后切一次图钉组，让刚取消的技能回到原位 | 取消选择后列表不会自己恢复排序，上次选中的卡仍排在最前、与同种技能分开，不切一次就会被3-1再选回来。切换方式同各技能后的Shake。",
+        "action": "Click",
+        "target": [
+            309,
+            412,
+            8,
+            8
+        ],
+        "post_delay": 500,
+        "next": [
+            "Setup_SetSkill_tab3_Resort2"
+        ]
+    },
+    "Setup_SetSkill_tab3_Resort2": {
+        "action": "Click",
+        "target": [
+            379,
+            410,
+            11,
+            8
+        ],
+        "post_delay": 500,
+        "next": [
+            "Setup_SetSkill_3-1_Ready",
             "Setup_SetSkill_3-1",
             "[JumpBack]Setup_SetSkill_3-1_Swip"
         ]
     },
+    "Setup_SetSkill_3-1_Ready": {
+        "desc": "探查组的第一张已在屏幕左半边，整组都在屏内，可以直接比等级 | 同种技能排在一起且一组不超过5张，组头在左半屏时后面几张不会被切出屏外；组头在右半屏时轮到Setup_SetSkill_3-1先拖过来。",
+        "recognition": "OCR",
+        "roi": [
+            110,
+            580,
+            530,
+            33
+        ],
+        "expected": [
+            "探查",
+            "搜索"
+        ],
+        "timeout": 3000,
+        "next": [
+            "Setup_SetSkill_3-1_Pick"
+        ],
+        "on_error": [
+            "Setup_SetSkill_3-1_Fallback",
+            "Global_Null"
+        ]
+    },
     "Setup_SetSkill_3-1": {
+        "desc": "找到探查组，把组头拖到第2格，让整组进入屏幕 | 只在3-1_Ready没认到时轮到本节点，此时最左边的探查就是组头。列表到底拖不动时，这一组本来就在末尾、已经完整，照样往下挑。名称框同时供挑选与兜底节点借用。",
         "recognition": "OCR",
         "roi": [
             110,
@@ -2211,6 +2291,75 @@
             "探查",
             "搜索"
         ],
+        "action": "Swipe",
+        "end": [
+            244,
+            593,
+            10,
+            10
+        ],
+        "end_hold": 800,
+        "duration": 500,
+        "post_delay": 1500,
+        "timeout": 3000,
+        "next": [
+            "Setup_SetSkill_3-1_Pick"
+        ],
+        "on_error": [
+            "Setup_SetSkill_3-1_Fallback",
+            "Global_Null"
+        ]
+    },
+    "Setup_SetSkill_3-1_Pick": {
+        "desc": "在探查组里选等级最高的一张放进快捷栏 | 认出屏内所有探查名称，再读各自下方的等级，按等级节点 expected 的先后取最靠前的一档；输出等级框，向上偏移点到同一张卡的卡面。等级字有两种高度（未满级的带进度条），点击落点随之差约10像素，仍在卡面内。",
+        "recognition": "And",
+        "all_of": [
+            "Setup_SetSkill_3-1",
+            "Rec_<Setup_SetSkill_3-1_Pick>_Rank"
+        ],
+        "box_index": 1,
+        "action": "Click",
+        "target_offset": [
+            0,
+            -130,
+            0,
+            0
+        ],
+        "next": [
+            "Setup_SetSkill_3-1_Shake1"
+        ],
+        "focus": "Set.探查：按等级选卡"
+    },
+    "Rec_<Setup_SetSkill_3-1_Pick>_Rank": {
+        "desc": "探查各张卡名称下方的等级，按想要的先后排列 | 传说＞达人＞高手＞进阶＞升星＞初级。可升星时等级被按钮盖住，只能确定不是满级传说，排在已知的初级之前。每档按简体、繁体相邻排列，整档先于下一档。",
+        "recognition": "OCR",
+        "roi": "Setup_SetSkill_3-1",
+        "roi_offset": [
+            -10,
+            42,
+            20,
+            20
+        ],
+        "expected": [
+            "传说",
+            "傳說",
+            "达人",
+            "達人",
+            "高手",
+            "进阶",
+            "進階",
+            "升星",
+            "初级",
+            "新手"
+        ],
+        "order_by": "Expected"
+    },
+    "Setup_SetSkill_3-1_Fallback": {
+        "desc": "读不出任何等级时退回旧做法，选最左边那张探查 | 挑选超时后经on_error进入；宁可选到低等级，也不让快捷栏缺探查。",
+        "recognition": "Or",
+        "any_of": [
+            "Setup_SetSkill_3-1"
+        ],
         "action": "Click",
         "target_offset": [
             0,
@@ -2220,7 +2369,8 @@
         ],
         "next": [
             "Setup_SetSkill_3-1_Shake1"
-        ]
+        ],
+        "focus": "Set.探查等级未读出，改选最左一张"
     },
     "Setup_SetSkill_3-1_Swip": {
         "max_hit": 2,
@@ -2447,12 +2597,36 @@
             "Setup_SetSkill_LiftYew_ReLiftEnd"
         ],
         "next": [
+            "Setup_SetSkill_3-4_Ready",
             "Setup_SetSkill_3-4",
             "[JumpBack]Setup_SetSkill_SwipMini",
             "[JumpBack]Setup_SetSkill_3to4_Swip"
         ]
     },
+    "Setup_SetSkill_3-4_Ready": {
+        "desc": "传送组的第一张已在屏幕左半边，整组都在屏内，可以直接比等级 | 判据同Setup_SetSkill_3-1_Ready；前面已选的三张排在最前，不影响传送组的连续。",
+        "recognition": "OCR",
+        "roi": [
+            110,
+            580,
+            530,
+            33
+        ],
+        "expected": [
+            "生成魔法阵",
+            "創建魔法陣"
+        ],
+        "timeout": 3000,
+        "next": [
+            "Setup_SetSkill_3-4_Pick"
+        ],
+        "on_error": [
+            "Setup_SetSkill_3-4_Fallback",
+            "Global_Null"
+        ]
+    },
     "Setup_SetSkill_3-4": {
+        "desc": "找到传送组，把组头拖到第2格，让整组进入屏幕 | 只在3-4_Ready没认到时轮到本节点，其余同Setup_SetSkill_3-1。",
         "recognition": "OCR",
         "roi": [
             110,
@@ -2464,6 +2638,75 @@
             "生成魔法阵",
             "創建魔法陣"
         ],
+        "action": "Swipe",
+        "end": [
+            244,
+            593,
+            10,
+            10
+        ],
+        "end_hold": 800,
+        "duration": 500,
+        "post_delay": 1500,
+        "timeout": 3000,
+        "next": [
+            "Setup_SetSkill_3-4_Pick"
+        ],
+        "on_error": [
+            "Setup_SetSkill_3-4_Fallback",
+            "Global_Null"
+        ]
+    },
+    "Setup_SetSkill_3-4_Pick": {
+        "desc": "在传送组里选非传说中等级最高的一张放进快捷栏 | 结构同Setup_SetSkill_3-1_Pick，只是等级先后不同。传说级传送默认停在当前图、不保证有传送阵，所以只在组里全是传说时才选它。",
+        "recognition": "And",
+        "all_of": [
+            "Setup_SetSkill_3-4",
+            "Rec_<Setup_SetSkill_3-4_Pick>_Rank"
+        ],
+        "box_index": 1,
+        "action": "Click",
+        "target_offset": [
+            0,
+            -130,
+            0,
+            0
+        ],
+        "next": [
+            "Setup_SetSkill_3-4_Shake1"
+        ],
+        "focus": "Set.传送：按等级选卡"
+    },
+    "Rec_<Setup_SetSkill_3-4_Pick>_Rank": {
+        "desc": "传送各张卡名称下方的等级，按想要的先后排列 | 达人＞高手＞进阶＞初级＞升星＞传说。升星卡可能是没满级的传说，排在所有已知的非传说之后。",
+        "recognition": "OCR",
+        "roi": "Setup_SetSkill_3-4",
+        "roi_offset": [
+            -10,
+            42,
+            20,
+            20
+        ],
+        "expected": [
+            "达人",
+            "達人",
+            "高手",
+            "进阶",
+            "進階",
+            "初级",
+            "新手",
+            "升星",
+            "传说",
+            "傳說"
+        ],
+        "order_by": "Expected"
+    },
+    "Setup_SetSkill_3-4_Fallback": {
+        "desc": "读不出任何等级时退回旧做法，选最左边那张传送 | 挑选超时后经on_error进入；宁可选到传说，也不让快捷栏缺传送。",
+        "recognition": "Or",
+        "any_of": [
+            "Setup_SetSkill_3-4"
+        ],
         "action": "Click",
         "target_offset": [
             0,
@@ -2473,7 +2716,8 @@
         ],
         "next": [
             "Setup_SetSkill_3-4_Shake1"
-        ]
+        ],
+        "focus": "Set.传送等级未读出，改选最左一张"
     },
     "Setup_SetSkill_4to5_Swip": {
         "max_hit": 2,

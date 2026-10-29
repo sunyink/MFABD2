@@ -153,7 +153,7 @@
         "focus": "CFB.传送技能亮-尝试"
     },
     "Collect_ForceTelepor_MapCk": {
-        "desc": "传送技能打开移动魔法阵面板后，清零本轮补传送及左翻次数，再尝试翻到最左页选择传送阵。传说技能可选择卡带内所有地图，默认显示当前地图，当前图不保证有传送阵；非传说满级技能会自动切到安全图。本节点等不到翻页或传送阵候选时转步行兜底；点阵后等不到「生成」由后续节点按自身失败路径处理。",
+        "desc": "传送技能打开移动魔法阵面板后，清零本轮补传送、左翻和传说右翻次数 | 标题为传说且本轮还没改选过时，经技能列表改用其他角色的非传说传送；本轮已改选过的传说面板由LegendaryLift翻到最左页再选阵，最左页没有阵交LegendaryScan往右找。非传说面板只有一张图，直接点阵、不左翻（左箭头模板在非传说面板上恒命中，10-25实机无限左翻）。等不到传送阵候选时关面板转步行；点阵后等不到「生成」由后续节点按自身失败路径处理。",
         "recognition": "Or",
         "any_of": [
             "Collect_OperationsMain_ToAreaMap"
@@ -163,14 +163,220 @@
         "custom_action_param": {
             "node_name": [
                 "Collect_ForceTelepor_ToMap1_LiftOnlyOnce",
-                "Collect_ForceTelepor_ToMap1"
+                "Collect_ForceTelepor_ToMap1",
+                "Collect_ForceTelepor_LegendaryLift",
+                "Collect_ForceTelepor_LegendaryNextPage"
             ]
         },
         "next": [
-            "[JumpBack]Collect_MapLift",
-            "Collect_ForceTeleporCircle_Ico"
+            "Collect_ForceTelepor_Legendary",
+            "[JumpBack]Collect_ForceTelepor_LegendaryLift",
+            "Collect_ForceTeleporCircle_Ico",
+            "Collect_ForceTelepor_LegendaryScan"
         ],
         "on_error": [
+            "Collect_ForceTelepor_ToFoot"
+        ]
+    },
+    "Collect_ForceTelepor_Legendary": {
+        "desc": "传说级传送面板改从技能列表选其他角色的非传说传送，本轮只试一次 | 命中后清零选择与右翻次数，设Setup菜单出口：SetSkill交ScanList查找和右翻，SkillList_Right留空；先退回箱庭再开技能列表，不改快捷栏配置。换角色成功由NormalMap补回本节点次数；走不通时UseLegendary重新放传送技能，此时本节点已用完，MapCk改走翻页点阵，本轮后续卡带也不再改选。",
+        "max_hit": 1,
+        "recognition": "OCR",
+        "roi": [
+            128,
+            13,
+            329,
+            55
+        ],
+        "expected": [
+            "传说",
+            "傳說"
+        ],
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "ClearNodeHitCount",
+        "custom_action_param": {
+            "node_name": [
+                "Collect_ForceTelepor_SelectNormal",
+                "Collect_ForceTelepor_SkillList_Reset",
+                "Setup_SetSkill_4to5_Swip"
+            ]
+        },
+        "anchor": {
+            "SetSkill": "Collect_ForceTelepor_ScanList",
+            "SkillList_ReLift": "Collect_ForceTelepor_SkillList_Reset",
+            "SkillList_Right": ""
+        },
+        "post_delay": 0,
+        "next": [
+            "Collect_ForceTelepor_SelectNormal",
+            "Setup_SetSkill_Per",
+            "[JumpBack]Global_ToSandBox"
+        ],
+        "focus": "CTB.传说级传送：改选其他角色的非传说传送"
+    },
+    "Collect_ForceTelepor_SkillList_Reset": {
+        "desc": "每次改选传送角色前向左复位技能列表一次 | 借用Setup的识别和滑动位置，命中次数由Legendary入口清零；回跳后不再复位，随后由ScanList查找并右翻。",
+        "max_hit": 1,
+        "recognition": "Or",
+        "any_of": [
+            "Setup_SetSkill_ReLift"
+        ],
+        "action": "Swipe",
+        "begin": [
+            115,
+            590,
+            1,
+            1
+        ],
+        "end": [
+            1134,
+            592,
+            1,
+            1
+        ],
+        "end_hold": 500,
+        "duration": 500,
+        "post_delay": 1500
+    },
+    "Collect_ForceTelepor_ScanList": {
+        "desc": "技能列表里找非传说传送，当页没有就右翻，翻完仍没有就改用传说传送 | 由Setup_SetSkill_tab3_Ck经SetSkill锚点进入，接管原菜单的右翻，Setup共用节点不改。右翻借Setup_SetSkill_4to5_Swip，最多2次，由Legendary入口清零。",
+        "recognition": "Or",
+        "any_of": [
+            "Setup_SetSkill_ReLift"
+        ],
+        "pre_delay": 0,
+        "post_delay": 0,
+        "next": [
+            "Collect_ForceTelepor_SelectNormal",
+            "[JumpBack]Setup_SetSkill_4to5_Swip",
+            "Collect_ForceTelepor_UseLegendary"
+        ]
+    },
+    "Collect_ForceTelepor_SelectNormal": {
+        "desc": "从所有传送技能中选择等级为初级（繁体新手）、进阶、高手或达人的角色 | 先找名称，再在每个名称下方筛等级，返回通过筛选的等级框；按砍价练习已用的名称到等级纵向偏移反向点击同一张技能卡，避免借后项等级却点击首项传说。点击最多4次，由Legendary入口清零；点完仍未确认非传说面板（面板没开或仍是传说）时，超时后改用传说传送。",
+        "max_hit": 4,
+        "recognition": "And",
+        "all_of": [
+            "Rec_<Collect_ForceTelepor_SelectNormal>_Name",
+            "Rec_<Collect_ForceTelepor_SelectNormal>_Rank"
+        ],
+        "box_index": 1,
+        "action": "Click",
+        "target_offset": [
+            0,
+            -49,
+            0,
+            0
+        ],
+        "post_delay": 1000,
+        "timeout": 5000,
+        "next": [
+            "Collect_ForceTelepor_NormalMap",
+            "Collect_ForceTelepor_SelectNormal"
+        ],
+        "on_error": [
+            "Collect_ForceTelepor_UseLegendary"
+        ],
+        "focus": "CTB.使用其他角色的非传说传送"
+    },
+    "Rec_<Collect_ForceTelepor_SelectNormal>_Name": {
+        "desc": "技能列表内所有传送名称 | 搜索区域沿用料理技能入口，PC单独覆盖。",
+        "recognition": "OCR",
+        "roi": [
+            110,
+            580,
+            1053,
+            33
+        ],
+        "expected": [
+            "生成魔法阵",
+            "創建魔法陣"
+        ]
+    },
+    "Rec_<Collect_ForceTelepor_SelectNormal>_Rank": {
+        "desc": "只接受传送名称下方明确识别出的非传说等级 | 偏移沿用砍价练习的等级识别；找不到等级不作非传说处理。PC单独覆盖偏移。",
+        "recognition": "OCR",
+        "roi": "Rec_<Collect_ForceTelepor_SelectNormal>_Name",
+        "roi_offset": [
+            -10,
+            49,
+            21,
+            15
+        ],
+        "expected": [
+            "初级",
+            "新手",
+            "进阶",
+            "進階",
+            "高手",
+            "达人",
+            "達人"
+        ]
+    },
+    "Collect_ForceTelepor_NormalMap": {
+        "desc": "确认其他角色打开的是非传说传送面板，再交通用传送流程 | 同时核对移动魔法阵与非传说等级；成功才清理Setup菜单锚点，并补回Legendary的本轮次数。未确认时由SelectNormal超时转UseLegendary。",
+        "recognition": "And",
+        "all_of": [
+            "Collect_OperationsMain_ToAreaMap",
+            {
+                "recognition": "OCR",
+                "roi": [
+                    128,
+                    13,
+                    329,
+                    55
+                ],
+                "expected": [
+                    "初级",
+                    "新手",
+                    "进阶",
+                    "進階",
+                    "高手",
+                    "达人",
+                    "達人"
+                ]
+            }
+        ],
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "ClearNodeHitCount",
+        "custom_action_param": {
+            "node_name": [
+                "Collect_ForceTelepor_Legendary"
+            ]
+        },
+        "anchor": {
+            "SetSkill": "",
+            "SkillList_ReLift": "",
+            "SkillList_Right": ""
+        },
+        "post_delay": 0,
+        "next": [
+            "Collect_ForceTelepor_MapCk"
+        ]
+    },
+    "Collect_ForceTelepor_UseLegendary": {
+        "desc": "换角色走不通时改用传说传送 | 先退出技能菜单或面板回箱庭，再借WayPoint_Arrived_SkillReset重新放快捷栏的传送技能；Legendary本轮已用完，MapCk直接翻页点阵。技能灰了借ForceTeleporCircle_No步行，5秒内都认不到也转步行。",
+        "pre_delay": 0,
+        "post_delay": 0,
+        "timeout": 5000,
+        "next": [
+            "[JumpBack]Global_ToSandBox",
+            "Collect_WayPoint_Arrived_SkillReset",
+            "Collect_ForceTeleporCircle_No"
+        ],
+        "on_error": [
+            "Collect_ForceTelepor_ToFoot"
+        ],
+        "focus": "CTB.没有可用的非传说传送，改用传说传送"
+    },
+    "Collect_ForceTelepor_ToFoot": {
+        "desc": "关掉传送面板或技能菜单回箱庭后步行回阵 | 面板会挡住箱庭HUD，直接进步行入口认不到小地图；先回箱庭再交Collect_TeleporCircle_OnFoot_Start。",
+        "pre_delay": 0,
+        "post_delay": 0,
+        "next": [
+            "[JumpBack]Global_ToSandBox",
             "Collect_TeleporCircle_OnFoot_Start"
         ]
     },
@@ -190,6 +396,53 @@
         "post_delay": 1000,
         "next": [
             "Collect_ForceTeleporCircle_ClickMSB"
+        ]
+    },
+    "Collect_ForceTelepor_LegendaryLift": {
+        "desc": "传说面板翻到最左页的闸，每次面板最多2轮 | 同时认到传说标题和左箭头才借Collect_MapLift连点左翻；非传说面板只有一张图，左箭头模板在那里恒命中，不能左翻。次数由MapCk清零，左箭头误认时用完让位给点阵。写法同ToMap1_LiftOnlyOnce。",
+        "max_hit": 2,
+        "recognition": "And",
+        "all_of": [
+            "Collect_ForceTelepor_Legendary",
+            "Collect_MapLift"
+        ],
+        "pre_delay": 0,
+        "post_delay": 0,
+        "timeout": 2000,
+        "next": [
+            "Collect_MapLift"
+        ]
+    },
+    "Collect_ForceTelepor_LegendaryScan": {
+        "desc": "传说面板最左页没有传送阵时，往右找第一张有阵的图 | 只在传说面板右翻，非传说面板维持原样。MapCk经LegendaryLift翻到最左页且当页认不到阵后进入；不放回MapCk的列表，免得左翻把页面翻回最左。每次右翻经LegendaryNextPage计次，翻到头仍没有阵就关面板步行。",
+        "recognition": "Or",
+        "any_of": [
+            "Collect_ForceTelepor_Legendary"
+        ],
+        "pre_delay": 0,
+        "post_delay": 0,
+        "timeout": 5000,
+        "next": [
+            "Collect_ForceTeleporCircle_Ico",
+            "[JumpBack]Collect_ForceTelepor_LegendaryNextPage"
+        ],
+        "on_error": [
+            "Collect_ForceTelepor_ToFoot"
+        ],
+        "focus": "CTB.传说面板最左页没有传送阵，往右查找"
+    },
+    "Collect_ForceTelepor_LegendaryNextPage": {
+        "desc": "传说面板右翻一页的计次闸，每次面板最多4页 | 借Collect_MapRight点右箭头并核对页面已变；次数由MapCk清零。写法同ToMap1_LiftOnlyOnce。",
+        "max_hit": 4,
+        "recognition": "Or",
+        "any_of": [
+            "Collect_MapRight"
+        ],
+        "pre_delay": 0,
+        "post_delay": 0,
+        "timeout": 2000,
+        "next": [
+            "Collect_MapRight"
         ]
     },
     "Collect_ForceTeleporCircle_ClickMSB": {
@@ -226,9 +479,6 @@
     },
     "Collect_ForceTeleporCircle_Succeed": {
         "desc": "传送阵,通过技能传送出口,完成,",
-        "anchor": {
-            "OnFoot_SkillCircle_Try": ""
-        },
         "focus": "CTB.通过传送阵归位结束"
     },
     "Collect_ForceTelepor_CheckMap1": {
@@ -259,6 +509,7 @@
             "達雷普鎮",
             "雷瓦汀基地",
             "拉勒凯镇",
+            "拉勒凱鎮",
             "罗戴夫镇",
             "羅戴夫鎮",
             "科库托斯圣域",
@@ -353,8 +604,10 @@
             128
         ],
         "expected": [
-            "^(?=.*[无法在])(?=.*[魔法阵附近])(?=.*[天赋技能]).{8,}$",
-            "^(?=.*[无法在])(?=.*[该地点])(?=.*[天赋技能]).{8,}$"
+            "无法在魔法阵附近使用天赋技能",
+            "無法在魔法陣附近使用天賦技能",
+            "无法在该地点使用天赋技能",
+            "在此地點無法使用天賦技能"
         ],
         "action": "DoNothing",
         "next": [
@@ -374,7 +627,6 @@
         "action": "DoNothing",
         "anchor": {
             "IntSubMenu_ErrReturn": "Collect_TeleporCircle_OnFoot_Start",
-            "OnFoot_SkillCircle_Try": "Collect_OnFoot_Skill3_4",
             "Return_Type": "Collect_TeleporCircle_OnlyFoot_Entry",
             "Skill_Overpower": "Collect_OnFoot_Skill3_5_Again"
         },
@@ -414,8 +666,11 @@
         ],
         "expected": [
             "在战场中查看",
+            "在場域中查看",
             "探索",
-            "世界地图"
+            "任務",
+            "世界地图",
+            "世界地圖"
         ],
         "action": "DoNothing",
         "next": [
@@ -458,6 +713,7 @@
                 ],
                 "expected": [
                     "自动狩猎",
+                    "自動狩獵",
                     "离开",
                     "離開"
                 ]
@@ -777,6 +1033,7 @@
         ],
         "expected": [
             "生成",
+            "創建",
             "确认",
             "確認"
         ],
@@ -1387,7 +1644,6 @@
         },
         "anchor": {
             "IntSubMenu_ErrReturn": "",
-            "OnFoot_SkillCircle_Try": "",
             "Skill_Overpower": "",
             "ExplorationBoard_Arrived": ""
         },
@@ -1514,6 +1770,7 @@
             "雷瓦汀基地救护站",
             "雷瓦汀基地救護站",
             "拉勒凯旅馆",
+            "拉勒凱旅館",
             "罗戴夫旅馆",
             "羅戴夫旅館",
             "旅馆",
@@ -1540,6 +1797,7 @@
             "達雷普鎮",
             "雷瓦汀基地",
             "拉勒凯镇",
+            "拉勒凱鎮",
             "罗戴夫镇",
             "羅戴夫鎮",
             "科库托斯圣域",
@@ -1566,6 +1824,7 @@
             "達雷普鎮",
             "雷瓦汀基地",
             "拉勒凯镇",
+            "拉勒凱鎮",
             "罗戴夫镇",
             "羅戴夫鎮",
             "科库托斯圣域",
@@ -1676,7 +1935,6 @@
         "post_delay": 2000,
         "next": [
             "Collect_ForceTelepor_FindTeleporCircle",
-            "[Anchor]OnFoot_SkillCircle_Try",
             "Collect_TeleporCircle_OnFoot_Skirmish",
             "[JumpBack]Collect_TeleporCircle_OnFoot_LoopFoot",
             "Collect_TeleporCircle_OnFoot_TPIcoCk_IntSubMenu",
@@ -1717,7 +1975,6 @@
         "next": [
             "[JumpBack]Collect_IM_Move_MGS",
             "Collect_ForceTelepor_FindTeleporCircle",
-            "[Anchor]OnFoot_SkillCircle_Try",
             "Collect_TeleporCircle_OnFoot_Skirmish",
             "[JumpBack]Collect_TeleporCircle_OnFoot_LoopFoot",
             "[JumpBack]Collect_TeleporCircle_OnFoot_TPIcoCk_IntSubMenu_TryAgain"
@@ -1776,53 +2033,6 @@
         },
         "next": [
             "[Anchor]IntSubMenu_ErrReturn"
-        ]
-    },
-    "Collect_OnFoot_Skill3_4": {
-        "desc": "跑路过程中不断尝试能否使用传送阵提前结束过程,可以设置IF开关启停",
-        "recognition": "And",
-        "all_of": [
-            {
-                "recognition": "TemplateMatch",
-                "roi": [
-                    1051,
-                    400,
-                    81,
-                    86
-                ],
-                "template": [
-                    "Skill3-1.png"
-                ]
-            },
-            {
-                "recognition": "ColorMatch",
-                "roi": [
-                    1086,
-                    428,
-                    10,
-                    2
-                ],
-                "method": 40,
-                "lower": [
-                    0,
-                    0,
-                    200
-                ],
-                "upper": [
-                    180,
-                    20,
-                    255
-                ],
-                "count": 10
-            }
-        ],
-        "action": "Click",
-        "target": [
-            1088,
-            444
-        ],
-        "next": [
-            "Collect_ForceTelepor_IsEffect"
         ]
     },
     "Collect_TeleporCircle_OnFoot_LoopFoot": {
@@ -1928,29 +2138,6 @@
         ],
         "focus": "CTOB.逃离战斗"
     },
-    "Collect_ForceTelepor_IsEffect": {
-        "recognition": "Or",
-        "any_of": [
-            "Collect_OperationsMain_ToAreaMap"
-        ],
-        "next": [
-            "Collect_ForceTelepor_IsEffect_ResetFoot",
-            "[JumpBack]Global_BackPageHub_Once"
-        ]
-    },
-    "Collect_ForceTelepor_IsEffect_ResetFoot": {
-        "recognition": "Or",
-        "any_of": [
-            "Arbitrage_NviGuide_Onfoot_Loop"
-        ],
-        "action": "Click",
-        "post_delay": 5000,
-        "next": [
-            "Collect_ForceTelepor_IsEffect_ResetFoot",
-            "Collect_Skill3_4"
-        ],
-        "focus": "CTOB.停止自动寻路,施放传送技能"
-    },
     "Collect_ForceTelepor_FindTeleporCircle": {
         "desc": "发现传送按钮标,（步行到终点）模块出口",
         "recognition": "Or",
@@ -2014,8 +2201,23 @@
             "自動移動中"
         ]
     },
+    "Collect_WayPoint_Try": {
+        "desc": "通用箱庭入口优先尝试寻路归位 | 寻路按钮可见时调用WayPoint，最多进入4次，命中次数由Collect_OperationsMain_Sandplay清零。结束后退回通用入口重新核验传送阵，次数用完后让位原传送技能链。",
+        "max_hit": 4,
+        "recognition": "Or",
+        "any_of": [
+            "Collect_WayPoint_Entry"
+        ],
+        "pre_delay": 0,
+        "post_delay": 0,
+        "timeout": 5000,
+        "next": [
+            "Collect_WayPoint_Entry"
+        ],
+        "focus": "CTB.优先通过寻路列表返回传送阵"
+    },
     "Collect_WayPoint_Entry": {
-        "desc": "从任意采集箱庭打开左上寻路列表，按狩猎场、探索告示板、旅馆的顺序选先认出的一项返回；目标项由文字定位，不依赖列表长度。★max_hit:4=重入封顶(2026-10-07):识别面是'左上寻路按钮'(Open_Tpl/Csm)，**在箱庭里恒命中**，而它的 next 里 `[JumpBack]Open_Tpl/Csm/QuickHunt_MIniMap_locErr` 都是子调用，子链(回告示板→Arrived→Verify→Succeed→Global_ToSandBox→Enter)跑完后回溯会**重新评估本节点并再次命中** ⇒ 整条'回告示板'链无限重跑(2026-10-07 10:07~10:09 实测:每 ~21s 一轮,复位成功又回到 CTB.回到探索告示板)。加上限后到限即被跳过(框架日志 `max_hit reached`)，回溯得以继续外退。★值取 4:与下游 Board(max_hit 4)/Arrived(max_hit 3,本次加)同一量级；调用方是 `Collect_TeleporCircle_OnFoot_Entry`(S18/M14 的 ReturnOnce 进来)、`Collect_TeleporCircle_OnFoot_Sandbox` 与 C3 的 `Collect_C3_Rehome`(进来前先清本节点及 Board/Arrived 的命中计数)；普通卡带走 TargetMapEnd→PackFinish，不经这里。正常一次就够；前两个调用方到限后由各自 next 的第二候选 `Collect_TeleporCircle_OnlyFoot_Entry`(纯步行返回传送阵)兜底。",
+        "desc": "打开左上寻路列表，按狩猎场、探索告示板、旅馆的顺序选择目的地返回传送阵 | max_hit 4限制恢复重入；通用箱庭入口与C3返程调用前会清零本节点、两个寻路按钮及Board、Arrived的计数。S18/M14仍由OnFoot_Entry调用，普通卡带成功收尾不经这里。后续识别超时先尝试纯步行，纯步行入口也不命中时退回调用方。",
         "max_hit": 4,
         "recognition": "Or",
         "any_of": [
@@ -2024,7 +2226,6 @@
         ],
         "anchor": {
             "IntSubMenu_ErrReturn": "Collect_WayPoint_Entry",
-            "OnFoot_SkillCircle_Try": "",
             "Skill_Overpower": ""
         },
         "next": [
@@ -2036,12 +2237,14 @@
             "[JumpBack]QuickHunt_MIniMap_locErr"
         ],
         "on_error": [
-            "Collect_TeleporCircle_OnlyFoot_Entry"
+            "Collect_TeleporCircle_OnlyFoot_Entry",
+            "Global_Null"
         ],
         "focus": "CTB.回到探索告示板"
     },
     "Collect_WayPoint_Csm": {
-        "desc": "首选Csm.识别点击小地图旁的寻路按钮，展开可前往地点列表。",
+        "desc": "按形状识别并点击小地图旁的寻路按钮，展开可前往地点列表 | 最多点击4次，通用箱庭入口与C3返程调用前清零，避免按钮点击无效时反复回跳。",
+        "max_hit": 4,
         "recognition": "Custom",
         "custom_recognition": "HSVShapeMatching",
         "custom_recognition_param": {
@@ -2077,7 +2280,8 @@
         ]
     },
     "Collect_WayPoint_Open_Tpl": {
-        "desc": "首选.点击小地图旁的寻路按钮，展开可前往地点列表。",
+        "desc": "首选模板识别并点击小地图旁的寻路按钮，展开可前往地点列表 | 最多点击4次，通用箱庭入口与C3返程调用前清零，避免按钮点击无效时反复回跳。",
+        "max_hit": 4,
         "recognition": "TemplateMatch",
         "roi": [
             165,
@@ -2127,7 +2331,6 @@
         ],
         "expected": [
             "探索告示板",
-            "探索佈告欄",
             "任務布告欄"
         ],
         "action": "Click",
@@ -2302,7 +2505,7 @@
         "focus": "CTOB.确认导航地图界面打开"
     },
     "Collect_WayPoint_Arrived_SkillReset": {
-        "desc": "【到达告示板后的复位·2026-10-07】Board 的 anchor ExplorationBoard_Arrived 指向本节点（Inn 的同名锚点指向 Collect_WayPoint_ExplorationBoard_Arrived）。判据照抄 Collect_OnFoot_Skill3_4(Skill3-1.png + 亮色核,灰态不命中),**只有出口不同**:本节点用于'已到达静止'的上下文,传送技能放出来、移动魔法阵面板打开后直接交给本地 Collect_ForceTelepor_MapCk(翻最左页→点面板传送阵→传地图1)。★为什么不能直接用 Collect_OnFoot_Skill3_4:它的 desc 是'跑路过程中'用,next 唯一项是 Collect_ForceTelepor_IsEffect→IsEffect_ResetFoot(判据=自动寻路中图标 AutoNvi_ico);到达后人是静止的,该图标永远不会出现 ⇒ 空等默认 20s 超时 ⇒ 落到 [JumpBack]Global_BackPageHub_Once 点返回把刚开的面板关掉 ⇒ 回到 Collect_WayPoint_Arrived 无限循环(2026-10-07 09:15~09:22 实测,每轮 26s)。★为什么不用 Collect_Skill3_4:它没有亮/灰色核判据(灰态也命中→空点),且 next 第三项是自引用且无 max_hit。本节点不动任何上游节点。★next 第三项 2026-10-07 由 Collect_TeleporCircle_OnFoot_Start 改为 Collect_ForceTeleporCircle_No(灰态色核判据):OnFoot_Start 是 DirectHit **恒命中**,复位成功(MapCk 链走完)后退栈继续评估后续候选时会命中它、重入整条步行兜底链(实测 10:16 卡死的相关一环);改用灰态判据后,只有技能真的灰着不可用才进步行兜底,成功路径在列表耗尽后干净退栈。",
+        "desc": "到达告示板后放快捷栏的传送技能复位，也供UseLegendary换角色失败后重新放技能 | Board的ExplorationBoard_Arrived锚点指向本节点（Inn的同名锚点指向Collect_WayPoint_ExplorationBoard_Arrived）。判据为Skill3-1.png加亮色核，灰态不命中；面板打开后交Collect_ForceTelepor_MapCk。不用Collect_Skill3_4：它没有亮灰色核判据，灰态也会空点，且next自引用无max_hit。第三项用灰态判据Collect_ForceTeleporCircle_No而非恒命中的OnFoot_Start：复位成功退栈后再评估候选时，恒命中项会重入整条步行兜底链（2026-10-07实测卡死的一环）；只有技能真的灰着才步行。",
         "recognition": "And",
         "all_of": [
             {
@@ -2371,11 +2574,14 @@
         ],
         "expected": [
             "艾琳",
-            "酒[馆館]",
-            "旅[馆館]",
+            "酒馆",
+            "酒館",
+            "旅馆",
+            "旅館",
             "探索告示板",
-            "探索佈告欄",
-            "狩[猎獵][场場]"
+            "任務布告欄",
+            "狩猎场",
+            "狩獵場"
         ]
     },
     "Rec_QuickMove_Ready": {
@@ -2670,7 +2876,8 @@
             440
         ],
         "expected": [
-            "酒[馆館]"
+            "酒馆",
+            "酒館"
         ],
         "pre_delay": 0,
         "action": "Click",
@@ -2701,7 +2908,8 @@
                     {
                         "recognition": "OCR",
                         "expected": [
-                            "酒[馆館]"
+                            "酒馆",
+                            "酒館"
                         ]
                     },
                     {
@@ -2713,7 +2921,8 @@
                             154
                         ],
                         "expected": [
-                            "[疗療][师師]",
+                            "疗师",
+                            "治癒師",
                             "主人"
                         ]
                     }
@@ -2742,7 +2951,8 @@
             440
         ],
         "expected": [
-            "旅[馆館]"
+            "旅馆",
+            "旅館"
         ],
         "pre_delay": 0,
         "action": "Click",
@@ -2770,7 +2980,8 @@
             {
                 "recognition": "OCR",
                 "expected": [
-                    "旅[馆館]"
+                    "旅馆",
+                    "旅館"
                 ]
             }
         ],
@@ -2797,7 +3008,7 @@
         ],
         "expected": [
             "探索告示板",
-            "探索佈告欄"
+            "任務布告欄"
         ],
         "pre_delay": 0,
         "action": "Click",
@@ -2826,7 +3037,7 @@
                 "recognition": "OCR",
                 "expected": [
                     "探索告示板",
-                    "探索佈告欄"
+                    "任務布告欄"
                 ]
             }
         ],
@@ -2852,7 +3063,8 @@
             440
         ],
         "expected": [
-            "狩[猎獵][场場]"
+            "狩猎场",
+            "狩獵場"
         ],
         "pre_delay": 0,
         "action": "Click",
@@ -2886,7 +3098,8 @@
             {
                 "recognition": "OCR",
                 "expected": [
-                    "狩[猎獵][场場]"
+                    "狩猎场",
+                    "狩獵場"
                 ]
             }
         ],

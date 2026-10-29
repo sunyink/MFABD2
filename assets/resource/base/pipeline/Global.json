@@ -219,7 +219,8 @@
             453
         ],
         "expected": [
-            "关闭商店"
+            "关闭商店",
+            "關閉商店"
         ],
         "action": "Click",
         "post_delay": 1500
@@ -242,6 +243,7 @@
         "inverse": true,
         "timeout": 10000,
         "next": [
+            "[JumpBack]AutoBattle_Egress_TurnBack_SkipTalk",
             "Global_ToSandBox_Enter",
             "Global_ToSandBox_Reset",
             "[JumpBack]Global_WaitingForLoading"
@@ -273,6 +275,7 @@
         "post_delay": 4000,
         "next": [
             "[JumpBack]Global_WaitingForLoading",
+            "[JumpBack]AutoBattle_Egress_TurnBack_SkipTalk",
             "Global_ToSandBox_Enter",
             "Global_ToSandBox_Reset"
         ],
@@ -294,10 +297,23 @@
         "focus": "G=1.页面非预期，点击返回按钮"
     },
     "Global_ToSandBox_Enter": {
-        "recognition": "Or",
-        "any_of": [
-            "Rec_SandBox_Pin_Tpl",
-            "Rec_SandBox_Run_Tpl"
+        "desc": "箱庭标记可见且没有剧情跳过按钮才算恢复完成，避免对话覆盖层穿透入口判断。",
+        "recognition": "And",
+        "all_of": [
+            {
+                "recognition": "Or",
+                "any_of": [
+                    "Rec_SandBox_Pin_Tpl",
+                    "Rec_SandBox_Run_Tpl"
+                ]
+            },
+            {
+                "recognition": "Custom",
+                "custom_recognition": "NotRecognition",
+                "custom_recognition_param": {
+                    "node": "AutoBattle_Egress_TurnBack_SkipTalk"
+                }
+            }
         ],
         "focus": "GO.复位到箱庭-已确认"
     },
@@ -374,7 +390,7 @@
         ],
         "expected": [
             "游戏卡珍藏集",
-            "^遊戲卡.收藏集"
+            "遊戲卡帶收藏集"
         ],
         "next": [
             "[JumpBack]Global_CardMenu_RewardBubble_TurnOFF",
@@ -393,7 +409,7 @@
         ],
         "expected": [
             "店长游戏卡",
-            "店長遊戲卡"
+            "店長遊戲卡帶"
         ],
         "next": [
             "Global_BackToPve_CardMenu_Tp3",
@@ -1496,7 +1512,8 @@
             284
         ],
         "expected": [
-            "^(?=.*[点击画面])(?=.*[即可])(?=.*[返回]).{4,12}$"
+            "点击画面即可返回",
+            "點擊畫面將回到上一個畫面"
         ]
     },
     "Rec_Pack_FantasiaSquare": {

@@ -12,6 +12,8 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "agent"))
 
 from utils import arbitrage_store as store
+from utils import arbitrage_market_log as market_log
+from utils.arbitrage_replenish_plan import _market_prices
 from utils.persistent_store import PersistentStore as RealAccountStore
 from utils.persistent_store import SharedStore as RealSharedStore
 
@@ -87,18 +89,37 @@ class ArbitrageStoreTests(unittest.TestCase):
     def test_previous_cartridge_parser_cache_requires_new_scan(self):
         scan = self.scan()
         self.assertTrue(store.save_market_snapshot(scan, "today"))
-        for version in (3, 4):
+        # v7 may contain unknown names from before the supplementary catalog was
+        # completed; do not newly admit that cached scan when relaxing name gates.
+        for version in (3, 4, 6, 7):
             MemorySharedStore.data["arbitrage"]["market"]["days"]["today"]["parser_version"] = version
             self.assertIsNone(store.get_market_snapshot("today"))
 
-    def test_unconfirmed_names_or_prices_are_saved_but_not_reused_as_complete_market(self):
-        for flag in ("names_complete", "prices_complete"):
-            MemorySharedStore.data = {}
-            scan = self.scan()
-            scan[flag] = False
-            self.assertTrue(store.save_market_snapshot(scan, "today"))
-            self.assertTrue(MemorySharedStore.data["arbitrage"]["market"]["days"]["today"]["complete"])
-            self.assertIsNone(store.get_market_snapshot("today"))
+    def test_unconfirmed_prices_are_saved_but_not_reused_as_complete_market(self):
+        scan = self.scan()
+        scan["prices_complete"] = False
+        self.assertTrue(store.save_market_snapshot(scan, "today"))
+        self.assertTrue(MemorySharedStore.data["arbitrage"]["market"]["days"]["today"]["complete"])
+        self.assertIsNone(store.get_market_snapshot("today"))
+
+    def test_unconfirmed_names_keep_the_market_usable_and_stay_listed(self):
+        scan = self.scan()
+        scan["items"].append({"name": "高级招募契约", "name_confirmed": False, "peak_price": 999})
+        scan.update(names_complete=False, unconfirmed_names=["高级招募契约"])
+        self.assertTrue(store.save_market_snapshot(scan, "today"))
+        snapshot = store.get_market_snapshot("today")
+        self.assertIsNotNone(snapshot)
+        self.assertEqual(snapshot["unconfirmed_names"], ["高级招募契约"])
+        # 价格完整的新扫描照常覆盖；名字是否完整不再决定谁覆盖谁
+        self.assertTrue(store.save_market_snapshot(self.scan(name="蜂蜜"), "today"))
+        self.assertEqual(store.get_market_snapshot("today")["items"][0]["name"], "蜂蜜")
+
+    def test_replenish_prices_skip_rows_whose_name_is_unconfirmed(self):
+        # 低分读出的「兽肉」重读失败仍记未确认，名字却是真商品；它的价格不能进补买计算
+        market = {"items": [{"name": "兽肉", "peak_price": 6, "name_confirmed": False},
+                            {"name": "蜂蜜", "peak_price": 50, "name_confirmed": True},
+                            {"name": "米", "peak_price": 9}]}
+        self.assertEqual(_market_prices(market), {"蜂蜜": 50, "米": 9})
 
     def test_corrected_name_is_stored_canonically_with_original_evidence(self):
         scan = self.scan(name="萝卜缨")
@@ -282,9 +303,35 @@ class SharedFileTests(unittest.TestCase):
                 setattr(RealSharedStore, name, value)
 
 
+class MarketLogTests(unittest.TestCase):
+    """行情副本只做原样覆盖复制；存档缺失时不创建任何文件。"""
+
+    def export(self, source, debug):
+        with patch.object(RealSharedStore, "_init_paths"), \
+             patch.object(RealSharedStore, "FILE_PATH", source), \
+             patch.object(market_log, "debug_dir", return_value=debug):
+            market_log.export_market_log("after", "preview_all")
+
+    def test_shared_file_is_copied_over_the_previous_copy(self):
+        with tempfile.TemporaryDirectory(prefix="mfabd2-market-log-") as temp:
+            source, debug = Path(temp) / "agent_shared_data.json", Path(temp) / "debug"
+            for body in ('{"day": 1}', '{"day": 2}'):
+                source.write_text(body, encoding="utf-8")
+                self.export(source, debug)
+            self.assertEqual((debug / market_log.LOG_NAME).read_text(encoding="utf-8"), '{"day": 2}')
+            self.assertEqual([p.name for p in debug.iterdir()], [market_log.LOG_NAME])
+
+    def test_missing_shared_file_creates_nothing(self):
+        with tempfile.TemporaryDirectory(prefix="mfabd2-market-log-") as temp:
+            source = Path(temp) / "agent_shared_data.json"
+            self.export(source, Path(temp) / "debug")
+            self.assertEqual(list(Path(temp).iterdir()), [])
+
+
 if __name__ == "__main__":
     suite = unittest.TestSuite()
     suite.addTests(unittest.defaultTestLoader.loadTestsFromTestCase(ArbitrageStoreTests))
     suite.addTests(unittest.defaultTestLoader.loadTestsFromTestCase(SharedFileTests))
+    suite.addTests(unittest.defaultTestLoader.loadTestsFromTestCase(MarketLogTests))
     result = unittest.TextTestRunner(verbosity=2).run(suite)
     raise SystemExit(0 if result.wasSuccessful() else 1)

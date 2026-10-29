@@ -35,6 +35,9 @@ def _market_prices(market):
     prices, conflicts = {}, set()
     observations = {}
     for item in market.get("items", []):
+        # 未确认名称的行可能是读歪的别的商品，不能拿它的价格算补买
+        if item.get("name_confirmed") is False:
+            continue
         name = _name(item.get("name"))
         price = item.get("peak_price")
         if name in observations and observations[name] != price:

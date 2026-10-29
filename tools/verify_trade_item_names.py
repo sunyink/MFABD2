@@ -38,6 +38,7 @@ from maa.agent.agent_server import AgentServer
 with patch.object(AgentServer, "custom_action", return_value=lambda cls: cls), \
      patch.object(AgentServer, "custom_recognition", return_value=lambda cls: cls), \
      patch.object(AgentServer, "_set_api_properties"), \
+     patch.object(AgentServer, "tasker_sink", return_value=lambda cls: cls), \
      patch.object(AgentServer, "context_sink", return_value=lambda cls: cls):
     from action import shop_buy_fav_controller as favorites
     from action import arbitrage_sell_batch as sale
@@ -147,6 +148,36 @@ class ItemWiringTests(unittest.TestCase):
         shops = json.loads((ROOT / "agent/data/arbitrage_shop_catalog.json").read_text(encoding="utf-8"))
         for name in {name for shop in shops["cartridges"].values() for name in shop["items"]}:
             self.assertTrue(names.resolve_ocr_name(name)["confirmed"], name)
+
+    def test_supplementary_market_names_and_recorded_traditional_contract(self):
+        extra = json.loads((ROOT / "agent/data/bd2_item_names_extra.json").read_text(encoding="utf-8"))["items"]
+        for item in extra:
+            for raw in filter(None, (item["cn"], item["tw"])):
+                with self.subTest(raw=raw):
+                    result = names.resolve_ocr_name(raw)
+                    self.assertTrue(result["confirmed"])
+                    self.assertEqual(result["name"], item["cn"])
+                    self.assertEqual(result["basis"], "exact")
+        recorded = {
+            "一般契約書": "普通招募契约书",
+            "高級契約書": "高级招募契约书",
+            "最高級契約書": "顶级招募契约书",
+            "黃色史萊姆": "黄色史莱姆",
+            "藍色史萊姆": "蓝色史莱姆",
+            "紅色史萊姆": "红色史莱姆",
+        }
+        for raw, expected in recorded.items():
+            with self.subTest(recorded=raw):
+                self.assertEqual(names.resolve_ocr_name(raw)["name"], expected)
+
+    def test_incomplete_supplementary_aliases_cannot_guess_tier_or_color(self):
+        for raw in ("頂級契約書", "中級契約書", "绿色史莱姆", "高级招募契约本"):
+            with self.subTest(raw=raw):
+                self.assertFalse(names.resolve_ocr_name(raw)["confirmed"])
+        self.assertFalse(names.resolve_ocr_name("高級契約書", .4)["confirmed"])
+        recovered = names.resolve_ocr_name("高級契約書", .4, lambda: [("高級契約書", .99)])
+        self.assertTrue(recovered["confirmed"])
+        self.assertEqual(recovered["name"], "高级招募契约书")
 
     def test_full_catalog_ambiguity_cannot_be_broken_by_target_and_blocks_detail(self):
         resolver = partial(names.resolve_ocr_name, aliases={"香甜面包": "巧克力面包", "香甜蛋糕": "手工蛋糕"})

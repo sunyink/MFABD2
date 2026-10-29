@@ -7,5 +7,18 @@
     "BackgroundImageOpacity": 0.48,
     "BackgroundImageLightOpacity": 0.56,
     "BackgroundImageBlurRadius": 24.0,
-    "BackgroundImageExtendToTitleBar": false
+    "BackgroundImageExtendToTitleBar": false,
+    "LegacyTemplates": [
+        {
+            "BaseTheme": "Dark",
+            "BackgroundImagePath": "resource/backgrounds/ui-background.png",
+            "BackgroundImageDarkMode": "SideBlend",
+            "BackgroundImageLightMode": "SideBlend",
+            "BackgroundImagePlacement": "Right",
+            "BackgroundImageOpacity": 0.48,
+            "BackgroundImageLightOpacity": 0.56,
+            "BackgroundImageBlurRadius": 24.0,
+            "BackgroundImageExtendToTitleBar": false
+        }
+    ]
 }

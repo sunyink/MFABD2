@@ -54,7 +54,7 @@
         ],
         "expected": [
             "装备制作",
-            "製作装備"
+            "製作裝備"
         ],
         "action": "Click",
         "post_delay": 2000,
@@ -74,7 +74,7 @@
         ],
         "expected": [
             "立刻前往装备",
-            "立即前往装備"
+            "立即前往裝備"
         ],
         "action": "Click",
         "target": [
@@ -196,8 +196,7 @@
         ],
         "expected": [
             "键强化",
-            "鍵強化",
-            "键強化"
+            "鍵強化"
         ],
         "only_rec": true,
         "action": "Click",
@@ -238,13 +237,8 @@
         ],
         "expected": [
             "级别",
+            "等級",
             "等级"
-        ],
-        "replace": [
-            [
-                "級",
-                "级"
-            ]
         ],
         "next": [
             "[Anchor]Setup_EquipUp",
@@ -501,13 +495,7 @@
         ],
         "expected": [
             "装备筛选",
-            "裝備筛選"
-        ],
-        "replace": [
-            [
-                "篩",
-                "筛"
-            ]
+            "裝備篩選"
         ],
         "next": [
             "[JumpBack]Equip_filter_SubMenu_Mamono",
@@ -825,14 +813,7 @@
         ],
         "expected": [
             "自定义标记",
-            "自訂標記",
-            "自订標記"
-        ],
-        "replace": [
-            [
-                "訂",
-                "订"
-            ]
+            "自訂標記"
         ],
         "action": "Click",
         "post_delay": 1500,
@@ -1117,7 +1098,7 @@
         ],
         "expected": [
             "精炼",
-            "[煉炼]製"
+            "煉製"
         ],
         "action": "Click",
         "post_delay": 3000,

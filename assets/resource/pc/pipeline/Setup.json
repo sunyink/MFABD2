@@ -507,12 +507,58 @@
             4
         ]
     },
+    "Setup_SetSkill_tab3_Resort1": {
+        "target": [
+            255,
+            459,
+            9,
+            9
+        ]
+    },
+    "Setup_SetSkill_tab3_Resort2": {
+        "target": [
+            314,
+            459,
+            12,
+            9
+        ]
+    },
+    "Setup_SetSkill_3-1_Ready": {
+        "roi": [
+            68,
+            601,
+            572,
+            34
+        ]
+    },
     "Setup_SetSkill_3-1": {
         "roi": [
             68,
             601,
             1146,
             34
+        ],
+        "end": [
+            204,
+            614,
+            10,
+            10
+        ]
+    },
+    "Setup_SetSkill_3-1_Pick": {
+        "target_offset": [
+            0,
+            -118,
+            0,
+            0
+        ]
+    },
+    "Rec_<Setup_SetSkill_3-1_Pick>_Rank": {
+        "roi_offset": [
+            -10,
+            35,
+            20,
+            18
         ]
     },
     "Setup_SetSkill_3-1_Shake1": {
@@ -579,12 +625,42 @@
             9
         ]
     },
+    "Setup_SetSkill_3-4_Ready": {
+        "roi": [
+            68,
+            601,
+            572,
+            34
+        ]
+    },
     "Setup_SetSkill_3-4": {
         "roi": [
             68,
             601,
             1146,
             34
+        ],
+        "end": [
+            204,
+            614,
+            10,
+            10
+        ]
+    },
+    "Setup_SetSkill_3-4_Pick": {
+        "target_offset": [
+            0,
+            -118,
+            0,
+            0
+        ]
+    },
+    "Rec_<Setup_SetSkill_3-4_Pick>_Rank": {
+        "roi_offset": [
+            -10,
+            35,
+            20,
+            18
         ]
     },
     "Setup_SetSkill_3-4_Shake1": {

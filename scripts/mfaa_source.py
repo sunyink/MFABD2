@@ -15,6 +15,8 @@ FORK_BRANCH = "mfabd2"
 RIDS = ("win-x64", "win-arm64", "linux-x64", "linux-arm64", "osx-x64", "osx-arm64")
 MANIFEST = "fork-release.json"
 STAMP = "mfaa-build.json"
+LEGACY_TAG = re.compile(r"(?P<base>v\d+\.\d+\.\d+)-mfbd2\.g(?P<short>[0-9a-f]{6})")
+NUMBERED_TAG = re.compile(r"(?P<base>v\d+\.\d+\.\d+)-MFABD2\.beta\.(?P<number>[1-9]\d*)")
 
 
 def api(path):
@@ -32,15 +34,38 @@ def package_names(tag):
     return {f"MFAAvalonia-{tag}-{rid}" + (".zip" if rid.startswith("win-") else ".tar.gz") for rid in RIDS}
 
 
-def validate_manifest(manifest, release, sha):
-    tag = release["tag_name"]
-    if (manifest.get("schema") != 1 or manifest.get("repository") != FORK
-            or manifest.get("branch") != FORK_BRANCH or manifest.get("commit") != sha
-            or manifest.get("short_commit") != sha[:6] or manifest.get("tag") != tag
-            or not re.fullmatch(rf"v\d+\.\d+\.\d+-mfbd2\.g{sha[:6]}", tag)):
+def validate_identity(stamp, release_tag, sha):
+    if (type(stamp.get("schema")) is not int or stamp["schema"] not in (1, 2)
+            or stamp.get("repository") != FORK or stamp.get("branch") != FORK_BRANCH
+            or stamp.get("commit") != sha or stamp.get("short_commit") != sha[:6]):
         raise ValueError("自家 MFAA 发布清单与指定提交不一致")
+    package_tag = stamp.get("tag", "")
+    numbered = NUMBERED_TAG.fullmatch(release_tag)
+    if stamp["schema"] == 1:
+        legacy = LEGACY_TAG.fullmatch(package_tag)
+        if not legacy or legacy["short"] != sha[:6]:
+            raise ValueError("旧版 MFAA 包来源标记不符")
+        if release_tag != package_tag:
+            # A historical release may move to a numbered tag while its original
+            # package and signed/digested manifest remain byte-for-byte intact.
+            if not numbered or numbered["base"] != legacy["base"]:
+                raise ValueError("旧版 MFAA 包与编号标签的基础版本不符")
+            sequence = stamp.get("fork_sequence")
+            if sequence is not None and (type(sequence) is not int or sequence != int(numbered["number"])):
+                raise ValueError("旧版 MFAA 包与编号标签的自家序号不符")
+    else:
+        sequence = stamp.get("fork_sequence")
+        if (not numbered or package_tag != release_tag or type(sequence) is not int
+                or not 1 <= sequence <= 2147483647 or sequence != int(numbered["number"])
+                or stamp.get("upstream_version") != numbered["base"]):
+            raise ValueError("MFAA 编号、基础版本与包内来源标记不符")
+    return package_tag
+
+
+def validate_manifest(manifest, release, sha):
+    package_tag = validate_identity(manifest, release["tag_name"], sha)
     packages = manifest.get("packages", [])
-    expected_names = package_names(tag)
+    expected_names = package_names(package_tag)
     if len(packages) != len(RIDS) or {p.get("name") for p in packages} != expected_names:
         raise ValueError("自家 MFAA 缺少完整的六平台产物清单")
     assets = release.get("assets", [])
@@ -69,8 +94,14 @@ def resolve_source(upstream_tag, override, fetch=api, download=asset_bytes):
     page = 1
     while True:
         releases = fetch(f"repos/{FORK}/releases?per_page=100&page={page}")
-        candidates.extend(release for release in releases if not release.get("draft")
-                          and re.fullmatch(rf"v\d+\.\d+\.\d+-mfbd2\.g{short}", release.get("tag_name", "")))
+        for release in releases:
+            tag = release.get("tag_name", "")
+            legacy = LEGACY_TAG.fullmatch(tag)
+            numbered = NUMBERED_TAG.fullmatch(tag)
+            if not release.get("draft") and (
+                    legacy is not None and legacy["short"] == short
+                    or numbered is not None and release.get("target_commitish") == sha):
+                candidates.append(release)
         if len(releases) < 100:
             break
         page += 1
@@ -101,9 +132,8 @@ def verify_extracted(root, tag, sha, rid):
     if len(stamps) != 1:
         raise ValueError("下载包中没有唯一的 MFAA 构建来源标记")
     stamp = json.loads(stamps[0].read_text(encoding="utf-8"))
-    expected = dict(schema=1, repository=FORK, branch=FORK_BRANCH, commit=sha,
-                    short_commit=sha[:6], tag=tag, rid=rid)
-    if any(stamp.get(key) != value for key, value in expected.items()):
+    validate_identity(stamp, tag, sha)
+    if stamp.get("rid") != rid:
         raise ValueError("下载包的平台或源码提交不符")
     print(f"Verified MFAA {tag}, {rid}, commit {sha}")
 

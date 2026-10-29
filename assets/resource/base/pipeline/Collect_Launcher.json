@@ -21,7 +21,7 @@
         ]
     },
     "Collect_OnlyOnce_Switch": {
-        "desc": "地图采集（每周一次）的本周期检查：未完成才命中，并改写采集链的收尾与技能节点后开始采集。 采集任务入口(单章/每周一次)。★2026-10-07 本地:next 首位加 [JumpBack]Collect_QC_Scan_Reset,同 Collect_StartGame_HomePage(两个入口都要清,否则残留标记会整类跳过)。 ★2026-10-19: 同步改写吸取的两个新出口 Collect_Skill3_2_NoTarget/GiveUp,先过 [JumpBack]Collect_OnlyOnce_SkillUsed 再出,单章模式下吸不到也按「本卡带已吸取」收尾。",
+        "desc": "地图采集（每周一次）的本周期检查：未完成才命中，并改写采集链的收尾与技能节点后开始采集。 采集任务入口(单章/每周一次)。★2026-10-07 本地:next 首位加 [JumpBack]Collect_QC_Scan_Reset,同 Collect_StartGame_HomePage(两个入口都要清,否则残留标记会整类跳过)。 ★2026-10-19: 吸取点击后(Collect_Skill3_2)与「没有拾取物」(Collect_Skill3_2_NoTarget)都先过 [JumpBack]Collect_OnlyOnce_SkillUsed 再出,单章模式下吸不到也按「本卡带已吸取」收尾。快照只抄到下一个分流节点,改 3-3/3-5 不用再同步这里。",
         "recognition": "Custom",
         "custom_recognition": "CheckCoolDown",
         "custom_recognition_param": {
@@ -35,13 +35,8 @@
                 "Collect_Skill3_2": {
                     "next": [
                         "Collect_Skill3_2_NoTarget",
-                        "Collect_Skill3_2_Retry",
                         "[JumpBack]Collect_OnlyOnce_SkillUsed",
-                        "Collect_Skill3_2_Used",
-                        "Collect_Skill3_3_perOcr",
-                        "Collect_Skill3_3_Nothing",
-                        "Collect_Skill3_3",
-                        "Collect_Skill_TapReset"
+                        "Collect_Skill3_2_Start"
                     ]
                 },
                 "Collect_PackEnd_Disable": {
@@ -52,23 +47,7 @@
                 "Collect_Skill3_2_NoTarget": {
                     "next": [
                         "[JumpBack]Collect_OnlyOnce_SkillUsed",
-                        "Collect_Skill3_3_perOcr",
-                        "Collect_Skill3_3_Nothing",
-                        "Collect_Skill3_3",
-                        "Collect_Skill3_5_perOcr",
-                        "Collect_Skill3_5",
-                        "Collect_Skill_TapReset"
-                    ]
-                },
-                "Collect_Skill3_2_GiveUp": {
-                    "next": [
-                        "[JumpBack]Collect_OnlyOnce_SkillUsed",
-                        "Collect_Skill3_3_perOcr",
-                        "Collect_Skill3_3_Nothing",
-                        "Collect_Skill3_3",
-                        "Collect_Skill3_5_perOcr",
-                        "Collect_Skill3_5",
-                        "Collect_Skill_TapReset"
+                        "Collect_Skill3_3_Start"
                     ]
                 }
             }
@@ -388,7 +367,7 @@
         ],
         "expected": [
             "剧情游戏卡",
-            "故事遊戲卡"
+            "故事遊戲卡帶"
         ],
         "action": "Click",
         "post_delay": 500,
@@ -408,7 +387,7 @@
         ],
         "expected": [
             "角色游戏卡",
-            "角色遊戲卡"
+            "角色遊戲卡帶"
         ],
         "action": "Click",
         "post_delay": 500,
@@ -428,7 +407,7 @@
         ],
         "expected": [
             "活动游戏卡",
-            "活動遊戲卡"
+            "活動遊戲卡帶"
         ],
         "action": "Click",
         "post_delay": 500,
@@ -448,7 +427,7 @@
         ],
         "expected": [
             "店长游戏卡",
-            "店長遊戲卡"
+            "店長遊戲卡帶"
         ],
         "action": "Click",
         "post_delay": 500,
@@ -468,7 +447,7 @@
         ],
         "expected": [
             "战斗玩法游戏卡",
-            "戰鬥遊戲卡"
+            "戰鬥遊戲卡帶"
         ],
         "action": "Click",
         "post_delay": 500,
@@ -488,7 +467,7 @@
         ],
         "expected": [
             "生活玩法游戏卡",
-            "生活遊戲卡"
+            "生活遊戲卡帶"
         ],
         "action": "Click",
         "post_delay": 500,
@@ -2825,7 +2804,7 @@
         ],
         "expected": [
             "未插好游戏卡",
-            "未插好遊戲卡"
+            "未插好遊戲卡帶"
         ],
         "action": "Click",
         "repeat": 10,
@@ -2843,7 +2822,8 @@
             68
         ],
         "template": [
-            "UI_Skip.png"
+            "UI_Skip.png",
+            "Chaga_ProductNext.png"
         ],
         "action": "Click",
         "post_delay": 2000,

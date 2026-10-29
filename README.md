@@ -145,7 +145,7 @@
 
 > **装备备注**：请保留至少一件 SR/UR +9 装备用于精炼。
 
-> <img alt="技能设置" src="https://github.com/sunyink/MFABD2/blob/main/ReadMe/IT-2601.jpg" width="600px"/>
+> <img alt="技能设置" src="https://github.com/sunyink/MFABD2/blob/main/ReadMe/IT.png" width="600px"/>
 
 
 #### **关于任务复位**
