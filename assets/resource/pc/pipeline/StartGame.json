@@ -21,12 +21,6 @@
     "StartGame_UpdateCloseGame": {
         "enabled": false
     },
-    "StartGame_Update_Data": {
-        "expected": [
-            "所需资料",
-            "所需資料"
-        ]
-    },
     "StartGame_Loading": {
         "roi": [
             808,

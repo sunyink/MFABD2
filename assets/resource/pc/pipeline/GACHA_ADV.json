@@ -302,11 +302,6 @@
         "green_mask": true
     },
     "GachaADV_5X": {
-        "expected": [
-            "艾莉诺",
-            "艾莉諾",
-            "這是不用多說的巨作"
-        ],
         "target": [
             1175,
             37,

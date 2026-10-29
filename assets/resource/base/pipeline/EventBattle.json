@@ -23,6 +23,18 @@
         "post_delay": 8000,
         "focus": "EM.从主页面进入活动"
     },
+    "Event_GoinEvent_OcrCk": {
+        "desc": "活动横幅的共享识别词，由 PC 的 Event_GoinEvent 路由调用；点击与 ROI 保留在 PC。沿用既有繁体文案下放，有待实测。",
+        "recognition": "OCR",
+        "expected": [
+            "魔兽追踪者",
+            "魔獸追蹤者",
+            "开始",
+            "開始",
+            "解锁",
+            "解鎖"
+        ]
+    },
     "Event_Event_Main": {
         "desc": "在赛季活动页面.兼做任务选择器",
         "recognition": "Or",
@@ -1701,7 +1713,7 @@
         ]
     },
     "Even_MamonoFollowUp_onSubMain": {
-        "desc": "结束，判定处于子菜单",
+        "desc": "结束，判定处于子菜单 | 沿用既有“階段最高”等繁体界面文案，数据库未收录不作为删除依据，有待实测。",
         "recognition": "OCR",
         "roi": [
             732,

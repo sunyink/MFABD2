@@ -88,16 +88,6 @@
             "[JumpBack]PVP_Errmsg2#_Clear"
         ]
     },
-    "PVP_SeasonSettling": {
-        "expected": [
-            "结算完成后确认",
-            "结算完成后",
-            "赛季结算",
-            "结算中",
-            "当前并非赛季",
-            "結算"
-        ]
-    },
     "PVP_JustUseFree": {
         "desc": "免费鸡尾酒开关锚点。|[PC覆盖·2026-07-09 MFA实录+配置弹窗帧实测] 本节点roi即anchor'SliderSwitchColor',子判定To_On(灰off)/OK(黄on)在此区内检色;base roi[895,252,37,20]在PC配置弹窗落在暗底没罩住开关(实测'仅使用免费'开关黄条+白钮在720 x852-882,y268-287)→灰黄都检不到→To_On/OK各连败10次死循环、on_error走BackToQC复位绕圈(04:17实录).roi修为罩全开关.",
         "roi": [

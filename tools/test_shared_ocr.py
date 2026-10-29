@@ -1,8 +1,9 @@
 """Offline OCR-pattern regressions; no game connection or OCR-engine acceptance.
 
 Run: python -m unittest discover -s tools -p test_shared_ocr.py
-Text examples follow the 2026-10-29 game text export. Numbered map labels also
-exercise previously observed OCR variants, separately from database wording.
+Text examples use the 2026-10-29 game text export and existing PC image labels.
+Numbered map labels also exercise previously observed OCR variants, separately
+from database wording. Legacy image labels still require live-game validation.
 """
 import itertools
 import json
@@ -72,10 +73,39 @@ class SharedOcrPatterns(unittest.TestCase):
 
     def test_map_ocr_digit_replacement_does_not_break_titles(self):
         for pc in (False, True):
-            title = '达雷普镇' if pc else '达普雷镇'
-            for text in (title, '達雷普鎮', '学校1楼', '學校1樓', '恶梦之城I', '惡夢城市1'):
+            for text in ('达雷普镇', '達雷普鎮', '学校1楼', '學校1樓', '恶梦之城I', '惡夢城市1'):
                 with self.subTest(pc=pc, text=text):
                     self.assertTrue(self.matches('Collect_TargetMap1-2', text, pc))
+            self.assertFalse(self.matches('Collect_TargetMap1-2', '达普雷镇', pc))
+
+    def test_pc_inherits_later_map_entry_and_finish_conditions(self):
+        for name in ('Collect_TargetMap3', 'Cpt_Collect_TargetMapEnd_Ocr'):
+            self.assertNotIn('expected', self.pc[name])
+            self.assert_examples(name, (
+                '战斗Ⅱ禁闭室', '戰鬥Ⅱ禁閉室', '第四记忆空间', '第四個記憶空間',
+            ))
+
+    def test_existing_pc_image_words_remain_available_after_sharing(self):
+        cases = {
+            'Rec_<AutoBattle_Is_Auto>_Ocr_01': ('自动战斗中', '自動戰鬥中', '自動戰鬥結束'),
+            'GachaADV_5X': ('艾莉诺', '艾莉諾', '這是不用多說的巨作'),
+            'PVP_SeasonSettling': ('结算完成后确认', '結算', '結算中'),
+            'StartGame_Update_Data': ('将下载游戏', '下載遊戲', '所需资料', '所需資料'),
+            'Event_GoinEvent_OcrCk': ('魔兽追踪者', '魔獸追蹤者', '开始', '開始', '解锁', '解鎖'),
+        }
+        for name, texts in cases.items():
+            self.assertNotIn('expected', self.pc.get(name, {}))
+            self.assert_examples(name, texts)
+        # BASE owns only the words; the existing PC route still supplies input.
+        self.assertNotIn('action', self.base['Event_GoinEvent_OcrCk'])
+        self.assertNotIn('next', self.base['Event_GoinEvent_OcrCk'])
+        self.assertEqual('Click', self.node('Event_GoinEvent_OcrCk', pc=True)['action'])
+
+    def test_free_plus_five_banner_requires_the_literal_bonus(self):
+        self.assert_examples('Activities_FreeClothing', (
+            '强化免费赠送', '强化服装的机会', '+5强化',
+            '獲得限定+5', '獲得限定[+5]', '強化服裝的機會',
+        ), ('獲得限定5', '獲得限定+', '獲得限定+50', '獲得限定+6'))
 
     def test_existing_simplified_regex_alternatives_are_preserved(self):
         samples = {
