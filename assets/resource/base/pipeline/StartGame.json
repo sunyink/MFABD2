@@ -121,7 +121,6 @@
         "focus": "NEO"
     },
     "StartGame_LoadingPage": {
-        "desc": "沿用既有启动图与联动图片中的识别片段，数据库未收录不作为删除依据，有待实测。",
         "recognition": "OCR",
         "roi": [
             791,
@@ -262,7 +261,6 @@
         "post_delay": 10000
     },
     "StartGame_UpdateShopEnd": {
-        "desc": "沿用既有应用商店按钮文案，不要求游戏文本库收录，有待实测。",
         "recognition": "OCR",
         "roi": [
             33,
@@ -285,7 +283,7 @@
         "focus": "外部更新End.回到初始."
     },
     "StartGame_Update_Data": {
-        "desc": "下载数据 | 沿用既有 PC 下载提示短词下放，有待实测。",
+        "desc": "下载数据 | 繁体沿用 PC 原文，有待实测。",
         "recognition": "OCR",
         "roi": [
             403,
@@ -343,8 +341,13 @@
         ],
         "expected": [
             "正在下载",
-            "下載中",
             "下载中"
+        ],
+        "replace": [
+            [
+                "載",
+                "载"
+            ]
         ],
         "post_delay": 30000,
         "timeout": 8000,
@@ -361,7 +364,7 @@
         "focus": "SM.数据下载循环"
     },
     "StartGame_GameIsMaint": {
-        "desc": "游戏服务器维护 | 沿用既有简繁维护公告片段；动态公告不要求静态文本库收录，有待实测。",
+        "desc": "游戏服务器维护 | 繁体沿用 PC 原文，有待实测。",
         "recognition": "OCR",
         "roi": [
             439,
@@ -546,6 +549,7 @@
         ],
         "expected": [
             "7天内不再显示",
+            "7日期間不再觀看",
             "7天內不再顯示"
         ],
         "action": "Click",

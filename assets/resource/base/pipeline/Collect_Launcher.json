@@ -367,7 +367,7 @@
         ],
         "expected": [
             "剧情游戏卡",
-            "故事遊戲卡帶"
+            "故事遊戲卡"
         ],
         "action": "Click",
         "post_delay": 500,
@@ -387,7 +387,7 @@
         ],
         "expected": [
             "角色游戏卡",
-            "角色遊戲卡帶"
+            "角色遊戲卡"
         ],
         "action": "Click",
         "post_delay": 500,
@@ -407,7 +407,7 @@
         ],
         "expected": [
             "活动游戏卡",
-            "活動遊戲卡帶"
+            "活動遊戲卡"
         ],
         "action": "Click",
         "post_delay": 500,
@@ -427,7 +427,7 @@
         ],
         "expected": [
             "店长游戏卡",
-            "店長遊戲卡帶"
+            "店長遊戲卡"
         ],
         "action": "Click",
         "post_delay": 500,
@@ -447,7 +447,7 @@
         ],
         "expected": [
             "战斗玩法游戏卡",
-            "戰鬥遊戲卡帶"
+            "戰鬥遊戲卡"
         ],
         "action": "Click",
         "post_delay": 500,
@@ -467,7 +467,7 @@
         ],
         "expected": [
             "生活玩法游戏卡",
-            "生活遊戲卡帶"
+            "生活遊戲卡"
         ],
         "action": "Click",
         "post_delay": 500,
@@ -2804,7 +2804,7 @@
         ],
         "expected": [
             "未插好游戏卡",
-            "未插好遊戲卡帶"
+            "未插好遊戲卡"
         ],
         "action": "Click",
         "repeat": 10,

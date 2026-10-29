@@ -430,9 +430,6 @@
             22
         ]
     },
-    "Event_MiniGame_Run_Goin": {
-        "desc": "全猜的"
-    },
     "SeasonEvent_ReMamono_Enter": {
         "desc": "",
         "roi": [
@@ -450,6 +447,14 @@
             216,
             346,
             358
+        ],
+        "expected": [
+            "魔兽追踪者",
+            "开始",
+            "解锁",
+            "魔獸追蹤者",
+            "開始",
+            "解鎖"
         ],
         "action": "Click",
         "target_offset": [

@@ -23,18 +23,6 @@
         "post_delay": 8000,
         "focus": "EM.从主页面进入活动"
     },
-    "Event_GoinEvent_OcrCk": {
-        "desc": "活动横幅的共享识别词，由 PC 的 Event_GoinEvent 路由调用；点击与 ROI 保留在 PC。沿用既有繁体文案下放，有待实测。",
-        "recognition": "OCR",
-        "expected": [
-            "魔兽追踪者",
-            "魔獸追蹤者",
-            "开始",
-            "開始",
-            "解锁",
-            "解鎖"
-        ]
-    },
     "Event_Event_Main": {
         "desc": "在赛季活动页面.兼做任务选择器",
         "recognition": "Or",
@@ -65,6 +53,7 @@
         ],
         "expected": [
             "活动服装",
+            "活動服装",
             "活動服裝"
         ]
     },
@@ -669,8 +658,8 @@
             222
         ],
         "expected": [
-            "(?:小活动|迷你游戏)",
-            "迷你遊戲"
+            "小活动",
+            "迷你[游遊][戏戲]"
         ],
         "action": "Click",
         "target_offset": [
@@ -750,8 +739,8 @@
             391
         ],
         "expected": [
-            "开始答题|^解题",
-            "^解題"
+            "开始答题",
+            "^解[题題]"
         ],
         "order_by": "Vertical",
         "action": "Click",
@@ -1210,7 +1199,7 @@
                 ],
                 "expected": [
                     "可练习战斗",
-                    "可進行練習戰鬥"
+                    "可進行練習"
                 ]
             }
         ],
@@ -1285,7 +1274,7 @@
         ],
         "expected": [
             "距离开始还",
-            "距離開始還有"
+            "距離開始還"
         ],
         "only_rec": true
     },
@@ -1647,9 +1636,7 @@
             118,
             430
         ],
-        "expected": [
-            "使用"
-        ],
+        "expected": "使用",
         "action": "Click",
         "post_delay": 8000,
         "next": [
@@ -1713,7 +1700,7 @@
         ]
     },
     "Even_MamonoFollowUp_onSubMain": {
-        "desc": "结束，判定处于子菜单 | 沿用既有“階段最高”等繁体界面文案，数据库未收录不作为删除依据，有待实测。",
+        "desc": "结束，判定处于子菜单 | 繁体沿用 PC 原文，有待实测。",
         "recognition": "OCR",
         "roi": [
             732,
