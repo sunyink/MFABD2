@@ -8,6 +8,11 @@
   · 切点由被卡住的父块自身颜色分布**算出**（Otsu），不枚举参数空间；
   · 亮度/饱和度两个维度都保留，三个方向（只切亮度/只切饱和/双切）先各跑一次主档，
     位置一致才选增量最小者补跑陪跑档 —— 避免三组各自成稳定分量而互判歧义；
+  · 色相另成两个方向（色相上/色相下）：在"展开轴"上算一刀、两侧各试一次，
+    是后手 —— 只在 S/V 没得出稳定解时补试，S/V 救得回的帧行为逐位不变；
+  · 分层（max_depth>1）：一层五个切法都没得出结论时，在切出来、仍卡住的子块上
+    **重算**切点再切一层；子树无解就退回上一层换下一个切法。连片的背景常不止一种，
+    各差在不同维度，切掉一种之后剩下的块才在另一维上分得开；
   · 代码中不得出现来自样本的阈值常数，max_delta_* 只作安全护栏，不是工作点。
 """
 
@@ -34,6 +39,9 @@ DEFAULT_RESCUE_CONFIG: Dict[str, Any] = {
     "entry_confidence_rej": "shadow",
     "max_delta_s": 110,     # 护栏，非工作点
     "max_delta_v": 110,     # 护栏，非工作点
+    # 分层救援的层数上限。1 = 只切一层（v3 原有行为，逐位不变）；
+    # >1 时某层没得出结论，就在该层切出、仍卡住的子块上重算切点再切一层。见 _run_hsv_rescue。
+    "max_depth": 1,
     "max_full_runs": 12,
     "min_stable_states": 2,
     "max_parents": 5,
@@ -67,13 +75,34 @@ _OBSOLETE_KEYS = ("max_states",)
 _NEIGHBOR_RATIO = 0.10
 _NEIGHBOR_MIN_STEP = 2
 
-# 三个切法的尝试顺序。仅影响预算消耗先后，不影响判定：
+# S/V 三个切法的尝试顺序。仅影响预算消耗先后，不影响判定：
 # 位置一致时取增量最小者，位置分散时一律拒绝，与顺序无关。
-DIRECTIONS = ("亮度", "饱和", "双切")
+SV_DIRECTIONS = ("亮度", "饱和", "双切")
+
+# 色相两个切法：**后手**，只在 S/V 没得出稳定解（一个没中 / 中了但不稳）时补试。
+# 起因 GachaADV_Location1[315,130,47,42]（2026-10-28）：橙红红点(展开色相中位 1.4)
+# 贴在品红卡面(中位 -11.3)上连片，肉眼色差明显，S/V 却切不开 —— 饱和 Otsu 落在
+# +16~+32 的失败区，那一刀连感叹号的偏白描边一起切掉，白芯变胖、竖条与点连成一块。
+# 色相刀位 -4 落在 -10~0 的成功区正中，感叹号无损。
+#   色相上 = 保留展开轴上刀位及以上（对红色即切掉品红一端）
+#   色相下 = 保留刀位以下（对红色即切掉橙色一端）
+# 两侧都试而不是预判"红点在哪侧"：刀位由数据算出，哪侧留得住红点交给完整检测链判。
+#
+# 为什么不与 S/V 并列跑主档：背景与红点同色相时(暗红卡片上的 Pass_SelectPass)，
+# 色相刀切不开，只削掉红点自身最纯的那几格，留下一个包着背景的虚胖框照样过闸；
+# 并列时它与 S/V 的框重叠不足一半，把两帧本来救得回的样本判成方向歧义（雷电语料实测）。
+# 后手则 S/V 救得回的帧一格都不碰色相，行为逐位不变。
+HUE_DIRECTIONS = ("色相上", "色相下")
+DIRECTIONS = SV_DIRECTIONS + HUE_DIRECTIONS
 
 # 主档在 (si, vi) 网格里的落点。同方向的 3 档 vi 相邻(差1)，
 # 不同方向 si 相隔 10 —— 保证 select_stable_winner 的 _adjacent 永不跨方向连通。
-_DIRECTION_SI = {"亮度": 0, "饱和": 10, "双切": 20}
+_DIRECTION_SI = {"亮度": 0, "饱和": 10, "双切": 20, "色相上": 30, "色相下": 40}
+
+# 展开轴的折返点（OpenCV 色相刻度）。>= 此值的色相记为负数(H-180)，
+# 于是绕过 0/180 的两段红色 [0,12]∪[165,180] 变成一段连续区间 [-15,12]，纯红在 0。
+# 这是色相环的几何事实（把环从纯红对面剪开），不是从样本量出的工作点。
+_HUE_WRAP_CV = 90
 
 
 def normalize_rescue_config(raw: Any) -> Tuple[Dict[str, Any], Optional[str]]:
@@ -98,7 +127,7 @@ def normalize_rescue_config(raw: Any) -> Tuple[Dict[str, Any], Optional[str]]:
             if cfg[key] not in _ENTRY_MODES:
                 raise ValueError(f"{key} 仅支持 off/shadow/active/inherit")
 
-        for key in ("max_delta_s", "max_delta_v", "max_full_runs",
+        for key in ("max_delta_s", "max_delta_v", "max_depth", "max_full_runs",
                     "min_stable_states", "max_parents", "time_budget_ms"):
             cfg[key] = int(cfg[key])
 
@@ -110,6 +139,8 @@ def normalize_rescue_config(raw: Any) -> Tuple[Dict[str, Any], Optional[str]]:
             raise ValueError("min_stable_states 必须 >= 2")
         if cfg["max_parents"] < 1:
             raise ValueError("max_parents 必须 >= 1")
+        if cfg["max_depth"] < 1:
+            raise ValueError("max_depth 必须 >= 1")
         if cfg["time_budget_ms"] <= 0:
             raise ValueError("time_budget_ms 必须 > 0")
         if cfg["max_delta_s"] > 115 or cfg["max_delta_v"] > 135:
@@ -118,6 +149,8 @@ def normalize_rescue_config(raw: Any) -> Tuple[Dict[str, Any], Optional[str]]:
             raise ValueError("max_full_runs 超过安全上限 32")
         if cfg["max_parents"] > 16:
             raise ValueError("max_parents 超过安全上限 16")
+        if cfg["max_depth"] > 4:
+            raise ValueError("max_depth 超过安全上限 4")
         if cfg["time_budget_ms"] > 2000:
             raise ValueError("time_budget_ms 超过安全上限 2000")
     except (TypeError, ValueError) as exc:
@@ -151,9 +184,16 @@ def resolve_entry_plan(
 
 def strict_profile(
     ranges: Sequence[dict], delta_s: int, delta_v: int,
+    hue_keep: Optional[Sequence[int]] = None,
 ) -> Optional[List[dict]]:
-    """保持 H/upper 不动，仅同步提高所有组的 S/V lower。"""
-    if delta_s < 0 or delta_v < 0 or (delta_s == 0 and delta_v == 0):
+    """同步提高所有组的 S/V lower；给了 hue_keep 时再把各组 H 收进展开轴上的该区间。
+
+    两种收紧都只缩不扩，结果必为原 profile 的子集。H 收紧后某组整段落空即删去该组，
+    全部落空返回 None。什么都不收紧也返回 None —— 那不是救援。
+    """
+    if delta_s < 0 or delta_v < 0:
+        return None
+    if delta_s == 0 and delta_v == 0 and hue_keep is None:
         return None
 
     result: List[dict] = []
@@ -164,14 +204,22 @@ def strict_profile(
             return None
         if len(lower) != 3 or len(upper) != 3:
             return None
+        h_lo, h_hi = int(lower[0]), int(upper[0])
+        if hue_keep is not None:
+            shift = 180 if h_lo >= _HUE_WRAP_CV else 0
+            h_lo = max(h_lo - shift, int(hue_keep[0])) + shift
+            h_hi = min(h_hi - shift, int(hue_keep[1])) + shift
+            if h_lo > h_hi:
+                continue                  # 该组整段被切掉
         new_lower = [
-            int(lower[0]),
+            h_lo,
             min(255, int(lower[1]) + int(delta_s)),
             min(255, int(lower[2]) + int(delta_v)),
         ]
-        if any(new_lower[i] > int(upper[i]) for i in range(3)):
+        new_upper = [h_hi, int(upper[1]), int(upper[2])]
+        if any(new_lower[i] > new_upper[i] for i in range(3)):
             return None
-        result.append({"lower": new_lower, "upper": [int(v) for v in upper]})
+        result.append({"lower": new_lower, "upper": new_upper})
     return result or None
 
 
@@ -188,12 +236,26 @@ def mask_digest(mask: np.ndarray) -> str:
     return hashlib.sha1(np.ascontiguousarray(mask).view(np.uint8)).hexdigest()
 
 
-def otsu_threshold(values: np.ndarray) -> Optional[int]:
+def pixel_set_key(mask: np.ndarray, x0: int, y0: int) -> str:
+    """局部窗口里一块像素在 ROI 坐标系下的身份。与窗口大小、偏移无关，同一块像素同一个值。
+
+    分层救援用它去重：不同路径切出同一块子块时，在它上面重算出的切点也相同，再想一遍是白跑。
+    """
+    ys, xs = np.nonzero(mask)
+    coords = np.stack([ys + int(y0), xs + int(x0)]).astype(np.int32)
+    return hashlib.sha1(np.ascontiguousarray(coords).tobytes()).hexdigest()
+
+
+def otsu_threshold(values: np.ndarray, center_plateau: bool = False) -> Optional[int]:
     """大津法：在 0~255 上找使类间方差最大的切点，返回 t（>=t 归为"亮/饱和"的一类）。
 
     不需要任何预设数值，切点完全由这一堆像素自己的分布决定 —— 这是"泛用"的前提。
     已知失效条件：两类像素数悬殊会偏向大类；本来单峰时它照样给值。
     因此切点只是候选，是否采纳由后续完整检测链与跨档复现决定，不在这里下结论。
+
+    center_plateau：两簇之间隔着空直方格时，类间方差在整段空档上**逐位相等**（累计量
+    不变），argmax 只取最左端 —— 刀贴着下面那簇下。置 True 取这段平台的中点，刀落在
+    空档正中。只有色相用：色相簇紧、中间常是空档；S/V 维持原行为，不动既有救援。
     """
     v = np.asarray(values, dtype=np.int64).ravel()
     if v.size < 8:
@@ -213,6 +275,9 @@ def otsu_threshold(values: np.ndarray) -> Optional[int]:
     sigma_b[~np.isfinite(sigma_b)] = -1.0
     if float(sigma_b.max()) <= 0.0:
         return None                      # 完全没有可切之处（常量分布）
+    if center_plateau:
+        peak = np.flatnonzero(sigma_b == sigma_b.max())
+        return int(peak[len(peak) // 2]) + 1
     return int(np.argmax(sigma_b)) + 1
 
 
@@ -260,7 +325,66 @@ def channel_cutpoints(parent_pixels: np.ndarray,
         if cut is not None and qcut is not None:
             diverge.append(abs(cut - qcut))
     out["分歧"] = max(diverge) if diverge else None
+    hue = hue_cutpoint(px[:, 0], ranges)
+    if hue is not None:
+        out["色相"] = hue
     return out
+
+
+def hue_axis(ranges: Sequence[dict]) -> Optional[Tuple[int, int]]:
+    """配置各组 H 在展开轴（OpenCV 刻度）上的总跨度 [最小, 最大]。"""
+    lows, highs = [], []
+    for item in ranges:
+        lower = item.get("lower") or item.get("lower_hsv")
+        upper = item.get("upper") or item.get("upper_hsv")
+        if not isinstance(lower, (list, tuple)) or not isinstance(upper, (list, tuple)):
+            return None
+        if len(lower) != 3 or len(upper) != 3:
+            return None
+        shift = 180 if int(lower[0]) >= _HUE_WRAP_CV else 0
+        lows.append(int(lower[0]) - shift)
+        highs.append(int(upper[0]) - shift)
+    return (min(lows), max(highs)) if lows else None
+
+
+def hue_cutpoint(pil_hue: np.ndarray,
+                 ranges: Sequence[dict]) -> Optional[Dict[str, Any]]:
+    """父块像素在展开轴上的 Otsu 刀位，及两侧各自保留的区间。
+
+    像素是 Pillow 刻度(0~255)，配置是 OpenCV 刻度(0~180)：在 Pillow 刻度上展开、
+    求 Otsu（分辨率更细），刀位再换回 OpenCV 整数，与配置同一坐标系。
+    刀位贴着轴端(某侧为空)时不给切点 —— 那一侧什么也不剩，另一侧什么也没切。
+    """
+    axis = hue_axis(ranges)
+    if axis is None:
+        return None
+    h = np.asarray(pil_hue, dtype=np.int64).ravel()
+    wrap_pil = int(round(_HUE_WRAP_CV * 255.0 / 180.0))
+    unwrapped = np.where(h < wrap_pil, h, h - 256)
+    # otsu_threshold 只收 0~255；展开轴在 Pillow 刻度上落在 [-128,127]，平移 128 即可。
+    cut = otsu_threshold(unwrapped + 128, center_plateau=True)
+    if cut is None:
+        return None
+    t = int(round((cut - 128) * 180.0 / 255.0))
+    lo, hi = axis
+    if not (lo < t <= hi):
+        return None
+    return {"Otsu": t, "轴": [lo, hi], "上侧": [t, hi], "下侧": [lo, t - 1]}
+
+
+def hue_keep_for(direction: str, cut: int,
+                 axis: Sequence[int]) -> Optional[Tuple[int, int]]:
+    """色相方向在刀位 cut 处保留的展开轴区间；刀位不在轴内(某侧为空/没切)时返回 None。"""
+    lo, hi = int(axis[0]), int(axis[1])
+    if not (lo < int(cut) <= hi):
+        return None
+    if direction == "色相上":
+        keep = (int(cut), hi)
+    elif direction == "色相下":
+        keep = (lo, int(cut) - 1)
+    else:
+        return None
+    return keep
 
 
 def _neighbor_step(delta: int) -> int:
@@ -276,6 +400,50 @@ def direction_deltas(cutpoints: Dict[str, Any],
     if pair is None or (pair[0] <= 0 and pair[1] <= 0):
         return None
     return pair
+
+
+def direction_cut(cutpoints: Dict[str, Any],
+                  direction: str) -> Optional[Dict[str, Any]]:
+    """把切点翻译成某个切法的主档 {delta_s, delta_v, hue_cut, hue_keep}；无效返回 None。
+
+    S/V 三个方向原样走 direction_deltas，hue_* 为 None；色相方向 delta_s/v 恒为 0。
+    """
+    if direction in HUE_DIRECTIONS:
+        hue = cutpoints.get("色相")
+        if not hue:
+            return None
+        keep = hue_keep_for(direction, hue["Otsu"], hue["轴"])
+        if keep is None:
+            return None
+        return {"delta_s": 0, "delta_v": 0, "hue_cut": hue["Otsu"], "hue_keep": keep}
+    pair = direction_deltas(cutpoints, direction)
+    if pair is None:
+        return None
+    return {"delta_s": pair[0], "delta_v": pair[1], "hue_cut": None, "hue_keep": None}
+
+
+def hue_neighbor_states(direction: str, cut: int,
+                        axis: Sequence[int]) -> List[Dict[str, Any]]:
+    """色相方向的主档 + 上下陪跑档：刀位左右各挪一步，步长规则与 S/V 同一套。
+
+    步长按"刀位离被切那一端有多远"取比例(下限 _NEIGHBOR_MIN_STEP)，与 S/V 陪跑档
+    "按增量取比例"同义：增量就是这一刀从配置边界往里收了多少。
+    hue_trim = 切掉的轴长，供 select_stable_winner 选最保守档(切得最少)。
+    """
+    lo, hi = int(axis[0]), int(axis[1])
+    trimmed = (int(cut) - lo) if direction == "色相上" else (hi - int(cut) + 1)
+    step = _neighbor_step(trimmed)
+    si = _DIRECTION_SI.get(direction, 0)
+    out = []
+    for vi, mult in ((0, -1), (1, 0), (2, 1)):
+        t = int(cut) + step * mult
+        keep = hue_keep_for(direction, t, axis)
+        if keep is None:
+            continue
+        out.append({"si": si, "vi": vi, "delta_s": 0, "delta_v": 0,
+                    "hue_cut": t, "hue_keep": list(keep),
+                    "hue_trim": (hi - lo) - (keep[1] - keep[0])})
+    return out
 
 
 def neighbor_states(direction: str, delta_s: int, delta_v: int,
@@ -345,6 +513,51 @@ def boxes_agree(boxes: Sequence[Sequence[int]], min_iou: float = 0.5) -> bool:
     return all(_box_iou(left, right) >= min_iou
                for i, left in enumerate(boxes)
                for right in boxes[i + 1:])
+
+
+def _same_core(left, right) -> bool:
+    """两个命中的白芯有公共像素：围住的是同一个"!"，即同一个红点。"""
+    return bool(left[1] & right[1])
+
+
+def hits_agree(hits: Sequence[Tuple[Sequence[int], frozenset]],
+               min_iou: float = 0.5) -> bool:
+    """多个切法的命中是否指向同一个红点。hits = [(框, 白芯像素集合)]，两两比较。
+
+    任一对满足其一即算同一处：
+      · 框 IoU ≥ min_iou —— boxes_agree 的原判据，原来判一致的组合一个不变；
+      · **两者白芯有公共像素** —— 围住的是同一个"!"。白"!"在任何收紧档下都不红，
+        不同切法只改它外面那圈红的厚薄和连带的背景，"!"本身的像素不动；两个不同红点
+        的"!"是不同的像素，不可能重叠。所以"同芯"比框的几何关系更直接地回答"是不是同一个"。
+
+    起因 GachaADV_Location1（2026-10-29 真机）：亮度 Δ[0,64] → [15,7,27,22]，红点左下
+    多拖一条品红卡面；饱和 Δ[30,0] → [25,7,18,16]、双切 → [25,7,17,16] 是红点本体。
+    三者围住同一个"!"，亮度对饱和 IoU 0.485 只差 0.015，被判方向歧义、救援放弃。
+    没用"一框包住另一框"：亮度那刀顺手削掉了红点最右一列，虚胖框反而比干净框窄 1 列。
+    """
+    for i, left in enumerate(hits):
+        for right in hits[i + 1:]:
+            if _box_iou(left[0], right[0]) >= min_iou or _same_core(left, right):
+                continue
+            return False
+    return True
+
+
+def bloated_hits(hits: Sequence[Tuple[Sequence[int], frozenset]],
+                 min_iou: float = 0.5) -> set:
+    """只靠"同芯"才与别的命中对上、且框更大的那些命中的下标。
+
+    同一个"!"外面框得更大，多出来的就是连带的背景（虚胖框）。它们不参与采纳 ——
+    否则增量更小的虚胖框会胜出。IoU 已过闸的组合不算，原有的采纳结果不变。
+    """
+    out = set()
+    for i, big in enumerate(hits):
+        for j, small in enumerate(hits):
+            if i == j or _box_iou(big[0], small[0]) >= min_iou or not _same_core(big, small):
+                continue
+            if int(big[0][2]) * int(big[0][3]) > int(small[0][2]) * int(small[0][3]):
+                out.add(i)
+    return out
 
 
 def lineage_parent(
@@ -471,9 +684,11 @@ def select_stable_winner(
     if len(components) != 1:
         return None, "ambiguous_stable_hits", support
 
+    # 同一分量内各档必属同一切法(_adjacent 要求 si 相同)，故 S/V 增量与 hue_trim 不会混比。
     chosen = min(
         (records[i] for i in components[0]),
-        key=lambda r: (r["state"]["delta_s"] + r["state"]["delta_v"],
+        key=lambda r: (r["state"]["delta_s"] + r["state"]["delta_v"]
+                       + r["state"].get("hue_trim", 0),
                        r["state"]["delta_s"], r["state"]["delta_v"],
                        r.get("scan_index", 0)),
     )

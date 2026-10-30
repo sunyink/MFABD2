@@ -37,7 +37,7 @@
         ]
     },
     "Activities_FindActive": {
-        "desc": "左侧列表竖条扫描红点选可领活动。|[PC覆盖] 红点在活动卡片右上角(x同列~335-350)。【2026-07-03实机定案】PC 720列表小红点仅12×11px,感叹号断层被抗锯齿糊平→检测器gap分项恒0,无gap置信上限0.55(权重gap0.45/vert0.35/white0.15/cent0.05),实测conf 0.442<Panoram预设阈0.5永远miss(log stage=confidence实锤,内布利斯Pickup红点漏检)。preset模式不支持参数覆盖→改独立模式(参数照抄Panoram)+min_confidence降0.4(仍高于精准roi默认0.25,靠enclosed拓扑+vert防杂红)。roi左扩补回被切2px(红点box x335起,原x337切左缘),y按实测列表可视区(卡片y95~600)扩[330,100,30,460](原y173-527首尾卡红点会漏)。点红点后左下偏选卡片主体target_offset[-85,30]。【2026-08-29重校准】检测器已升v2权重(vert0.45/white0.45/gap0.06/cent0.04),gap不再是主轴,07-03降阈的前提失效;0.4阈值破坏v2硬不变量(阈值须>最大单项权重0.45,强制竖长+偏白两项背书),致WAY OF THE DEMON横幅红美术(9x13竖条,white=0.04无白芯)以conf 0.503误判为红点→无可领活动22轮无界环。恢复v2默认0.55(真红点v2实测0.64~0.67,余量0.09);若PC糊红点回归漏检(log stage=confidence),按v2实测分回调,勿直接回0.4。",
+        "desc": "左侧列表竖条扫描红点选可领活动。|[PC覆盖] 红点在活动卡片右上角(x同列~335-350),roi[330,100,30,460]保留左缘及首尾卡片红点,点击偏移[-85,30]落在卡片主体。采用内联参数,保留原颜色范围、red_area[50,450]、min_confidence0.55和gap_ratio0.35,叠加与Agt_RedDot_Preset_Layered一致的flt_hsv_rescue分层救援(最多3层、32次重跑)。不写preset,避免原参数被预设接管。历史上0.4阈值曾将WAY OF THE DEMON横幅红美术误认成红点并反复选卡,勿直接降回0.4。",
         "custom_recognition_param": {
             "gap_ratio": 0.35,
             "hsv_ranges": [
@@ -70,7 +70,20 @@
             "red_area": [
                 50,
                 450
-            ]
+            ],
+            "flt_hsv_rescue": {
+                "mode": "active",
+                "entry_aspect": "inherit",
+                "entry_confidence": "inherit",
+                "entry_confidence_rej": "shadow",
+                "max_delta_s": 110,
+                "max_delta_v": 110,
+                "max_depth": 3,
+                "max_full_runs": 32,
+                "min_stable_states": 2,
+                "max_parents": 5,
+                "time_budget_ms": 40
+            }
         },
         "roi": [
             330,

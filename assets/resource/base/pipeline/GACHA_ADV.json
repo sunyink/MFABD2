@@ -332,10 +332,11 @@
         "focus": "GA.抽卡收尾确认首页无红点,当天完成已记录"
     },
     "GachaADV_Location1": {
+        "desc": "卡池列第1格有红点就点进去。用分层救援档:这一格进页时默认选中、卡面全亮,右侧预览立绘又会动,红点常同时连上几种背景。",
         "recognition": "Custom",
         "custom_recognition": "RedDotDetector",
         "custom_recognition_param": {
-            "preset": "Agt_RedDot_Preset"
+            "preset": "Agt_RedDot_Preset_Layered"
         },
         "roi": [
             315,
@@ -463,7 +464,7 @@
         "recognition": "Custom",
         "custom_recognition": "RedDotDetector",
         "custom_recognition_param": {
-            "preset": "Agt_RedDot_Preset"
+            "preset": "Agt_RedDot_Preset_Layered"
         },
         "roi": [
             315,
@@ -574,7 +575,7 @@
         "recognition": "Custom",
         "custom_recognition": "RedDotDetector",
         "custom_recognition_param": {
-            "preset": "Agt_RedDot_Preset"
+            "preset": "Agt_RedDot_Preset_Layered"
         },
         "roi": [
             315,
@@ -680,7 +681,7 @@
         "recognition": "Custom",
         "custom_recognition": "RedDotDetector",
         "custom_recognition_param": {
-            "preset": "Agt_RedDot_Preset"
+            "preset": "Agt_RedDot_Preset_Layered"
         },
         "roi": [
             315,
@@ -782,7 +783,7 @@
         "recognition": "Custom",
         "custom_recognition": "RedDotDetector",
         "custom_recognition_param": {
-            "preset": "Agt_RedDot_Preset"
+            "preset": "Agt_RedDot_Preset_Layered"
         },
         "roi": [
             315,
