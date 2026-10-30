@@ -916,16 +916,39 @@
         ]
     },
     "Setup_Main_Move": {
-        "recognition": "OCR",
-        "roi": [
-            815,
-            57,
-            375,
-            397
+        "desc": "按选择操作方式标题定位点击地面选项,输出按钮框供状态检查与点击。",
+        "recognition": "And",
+        "all_of": [
+            {
+                "sub_name": "Title",
+                "recognition": "OCR",
+                "roi": [
+                    340,
+                    45,
+                    875,
+                    600
+                ],
+                "expected": [
+                    "^选择操作方式$",
+                    "^選擇操作方式$"
+                ]
+            },
+            {
+                "recognition": "OCR",
+                "roi": "Title",
+                "roi_offset": [
+                    0,
+                    20,
+                    700,
+                    80
+                ],
+                "expected": [
+                    "^点击地面$",
+                    "^點擊地板$"
+                ]
+            }
         ],
-        "expected": [
-            "点击地面"
-        ],
+        "box_index": 1,
         "next": [
             "Setup_Main_Move_Ck",
             "[JumpBack]Setup_Main_Move_Chg"
@@ -1000,17 +1023,38 @@
         ]
     },
     "Setup_Main_Blurry": {
-        "desc": "小区域,更新位置需要跟进",
-        "recognition": "OCR",
-        "roi": [
-            805,
-            97,
-            370,
-            91
+        "desc": "按战场模糊标题定位下方不使用按钮。",
+        "recognition": "And",
+        "all_of": [
+            {
+                "sub_name": "Title",
+                "recognition": "OCR",
+                "roi": [
+                    340,
+                    45,
+                    875,
+                    600
+                ],
+                "expected": [
+                    "^战场模糊$",
+                    "^場域模糊$"
+                ]
+            },
+            {
+                "recognition": "OCR",
+                "roi": "Title",
+                "roi_offset": [
+                    0,
+                    25,
+                    700,
+                    100
+                ],
+                "expected": [
+                    "^不使用$"
+                ]
+            }
         ],
-        "expected": [
-            "不使用"
-        ],
+        "box_index": 1,
         "next": [
             "Setup_Main_Blurry_Ck",
             "[JumpBack]Setup_Main_Blurry_Chg"
@@ -1041,17 +1085,38 @@
         "post_delay": 3000
     },
     "Setup_Main_Resolution": {
-        "desc": "小区域,更新位置需要跟进",
-        "recognition": "OCR",
-        "roi": [
-            448,
-            286,
-            229,
-            39
+        "desc": "按分辨率标题定位下方FHD选项,兼容标题旁帮助图标。",
+        "recognition": "And",
+        "all_of": [
+            {
+                "sub_name": "Title",
+                "recognition": "OCR",
+                "roi": [
+                    340,
+                    45,
+                    875,
+                    600
+                ],
+                "expected": [
+                    "^分辨率",
+                    "^解析度"
+                ]
+            },
+            {
+                "recognition": "OCR",
+                "roi": "Title",
+                "roi_offset": [
+                    0,
+                    25,
+                    700,
+                    100
+                ],
+                "expected": [
+                    "^FHD$"
+                ]
+            }
         ],
-        "expected": [
-            "FHD"
-        ],
+        "box_index": 1,
         "next": [
             "Setup_Main_Resolution_Ck",
             "[JumpBack]Setup_Main_Resolution_Chg"
@@ -1082,17 +1147,39 @@
         "post_delay": 3000
     },
     "Setup_Main_StartUI": {
-        "desc": "小区域,更新位置需要跟进",
-        "recognition": "OCR",
-        "roi": [
-            454,
-            414,
-            349,
-            40
+        "desc": "按游戏开始界面标题定位主界面选项。",
+        "recognition": "And",
+        "all_of": [
+            {
+                "sub_name": "Title",
+                "recognition": "OCR",
+                "roi": [
+                    340,
+                    45,
+                    875,
+                    600
+                ],
+                "expected": [
+                    "^游戏开始界面",
+                    "^開始遊戲畫面"
+                ]
+            },
+            {
+                "recognition": "OCR",
+                "roi": "Title",
+                "roi_offset": [
+                    0,
+                    15,
+                    700,
+                    90
+                ],
+                "expected": [
+                    "^主界面$",
+                    "^主畫面$"
+                ]
+            }
         ],
-        "expected": [
-            "主界面"
-        ],
+        "box_index": 1,
         "next": [
             "Setup_Main_StartUI_Ck",
             "[JumpBack]Setup_Main_StartUI_Chg"
@@ -1123,17 +1210,38 @@
         "post_delay": 3000
     },
     "Setup_Main_freshRate": {
-        "desc": "小区域,更新位置需要跟进",
-        "recognition": "OCR",
-        "roi": [
-            823,
-            567,
-            345,
-            43
+        "desc": "按刷新率标题定位30FPS选项,不依赖固定行高。",
+        "recognition": "And",
+        "all_of": [
+            {
+                "sub_name": "Title",
+                "recognition": "OCR",
+                "roi": [
+                    340,
+                    45,
+                    875,
+                    600
+                ],
+                "expected": [
+                    "^屏幕刷新率",
+                    "^更新率"
+                ]
+            },
+            {
+                "recognition": "OCR",
+                "roi": "Title",
+                "roi_offset": [
+                    0,
+                    25,
+                    700,
+                    100
+                ],
+                "expected": [
+                    "^30(?:\\s*FPS)?$"
+                ]
+            }
         ],
-        "expected": [
-            "30"
-        ],
+        "box_index": 1,
         "next": [
             "Setup_Main_freshRate_Ck",
             "[JumpBack]Setup_Main_freshRate_Chg"
@@ -1203,17 +1311,37 @@
         }
     },
     "Setup_Main_SkipAv": {
-        "desc": "整列搜索:该页「关闭」唯一(仅观看新技能|关闭),滚动到任何位置都能命中,不依赖行落在固定判定带。原 roi y180-279 在 2026-09 版式下两端都够不着(行顶滚时 y≈758、滚到底 y≈74),导致下面的 Swip 无限重试",
-        "recognition": "OCR",
-        "roi": [
-            800,
-            57,
-            390,
-            620
+        "desc": "借同排的仅观看新技能文字框向右定位关闭按钮,标题滚出屏幕时仍可识别。",
+        "recognition": "And",
+        "all_of": [
+            {
+                "sub_name": "Title",
+                "recognition": "OCR",
+                "roi": [
+                    340,
+                    45,
+                    875,
+                    600
+                ],
+                "expected": [
+                    "^仅观看新技能$"
+                ]
+            },
+            {
+                "recognition": "OCR",
+                "roi": "Title",
+                "roi_offset": [
+                    250,
+                    -15,
+                    320,
+                    30
+                ],
+                "expected": [
+                    "^关闭$"
+                ]
+            }
         ],
-        "expected": [
-            "关闭"
-        ],
+        "box_index": 1,
         "timeout": 2000,
         "next": [
             "Setup_Main_SkipAv_Ck",
@@ -1369,16 +1497,38 @@
         ]
     },
     "Setup_Main_ShoundOff": {
-        "recognition": "OCR",
-        "roi": [
-            931,
-            130,
-            122,
-            37
+        "desc": "按开启声音标题定位不使用按钮,不误选下方其他声音开关。",
+        "recognition": "And",
+        "all_of": [
+            {
+                "sub_name": "Title",
+                "recognition": "OCR",
+                "roi": [
+                    340,
+                    45,
+                    875,
+                    600
+                ],
+                "expected": [
+                    "^开启声音",
+                    "^開啟聲音"
+                ]
+            },
+            {
+                "recognition": "OCR",
+                "roi": "Title",
+                "roi_offset": [
+                    0,
+                    25,
+                    700,
+                    100
+                ],
+                "expected": [
+                    "^不使用$"
+                ]
+            }
         ],
-        "expected": [
-            "不使用"
-        ],
+        "box_index": 1,
         "next": [
             "Setup_Main_ShoundOff_Ck",
             "[JumpBack]Setup_Main_ShoundOff_Chg"
@@ -1453,17 +1603,38 @@
         ]
     },
     "Setup_Main_YellowPin": {
-        "desc": "小区域,更新位置需要跟进",
-        "recognition": "OCR",
-        "roi": [
-            823,
-            132,
-            344,
-            38
+        "desc": "按黄色圆点标题定位不使用按钮。",
+        "recognition": "And",
+        "all_of": [
+            {
+                "sub_name": "Title",
+                "recognition": "OCR",
+                "roi": [
+                    340,
+                    45,
+                    875,
+                    600
+                ],
+                "expected": [
+                    "^黄色圆点$",
+                    "^黃色圓點$"
+                ]
+            },
+            {
+                "recognition": "OCR",
+                "roi": "Title",
+                "roi_offset": [
+                    0,
+                    25,
+                    700,
+                    100
+                ],
+                "expected": [
+                    "^不使用$"
+                ]
+            }
         ],
-        "expected": [
-            "不使用"
-        ],
+        "box_index": 1,
         "next": [
             "Setup_Main_YellowPin_Ck",
             "[JumpBack]Setup_Main_YellowPin_Chg"
@@ -1494,17 +1665,38 @@
         "post_delay": 3000
     },
     "Setup_Main_ClothingChange": {
-        "desc": "小区域,更新位置需要跟进",
-        "recognition": "OCR",
-        "roi": [
-            826,
-            287,
-            343,
-            40
+        "desc": "按新服装更换建议标题定位不使用按钮,与黄色圆点开关分开识别。",
+        "recognition": "And",
+        "all_of": [
+            {
+                "sub_name": "Title",
+                "recognition": "OCR",
+                "roi": [
+                    340,
+                    45,
+                    875,
+                    600
+                ],
+                "expected": [
+                    "^新服装更换建议$",
+                    "^新服[装裝]替[换換]建議$"
+                ]
+            },
+            {
+                "recognition": "OCR",
+                "roi": "Title",
+                "roi_offset": [
+                    0,
+                    25,
+                    700,
+                    100
+                ],
+                "expected": [
+                    "^不使用$"
+                ]
+            }
         ],
-        "expected": [
-            "不使用"
-        ],
+        "box_index": 1,
         "next": [
             "Setup_Main_ClothingChange_Ck",
             "[JumpBack]Setup_Main_ClothingChange_Chg"
