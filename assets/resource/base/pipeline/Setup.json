@@ -1,6 +1,7 @@
 {
     "Setup_Str": {
         "desc": "流程开发说明：_Str为总触发器=强制运行所有。| _Entry为选择性入口=按需 | 节点_Switch为开关，运行一次后续操作 | 可根据入口选择需要的操作开关~",
+        "max_hit": 1,
         "next": [
             "[JumpBack]Setup_Main_Switch",
             "[JumpBack]Setup_Equip_Switch",
@@ -1152,9 +1153,13 @@
             83
         ],
         "count": 10,
+        "timeout": 2000,
         "next": [
             "Setup_Main_SkipAv",
             "[JumpBack]Setup_Main_Swip"
+        ],
+        "on_error": [
+            "Setup_Main_GraphicsReset"
         ]
     },
     "Setup_Main_freshRate_Chg": {
@@ -1164,7 +1169,7 @@
         "post_delay": 3000
     },
     "Setup_Main_Swip": {
-        "desc": "图像页翻页滑动,步长520px:把「仅观看新技能|关闭」送进 SkipAv 判定带、「剪影模式」送进 Silhouette 判定带(实测行距168、顶部起点y≈758/926,可落带窗口479~558)。原595px直接滑过头,两行都停在判定带上方→永远找不到。max_hit=3兜底:目标行不可达时不再无限滑,SmartAction 的 unchanged 报错→默认on_error(Global_Null)→调用方[JumpBack]回到列表顶部再问一遍,没有上限就是死循环(实测空转5分钟+)",
+        "desc": "图像页向下翻找过场动画与剪影设置,两段共用3次滑动预算。画面变化后回到调用方重新识别目标,不要求设置行落在固定高度。",
         "max_hit": 3,
         "action": "Custom",
         "custom_action": "SmartAction",
@@ -1209,9 +1214,13 @@
         "expected": [
             "关闭"
         ],
+        "timeout": 2000,
         "next": [
             "Setup_Main_SkipAv_Ck",
             "[JumpBack]Setup_Main_SkipAv_Chg"
+        ],
+        "on_error": [
+            "Setup_Main_GraphicsReset"
         ]
     },
     "Setup_Main_SkipAv_Ck": {
@@ -1228,8 +1237,13 @@
             83
         ],
         "count": 10,
+        "timeout": 2000,
         "next": [
-            "Setup_Main_Silhouette"
+            "Setup_Main_Silhouette",
+            "[JumpBack]Setup_Main_Swip"
+        ],
+        "on_error": [
+            "Setup_Main_GraphicsReset"
         ]
     },
     "Setup_Main_SkipAv_Chg": {
@@ -1239,20 +1253,44 @@
         "post_delay": 3000
     },
     "Setup_Main_Silhouette": {
-        "desc": "小区域,更新位置需要跟进",
-        "recognition": "OCR",
-        "roi": [
-            454,
-            368,
-            344,
-            79
+        "desc": "先定位剪影模式标题,再识别下方的使用按钮,输出按钮框供选中检查与点击。",
+        "recognition": "And",
+        "all_of": [
+            {
+                "sub_name": "Title",
+                "recognition": "OCR",
+                "roi": [
+                    400,
+                    55,
+                    790,
+                    580
+                ],
+                "expected": [
+                    "^剪影模式$"
+                ]
+            },
+            {
+                "recognition": "OCR",
+                "roi": "Title",
+                "roi_offset": [
+                    0,
+                    30,
+                    670,
+                    130
+                ],
+                "expected": [
+                    "^使用$"
+                ]
+            }
         ],
-        "expected": [
-            "使用"
-        ],
+        "box_index": 1,
+        "timeout": 2000,
         "next": [
             "Setup_Main_Silhouette_Ck",
             "[JumpBack]Setup_Main_Silhouette_Chg"
+        ],
+        "on_error": [
+            "Setup_Main_GraphicsReset"
         ]
     },
     "Setup_Main_Silhouette_Ck": {
@@ -1278,6 +1316,14 @@
         "action": "Click",
         "target": "Setup_Main_Silhouette",
         "post_delay": 3000
+    },
+    "Setup_Main_GraphicsReset": {
+        "desc": "图像设置识别或切换重试耗尽后,退出设置页并恢复箱庭,不留在当前页面反复等待。",
+        "next": [
+            "Global_ToSandBox_Enter",
+            "Global_ToSandBox"
+        ],
+        "focus": "Setup.过场动画或剪影设置未完成,退出设置页后继续后续任务"
     },
     "Setup_Main_Tab_3": {
         "max_hit": 3,
