@@ -227,6 +227,30 @@
         "focus": "行路中..."
     },
     "Arbitrage_Merchant_Ico": {
+        "desc": "已站在商人身边：右下交互按钮是钱袋，或商人头顶出现可点的名牌。商人脚下有传送阵时右下按钮会变成手型，名牌点了同样进商人对话；引用本节点做Click时点的是命中的那一个。名牌roi左缘切掉对话气泡里说话人名字的「丝路商团」，对话态不算站在商人身边。",
+        "recognition": "Or",
+        "any_of": [
+            "Rec_<Arbitrage_Merchant_Ico>_Tpl",
+            {
+                "recognition": "OCR",
+                "roi": [
+                    665,
+                    180,
+                    235,
+                    100
+                ],
+                "expected": [
+                    "[丝絲]路商[团團]"
+                ]
+            }
+        ],
+        "next": [
+            "[Anchor]PractiseBargaining_Per",
+            "Arbitrage_Action_Hub"
+        ]
+    },
+    "Rec_<Arbitrage_Merchant_Ico>_Tpl": {
+        "desc": "[识别]右下交互按钮是钱袋。单独抽出供PC覆盖包改roi与模板。",
         "recognition": "TemplateMatch",
         "roi": [
             838,
@@ -237,14 +261,10 @@
         "template": [
             "Merchant_IcoGE.png"
         ],
-        "green_mask": true,
-        "next": [
-            "[Anchor]PractiseBargaining_Per",
-            "Arbitrage_Action_Hub"
-        ]
+        "green_mask": true
     },
     "Arbitrage_Merchant_Locate_Egress": {
-        "desc": "寻路到商人的公共出口。由卡带5箱庭导航链进入；仅引用商人图标识别，空next退回总入口或出售恢复调用方，不进入Action_Hub。",
+        "desc": "寻路到商人的公共出口。由卡带5箱庭导航链进入；仅引用商人交互识别（钱袋或名牌），空next退回总入口或出售恢复调用方，不进入Action_Hub。",
         "recognition": "Or",
         "any_of": [
             "Arbitrage_Merchant_Ico"
