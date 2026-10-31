@@ -94,7 +94,7 @@ class Bag:
 
 class Device:
     def __init__(self, bag, quantities, *, decoys=None, end_decoys=(), frames=None, list_faults=0,
-                 stop_after_opens=None, open_failures=None, close_failures=0):
+                 stop_after_opens=None, open_failures=None, close_failures=0, false_bottoms=0, swipe_failures=0):
         self.bag = bag
         self.quantities = quantities
         self.decoys = decoys or {}          # 目标名 → 会被它的模板误命中的其他物品
@@ -104,6 +104,11 @@ class Device:
         self.stop_after_opens = stop_after_opens
         self.open_failures = dict(open_failures or {})
         self.close_failures = close_failures
+        # false_bottoms：翻页没滑却报到底（SmartAction 截图失败、代理没跑起来都会这样）。
+        self.false_bottoms = false_bottoms
+        # swipe_failures：核对到底的补滑没有执行。
+        self.swipe_failures = swipe_failures
+        self.confirm_swipes = 0
         self.opens = []
         self.current = None
         self.frame_iter = None
@@ -172,9 +177,21 @@ class Device:
     def next_page(self):
         """仿 SmartAction：画面变了报 moved，连续滑不动报 bottom。"""
         self.swipes += 1
+        if self.false_bottoms:
+            self.false_bottoms -= 1
+            return "bottom"
         before = self.bag.offset
         self.bag.offset = min(self.bag.max_offset, before + self.bag.swipe)
         return "moved" if self.bag.offset != before else "bottom"
+
+    def swipe(self):
+        """仿直接 run_task 代理节点：只报滑动动作执行了没有。"""
+        self.confirm_swipes += 1
+        if self.swipe_failures:
+            self.swipe_failures -= 1
+            return False
+        self.bag.offset = min(self.bag.max_offset, self.bag.offset + self.bag.swipe)
+        return True
 
     def reset_to_top(self):
         self.resets += 1
@@ -185,9 +202,9 @@ class Device:
 
 def run(device, targets, **options):
     catalog = {name: f"tpl/{name}" for name in INGREDIENTS}
+    options.setdefault("on_page", lambda page, reads: device.persisted.append((page, reads)))
     engine = BagScanEngine(device, catalog, targets, grid_roi=GRID, row_height=ROW,
-                           ingredient_names=INGREDIENTS,
-                           on_page=lambda page, reads: device.persisted.append((page, reads)), **options)
+                           ingredient_names=INGREDIENTS, **options)
     return engine.run()
 
 
@@ -239,6 +256,39 @@ class EngineTests(unittest.TestCase):
         self.assertEqual(result["quantities"], {"胡椒": 7})
         self.assertEqual(result["absent"], ["盐"])
         self.assertTrue(result["complete"])
+        self.assertEqual(device.confirm_swipes, 1)
+
+    def test_false_bottom_with_unexecuted_confirm_swipe_never_zeroes(self):
+        # 翻页没滑却报到底、补滑也没执行：画面确实没动，但不能当成到底把剩下的判 0。
+        bag = Bag(layout("兽肉", *fillers(40), "胡椒"))
+        device = Device(bag, amounts("兽肉", "胡椒"), false_bottoms=1, swipe_failures=1)
+        result = run(device, ["兽肉", "盐", "胡椒"])
+        self.assertEqual(result["termination"], "error")
+        self.assertEqual(result["absent"], [])
+        self.assertEqual(result["quantities"], amounts("兽肉"))
+        self.assertEqual(result["unknown"], {"盐": "error", "胡椒": "error"})
+        self.assertFalse(result["complete"])
+
+    def test_false_bottom_is_overruled_when_confirm_swipe_moves(self):
+        bag = Bag(layout("兽肉", *fillers(40), "胡椒"))
+        device = Device(bag, amounts("兽肉", "胡椒"), false_bottoms=1)
+        result = run(device, ["兽肉", "盐", "胡椒"])
+        self.assertEqual(device.confirm_swipes, 1)
+        self.assertEqual((result["termination"], result["continuity"]), ("section_end", "verified"))
+        self.assertEqual(result["quantities"], amounts("兽肉", "胡椒"))
+        self.assertEqual(result["absent"], ["盐"])
+
+    def test_page_write_failure_turns_unsaved_reads_unknown(self):
+        def fail(page, reads):
+            raise RuntimeError("库存写入失败")
+
+        names = ["兽肉", "米"]
+        device = Device(Bag(layout(*names, *fillers(40))), amounts(*names))
+        result = run(device, names, on_page=fail)
+        self.assertEqual(result["quantities"], {})
+        self.assertEqual(result["unknown"], {"兽肉": "persist_failed", "米": "persist_failed"})
+        self.assertFalse(result["complete"])
+        self.assertIn("库存写入失败", result["error"])
 
     def test_fixed_footer_run_reaches_real_bottom_and_concludes(self):
         # 10-28 试跑：底栏让每页都报接不上，最后一页又被误判成没动、提前收尾，4 项缺货没能判 0。
@@ -388,6 +438,52 @@ class CatalogTests(unittest.TestCase):
                     self.assertTrue((ROOT / f"assets/resource/{pack}/image" / path).is_file(), path)
                     self.assertEqual(canon(name), name)
                     self.assertIn(name, ingredients)
+
+
+def import_bag_scan(test):
+    """BagScan 动作模块依赖 maa 包；没有就跳过这几条，引擎测试照常跑。
+
+    action 包导入期会向 Agent 注册回调，离线没有 Agent 客户端：导入时屏蔽这些注册
+    （与 priv/tools/run_offline_test.py 同一手法），本文件因此仍可直接运行。
+    """
+    try:
+        from maa.library import Library
+        Library.version()
+        from maa.agent.agent_server import AgentServer
+    except Exception as exc:  # 本机没装 MaaFw
+        test.skipTest(f"maa 不可用：{exc}")
+    noop = lambda *args, **kwargs: None  # noqa: E731
+    with patch.object(AgentServer, "custom_action", return_value=lambda cls: cls),          patch.object(AgentServer, "custom_recognition", return_value=lambda cls: cls),          patch.object(AgentServer, "_set_api_properties", noop),          patch.object(AgentServer, "add_tasker_sink", noop),          patch.object(AgentServer, "add_context_sink", noop),          patch.object(AgentServer, "add_resource_sink", noop),          patch.object(AgentServer, "add_controller_sink", noop):
+        from action import bag_scan
+    return bag_scan
+
+
+class ActionTests(unittest.TestCase):
+    def test_all_targets_cover_ingredients_without_templates(self):
+        bag_scan = import_bag_scan(self)
+        catalog = {"兽肉": "tpl/兽肉", "米": "tpl/米"}
+        targets = bag_scan._targets("all", catalog, {"兽肉", "米", "灵魂鲜奶油", "能量蘑菇"})
+        self.assertEqual(targets, ["兽肉", "米", "灵魂鲜奶油", "能量蘑菇"])
+        engine = BagScanEngine(None, catalog, targets, grid_roi=GRID, row_height=ROW, ingredient_names=())
+        self.assertEqual(engine.unknown, {"灵魂鲜奶油": "template_missing", "能量蘑菇": "template_missing"})
+
+    def test_unwritten_zeroes_become_unknown(self):
+        bag_scan = import_bag_scan(self)
+        for outcome in (False, RuntimeError("存档只读")):
+            with self.subTest(outcome=outcome):
+                record = {"absent": ["盐", "肉桂"], "unknown": {"胡椒": "detail_unreadable"}}
+                mock = {"side_effect": outcome} if isinstance(outcome, Exception) else {"return_value": outcome}
+                with patch.object(bag_scan, "set_inventory_quantities", **mock),                      self.assertRaises(RuntimeError):
+                    bag_scan._save_absent(record, {"scan_id": "s1"}, "ingredient_boundary")
+                self.assertEqual(record["absent"], [])
+                self.assertEqual(record["unknown"], {"胡椒": "detail_unreadable", "盐": "persist_failed",
+                                                     "肉桂": "persist_failed"})
+
+    def test_unknown_names_are_listed_by_reason(self):
+        bag_scan = import_bag_scan(self)
+        text = bag_scan.unknown_text({"灵魂鲜奶油": "template_missing", "胡椒": "detail_unreadable",
+                                      "能量蘑菇": "template_missing"})
+        self.assertEqual(text, "缺模板图：灵魂鲜奶油、能量蘑菇；详情未核实：胡椒")
 
 
 class MemoryAccountStore:

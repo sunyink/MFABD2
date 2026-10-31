@@ -8,7 +8,7 @@ from maa.agent.agent_server import AgentServer
 from maa.custom_action import CustomAction
 
 from .arbitrage_replenish_buy import ensure_shop
-from .bag_scan import run_bag_scan
+from .bag_scan import run_bag_scan, unknown_text
 from .bag_stock import bag_catalog, bag_summary, forget_bag_run, pending_materials, register_bag_run
 from .cooking_stock import get_cooking_scan_start
 from .cartridge_lib import MarkCompleteAction
@@ -181,6 +181,9 @@ class ArbitrageBagScan(CustomAction):
                 mfaalog.error(f"[③仓检] 补查汇总存档异常：{exc}")
         mfaalog.info(f"[③仓检] 已读 {len(summary['read_item_names'])}，确认没有 {len(summary['absent_item_names'])}，"
                      f"仍未知 {len(summary['unknown_item_names'])}，完整={summary['complete']}")
+        if summary["unknown_item_names"]:
+            reasons = {name: summary["errors"].get(name, "not_scanned") for name in summary["unknown_item_names"]}
+            mfaalog.info(f"[③仓检] 未知（不判 0）—— {unknown_text(reasons)}")
         # 允许继续补买与出售；业务是否完整只看持久化汇总 complete，页面由下一阶段自行恢复。
         return True
 

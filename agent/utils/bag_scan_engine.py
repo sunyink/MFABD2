@@ -239,10 +239,18 @@ class BagScanEngine:
         return abs(ax - bx) < self.row_height / 2 and abs(ay - by) < self.row_height / 2
 
     def _flush_page(self):
-        if self._page_reads:
-            reads = dict(self._page_reads)
-            self._page_reads.clear()
+        if not self._page_reads:
+            return
+        reads = dict(self._page_reads)
+        self._page_reads.clear()
+        try:
             self.on_page(self.pages, reads)
+        except Exception:
+            # 没写进存档的读数不算读到：改记未知，扫描随之不完整。
+            for name in reads:
+                self.quantities.pop(name, None)
+                self.unknown[name] = "persist_failed"
+            raise
 
     # ------------------------------------------------------------------ 单个格子
     def _inspect(self, box):
@@ -366,26 +374,43 @@ class BagScanEngine:
         return False
 
     def _next_page(self, image):
-        self._check()
-        started = self.clock()
-        outcome = self.device.next_page()
-        self.timing["swipe"] += self.clock() - started
-        current = self._ready_image()
-        shift, state, info = estimate_shift(self._scroll_area(image), self._scroll_area(current),
-                                            self.row_height, self.continuity_threshold)
-        detail = f"（位移 {shift}，{info}）"
-        self.log("debug", f"第 {self.pages} 页翻页：{state}{detail}")
-        if state == "same":
-            if outcome != "bottom":
-                self.log("warning", f"翻页后列表没动，按列表结束处理{detail}")
-                self.continuous = False
+        outcome = self._swipe(self.device.next_page)
+        current, state, detail = self._compare(image)
+        if state == "same" and outcome == "bottom":
+            # 翻页报到底只说明画面没变：截图失败、滑动没发出去也走同一个出口。
+            # 亲自补滑一次并确认动作执行了，列表仍不动才算到底。
+            if not self._swipe(self.device.swipe):
+                raise RuntimeError("补滑没有执行，不能按滑到底判 0")
+            current, state, detail = self._compare(image)
+            if state == "same":
+                return "bottom", current
+            self.log("warning", f"翻页报到底但补滑后列表在动，按正常翻页继续{detail}")
+        elif state == "same":
+            self.log("warning", f"翻页后列表没动，按列表结束处理{detail}")
+            self.continuous = False
             return "bottom", current
-        if outcome == "bottom":
+        elif outcome == "bottom":
             self.log("warning", f"滑动报到底但画面在动，按正常翻页继续{detail}")
         if state == "broken":
             self.log("warning", f"相邻两页接不上，本轮不再判 0{detail}")
             self.continuous = False
         return "moved", current
+
+    def _swipe(self, action):
+        self._check()
+        started = self.clock()
+        result = action()
+        self.timing["swipe"] += self.clock() - started
+        return result
+
+    def _compare(self, image):
+        """截新一页并与上一页比对，返回 (新截图, 状态, 日志说明)。"""
+        current = self._ready_image()
+        shift, state, info = estimate_shift(self._scroll_area(image), self._scroll_area(current),
+                                            self.row_height, self.continuity_threshold)
+        detail = f"（位移 {shift}，{info}）"
+        self.log("debug", f"第 {self.pages} 页翻页：{state}{detail}")
+        return current, state, detail
 
     def _scroll_area(self, image):
         """列表区去掉最下方的固定底栏：底栏内容可能变（提示、按钮状态），只拿真正随列表滚动的部分比。"""

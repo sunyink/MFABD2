@@ -191,7 +191,9 @@
         ]
     },
     "BagScan_Sort_Menu_Swipe": {
+        "desc": "排序菜单里没看到料理食材选项时往下滑。滑后等画面静止，前后不另加延迟。",
         "max_hit": 10,
+        "pre_delay": 0,
         "action": "Swipe",
         "begin": [
             1032,
@@ -210,7 +212,8 @@
                 84,
                 237
             ]
-        }
+        },
+        "post_delay": 0
     },
     "BagScan_Sort_Menu_Set": {
         "recognition": "OCR",
@@ -436,7 +439,7 @@
         "post_delay": 0
     },
     "BagScan_Page_Next": {
-        "desc": "py用run_task调用：经SmartAction代理Agt_BagScan_Page_Swipe下滑一页，比对列表区前后两帧。画面变了走BagScan_Page_Moved；连续两次没变（滑到底）走BagScan_Page_Bottom。py另用自己的前后两页截图核对是否真的没动。代理节点自带画面静止等待，这里不另加等待。",
+        "desc": "py用run_task调用：经SmartAction代理Agt_BagScan_Page_Swipe下滑一页，比对列表区前后两帧。画面变了走BagScan_Page_Moved；连续两次没变走BagScan_Page_Bottom。SmartAction截图失败、滑动没发出去也会走Bottom，所以py收到Bottom后亲自补滑一次并确认动作执行了，列表仍不动才按到底处理。代理节点自带画面静止等待，这里不另加等待。",
         "pre_delay": 0,
         "action": "Custom",
         "custom_action": "SmartAction",
@@ -469,13 +472,14 @@
         "post_delay": 0
     },
     "BagScan_Page_Bottom": {
-        "desc": "翻页结果标记：连续两次下滑画面都没变，列表已到底。没见到成长材料也照常收尾，按列表结束判定未见物品。",
+        "desc": "翻页结果标记：连续两次下滑画面都没变。py补滑核对仍不动才按列表结束判定未见物品；没见到成长材料也照常收尾。",
         "pre_delay": 0,
         "post_delay": 0,
         "focus": "背包仓检：列表已滑到底，未见成长材料，按列表结束处理"
     },
     "Agt_BagScan_Page_Swipe": {
-        "desc": "py独占，勿挂进管路。BagScan_Page_Next的SmartAction代理：列表下滑一页。拖动距离小于一页可见高度减一行，保证相邻两页至少重叠一行（py按此核对连续性，接不上就不判0）。",
+        "desc": "py独占，勿挂进管路。列表下滑一页：BagScan_Page_Next的SmartAction代理，py核对到底时也直接run_task它并看动作是否执行成功。拖动距离小于一页可见高度减一行，保证相邻两页至少重叠一行（py按此核对连续性，接不上就不判0）。滑后等画面静止，前后不另加延迟。",
+        "pre_delay": 0,
         "action": "Swipe",
         "begin": [
             640,
@@ -495,7 +499,8 @@
                 84,
                 237
             ]
-        }
+        },
+        "post_delay": 0
     },
     "Agt_BagScan_Profile_Ingredients": {
         "desc": "py独占，勿挂进管路。背包仓检「食材」档案：目录、识别节点与页数、时限、复核参数。坐标与模板在各自节点里，资源包按节点覆盖。",

@@ -31,6 +31,7 @@ RUN = "BagScan_Run"
 OPEN, READY = "BagScan_Detail_Open", "BagScan_Detail_Ready"
 CLOSE, CLOSED = "BagScan_Detail_Close", "BagScan_Detail_Closed"
 PAGE, MOVED, BOTTOM = "BagScan_Page_Next", "BagScan_Page_Moved", "BagScan_Page_Bottom"
+SWIPE = "Agt_BagScan_Page_Swipe"
 RESET, RESET_EXIT = "BagScan_TabReset", "BagScan_TabReset_Egress"
 NAME_OCR, QUANTITY_OCR = "Rec_BagScan_Name_Ocr", "Rec_BagScan_Quantity_Ocr"
 PROFILES = {"ingredients": "Agt_BagScan_Profile_Ingredients"}
@@ -154,13 +155,19 @@ class MaaBagDevice:
             return "moved"
         return "bottom" if _ran(detail, BOTTOM) is not None else "failed"
 
+    def swipe(self):
+        """不经 SmartAction 直接下滑一页，只回答滑动动作是否真的执行了；画面动没动由扫描核心自己比。"""
+        node = _ran(self.context.run_task(SWIPE), SWIPE)
+        return bool(node is not None and node.action is not None and node.action.success)
+
     def reset_to_top(self):
         return _ran(self.context.run_task(RESET), RESET_EXIT) is not None
 
 
-def _targets(raw, catalog):
+def _targets(raw, catalog, names):
     if raw in (None, "", "all"):
-        return list(catalog)
+        # 按完整名录展开：资源包缺图的也列进来，由扫描核心记为 template_missing，不悄悄少扫。
+        return list(catalog) + sorted(set(names) - catalog.keys())
     if not isinstance(raw, list) or not all(isinstance(name, str) for name in raw):
         raise ValueError("targets 只能是 all 或名称列表")
     return list(dict.fromkeys(canon(name.strip()) for name in raw if name.strip()))
@@ -175,6 +182,35 @@ def _label(raw):
 
 def _log(level, text):
     getattr(mfaalog, level)(f"[BagScan] {text}")
+
+
+_UNKNOWN_TEXT = {
+    "template_missing": "缺模板图", "detail_unreadable": "详情未核实", "continuity_broken": "翻页接不上",
+    "persist_failed": "存档写入失败", "page_limit": "翻页上限", "timeout": "超时", "stopped": "任务停止",
+    "state_lost": "列表状态丢失", "error": "扫描出错", "not_scanned": "没进背包核对",
+}
+
+
+def unknown_text(unknown):
+    """{名称: 原因码} → 按原因分组的一行说明，供日志列出未知物品。"""
+    groups = {}
+    for name, reason in unknown.items():
+        groups.setdefault(reason, []).append(name)
+    return "；".join(f"{_UNKNOWN_TEXT.get(reason, reason)}：{'、'.join(names)}" for reason, names in groups.items())
+
+
+def _save_absent(record, reference, evidence):
+    """判 0 写进存档才算数；没写进去的改记未知，扫描随之不完整。"""
+    names = record["absent"]
+    saved = False
+    try:
+        saved = set_inventory_quantities(dict.fromkeys(names, 0), "bag_absent", {**reference, "evidence": evidence})
+    finally:
+        if not saved:
+            record["absent"] = []
+            record["unknown"] = {**record["unknown"], **dict.fromkeys(names, "persist_failed")}
+    if not saved:
+        raise RuntimeError("判 0 写入失败")
 
 
 @AgentServer.custom_action("BagScanRun")
@@ -196,7 +232,7 @@ class BagScanRun(CustomAction):
             record["label"] = _label(record["label"])
             profile = context.get_node_object(params["profile"]).attach
             catalog = context.get_node_object(profile["catalog_node"]).attach["templates"]
-            targets = _targets(params.get("targets"), catalog)
+            targets = _targets(params.get("targets"), catalog, _ingredient_names())
             record["target_count"] = len(targets)
             item = context.get_node_object(profile["item_node"])
             reference = {"scan_id": record["scan_id"], "label": record["label"]}
@@ -219,10 +255,8 @@ class BagScanRun(CustomAction):
                 "complete", "termination", "continuity", "pages", "quantities", "absent", "unknown", "timing_ms")})
             if result["error"]:
                 record["error"] = result["error"]
-            if result["absent"] and not set_inventory_quantities(
-                    dict.fromkeys(result["absent"], 0), "bag_absent",
-                    {**reference, "evidence": result["zero_evidence"]}):
-                raise RuntimeError("判 0 写入失败")
+            if record["absent"]:
+                _save_absent(record, reference, result["zero_evidence"])
         except Exception as exc:
             record["error"] = str(exc)
             record["complete"] = False
@@ -240,6 +274,8 @@ class BagScanRun(CustomAction):
         seconds = round((record["timing_ms"] or {}).get("total", 0) / 1000)
         mfaalog.info(f"[BagScan] {record['label']}：读到 {len(record['quantities'])}，判 0 {len(record['absent'])}，"
                      f"未知 {len(record['unknown'])}，结束={record['termination']}，{record['pages']} 页，{seconds} 秒")
+        if record["unknown"]:
+            mfaalog.info(f"[BagScan] 未知（不判 0）—— {unknown_text(record['unknown'])}")
         # 允许按 BagReturn 原路返回；业务是否完整只看记录里的 complete。
         return True
 
