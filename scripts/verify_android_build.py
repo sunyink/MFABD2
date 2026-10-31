@@ -154,14 +154,18 @@ class AndroidBuildChecks(unittest.TestCase):
         self.assertIn("maafw", produced)
 
     def test_profile_app_id_carves_out_the_ci_identity(self):
-        """Upstream has no applicationIdSuffix, so the CI package name comes from here."""
-        for identity, expected in ((android_build.RELEASE, "  id: mfabd2"),
-                                   (android_build.CI, "  id: mfabd2.ci")):
+        """Upstream has no applicationIdSuffix, so the CI package name comes from here.
+        Only the released APK reaches MirrorChyan, so only it may carry the RID."""
+        rid = "\nupdate:\n  mirrorchyanRid: MFABD2\n"
+        for identity, expected, has_rid in ((android_build.RELEASE, "  id: mfabd2", True),
+                                            (android_build.CI, "  id: mfabd2.ci", False)):
             with tempfile.TemporaryDirectory() as work:
                 profile = Path(work) / "pi-profile.yaml"
                 shutil.copy2(ROOT / "android/pi-profile.yaml", profile)
-                android_build.apply_identity_to_profile(profile, "mfabd2", identity)
-                self.assertIn(expected, profile.read_text(encoding="utf-8"))
+                android_build.apply_identity_to_profile(profile, "mfabd2", identity, "MFABD2")
+                text = profile.read_text(encoding="utf-8")
+                self.assertIn(expected, text)
+                self.assertEqual(rid in text, has_rid)
         # A profile whose anchor moved must stop the build rather than ship the
         # wrong package name under the right label.
         with tempfile.TemporaryDirectory() as work:
@@ -169,6 +173,15 @@ class AndroidBuildChecks(unittest.TestCase):
             profile.write_text("app:\n  id: something-else\n", encoding="utf-8")
             with self.assertRaises(ValueError):
                 android_build.apply_identity_to_profile(profile, "mfabd2", android_build.CI)
+        # A release without its RID, or with an update section already in the way,
+        # would silently lose the MirrorChyan source.
+        for content, given in (("app:\n  id: mfabd2\n", ""),
+                               ("app:\n  id: mfabd2\nupdate:\n  githubRepo: x/y\n", "MFABD2")):
+            with self.subTest(content=content), tempfile.TemporaryDirectory() as work:
+                profile = Path(work) / "pi-profile.yaml"
+                profile.write_text(content, encoding="utf-8")
+                with self.assertRaises(ValueError):
+                    android_build.apply_identity_to_profile(profile, "mfabd2", android_build.RELEASE, given)
 
     def test_prepare_ui_pins_identity_abi_and_version_code(self):
         with tempfile.TemporaryDirectory() as work:
@@ -198,7 +211,10 @@ class AndroidBuildChecks(unittest.TestCase):
             self.assertEqual(properties.read_text(encoding="utf-8"),
                              "sdk.dir=/android-sdk\nbuild.releaseAbi=arm64-v8a\n")
             self.assertIn("return 12345", version)
+            self.assertIn("  mirrorchyanRid: MFABD2\n", profile.read_text(encoding="utf-8"))
             self.assertIn("Mfabd2GitHubUpdateClient(get(), get())", module.read_text())
+            # Swapping the GitHub client must leave the MirrorChyan source registered.
+            self.assertIn("get<MirrorChyanUpdateClient>(),", module.read_text())
             self.assertIn('val updateSource: String = "GITHUB"', preferences.read_text(encoding="utf-8"))
             policy = upstream / "app/src/main/java/com/aliothmoon/maafw/update/Mfabd2ReleasePolicy.kt"
             self.assertIn('CERTIFICATE_SHA256 = "' + "a" * 64 + '"', policy.read_text())

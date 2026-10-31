@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        default: ''
+        default: ""
         required: false
 
 jobs:
@@ -17,22 +17,22 @@ jobs:
         include:
           - os: win
             arch: x86_64
-            filename: 'MFABD2-*-win-x86_64.zip'
+            filename: "MFABD2-*-win-x86_64.zip"
           - os: win
             arch: aarch64
-            filename: 'MFABD2-*-win-aarch64.zip'
+            filename: "MFABD2-*-win-aarch64.zip"
           - os: macos
             arch: x86_64
-            filename: 'MFABD2-*-macos-x86_64.zip'
+            filename: "MFABD2-*-macos-x86_64.zip"
           - os: macos
             arch: aarch64
-            filename: 'MFABD2-*-macos-aarch64.zip'
+            filename: "MFABD2-*-macos-aarch64.zip"
           - os: linux
             arch: x86_64
-            filename: 'MFABD2-*-linux-x86_64.zip'
+            filename: "MFABD2-*-linux-x86_64.zip"
           - os: linux
             arch: aarch64
-            filename: 'MFABD2-*-linux-aarch64.zip'
+            filename: "MFABD2-*-linux-aarch64.zip"
 
     steps:
       - uses: MirrorChyan/uploading-action@v1
@@ -50,6 +50,27 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           upload_token: ${{ secrets.MirrorChyanUploadToken }}
 
+  # 安卓：原样上传签名 APK，只传正式与公测。安卓端没有内测频道，CI 身份的包不带 RID；
+  # .apk.json/.apk.sha256 与 -ci.apk 都不匹配 filename。不填 tag 时不猜最新 Release。
+  mirrorchyan_android:
+    runs-on: macos-latest
+    if: ${{ github.repository_owner == 'sunyink' && inputs.tag != '' && !contains(inputs.tag, '-alpha') }}
+    steps:
+      - uses: MirrorChyan/uploading-action@v1
+        with:
+          filetype: latest-release
+          filename: "MFABD2-*-android-arm64.apk"
+          mirrorchyan_rid: MFABD2
+          tag: ${{ inputs.tag }}
+
+          os: android
+          arch: arm64
+
+          owner: sunyink
+          repo: MFABD2
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          upload_token: ${{ secrets.MirrorChyanUploadToken }}
+
   # 热更新资源包：从全量包中抽取 resource + interface.json
   mirrorchyan_res:
     runs-on: macos-latest
@@ -58,7 +79,7 @@ jobs:
       - uses: MirrorChyan/uploading-action@v1
         with:
           filetype: latest-release
-          filename: 'MFABD2-*-win-x86_64.zip'
+          filename: "MFABD2-*-win-x86_64.zip"
           pick_files: '["resource", "interface.json"]'
           # 截止3.1.0，MFAA有时对热更新，错误地进行全量更新操作，删除ocr并从希望热更新包寻找替代。暂时将ocr模型打包到热更新包中，避免用户反复重下全量包。
           # exclude_files: '["resource/model/ocr/**"]'
