@@ -129,7 +129,21 @@
             "Rec_HomePage_GA_Clr"
         ],
         "inverse": true,
-        "timeout": 8000,
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "ClearNodeHitCount",
+        "custom_action_param": {
+            "node_name": [
+                "Global_ToSandBox_AllNot",
+                "Global_ToHomePage_HomeButton",
+                "StartGame_7dAD_Check",
+                "Global_ToHomePage_Reset",
+                "Global_ToHomePage_Crash"
+            ]
+        },
+        "post_delay": 0,
+        "timeout": 10000,
+        "rate_limit": 0,
         "next": [
             "Global_ToHomePage_Enter",
             "Global_ToHomePage_HomeButton",
@@ -146,6 +160,7 @@
             "[JumpBack]Dummy_Err_GetProductsFail",
             "[JumpBack]StartGame_Error_API",
             "[JumpBack]Global_HomeButton_Once",
+            "[JumpBack]Global_ToSandBox_AllNot",
             "Global_Null_Exception",
             "Global_Null_Panic"
         ],
@@ -153,6 +168,7 @@
     },
     "Global_ToHomePage_HomeButton": {
         "desc": "找到run-点击返回主页",
+        "max_hit": 10,
         "recognition": "Or",
         "any_of": [
             "Rec_SandBox_Pin_Tpl",
@@ -164,21 +180,28 @@
             46
         ],
         "post_delay": 3000,
+        "timeout": 10000,
         "next": [
             "Global_ToHomePage_Enter",
             "Global_ToHomePage_HomeButton",
             "[JumpBack]Global_BackPageHub_Once"
         ],
+        "on_error": [
+            "[JumpBack]Global_ToSandBox_AllNot",
+            "Global_Null"
+        ],
         "focus": "G.箱庭地图已确认"
     },
     "Global_ToHomePage_Reset": {
         "desc": "其他页面，返回按钮",
+        "max_hit": 10,
         "recognition": "And",
         "all_of": [
             "Global_BackPageHub_Once"
         ],
         "action": "Click",
         "post_delay": 3000,
+        "timeout": 10000,
         "next": [
             "Global_ToHomePage_Enter",
             "Global_ToHomePage_HomeButton",
@@ -188,10 +211,15 @@
             "[JumpBack]Global_WaitingForLoading",
             "[JumpBack]Global_BackPageHub_Once"
         ],
+        "on_error": [
+            "[JumpBack]Global_ToSandBox_AllNot",
+            "Global_Null"
+        ],
         "focus": "G=1.页面非预期，点击返回按钮"
     },
     "Global_ToHomePage_Crash": {
         "desc": "返回箱庭兜底策略,点主页图标-调传统卡带复位",
+        "max_hit": 10,
         "recognition": "TemplateMatch",
         "roi": [
             1135,
@@ -204,8 +232,13 @@
         ],
         "action": "Click",
         "post_delay": 3000,
+        "timeout": 10000,
         "next": [
             "Global_BackToPve_1#"
+        ],
+        "on_error": [
+            "[JumpBack]Global_ToSandBox_AllNot",
+            "Global_Null"
         ],
         "focus": "G=1.点Home退出"
     },
@@ -240,7 +273,19 @@
             "Global_ToSandBox_Enter"
         ],
         "inverse": true,
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "ClearNodeHitCount",
+        "custom_action_param": {
+            "node_name": [
+                "Global_ToSandBox_AllNot",
+                "Global_ToSandBox_Reset",
+                "Global_ToHomePage_Crash"
+            ]
+        },
+        "post_delay": 0,
         "timeout": 10000,
+        "rate_limit": 0,
         "next": [
             "[JumpBack]AutoBattle_Egress_TurnBack_SkipTalk",
             "Global_ToSandBox_Enter",
@@ -259,6 +304,7 @@
             "[JumpBack]StartGame_Error_API",
             "Global_BackToQC1",
             "[JumpBack]Global_ToHomePage_Crash",
+            "[JumpBack]Global_ToSandBox_AllNot",
             "Global_Null_Exception",
             "Global_Null_Panic"
         ],
@@ -266,6 +312,7 @@
     },
     "Global_ToSandBox_Reset": {
         "desc": "其他页面，返回按钮",
+        "max_hit": 10,
         "recognition": "And",
         "all_of": [
             "Global_BackPageHub_Once"
@@ -290,6 +337,7 @@
             "[JumpBack]StartGame_Error_API",
             "Global_BackToQC1",
             "[JumpBack]Global_ToHomePage_Crash",
+            "[JumpBack]Global_ToSandBox_AllNot",
             "Global_Null_Exception",
             "Global_Null_Panic"
         ],
@@ -315,6 +363,36 @@
             }
         ],
         "focus": "GO.复位到箱庭-已确认"
+    },
+    "Global_ToSandBox_AllNot": {
+        "desc": "特征均无,可能为立绘展示",
+        "max_hit": 3,
+        "recognition": "And",
+        "all_of": [
+            {
+                "recognition": "Custom",
+                "custom_recognition": "NotRecognition",
+                "custom_recognition_param": {
+                    "node": "Global_ToSandBox_Enter"
+                }
+            },
+            {
+                "recognition": "Custom",
+                "custom_recognition": "NotRecognition",
+                "custom_recognition_param": {
+                    "node": "Global_ToSandBox_Reset"
+                }
+            }
+        ],
+        "action": "Click",
+        "target": [
+            133,
+            36,
+            5,
+            5
+        ],
+        "post_delay": 2000,
+        "focus": "疑似立绘界面,有界处理."
     },
     "Global_BackToPve_1#": {
         "desc": "【传统卡带识别链-预设入口.预设pve1#】",
