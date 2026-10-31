@@ -145,6 +145,9 @@ def prepare_interface_for_target(interface, target_os):
     task_names = {task["name"] for task in result["task"]}
     for preset in result.get("preset", []):
         preset["task"] = [task for task in preset.get("task", []) if task.get("name") in task_names]
+    # Left here the RID would reach both Android identities; android_build.py pins it
+    # in the PI profile for the released identity only.
+    result.pop("mirrorchyan_rid", None)
     return result
 
 # def install_deps():

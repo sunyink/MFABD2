@@ -94,7 +94,7 @@
 </details>
 <br>
 
-桌面版 UI 内可直接获取更新推送、下载，由[![Mirror酱](https://img.shields.io/badge/Mirror%E9%85%B1-高速下载-%239af3f6?logo=countingworkspro&logoColor=4f46e5)](https://mirrorchyan.com/zh/projects?rid=MFABD2)提供支持。安卓 APK 默认使用 GitHub 更新源，也可在设置中选择 Mirror酱；使用 Mirror酱下载需要有效 CDK。旧版安卓包若提示缺少更新配置，请先通过 GitHub 更新或从发布页安装新版。
+桌面版 UI 内可直接获取更新推送、下载，由[![Mirror酱](https://img.shields.io/badge/Mirror%E9%85%B1-高速下载-%239af3f6?logo=countingworkspro&logoColor=4f46e5)](https://mirrorchyan.com/zh/projects?rid=MFABD2)提供支持。安卓 APK 当前使用 GitHub 更新源。
 
 > 通道版本差距约为几次 Bug/新功能/等验证 的轮回。
 

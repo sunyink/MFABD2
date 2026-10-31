@@ -84,8 +84,10 @@ def verify(path: Path, metadata: dict | None = None, maafw: str | None = None) -
             # An overlay with no base under it still loads, and then has almost no nodes.
             if any(resource.get("path", [])[:1] != ["./resource/base"] for resource in resources):
                 raise ValueError("Android payload lost its base resource layer")
-            if interface.get("mirrorchyan_rid") != "MFABD2":
-                raise ValueError("Android payload must use the MFABD2 MirrorChyan RID")
+            # The released identity gets its RID from the PI profile; one here would also
+            # point CI builds at MirrorChyan, which only ever serves the released APK.
+            if "mirrorchyan_rid" in interface:
+                raise ValueError("Android payload must not advertise a MirrorChyan RID")
             payload.getinfo("resource/android_native/pipeline/StartGame.json")
             if metadata and interface.get("version") != metadata["version_name"]:
                 raise ValueError("Resource and APK display versions differ")

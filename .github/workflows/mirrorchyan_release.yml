@@ -6,16 +6,11 @@ on:
       tag:
         default: ""
         required: false
-      android_only:
-        description: "仅补传安卓 APK，跳过桌面包和资源包"
-        type: boolean
-        default: false
-        required: false
 
 jobs:
   mirrorchyan:
     runs-on: macos-latest
-    if: ${{ github.repository_owner == 'sunyink' && !inputs.android_only }}
+    if: ${{ github.repository_owner == 'sunyink' }}
     strategy:
       fail-fast: false
       matrix:
@@ -55,19 +50,22 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           upload_token: ${{ secrets.MirrorChyanUploadToken }}
 
+  # 安卓：原样上传签名 APK，只传正式与公测。安卓端没有内测频道，CI 身份的包不带 RID；
+  # .apk.json/.apk.sha256 与 -ci.apk 都不匹配 filename。不填 tag 时不猜最新 Release。
   mirrorchyan_android:
-    runs-on: ubuntu-latest
-    if: ${{ github.repository_owner == 'sunyink' }}
+    runs-on: macos-latest
+    if: ${{ github.repository_owner == 'sunyink' && inputs.tag != '' && !contains(inputs.tag, '-alpha') }}
     steps:
-      # Upload the signed APK unchanged; sidecars and CI-identity APKs do not match.
       - uses: MirrorChyan/uploading-action@v1
         with:
           filetype: latest-release
           filename: "MFABD2-*-android-arm64.apk"
           mirrorchyan_rid: MFABD2
           tag: ${{ inputs.tag }}
+
           os: android
           arch: arm64
+
           owner: sunyink
           repo: MFABD2
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -76,7 +74,7 @@ jobs:
   # 热更新资源包：从全量包中抽取 resource + interface.json
   mirrorchyan_res:
     runs-on: macos-latest
-    if: ${{ github.repository_owner == 'sunyink' && !inputs.android_only }}
+    if: ${{ github.repository_owner == 'sunyink' }}
     steps:
       - uses: MirrorChyan/uploading-action@v1
         with:
