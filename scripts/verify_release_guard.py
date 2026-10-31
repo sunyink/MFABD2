@@ -1,6 +1,7 @@
 """Offline regression checks for incomplete/cancelled release publication."""
 
 import copy
+import fnmatch
 import os
 from pathlib import Path
 import re
@@ -252,6 +253,24 @@ class WorkflowChecks(unittest.TestCase):
         workflow = (ROOT / ".github/workflows/install-build.yml").read_text(encoding="utf-8")
         matrix = re.findall(r"- os: (\w+)\s+arch: (\w+)", workflow)
         self.assertEqual({f"{system}-{arch}" for system, arch in matrix}, set(DESKTOP_TARGETS))
+
+    def test_mirrorchyan_android_uploads_only_the_released_apk(self):
+        workflow = (ROOT / ".github/workflows/mirrorchyan_release.yml").read_text(encoding="utf-8")
+        android = workflow.split("\n  mirrorchyan_android:\n", 1)[1].split("\n  mirrorchyan_res:\n", 1)[0]
+        # The action uploads the first file matching this glob, so sidecars, desktop
+        # zips and the CI identity must all miss it.
+        pattern = re.search(r'filename: "([^"]+)"', android).group(1)
+        for identity, expected in (("release", {f"MFABD2-{TAG}-android-arm64.apk"}), ("ci", set())):
+            matched = {name for name in expected_assets(TAG, identity) if fnmatch.fnmatchcase(name, pattern)}
+            self.assertEqual(matched, expected)
+        # Any of these would re-zip the APK before it reaches MirrorChyan.
+        for key in ("pick_files", "extra_zip", "p7zip"):
+            self.assertNotIn(key, android)
+        self.assertIn("os: android", android)
+        self.assertIn("arch: arm64", android)
+        # Android has no alpha channel, and an empty tag lets the action guess the latest Release.
+        self.assertIn("inputs.tag != ''", android)
+        self.assertIn("!contains(inputs.tag, '-alpha')", android)
 
 
 if __name__ == "__main__":
