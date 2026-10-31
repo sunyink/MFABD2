@@ -454,7 +454,8 @@
             33
         ],
         "expected": [
-            "生成"
+            "生成",
+            "創建"
         ],
         "action": "Click",
         "post_delay": 5000,
@@ -1917,7 +1918,8 @@
             494
         ],
         "expected": [
-            "魔法阵"
+            "魔法阵",
+            "魔法陣"
         ],
         "action": "Click",
         "post_delay": 800,

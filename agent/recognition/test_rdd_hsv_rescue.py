@@ -21,15 +21,23 @@ import numpy as np
 
 try:
     from .rdd_hsv_rescue import (
+        bloated_hits,
         boxes_agree,
         channel_cutpoints,
         cut_happened,
+        direction_cut,
         direction_deltas,
+        hits_agree,
+        hue_axis,
+        hue_cutpoint,
+        hue_keep_for,
+        hue_neighbor_states,
         is_strict_mask,
         lineage_parent,
         neighbor_states,
         normalize_rescue_config,
         otsu_threshold,
+        pixel_set_key,
         resolve_entry_plan,
         select_stable_winner,
         sort_parents,
@@ -37,15 +45,23 @@ try:
     )
 except ImportError:
     from rdd_hsv_rescue import (
+        bloated_hits,
         boxes_agree,
         channel_cutpoints,
         cut_happened,
+        direction_cut,
         direction_deltas,
+        hits_agree,
+        hue_axis,
+        hue_cutpoint,
+        hue_keep_for,
+        hue_neighbor_states,
         is_strict_mask,
         lineage_parent,
         neighbor_states,
         normalize_rescue_config,
         otsu_threshold,
+        pixel_set_key,
         resolve_entry_plan,
         select_stable_winner,
         sort_parents,
@@ -356,6 +372,153 @@ class LineageAndStabilityTest(unittest.TestCase):
         winner, reason, _ = select_stable_winner(records, 2)
         self.assertIsNone(winner)
         self.assertEqual(reason, "ambiguous_split")
+
+
+class HueCutTest(unittest.TestCase):
+    """色相后手：展开轴上一刀、两侧各试一次（契约 §4.1，起因 GachaADV_Location1 2026-10-28）。"""
+
+    @staticmethod
+    def _pil_h(h_cv):
+        return int(round(h_cv * 255.0 / 180.0))
+
+    def test_hue_axis_unwraps_the_two_red_bands(self):
+        """[0,12]∪[165,180] 展开成以纯红为 0 的一段 [-15,12]。"""
+        self.assertEqual(hue_axis(RANGES), (-15, 12))
+        self.assertEqual(hue_axis([{"lower": [100, 50, 50], "upper": [130, 255, 255]}]),
+                         (-80, -50))
+        self.assertIsNone(hue_axis([{"lower": [0, 1], "upper": [12, 255, 255]}]))
+
+    def test_strict_profile_hue_keep_trims_bands_and_stays_subset(self):
+        # 保留上侧 [-4,12]：橙红段不动，品红段下沿 165 → 176
+        up = strict_profile(RANGES, 0, 0, (-4, 12))
+        self.assertEqual(up, [{"lower": [0, 140, 120], "upper": [12, 255, 255]},
+                              {"lower": [176, 140, 120], "upper": [180, 255, 255]}])
+        # 保留下侧 [-15,-5]：橙红段整段落空被删，品红段上沿 180 → 175
+        down = strict_profile(RANGES, 0, 0, (-15, -5))
+        self.assertEqual(down, [{"lower": [165, 140, 120], "upper": [175, 255, 255]}])
+        # 与 S/V 收紧叠加互不干扰
+        both = strict_profile(RANGES, 10, 0, (-4, 12))
+        self.assertEqual(both[1]["lower"], [176, 150, 120])
+        # 什么都不剩 → None；什么都不收紧 → None
+        self.assertIsNone(strict_profile(RANGES, 0, 0, (20, 30)))
+        self.assertIsNone(strict_profile(RANGES, 0, 0, None))
+
+    def test_hue_cutpoint_lands_between_dot_and_bridge(self):
+        """橙红红点(展开 0~4) + 品红背景桥(展开 -11)：刀位落在两簇之间，不钉死在 0。"""
+        dot = [self._pil_h(h) for h in (1, 2, 3, 4)] * 30
+        bridge = [self._pil_h(180 - 11)] * 40 + [self._pil_h(180 - 10)] * 40
+        cut = hue_cutpoint(np.array(dot + bridge), RANGES)
+        self.assertTrue(-10 < cut["Otsu"] <= 1, cut)
+        self.assertEqual(cut["轴"], [-15, 12])
+        self.assertEqual(cut["上侧"], [cut["Otsu"], 12])
+        self.assertEqual(cut["下侧"], [-15, cut["Otsu"] - 1])
+        # 跨 0/180 的红点(展开 -3~3)是连续的一簇，刀位仍在它与背景之间，不会把它劈开
+        straddle = [self._pil_h(h % 180) for h in (-3, -2, -1, 0, 1, 2, 3)] * 20
+        cut2 = hue_cutpoint(np.array(straddle + bridge), RANGES)
+        self.assertTrue(-10 < cut2["Otsu"] <= -3, cut2)
+
+    def test_hue_cutpoint_refuses_degenerate(self):
+        self.assertIsNone(hue_cutpoint(np.full(40, self._pil_h(2)), RANGES))
+        self.assertIsNone(hue_cutpoint(np.array([1, 2, 3]), RANGES))
+
+    def test_hue_keep_for_two_sides_and_edges(self):
+        axis = (-15, 12)
+        self.assertEqual(hue_keep_for("色相上", -4, axis), (-4, 12))
+        self.assertEqual(hue_keep_for("色相下", -4, axis), (-15, -5))
+        # 刀贴在轴端：一侧整轴(没切)、另一侧为空，都不成档
+        self.assertIsNone(hue_keep_for("色相上", -15, axis))
+        self.assertIsNone(hue_keep_for("色相下", -15, axis))
+        self.assertIsNone(hue_keep_for("饱和", -4, axis))
+
+    def test_direction_cut_keeps_sv_and_adds_hue(self):
+        cuts = {"饱和": {"增量": 40}, "亮度": {"增量": 0},
+                "色相": {"Otsu": -4, "轴": [-15, 12]}}
+        self.assertEqual(direction_cut(cuts, "饱和"),
+                         {"delta_s": 40, "delta_v": 0, "hue_cut": None, "hue_keep": None})
+        self.assertIsNone(direction_cut(cuts, "亮度"))
+        self.assertEqual(direction_cut(cuts, "色相上")["hue_keep"], (-4, 12))
+        self.assertEqual(direction_cut(cuts, "色相下")["hue_keep"], (-15, -5))
+        self.assertIsNone(direction_cut({"饱和": {"增量": 40}}, "色相上"))
+
+    def test_hue_neighbor_states_step_and_trim(self):
+        states = hue_neighbor_states("色相上", -4, (-15, 12))
+        self.assertEqual([s["hue_cut"] for s in states], [-6, -4, -2])
+        self.assertEqual({s["si"] for s in states}, {30})
+        self.assertEqual([s["vi"] for s in states], [0, 1, 2])
+        self.assertTrue(all(s["delta_s"] == 0 and s["delta_v"] == 0 for s in states))
+        self.assertEqual([s["hue_trim"] for s in states], [9, 11, 13])
+        # 越过轴端的陪跑档被剔除
+        edge = hue_neighbor_states("色相上", -14, (-15, 12))
+        self.assertEqual([s["hue_cut"] for s in edge], [-14, -12])
+
+    def test_stable_winner_prefers_least_hue_trim(self):
+        """色相档的 S/V 增量恒为 0，最保守档 = 切掉的轴长最少(保留区间最宽)。"""
+        states = hue_neighbor_states("色相上", -4, (-15, 12))
+        records = [{"parent_id": 1, "box_local": (25, 7, 18, 17), "state": st,
+                    "scan_index": 1} for st in reversed(states)]
+        winner, reason, _ = select_stable_winner(records, 2)
+        self.assertEqual(reason, "stable_hit")
+        self.assertEqual(winner["state"]["hue_cut"], -6)
+
+
+class LayeredRescueTest(unittest.TestCase):
+    """分层救援的纯算法部分：层数开关与子块去重。递归本体在识别器里，靠语料回放验收。"""
+
+    def test_max_depth_defaults_to_single_layer(self):
+        """没写 max_depth 的 preset 维持单层 —— 现有 pipeline 行为逐位不变。"""
+        cfg, error = normalize_rescue_config({"mode": "active"})
+        self.assertIsNone(error)
+        self.assertEqual(cfg["max_depth"], 1)
+        cfg, error = normalize_rescue_config({"mode": "active", "max_depth": 3})
+        self.assertIsNone(error)
+        self.assertEqual(cfg["max_depth"], 3)
+
+    def test_max_depth_out_of_range_fails_closed(self):
+        for bad in (0, 5):
+            cfg, error = normalize_rescue_config({"mode": "active", "max_depth": bad})
+            self.assertIsNotNone(error)
+            self.assertEqual(cfg["mode"], "off")
+
+    def test_pixel_set_key_ignores_window_offset(self):
+        """同一块像素放在不同窗口里，身份相同；换一块像素，身份不同。"""
+        a = np.zeros((6, 6), dtype=bool)
+        a[1:3, 2:4] = True
+        b = np.zeros((10, 10), dtype=bool)
+        b[4:6, 3:5] = True      # a 的窗口从 (5,7) 起、b 的从 (4,4) 起，ROI 坐标都是 y8~9 x7~8
+        self.assertEqual(pixel_set_key(a, 5, 7), pixel_set_key(b, 4, 4))
+        c = a.copy()
+        c[1, 2] = False
+        self.assertNotEqual(pixel_set_key(a, 5, 7), pixel_set_key(c, 5, 7))
+
+
+class SameDotTest(unittest.TestCase):
+    """不同切法的命中是不是同一个红点：框 IoU 过闸，或围住同一个"!"。"""
+
+    # 2026-10-29 GachaADV_Location1 实测三框；白芯用一小块公共像素代表同一个"!"
+    BLOATED = (15, 7, 27, 22)
+    CLEAN_S = (25, 7, 18, 16)
+    CLEAN_SV = (25, 7, 17, 16)
+    CORE = frozenset({(10, 33), (11, 33), (12, 33)})
+
+    def test_shared_core_rescues_low_iou_pair(self):
+        """虚胖框对干净框 IoU 0.485，但围住同一个"!" —— 同一处，不是方向歧义。"""
+        hits = [(self.BLOATED, self.CORE), (self.CLEAN_S, self.CORE), (self.CLEAN_SV, self.CORE)]
+        self.assertFalse(boxes_agree([h[0] for h in hits]))
+        self.assertTrue(hits_agree(hits))
+
+    def test_low_iou_without_shared_core_is_still_ambiguous(self):
+        other = frozenset({(30, 5), (31, 5)})
+        self.assertFalse(hits_agree([(self.BLOATED, other), (self.CLEAN_S, self.CORE)]))
+
+    def test_iou_rule_unchanged_even_without_core(self):
+        """IoU 过闸的组合照旧算一致，与白芯无关（原有采纳一个不变）。"""
+        self.assertTrue(hits_agree([((25, 6, 18, 18), frozenset()), ((25, 7, 18, 17), frozenset())]))
+
+    def test_bloated_hit_is_excluded_from_adoption(self):
+        hits = [(self.BLOATED, self.CORE), (self.CLEAN_S, self.CORE), (self.CLEAN_SV, self.CORE)]
+        self.assertEqual(bloated_hits(hits), {0})
+        # IoU 过闸的组合谁都不算虚胖
+        self.assertEqual(bloated_hits([(self.CLEAN_S, self.CORE), (self.CLEAN_SV, self.CORE)]), set())
 
 
 if __name__ == "__main__":

@@ -92,8 +92,8 @@
             42
         ]
     },
-    "Arbitrage_Merchant_Ico": {
-        "desc": "点商人交互钱袋按钮进对话。|[PC覆盖·2026-07-14实录] PC交互按钮实测720中心(941,591),base roi[838,534,71,69]右缘罩不到(边缘按钮右移病,同PVP自动战斗)→寻路到位后此处断链(00:01实录)。从MFA帧重裁PC版32x30(圆外绿蒙版),自匹1.000/他场景≤0.607;roi[900,555,110,80]。",
+    "Rec_<Arbitrage_Merchant_Ico>_Tpl": {
+        "desc": "[识别]右下交互按钮是钱袋。|[PC覆盖·2026-07-14实录] PC交互按钮实测720中心(941,591),base roi[838,534,71,69]右缘罩不到(边缘按钮右移病,同PVP自动战斗)→寻路到位后此处断链(00:01实录)。从MFA帧重裁PC版32x30(圆外绿蒙版),自匹1.000/他场景≤0.607;roi[900,555,110,80]。",
         "roi": [
             900,
             555,
@@ -954,6 +954,40 @@
             249,
             1,
             1
+        ]
+    },
+    "Arbitrage_Sell_PackShopSwich_Locked": {
+        "desc": "PC 未解锁卡带识别。LockIcon 使用 base 的 17×24 锁图按 PC 商店控件约 5/6 比例缩成 14×20 的 PackLocked_PC.png，锁区随选卡命中框推算为 [-43,-21,0,42]；顶部提示区按相同比例估计高度并居中留宽。简体词保留实测值，另补繁体提示词。模板和 ROI 为推算适配，尚无 PC 锁卡实图验证；阈值沿用 0.8。any_of 整段覆盖，保留锁图、提示两路，流程与出口继承 base。",
+        "any_of": [
+            {
+                "sub_name": "LockIcon",
+                "recognition": "TemplateMatch",
+                "roi": "Arbitrage_Sell_PackShopSwich",
+                "roi_offset": [
+                    -43,
+                    -21,
+                    0,
+                    42
+                ],
+                "template": [
+                    "Shop/PackLocked_PC.png"
+                ],
+                "threshold": 0.8
+            },
+            {
+                "sub_name": "LockedToast",
+                "recognition": "OCR",
+                "roi": [
+                    320,
+                    105,
+                    640,
+                    80
+                ],
+                "expected": [
+                    "游戏卡尚未解锁.*无法使用商店功能",
+                    "遊戲卡帶為鎖定狀態.*無法使用商店"
+                ]
+            }
         ]
     },
     "Arbitrage_Sell_PackShopSwich": {

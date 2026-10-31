@@ -227,6 +227,30 @@
         "focus": "行路中..."
     },
     "Arbitrage_Merchant_Ico": {
+        "desc": "已站在商人身边：右下交互按钮是钱袋，或商人头顶出现可点的名牌。商人脚下有传送阵时右下按钮会变成手型，名牌点了同样进商人对话；引用本节点做Click时点的是命中的那一个。名牌roi左缘切掉对话气泡里说话人名字的「丝路商团」，对话态不算站在商人身边。",
+        "recognition": "Or",
+        "any_of": [
+            "Rec_<Arbitrage_Merchant_Ico>_Tpl",
+            {
+                "recognition": "OCR",
+                "roi": [
+                    665,
+                    180,
+                    235,
+                    100
+                ],
+                "expected": [
+                    "[丝絲]路商[团團]"
+                ]
+            }
+        ],
+        "next": [
+            "[Anchor]PractiseBargaining_Per",
+            "Arbitrage_Action_Hub"
+        ]
+    },
+    "Rec_<Arbitrage_Merchant_Ico>_Tpl": {
+        "desc": "[识别]右下交互按钮是钱袋。单独抽出供PC覆盖包改roi与模板。",
         "recognition": "TemplateMatch",
         "roi": [
             838,
@@ -237,14 +261,10 @@
         "template": [
             "Merchant_IcoGE.png"
         ],
-        "green_mask": true,
-        "next": [
-            "[Anchor]PractiseBargaining_Per",
-            "Arbitrage_Action_Hub"
-        ]
+        "green_mask": true
     },
     "Arbitrage_Merchant_Locate_Egress": {
-        "desc": "寻路到商人的公共出口。由卡带5箱庭导航链进入；仅引用商人图标识别，空next退回总入口或出售恢复调用方，不进入Action_Hub。",
+        "desc": "寻路到商人的公共出口。由卡带5箱庭导航链进入；仅引用商人交互识别（钱袋或名牌），空next退回总入口或出售恢复调用方，不进入Action_Hub。",
         "recognition": "Or",
         "any_of": [
             "Arbitrage_Merchant_Ico"
@@ -3102,7 +3122,8 @@
     "Arbitrage_Sell_HUB": {
         "desc": "单件出售选卡入口：设置选卡后进入出售列表等待；恢复与失败去向固定在出售侧，不影响补买。",
         "anchor": {
-            "PackSelect_Next": "Arbitrage_Sell_PackShopSwich_Wait"
+            "PackSelect_Next": "Arbitrage_Sell_PackShopSwich_Wait",
+            "PackSelect_Locked": "Arbitrage_Sell_Item_BatchExit"
         },
         "next": [
             "Arbitrage_Sell_Button_Ocr"
@@ -3146,12 +3167,15 @@
         ]
     },
     "Arbitrage_Sell_PackList": {
-        "desc": "开始本轮找卡，清除柜台回顶恢复次数及上轮复位出口；找卡滑动可重入，柜台恢复回跳不经过此处。",
+        "desc": "开始本轮找卡，清除柜台回顶恢复次数、选卡点击次数及上轮复位出口；找卡滑动可重入，柜台恢复回跳不经过此处。",
         "pre_delay": 0,
         "action": "Custom",
         "custom_action": "ClearNodeHitCount",
         "custom_action_param": {
-            "node_name": "Arbitrage_Sell_Item_ListReset_Recovery"
+            "node_name": [
+                "Arbitrage_Sell_Item_ListReset_Recovery",
+                "Arbitrage_Sell_PackShopSwich"
+            ]
         },
         "anchor": {
             "SellList_Return": ""
@@ -3163,7 +3187,8 @@
         ]
     },
     "Arbitrage_Sell_PackShopSwich": {
-        "desc": "需要[custom]传入正确的名称.出售卡带选择,空格删去匹配cus源,保留默认",
+        "desc": "需要[custom]传入正确的名称.出售卡带选择,空格删去匹配cus源,保留默认。点击后先认选中高亮，再认本行缩略图上的锁或「尚未解锁，无法使用商店功能」提示，交给 _Locked 按入口锚点退出。自循环 max_hit 5，每轮找卡由 Arbitrage_Sell_PackList 清零；用完走默认 on_error（Global_Null）结束本批，不再静默连点（2026-10-20 实测对剧情游戏卡18连点 456 次）：出售侧未到 BatchEnd，主控停止后续派发；补买侧判未正常退出。",
+        "max_hit": 5,
         "recognition": "OCR",
         "roi": [
             236,
@@ -3184,6 +3209,7 @@
         "post_delay": 2000,
         "next": [
             "Arbitrage_Sell_PackShopSwich_Clr",
+            "Arbitrage_Sell_PackShopSwich_Locked",
             "Arbitrage_Sell_PackShopSwich"
         ]
     },
@@ -3212,6 +3238,47 @@
         "next": [
             "[Anchor]PackSelect_Next"
         ]
+    },
+    "Arbitrage_Sell_PackShopSwich_Locked": {
+        "desc": "目标卡带未解锁：本行锁图或屏幕提示任一路命中即退出，选中高亮仍由前置 _Clr 优先处理。锁图 roi 取选卡命中框左移 51、上下各扩 25，覆盖本行缩略图中央，不含相邻行；提示 ROI 与简体词取自 1280×720 截图，另补繁体提示词。PC 图与区域由覆盖包适配，繁体 OCR 待实机核对。按入口锚点 PackSelect_Locked 退出：出售侧结束本批、主控跳过本项；补买侧按未找到处理。",
+        "recognition": "Or",
+        "any_of": [
+            {
+                "sub_name": "LockIcon",
+                "recognition": "TemplateMatch",
+                "roi": "Arbitrage_Sell_PackShopSwich",
+                "roi_offset": [
+                    -51,
+                    -25,
+                    0,
+                    50
+                ],
+                "template": [
+                    "Shop/PackLocked.png"
+                ],
+                "threshold": 0.8
+            },
+            {
+                "sub_name": "LockedToast",
+                "recognition": "OCR",
+                "roi": [
+                    400,
+                    130,
+                    650,
+                    80
+                ],
+                "expected": [
+                    "游戏卡尚未解锁.*无法使用商店功能",
+                    "遊戲卡帶為鎖定狀態.*無法使用商店"
+                ]
+            }
+        ],
+        "pre_delay": 0,
+        "post_delay": 0,
+        "next": [
+            "[Anchor]PackSelect_Locked"
+        ],
+        "focus": "[WRN]目标卡带尚未解锁，跳过本项"
     },
     "Arbitrage_Sell_PackShopSwich_Wait": {
         "desc": "出售侧等待列表顶部；超时回跳尝试一次柜台复位，再检查PostOcr，恢复耗尽则报告失败。补买不经过此节点。",
@@ -3957,7 +4024,8 @@
             "node": "Arbitrage_Sell_GoldRead"
         },
         "anchor": {
-            "PackSelect_Next": ""
+            "PackSelect_Next": "",
+            "PackSelect_Locked": ""
         },
         "post_delay": 0,
         "focus": "Arb.B.出售一轮循环结束"
@@ -6705,7 +6773,8 @@
         "desc": "补买单批选卡入口：复用选卡动作，选中后直接查找商品；不进入出售顶部检查及柜台恢复。",
         "pre_delay": 0,
         "anchor": {
-            "PackSelect_Next": "Arbitrage_PreciseBuy_Search"
+            "PackSelect_Next": "Arbitrage_PreciseBuy_Search",
+            "PackSelect_Locked": "Arbitrage_PreciseBuy_NotFound"
         },
         "post_delay": 0,
         "next": [
@@ -7173,7 +7242,8 @@
         "pre_delay": 0,
         "anchor": {
             "PackSelect_Next": "",
-            "SellList_Return": ""
+            "SellList_Return": "",
+            "PackSelect_Locked": ""
         },
         "post_delay": 0
     },

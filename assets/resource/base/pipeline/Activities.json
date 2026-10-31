@@ -99,7 +99,7 @@
         "recognition": "Custom",
         "custom_recognition": "RedDotDetector",
         "custom_recognition_param": {
-            "preset": "Agt_RedDot_Preset_Panoram"
+            "preset": "Agt_RedDot_Preset_Layered"
         },
         "roi": [
             269,

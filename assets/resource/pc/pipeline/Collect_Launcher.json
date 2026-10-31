@@ -789,7 +789,9 @@
             50
         ],
         "template": [
-            "UI_TalkSkip.png"
+            "UI_TalkSkip.png",
+            "Chaga_ProductNext.png",
+            "Chaga_ProductNext_PC.png"
         ],
         "green_mask": true
     },

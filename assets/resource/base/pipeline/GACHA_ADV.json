@@ -66,6 +66,7 @@
         "next": [
             "GachaADV_GachaPage",
             "GachaADV_GachaPage2",
+            "GachaADV_GachaPage_SkipPV",
             "GachaADV_GachaRed_Have"
         ]
     },
@@ -90,6 +91,28 @@
             "兑换"
         ],
         "focus": "GA.进入正常抽抽乐页面(偏右的单个'兑换'覆盖)"
+    },
+    "GachaADV_GachaPage_SkipPV": {
+        "desc": "进抽卡页时立绘开场动画还在播,点立绘跳过。判据:左上角'抽抽乐'标题已在(借 GachaADV_Slip),右侧'查看概率/兑换'面板还被动画盖着。必须排在 GachaPage/GachaPage2 之后——面板在时标题必在,排前面会把正常页也点一下。PC 实测动画约8秒(2026-10-29),ADB 点完3秒内已播完、本节点轮不到。点击位置同 GachaADV_SkipPV。",
+        "max_hit": 20,
+        "recognition": "And",
+        "all_of": [
+            "GachaADV_Slip"
+        ],
+        "action": "Click",
+        "target": [
+            536,
+            334,
+            19,
+            28
+        ],
+        "post_delay": 800,
+        "next": [
+            "GachaADV_GachaPage",
+            "GachaADV_GachaPage2",
+            "GachaADV_GachaPage_SkipPV"
+        ],
+        "focus": "GA.跳过抽卡页立绘动画"
     },
     "GachaADV_PageEnter_1#": {
         "desc": "确认已在抽卡页",
@@ -309,10 +332,11 @@
         "focus": "GA.抽卡收尾确认首页无红点,当天完成已记录"
     },
     "GachaADV_Location1": {
+        "desc": "卡池列第1格有红点就点进去。用分层救援档:这一格进页时默认选中、卡面全亮,右侧预览立绘又会动,红点常同时连上几种背景。",
         "recognition": "Custom",
         "custom_recognition": "RedDotDetector",
         "custom_recognition_param": {
-            "preset": "Agt_RedDot_Preset"
+            "preset": "Agt_RedDot_Preset_Layered"
         },
         "roi": [
             315,
@@ -440,7 +464,7 @@
         "recognition": "Custom",
         "custom_recognition": "RedDotDetector",
         "custom_recognition_param": {
-            "preset": "Agt_RedDot_Preset"
+            "preset": "Agt_RedDot_Preset_Layered"
         },
         "roi": [
             315,
@@ -551,7 +575,7 @@
         "recognition": "Custom",
         "custom_recognition": "RedDotDetector",
         "custom_recognition_param": {
-            "preset": "Agt_RedDot_Preset"
+            "preset": "Agt_RedDot_Preset_Layered"
         },
         "roi": [
             315,
@@ -657,7 +681,7 @@
         "recognition": "Custom",
         "custom_recognition": "RedDotDetector",
         "custom_recognition_param": {
-            "preset": "Agt_RedDot_Preset"
+            "preset": "Agt_RedDot_Preset_Layered"
         },
         "roi": [
             315,
@@ -759,7 +783,7 @@
         "recognition": "Custom",
         "custom_recognition": "RedDotDetector",
         "custom_recognition_param": {
-            "preset": "Agt_RedDot_Preset"
+            "preset": "Agt_RedDot_Preset_Layered"
         },
         "roi": [
             315,

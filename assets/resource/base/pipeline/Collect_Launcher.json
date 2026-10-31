@@ -2815,7 +2815,8 @@
             68
         ],
         "template": [
-            "UI_Skip.png"
+            "UI_Skip.png",
+            "Chaga_ProductNext.png"
         ],
         "action": "Click",
         "post_delay": 2000,

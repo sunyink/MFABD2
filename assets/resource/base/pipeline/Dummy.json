@@ -225,5 +225,57 @@
                 "time_budget_ms": 40
             }
         }
+    },
+    "Agt_RedDot_Preset_Layered": {
+        "desc": "分层救援档:救援一刀切不开时,在切剩的块上重算切点再切,最多3层。给红点会同时连上几种不同背景的位置用(抽卡卡池1:当期卡面×动态预览立绘,左连品红卡面、右连橙色头发)。其余参数须与 Agt_RedDot_Preset 一致,改那边时同步这里。max_full_runs 放到32:三层救回实测要22次重跑;首个父块连同各层子块不受 time_budget_ms 限制,只受它封顶。改 max_depth/max_full_runs 前先跑全语料回放,判据同 Agt_RedDot_Preset。",
+        "recognition": "Custom",
+        "custom_recognition": "RedDotDetector",
+        "custom_recognition_param": {
+            "flt_red_hsv": [
+                {
+                    "lower": [
+                        0,
+                        140,
+                        120
+                    ],
+                    "upper": [
+                        12,
+                        255,
+                        255
+                    ]
+                },
+                {
+                    "lower": [
+                        165,
+                        140,
+                        120
+                    ],
+                    "upper": [
+                        180,
+                        255,
+                        255
+                    ]
+                }
+            ],
+            "flt_area": [
+                30,
+                1200
+            ],
+            "sc_min_conf": 0.55,
+            "sc_gap_ratio": 0.35,
+            "flt_hsv_rescue": {
+                "mode": "active",
+                "entry_aspect": "inherit",
+                "entry_confidence": "inherit",
+                "entry_confidence_rej": "shadow",
+                "max_delta_s": 110,
+                "max_delta_v": 110,
+                "max_depth": 3,
+                "max_full_runs": 32,
+                "min_stable_states": 2,
+                "max_parents": 5,
+                "time_budget_ms": 40
+            }
+        }
     }
 }

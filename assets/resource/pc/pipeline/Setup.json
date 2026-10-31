@@ -225,12 +225,6 @@
             "設定"
         ]
     },
-    "Setup_Main_Move": {
-        "expected": [
-            "点击地面",
-            "點擊地板"
-        ]
-    },
     "Setup_Main_Tab_2": {
         "roi": [
             141,
@@ -241,26 +235,6 @@
         "expected": [
             "图像",
             "圖像"
-        ]
-    },
-    "Setup_Main_Resolution": {
-        "roi": [
-            456,
-            224,
-            230,
-            79
-        ]
-    },
-    "Setup_Main_StartUI": {
-        "roi": [
-            420,
-            301,
-            350,
-            107
-        ],
-        "expected": [
-            "主界面",
-            "主畫面"
         ]
     },
     "Setup_Main_StartUI_Ck": {
@@ -274,22 +248,6 @@
             82,
             95,
             364
-        ]
-    },
-    "Setup_Main_YellowPin": {
-        "roi": [
-            823,
-            86,
-            344,
-            84
-        ]
-    },
-    "Setup_Main_ClothingChange": {
-        "roi": [
-            819,
-            209,
-            344,
-            88
         ]
     },
     "Setup_Equip_Into": {
