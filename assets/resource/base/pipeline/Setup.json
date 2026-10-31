@@ -835,6 +835,7 @@
         "focus": "Set.技能摆放-复审校验不通过\n\n开始技能复位"
     },
     "Setup_Main_Switch": {
+        "desc": "主设置链总入口,各Entry与Setup_Str共用。链跑完或中途识别失败退栈回到这里后,统一由Setup_Main_Exit回箱庭。",
         "max_hit": 1,
         "recognition": "Or",
         "any_of": [
@@ -842,7 +843,26 @@
             "Rec_SandBox_Run_Tpl"
         ],
         "next": [
+            "[JumpBack]Setup_Main_Begin",
+            "Setup_Main_Exit"
+        ]
+    },
+    "Setup_Main_Begin": {
+        "desc": "主设置链开场,只走一次。退栈回来时已用完,让位给Setup_Main_Exit,不会重跑整条链。",
+        "max_hit": 1,
+        "pre_delay": 0,
+        "post_delay": 0,
+        "next": [
             "Setup_Main_Into_Pre"
+        ]
+    },
+    "Setup_Main_Exit": {
+        "desc": "主设置链收尾复位:仍停在设置页时退回箱庭,已在箱庭则一拍即过。链内各项识别失败不单独写on_error,默认退栈到此处理。",
+        "pre_delay": 0,
+        "post_delay": 0,
+        "next": [
+            "Global_ToSandBox_Enter",
+            "Global_ToSandBox"
         ]
     },
     "Setup_Main_Into_Pre": {
@@ -1265,9 +1285,6 @@
         "next": [
             "Setup_Main_SkipAv",
             "[JumpBack]Setup_Main_Swip"
-        ],
-        "on_error": [
-            "Setup_Main_GraphicsReset"
         ]
     },
     "Setup_Main_freshRate_Chg": {
@@ -1346,9 +1363,6 @@
         "next": [
             "Setup_Main_SkipAv_Ck",
             "[JumpBack]Setup_Main_SkipAv_Chg"
-        ],
-        "on_error": [
-            "Setup_Main_GraphicsReset"
         ]
     },
     "Setup_Main_SkipAv_Ck": {
@@ -1369,9 +1383,6 @@
         "next": [
             "Setup_Main_Silhouette",
             "[JumpBack]Setup_Main_Swip"
-        ],
-        "on_error": [
-            "Setup_Main_GraphicsReset"
         ]
     },
     "Setup_Main_SkipAv_Chg": {
@@ -1416,9 +1427,6 @@
         "next": [
             "Setup_Main_Silhouette_Ck",
             "[JumpBack]Setup_Main_Silhouette_Chg"
-        ],
-        "on_error": [
-            "Setup_Main_GraphicsReset"
         ]
     },
     "Setup_Main_Silhouette_Ck": {
@@ -1444,14 +1452,6 @@
         "action": "Click",
         "target": "Setup_Main_Silhouette",
         "post_delay": 3000
-    },
-    "Setup_Main_GraphicsReset": {
-        "desc": "图像设置识别或切换重试耗尽后,退出设置页并恢复箱庭,不留在当前页面反复等待。",
-        "next": [
-            "Global_ToSandBox_Enter",
-            "Global_ToSandBox"
-        ],
-        "focus": "Setup.过场动画或剪影设置未完成,退出设置页后继续后续任务"
     },
     "Setup_Main_Tab_3": {
         "max_hit": 3,
