@@ -142,18 +142,27 @@ def replace_once(text: str, old: str, new: str) -> str:
     return text.replace(old, new, 1)
 
 
-def apply_identity_to_profile(profile: Path, segment: str, identity: str) -> None:
-    """Carve the CI package name out of the PI profile.
+def apply_identity_to_profile(profile: Path, segment: str, identity: str,
+                              mirrorchyan_rid: str = "") -> None:
+    """Carve the CI package name out of the PI profile, and give the RID to release only.
 
     Upstream composes applicationId as BASE_APPLICATION_ID + '.' + the profile's
     app.id and offers no applicationIdSuffix, so this segment is the only lever.
     Release rewrites it to itself, which still asserts that the anchor exists.
+
+    MirrorChyan only ever receives the released APK; a CI build asking it for updates
+    would be offered a package it cannot install over. Upstream prefers the profile's
+    update.mirrorchyanRid to the PI field, which install.py drops for Android.
     """
-    text = profile.read_text(encoding="utf-8")
-    profile.write_text(
-        replace_once(text, f"  id: {segment}", f"  id: {id_segment(segment, identity)}"),
-        encoding="utf-8",
-    )
+    text = replace_once(profile.read_text(encoding="utf-8"),
+                        f"  id: {segment}", f"  id: {id_segment(segment, identity)}")
+    if identity == RELEASE:
+        if not mirrorchyan_rid:
+            raise ValueError("The released identity needs a MirrorChyan RID")
+        if re.search(r"^update:", text, re.MULTILINE):
+            raise ValueError("PI profile already declares an update section")
+        text = text.rstrip("\n") + f"\nupdate:\n  mirrorchyanRid: {mirrorchyan_rid}\n"
+    profile.write_text(text, encoding="utf-8")
 
 
 def prepare_ui(upstream: Path, settings: dict, code: int, identity: str = RELEASE,
@@ -161,7 +170,9 @@ def prepare_ui(upstream: Path, settings: dict, code: int, identity: str = RELEAS
     prefix, segment = settings["application_id"].rsplit('.', 1)
     if segment != "mfabd2" or not re.fullmatch(r"[a-z][a-z0-9_.]*", prefix):
         raise ValueError("Application ID must match the mfabd2 profile")
-    apply_identity_to_profile(profile or ROOT / "android/pi-profile.yaml", segment, identity)
+    interface = json.loads((ROOT / "assets/interface.json").read_text(encoding="utf-8"))
+    apply_identity_to_profile(profile or ROOT / "android/pi-profile.yaml", segment, identity,
+                              interface.get("mirrorchyan_rid", ""))
     gradle = upstream / "build-logic/convention/src/main/kotlin/com/aliothmoon/maafw/gradle"
     app_path = gradle / "AndroidApplicationConventionPlugin.kt"
     app = app_path.read_text(encoding="utf-8")

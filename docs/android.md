@@ -18,7 +18,8 @@
 `release_build=true` 保留安卓工作流自己的安装编号序列；`release` job 等待桌面、安卓和更新日志全部成功，
 再按安卓 job 返回的运行编号取回 APK、校验文件和构建元数据，
 核对提交、版本、文件名及摘要后，与桌面 ZIP 一起上传到草稿，全部附件核验一致后才公开。安卓失败或附件不匹配时停止发布。
-发布通知等待发布步骤成功。旧安卓 ZIP 构建与镜像上传入口已停用，APK 直接作为发布附件，不再套一层 ZIP。
+发布通知等待发布步骤成功。旧安卓 ZIP 构建已停用，APK 直接作为发布附件，不再套一层 ZIP；
+公开发布后，Mirror 上传流程从同一 Release 同步原始签名 APK（只传正式与公测，见「Mirror酱上传」）。
 APK 文件名为 `MFABD2-<项目版本>-android-arm64.apk`，与桌面 ZIP 同构；安装编号只放在同名的 `.apk.json` 里。
 首次接入时，应先将安卓工作流合入默认分支，再验收主流程的手动派发与发布上传；开发分支可手动触发安卓构建验证出包。
 独立的 `android.yml` 发布构建按目标版本单独分组，不被开发分支的新推送取消；同一版本已有发布构建运行时，后续请求等待。
@@ -39,8 +40,8 @@ APK 文件名为 `MFABD2-<项目版本>-android-arm64.apk`，与桌面 ZIP 同�
   未配置显式 core 时才使用上游默认值：差补丁号警告，差次版本默认失败，除非
   `ANDROID_MAAFW_LINE` 明确接受上游所在的线。版本检查通过不代替 APK 与真机验证。
 - v0.2.2 通过临时上游目录的 `local.properties` 中 `build.releaseAbi=arm64-v8a`
-  选择手机架构；`prepare` 写入该配置并保留其他本地配置。MFABD2 继续接入自身按安装编号
-  选包的更新客户端，不采用上游新增的 Mirror酱优先版本选择。
+  选择手机架构；`prepare` 写入该配置并保留其他本地配置。MFABD2 的 GitHub 更新源继续使用自身按安装编号
+  选包的客户端，不采用上游新增的 Mirror酱优先版本选择；Mirror酱更新源使用上游已有实现。
 - 打进 APK 的 pip 清单由 `android_build.py requirements` 从根 `requirements.txt` 生成，
   仓库里不再有第二份手写清单。只有平台逼迫的三项在 `android/release.json` 的
   `python_requirements` 里覆盖：numpy 与 Pillow 带 C 扩展，必须落在 Chaquopy 实际发布了
@@ -204,20 +205,39 @@ controller 声明，实际运行使用 AndroidNativeController；该版本未按
   更新候选——后者由另一把钥匙签名，装不上也不该被推荐。元数据损坏或身份不符明确报错，不回落到
   字符串比较；某个候选的 JSON 取不到时不会掩盖其余可用候选；GitHub 提供的 APK 摘要与 JSON 不一致
   时也拒绝下载。
-- **CI 身份的包没有可用的内置更新**：它的包名与签名都与 Release 里的正式包对不上，更新检查会
-  报元数据无效。这是有意的取舍，CI 包请手动去发布页下载。
+- **CI 身份的包没有可用的内置更新**：它的包名与签名都与 Release 里的正式包对不上，GitHub 更新检查会
+  报元数据无效；它也不带 Mirror酱 RID。这是有意的取舍，CI 包请手动去发布页下载。
 - 例如先发布测试构建 `601`，再发布正式构建 `701`，可直接覆盖回正式；反向安装 `601` 属于降级，需要重装。同一个标签重建可以有不同编号，安装和更新依然按数字判断。显示版本继续沿用项目原文。
-- 当前上游只有Stable/Beta更新渠道，Alpha/CI自动发现并不完整。安卓端暂不暴露旧MirrorChyan RID，避免拉取遗留ZIP；Mirror的APK与架构对接需单独验证。
-- 新安装默认使用 GitHub 更新源。此前已经保存 MirrorChyan 选择的测试安装需要在设置中手动切换；不会强行覆盖用户已保存的来源偏好。
+- 当前上游只有 Stable/Beta 更新渠道，Alpha/CI 自动发现并不完整。
+- 只有正式身份的包带 Mirror酱 RID：`android_build.py prepare` 把 `assets/interface.json` 的 `mirrorchyan_rid`
+  写进 PI profile 的 `update.mirrorchyanRid`（上游以它为准，压过 PI 自带字段）；APK 内的 `interface.json`
+  不带 RID，`verify_android_apk.py` 也这样检查。Mirror酱按 `os=android`、`arch=arm64` 查询，检查更新无需 CDK，下载需要有效 CDK。
+- 两个来源的公测频道不对等：GitHub 源接受任何预发布、按安装编号取最大，会推到内测；Mirror酱的公测频道返回正式与公测中
+  版本号较大的那个，且只收正式与公测的 APK。从 GitHub 装了内测再切到 Mirror酱，会一直显示已是最新，直到出现版本号更大的公测或正式版。
+- 新安装默认使用 GitHub 更新源，可在设置中选择 Mirror酱；不会覆盖用户已保存的来源偏好。
+  旧版安卓包未包含 RID，选 Mirror酱会提示缺少更新配置，需先通过 GitHub 更新或手动安装新版。
 - 单元测试覆盖渠道过滤、编号而非发布顺序决定胜出、扫描深度上限、不完整附件、旧命名与 `-ci` 包
   被排除、元数据不匹配、单个 sidecar 取不到时不掩盖其余候选、以及降级拒绝；在 Android CI 中运行
-  `:app:testReleaseUnitTest` 的 MFABD2 更新测试和更新模块装配测试。真机安装和下载体验仍单独验收。
+  `:app:testReleaseUnitTest` 的 MFABD2、Mirror酱更新测试和更新模块装配测试。真机安装和下载体验仍单独验收。
 - AGP 9 默认只生成 Debug 单元测试，CI 对测试命令显式传入 `-Pandroid.onlyEnableUnitTestForTheTestedBuildType=false` 以生成 Release 测试任务；测试报告作为 `android-update-tests` 附件保存。
+
+## Mirror酱上传
+
+`.github/workflows/mirrorchyan_release.yml` 的安卓任务匹配 `MFABD2-*-android-arm64.apk`，
+只传原始签名 APK，不包含 `.apk.json`、`.apk.sha256` 或 `-ci.apk`，也不使用桌面资源热更包。
+它随公开 Release 后的自动派发运行，只处理正式与公测标签；内测标签（安卓端没有内测频道）与未填 `tag` 的手动运行都跳过。
+不单独补传历史版本：已发布的旧包不带 RID，查询不了 Mirror酱，补传没有用处。
+
+- Mirror酱的增量类型资源只收 zip，上传 APK 会在第一步被拒（HTTP 400 `file ext not supported`）；
+  APK 所在的资源或平台必须由 Mirror酱官方设为全量更新。
+- **Mirror酱没有删除或隐藏版本的接口。** 只删 GitHub Release 撤不掉已上传的 APK，Mirror酱会继续下发；
+  安装编号只增不减，装上的用户回退只能卸载重装。出问题时尽快发更高版本顶替，或联系 Mirror酱官方下架。
 
 ## 当前验收边界
 
 真机已确认资源列表、任务选项及部分agent回调。截图整体偏暗的上游问题仍影响颜色匹配，暂不调整公共颜色阈值。
 固定签名 APK 已通过 CI 的身份及结构检查；主流程等待 APK 后统一发布的链路仍待实际发版验收。原生启动覆盖、完整任务、数字版本内置更新和覆盖升级保留存档仍需要实机验收。旧实验包迁移不在开发范围内。
+Mirror酱 APK 上传、带 CDK 下载、手机覆盖升级与存档保留仍待线上及实机验收。
 应用图标沿用已入库的 `ReadMe/logo.png`（180×180），后续可提供更高分辨率的品牌图标。
 
 ## 上游依据
