@@ -145,8 +145,6 @@ def prepare_interface_for_target(interface, target_os):
     task_names = {task["name"] for task in result["task"]}
     for preset in result.get("preset", []):
         preset["task"] = [task for task in preset.get("task", []) if task.get("name") in task_names]
-    # The existing MirrorChyan Android entry contains the legacy ZIP, not an APK.
-    result.pop("mirrorchyan_rid", None)
     return result
 
 # def install_deps():

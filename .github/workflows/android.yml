@@ -233,7 +233,7 @@ jobs:
         run: |
           # AGP 9 defaults to generating unit tests only for the debug build type.
           # This gate runs on the original profile; a test failure never retries.
-          ./gradlew -Pandroid.onlyEnableUnitTestForTheTestedBuildType=false :app:testReleaseUnitTest --tests 'com.aliothmoon.maafw.update.Mfabd2*Test' --tests 'com.aliothmoon.maafw.di.UpdateModuleTest' --stacktrace
+          ./gradlew -Pandroid.onlyEnableUnitTestForTheTestedBuildType=false :app:testReleaseUnitTest --tests 'com.aliothmoon.maafw.update.Mfabd2*Test' --tests 'com.aliothmoon.maafw.update.MirrorChyanUpdateTest' --tests 'com.aliothmoon.maafw.di.UpdateModuleTest' --stacktrace
       # 同 install.yml：脚本把「图标没贴上」降级成 status=degraded 并退出 0，
       # 非零退出只剩「脚本跑不起来」，那种情况不该被 continue-on-error 盖掉。
       - name: Prepare optional Android icon

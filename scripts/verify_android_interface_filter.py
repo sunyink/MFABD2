@@ -51,7 +51,8 @@ class AndroidInterfaceFilterTest(unittest.TestCase):
         self.assertEqual([item["name"] for item in filtered["controller"]], ["Adb"])
         self.assertEqual([item["name"] for item in filtered["resource"]], ["ADB"])
         self.assertEqual(filtered["resource"][0]["path"], ["./resource/base", "./resource/android_native"])
-        self.assertNotIn("mirrorchyan_rid", filtered)
+        self.assertEqual(filtered["mirrorchyan_rid"], "MFABD2")
+        self.assertTrue(filtered["mirrorchyan_multiplatform"])
         expected_tasks = [task for task in self.interface["task"]
                           if task.get("entry") != "Env_MultiSave_Config"
                           and (not task.get("controller") or "Adb" in task["controller"])]
@@ -219,6 +220,7 @@ class AndroidInterfaceFilterTest(unittest.TestCase):
                             self.assertEqual((output / "resource" / name / "nested" / "content.txt").read_text(encoding="utf-8"), name)
                         self.assertEqual((output / "resource" / "mfa_layout.json").read_text(), "{}")
                         installed = json.loads((output / "interface.json").read_text(encoding="utf-8"))
+                        self.assertEqual(installed["mirrorchyan_rid"], self.interface["mirrorchyan_rid"])
                         self.assertEqual(installed["resource"], INSTALL.prepare_interface_for_target(self.interface, target)["resource"])
             self.assertEqual({path.relative_to(source): path.read_bytes() for path in source.rglob("*") if path.is_file()}, source_files)
 
