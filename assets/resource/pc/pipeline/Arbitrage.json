@@ -956,6 +956,40 @@
             1
         ]
     },
+    "Arbitrage_Sell_PackShopSwich_Locked": {
+        "desc": "PC 未解锁卡带识别。LockIcon 使用 base 的 17×24 锁图按 PC 商店控件约 5/6 比例缩成 14×20 的 PackLocked_PC.png，锁区随选卡命中框推算为 [-43,-21,0,42]；顶部提示区按相同比例估计高度并居中留宽。简体词保留实测值，另补繁体提示词。模板和 ROI 为推算适配，尚无 PC 锁卡实图验证；阈值沿用 0.8。any_of 整段覆盖，保留锁图、提示两路，流程与出口继承 base。",
+        "any_of": [
+            {
+                "sub_name": "LockIcon",
+                "recognition": "TemplateMatch",
+                "roi": "Arbitrage_Sell_PackShopSwich",
+                "roi_offset": [
+                    -43,
+                    -21,
+                    0,
+                    42
+                ],
+                "template": [
+                    "Shop/PackLocked_PC.png"
+                ],
+                "threshold": 0.8
+            },
+            {
+                "sub_name": "LockedToast",
+                "recognition": "OCR",
+                "roi": [
+                    320,
+                    105,
+                    640,
+                    80
+                ],
+                "expected": [
+                    "游戏卡尚未解锁.*无法使用商店功能",
+                    "遊戲卡帶為鎖定狀態.*無法使用商店"
+                ]
+            }
+        ]
+    },
     "Arbitrage_Sell_PackShopSwich": {
         "desc": "出售卡带选择。|[PC覆盖·2026-07-22] base roi[236,90,142,594]是安卓名字列坐标,PC卡带名字列实测x140-310——与买货梯31个Buy_Select_QC*/QR*/QE*同款病灶(那批已于07-14全部改为[140,85,170,610]),唯独出售链这个漏改。后果:实卖派发后选目标卡带OCR恒miss,只能靠Select_Swip一路向下翻,翻到底仍找不到→SmartSwipe判触底JumpOut→py收到run_task=True假报'售卖成功',实际一件没卖(07-22实录:桑格利亚酒)。roi对齐买货梯实测值。",
         "roi": [
