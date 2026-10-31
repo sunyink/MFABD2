@@ -16,7 +16,9 @@ RIDS = ("win-x64", "win-arm64", "linux-x64", "linux-arm64", "osx-x64", "osx-arm6
 MANIFEST = "fork-release.json"
 STAMP = "mfaa-build.json"
 LEGACY_TAG = re.compile(r"(?P<base>v\d+\.\d+\.\d+)-mfbd2\.g(?P<short>[0-9a-f]{6})")
-NUMBERED_TAG = re.compile(r"(?P<base>v\d+\.\d+\.\d+)-MFABD2\.beta\.(?P<number>[1-9]\d*)")
+NUMBERED_TAG = re.compile(
+    r"(?P<base>v\d+\.\d+\.\d+(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?"
+    r"(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?)-MFABD2\.beta\.(?P<number>[1-9]\d*)")
 
 
 def api(path):
