@@ -1,1 +1,16 @@
-{}
+{
+    "test_bag_scan": {
+        "desc": "通用背包仓检测试入口：从主页或箱庭启动，自动开包、复位并按料理食材排序，扫描全部已配置食材后返回。需启动Agent；PC端加载base+pc资源。会将读数和扫描记录写入当前账号存档；源码调试未下发存档号时使用0号档。扫描是否完整以记录中的complete为准。",
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "BagScan",
+        "custom_action_param": {
+            "label": "测试全食材仓检",
+            "profile": "ingredients",
+            "targets": "all"
+        },
+        "post_delay": 0,
+        "rate_limit": 0,
+        "focus": "测试背包仓检：扫描全部已配置食材"
+    }
+}

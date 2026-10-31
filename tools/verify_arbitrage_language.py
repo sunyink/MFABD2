@@ -40,9 +40,18 @@ from utils.name_i18n import canon
 from utils.ocr_item_name import item_aliases
 
 
-BASE = json.loads((ROOT / "assets/resource/base/pipeline/Arbitrage.json").read_text("utf-8"))
-PC_PATH = ROOT / "assets/resource/pc/pipeline/Arbitrage.json"
-PC = json.loads(PC_PATH.read_text("utf-8")) if PC_PATH.exists() else {}
+def merged(folder):
+    # 背包仓检节点已从 Arbitrage.json 迁到 BagScan.json；两份并起来当基准。
+    data = {}
+    for name in ("Arbitrage.json", "BagScan.json"):
+        path = folder / name
+        if path.exists():
+            data.update(json.loads(path.read_text("utf-8")))
+    return data
+
+
+BASE = merged(ROOT / "assets/resource/base/pipeline")
+PC = merged(ROOT / "assets/resource/pc/pipeline")
 HAS_PC = bool(PC)
 # Real UI wording and known translations, independent of the patterns under test.
 UI_CASES = {
@@ -70,9 +79,10 @@ UI_CASES = {
     "Arbitrage_Cooking_Menu_Reset_SubOut": ["所需材料", "需要的材料"],
     "Arbitrage_Cooking_Menu_ReBack": ["所需材料", "需要的材料"],
     "Arbitrage_Cooking_SubMenu": ["拥有", "擁有", "持有", "立刻恢复", "立即恢復", "1個食物"],
-    "Arbitrage_BagStockScan_Sort_Menu": ["优先", "優先", "排序"],
-    "Arbitrage_BagStockScan_Sort_Menu_Set": ["料理食材优先", "料理食材優先", "料理食材由多至少排序"],
-    "Arbitrage_BagStockScan_Sort_Egress": ["按料理食材数量从低到高排序", "料理食材由少至多排序"],
+    "BagScan_Sort_Menu": ["优先", "優先", "排序"],
+    "BagScan_Sort_Menu_Set": ["料理食材优先", "料理食材優先", "料理食材由多至少排序"],
+    "BagScan_Sort_Egress": ["按料理食材数量从低到高排序", "料理食材由少至多排序"],
+    "Rec_BagScan_Quantity_Ocr": ["拥有234937个", "擁有0個", "持有81861個"],
     "Agt_BuyQuantity_Available_Ocr": ["可购买400个", "可購買400個", "可购買400個"],
     "Agt_BuyConfirm_Ocr": ["购买", "購買", "购買"],
     "Arbitrage_Sell_Item_ListReset_Sell_Chg": ["出售", "販售"],
@@ -83,9 +93,9 @@ COMPOSITES = {
     "Arbitrage_Favorit_Buy": (0, ["购买全部收藏", "一鍵購買全部收藏"]),
     "Arbitrage_PriceList_Sort_Check": (0, ["从高到低", "從高到低", "降序"]),
     "Arbitrage_ItemList_Sorting_Reverse": (0, ["从高到低", "降序"]),
-    "Arbitrage_Bag_TabReset_Coll": (1, ["收集品", "收藏品"]),
-    "Arbitrage_Bag_TabReset_Cons": (1, ["消耗品"]),
-    "Agt_BagStock_List_Ready": (1, ["料理食材优先", "料理食材優先"]),
+    "BagScan_TabReset_Coll": (1, ["收集品", "收藏品"]),
+    "BagScan_TabReset_Cons": (1, ["消耗品"]),
+    "Agt_BagScan_Ingredients_Ready": (1, ["料理食材优先", "料理食材優先"]),
 }
 BOX_DEPENDENCIES = {
     "Arbitrage_Favorit_Buy": "Sub_Ocr_Enable_Clr",
