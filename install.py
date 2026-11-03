@@ -87,10 +87,45 @@ def relocate_multi_save_switch(interface):
                     del holder["pipeline_override"]
 
 
+# The source keeps the PC window options in global_option for VS Code MaaSupport. MFAA keeps one
+# global value per instance whatever its controller, so releases move each option into the Win32
+# controllers it names: MFAA then saves a value per controller and merges it into every task, and
+# the startup sink re-reads it at each task start — a task-level option would reach only its task.
+PC_WINDOW_OPTIONS = ("PC窗口分辨率", "PC启动最小化")
+
+
+def relocate_pc_window_options(interface):
+    """Move the PC window options from global_option into their controllers, in place."""
+    controllers = {item.get("name"): item for item in interface.get("controller", [])}
+    for name in PC_WINDOW_OPTIONS:
+        option = interface.get("option", {}).get(name)
+        if option is None:
+            if name in interface.get("global_option", []):
+                raise ValueError(f"Missing PC window option {name!r}")
+            continue
+        owners = option.get("controller") or []
+        if not owners:
+            raise ValueError(f"PC window option {name!r} must name its controllers")
+        lists = []
+        for owner in owners:
+            controller = controllers.get(owner)
+            if controller is None or controller.get("type") != "Win32":
+                raise ValueError(f"PC window option {name!r} names a non-Win32 controller {owner!r}")
+            lists.append(controller.setdefault("option", []))
+        if name in interface.get("global_option", []):
+            interface["global_option"] = [item for item in interface["global_option"] if item != name]
+            for listed in lists:
+                if name not in listed:
+                    listed.append(name)
+        elif not all(name in listed for listed in lists):
+            raise ValueError(f"PC window option {name!r} is neither global nor on all its controllers")
+
+
 def prepare_interface_for_target(interface, target_os):
     """Return a target-specific interface copy without mutating the source object."""
     result = deepcopy(interface)
     relocate_multi_save_switch(result)
+    relocate_pc_window_options(result)
     if not str(target_os).lower().startswith("android"):
         return result
 
