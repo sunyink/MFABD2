@@ -38,10 +38,13 @@
         ]
     },
     "QuickHunt_Hub": {
-        "desc": "使用调度器控制是否打-4.2重构。末尾QuickHunt_Daily_Ck以And检查本轮米饭、火把耗尽tag,两者都有才走QuickHunt_Daily_Mark,缺一个则不打标。interface<米饭分配次数>整表覆盖本next,改这里要同步",
+        "desc": "快速狩猎调度器。免费米饭分两段:①双倍段三个入口(ExpBefore/Gold/ExpAfter)由interface<①双倍时先打>按顺序开关,查到双倍就MAX打光;②平时段(HuntingGrounds/AdventureRoute)由<②平时打>二选一,打剩下的米饭。米饭已0的入口读到0/N直接出栈。末尾QuickHunt_Daily_Ck以And检查本轮米饭、火把耗尽tag,两者都有才走QuickHunt_Daily_Mark,缺一个则不打标",
         "timeout": 1,
         "next": [
             "[JumpBack]QuickHunt_OpenGui",
+            "[JumpBack]QuickHunt_DoubleScan_ExpBefore",
+            "[JumpBack]QuickHunt_DoubleScan_Gold",
+            "[JumpBack]QuickHunt_DoubleScan_ExpAfter",
             "[JumpBack]QuickHunt_HuntingGrounds",
             "[JumpBack]QuickHunt_AdventureRoute",
             "[JumpBack]QuickHunt_RiceRecheck",
@@ -215,21 +218,134 @@
         "action": "Click",
         "post_delay": 500
     },
+    "QuickHunt_DoubleScan_ExpBefore": {
+        "desc": "①双倍段入口(jb1·经验排在金币前):仅interface<①双倍时先打>=经验→金币时开。米饭已0则出栈,否则查经验图双倍。与ExpAfter共用同一段查图流程",
+        "enabled": false,
+        "max_hit": 1,
+        "next": [
+            "QuickHunt_NoRiceAP_Skip",
+            "QuickHunt_DoubleScan_ExpSelect"
+        ]
+    },
+    "QuickHunt_DoubleScan_Gold": {
+        "desc": "①双倍段入口(jb1·金币):interface<①双倍时先打>含金币时开。米饭已0则出栈,否则查金币图双倍",
+        "enabled": true,
+        "max_hit": 1,
+        "next": [
+            "QuickHunt_NoRiceAP_Skip",
+            "QuickHunt_DoubleScan_GoldSelect"
+        ]
+    },
+    "QuickHunt_DoubleScan_ExpAfter": {
+        "desc": "①双倍段入口(jb1·经验排在金币后或单独):interface<①双倍时先打>=经验、金币→经验时开。米饭已0则出栈,否则查经验图双倍",
+        "enabled": false,
+        "max_hit": 1,
+        "next": [
+            "QuickHunt_NoRiceAP_Skip",
+            "QuickHunt_DoubleScan_ExpSelect"
+        ]
+    },
+    "QuickHunt_DoubleScan_GoldSelect": {
+        "desc": "点开金币图看奖励角标:有双倍走GoldHit打MAX,无双倍走GoldMiss复位出栈;都没认到(点击被吞)就再点一次,max_hit:3封顶,用完后超时静默出栈,米饭留给②平时段",
+        "max_hit": 3,
+        "recognition": "And",
+        "all_of": [
+            "QuickHunt_CollectMapAdventureRoute1"
+        ],
+        "action": "Click",
+        "target": [
+            138,
+            200
+        ],
+        "post_delay": 2000,
+        "timeout": 5000,
+        "next": [
+            "QuickHunt_DoubleScan_GoldHit",
+            "QuickHunt_DoubleScan_GoldMiss",
+            "QuickHunt_DoubleScan_GoldSelect"
+        ],
+        "focus": "BM.①双倍段:查看金币图"
+    },
+    "QuickHunt_DoubleScan_GoldHit": {
+        "desc": "金币图已选中且角标是双倍:免费米饭全部MAX打金币图",
+        "recognition": "And",
+        "all_of": [
+            "Rec_GoldGoblin_Clr",
+            "QuickHunt_CollectMapAdventureRouteDoubleCk1"
+        ],
+        "next": [
+            "QuickHunt_NoAP_Rice",
+            "QuickHunt_FastBattleMAXTouchAdventureRoute",
+            "[JumpBack]QuickHunt_QuickBattleButton"
+        ],
+        "focus": "BM.①金币图有双倍,米饭全打金币图"
+    },
+    "QuickHunt_DoubleScan_GoldMiss": {
+        "desc": "金币图已选中且角标不是双倍:复位地图(回到哥布林遗迹)后出栈,交给Hub下一个入口",
+        "recognition": "And",
+        "all_of": [
+            "Rec_GoldGoblin_Clr",
+            "QuickHunt_CollectMapAdventureRouteDoubleCk1No"
+        ],
+        "next": [
+            "QuickHunt_CollectMap_Initialize"
+        ],
+        "focus": "BM.①金币图无双倍"
+    },
+    "QuickHunt_DoubleScan_ExpSelect": {
+        "desc": "点开经验图看奖励角标:有双倍走ExpHit打MAX,无双倍走ExpMiss复位出栈;都没认到(点击被吞)就再点一次,max_hit:3封顶,用完后超时静默出栈,米饭留给②平时段",
+        "max_hit": 3,
+        "recognition": "And",
+        "all_of": [
+            "QuickHunt_CollectMapAdventureRoute1"
+        ],
+        "action": "Click",
+        "target": [
+            138,
+            280
+        ],
+        "post_delay": 2000,
+        "timeout": 5000,
+        "next": [
+            "QuickHunt_DoubleScan_ExpHit",
+            "QuickHunt_DoubleScan_ExpMiss",
+            "QuickHunt_DoubleScan_ExpSelect"
+        ],
+        "focus": "BM.①双倍段:查看经验图"
+    },
+    "QuickHunt_DoubleScan_ExpHit": {
+        "desc": "经验图已选中且角标是双倍:免费米饭全部MAX打经验图",
+        "recognition": "And",
+        "all_of": [
+            "Rec_ExpSlime_Clr",
+            "QuickHunt_CollectMapAdventureRouteDoubleCk1"
+        ],
+        "next": [
+            "QuickHunt_NoAP_Rice",
+            "QuickHunt_FastBattleMAXTouchAdventureRoute",
+            "[JumpBack]QuickHunt_QuickBattleButton"
+        ],
+        "focus": "BM.①经验图有双倍,米饭全打经验图"
+    },
+    "QuickHunt_DoubleScan_ExpMiss": {
+        "desc": "经验图已选中且角标不是双倍:复位地图(回到哥布林遗迹)后出栈,交给Hub下一个入口",
+        "recognition": "And",
+        "all_of": [
+            "Rec_ExpSlime_Clr",
+            "QuickHunt_CollectMapAdventureRouteDoubleCk1No"
+        ],
+        "next": [
+            "QuickHunt_CollectMap_Initialize"
+        ],
+        "focus": "BM.①经验图无双倍"
+    },
     "QuickHunt_HuntingGrounds": {
-        "desc": "狩猎场入口",
+        "desc": "②平时段·狩猎场入口(jb1):interface<②平时打>=狩猎场时开。米饭已0由QuickHunt_CollectMap首项读到0/N出栈",
+        "enabled": true,
         "max_hit": 1,
         "next": [
             "QuickHunt_CollectMap"
         ]
-    },
-    "QuickHunt_AdventureRoute_To_HuntingGrounds_Entry": {
-        "anchor": {
-            "BattleMap_Reset": ""
-        },
-        "next": [
-            "QuickHunt_CollectMap"
-        ],
-        "focus": "BM.退回打狩猎场"
     },
     "QuickHunt_CollectMap": {
         "desc": "狩猎起点HUB",
@@ -396,7 +512,8 @@
         "focus": "BM.狩猎场R1"
     },
     "QuickHunt_AdventureRoute": {
-        "desc": "冒险航线入口",
+        "desc": "②平时段·冒险航线入口(jb1):interface<②平时打>=冒险航线·金币/经验时开。米饭已0则出栈",
+        "enabled": false,
         "max_hit": 1,
         "next": [
             "QuickHunt_NoRiceAP_Skip",
@@ -404,7 +521,7 @@
         ]
     },
     "QuickHunt_CollectMapAdventureRoute1": {
-        "desc": "色核识别逻辑，确认再1级菜单中,无浮窗|A-2.interface，默认为金币优先，已留空",
+        "desc": "确认在狩猎地图1级界面、无浮窗(色核)。next由interface<②平时打>开关Select_Glod/Select_Exp二选一;①双倍段的选图节点、圣石洞穴、#327续打也借它做前置判断",
         "recognition": "And",
         "all_of": [
             {
@@ -437,7 +554,8 @@
         "focus": "BM.航线预备"
     },
     "QuickHunt_CollectMapAdventureRoute_Select_Glod": {
-        "desc": "硬编码选择航线-金币",
+        "desc": "②平时打-金币图:点开金币图,认到选中且角标已加载即打MAX;没认到就再点一次。max_hit:6封顶(平时段与#327续打共用这6次),用完后超时静默出栈",
+        "max_hit": 6,
         "action": "Click",
         "target": [
             138,
@@ -446,18 +564,15 @@
         "post_delay": 2000,
         "timeout": 5000,
         "next": [
-            "QuickHunt_CollectMapAdventureRouteDoubleCk1",
-            "QuickHunt_CollectMapAdventureRouteDoubleCk1No",
+            "QuickHunt_AdventureRoute_GoldReady",
             "QuickHunt_CollectMapAdventureRoute_Select_Glod"
         ],
-        "on_error": [
-            "QuickHunt_AdventureRouteReBackHuntingGrounds_Pipeline"
-        ],
-        "focus": "BM.航线-首选-金币"
+        "focus": "BM.②平时打:冒险航线-金币图"
     },
     "QuickHunt_CollectMapAdventureRoute_Select_Exp": {
-        "desc": "硬编码选择航线-经验",
+        "desc": "②平时打-经验图:点开经验图,认到选中且角标已加载即打MAX;没认到就再点一次。max_hit:6封顶(平时段与#327续打共用这6次),用完后超时静默出栈",
         "enabled": false,
+        "max_hit": 6,
         "action": "Click",
         "target": [
             138,
@@ -466,16 +581,13 @@
         "post_delay": 2000,
         "timeout": 5000,
         "next": [
-            "QuickHunt_CollectMapAdventureRouteDoubleCk1",
-            "QuickHunt_CollectMapAdventureRouteDoubleCk1No",
+            "QuickHunt_AdventureRoute_ExpReady",
             "QuickHunt_CollectMapAdventureRoute_Select_Exp"
         ],
-        "on_error": [
-            "QuickHunt_AdventureRouteReBackHuntingGrounds_Pipeline"
-        ],
-        "focus": "BM.航线-首选-经验"
+        "focus": "BM.②平时打:冒险航线-经验图"
     },
     "QuickHunt_CollectMapAdventureRouteDoubleCk1": {
+        "desc": "[识别]当前航线图右下奖励角标为双倍(DoubleExp/DoubleGold,绿幕遮罩)。只被借用:①双倍段GoldHit/ExpHit、②平时段GoldReady/ExpReady",
         "recognition": "TemplateMatch",
         "roi": [
             413,
@@ -488,15 +600,10 @@
             "DoubleGold.png"
         ],
         "green_mask": true,
-        "threshold": 0.8,
-        "next": [
-            "QuickHunt_NoAP_Rice",
-            "QuickHunt_FastBattleMAXTouchAdventureRoute",
-            "[JumpBack]QuickHunt_QuickBattleButton"
-        ],
-        "focus": "BM.航线-资源首选-双倍ck"
+        "threshold": 0.8
     },
     "QuickHunt_CollectMapAdventureRouteDoubleCk1No": {
+        "desc": "[识别]当前航线图右下奖励角标为无双倍(DoubleNoExp/DoubleNoGold)。只被借用:①双倍段GoldMiss/ExpMiss、②平时段GoldReady/ExpReady",
         "recognition": "TemplateMatch",
         "roi": [
             413,
@@ -508,113 +615,7 @@
             "DoubleNoExp.png",
             "DoubleNoGold.png"
         ],
-        "threshold": 0.8,
-        "timeout": 2000,
-        "next": [
-            "QuickHunt_CollectMapAdventureRoute1_ENDHUB"
-        ],
-        "focus": "BM.航线-资源首选-双倍No"
-    },
-    "QuickHunt_CollectMapAdventureRoute1_ENDHUB": {
-        "desc": "只开1个.航线1图已完.不符合,剩余AP来此.决定去航线2还是回狩猎",
-        "next": [
-            "QuickHunt_AdventureRouteReBackHuntingGrounds",
-            "QuickHunt_CollectMapAdventureRoute2"
-        ]
-    },
-    "QuickHunt_AdventureRouteReBackHuntingGrounds": {
-        "desc": "优先双倍开关,返回去狩猎场",
-        "enabled": false,
-        "next": [
-            "QuickHunt_AdventureRouteReBackHuntingGrounds_Pipeline"
-        ]
-    },
-    "QuickHunt_AdventureRouteReBackHuntingGrounds_Pipeline": {
-        "desc": "重回狩猎场,复位锚点,pipe方面操作",
-        "anchor": {
-            "BattleMap_Reset": "QuickHunt_AdventureRoute_To_HuntingGrounds_Entry"
-        },
-        "next": [
-            "QuickHunt_AdventureRouteReBackHuntingGrounds_Patch"
-        ]
-    },
-    "QuickHunt_AdventureRouteReBackHuntingGrounds_Patch": {
-        "desc": "重回狩猎场,最大max,Py方面操作",
-        "action": "Custom",
-        "custom_action": "PatchPipeline",
-        "custom_action_param": {
-            "target": "QuickHunt_FastBattleMAXTouchHuntingGrounds",
-            "patch": {
-                "expected": [
-                    "MAX"
-                ]
-            }
-        },
-        "next": [
-            "QuickHunt_CollectMap_Initialize"
-        ]
-    },
-    "QuickHunt_CollectMapAdventureRoute2": {
-        "next": [
-            "QuickHunt_CollectMapAdventureRoute2_Switch_A",
-            "QuickHunt_CollectMapAdventureRoute2_Switch_B"
-        ]
-    },
-    "QuickHunt_CollectMapAdventureRoute2_Switch_A": {
-        "desc": "金币A关卡转经验B",
-        "recognition": "And",
-        "all_of": [
-            "Rec_GoldGoblin_Clr"
-        ],
-        "action": "Click",
-        "target": [
-            137,
-            276,
-            5,
-            5
-        ],
-        "post_delay": 1500,
-        "next": [
-            "QuickHunt_CollectMapAdventureRoute2_Switch_Enter_B",
-            "QuickHunt_CollectMapAdventureRoute2_Switch_A"
-        ]
-    },
-    "QuickHunt_CollectMapAdventureRoute2_Switch_B": {
-        "desc": "经验B关卡转金币A",
-        "recognition": "And",
-        "all_of": [
-            "Rec_ExpSlime_Clr"
-        ],
-        "action": "Click",
-        "target": [
-            137,
-            197,
-            5,
-            5
-        ],
-        "post_delay": 1500,
-        "next": [
-            "QuickHunt_CollectMapAdventureRoute2_Switch_Enter_A",
-            "QuickHunt_CollectMapAdventureRoute2_Switch_B"
-        ]
-    },
-    "QuickHunt_CollectMapAdventureRoute2_Switch_Enter_A": {
-        "recognition": "And",
-        "all_of": [
-            "Rec_GoldGoblin_Clr"
-        ],
-        "next": [
-            "QuickHunt_CollectMapAdventureRoute2_DouCk"
-        ]
-    },
-    "QuickHunt_CollectMapAdventureRoute2_Switch_Enter_B": {
-        "recognition": "And",
-        "all_of": [
-            "Rec_ExpSlime_Clr"
-        ],
-        "next": [
-            "QuickHunt_CollectMapAdventureRoute2_DouCk"
-        ]
+        "threshold": 0.8
     },
     "Rec_GoldGoblin_Clr": {
         "desc": "[识别]狩猎场左侧-金币关选中",
@@ -660,66 +661,6 @@
         ],
         "count": 10
     },
-    "QuickHunt_CollectMapAdventureRoute2_DouCk": {
-        "enabled": true,
-        "recognition": "And",
-        "all_of": [
-            "QuickHunt_CollectMapAdventureRoute1"
-        ],
-        "post_delay": 2000,
-        "next": [
-            "QuickHunt_CollectMapAdventureRouteDoubleCk2",
-            "QuickHunt_CollectMapAdventureRouteDoubleCk2No"
-        ],
-        "focus": "BM.航线-备选"
-    },
-    "QuickHunt_CollectMapAdventureRouteDoubleCk2": {
-        "recognition": "And",
-        "all_of": [
-            "QuickHunt_CollectMapAdventureRouteDoubleCk1"
-        ],
-        "next": [
-            "QuickHunt_NoAP_Rice",
-            "QuickHunt_FastBattleMAXTouchAdventureRoute",
-            "[JumpBack]QuickHunt_QuickBattleButton"
-        ],
-        "focus": "BM.航线-资源备选-双倍ck"
-    },
-    "QuickHunt_CollectMapAdventureRouteDoubleCk2No": {
-        "recognition": "And",
-        "all_of": [
-            "QuickHunt_CollectMapAdventureRouteDoubleCk1No"
-        ],
-        "next": [
-            "QuickHunt_CollectMapAdventureRouteDoubleCk2No_ToCentral"
-        ],
-        "focus": "BM.航线-资源备选-双倍No"
-    },
-    "QuickHunt_CollectMapAdventureRouteDoubleCk2No_ToCentral": {
-        "desc": "目的是不用中断、在主流程里把地图复位，配个其他中断使用。T1",
-        "action": "Click",
-        "target": [
-            139,
-            197
-        ],
-        "next": [
-            "QuickHunt_CollectMapAdventureRouteDoubleCk2No_ToCentral_CK",
-            "QuickHunt_CollectMapAdventureRouteDoubleCk2No_ToCentral"
-        ],
-        "focus": "BM.快速狩猎-狩猎地图返回默认位置"
-    },
-    "QuickHunt_CollectMapAdventureRouteDoubleCk2No_ToCentral_CK": {
-        "desc": "目的是不用中断、在主流程里把地图复位，配个其他中断使用。T2，默认接狩猎R2",
-        "recognition": "And",
-        "all_of": [
-            "QuickHunt_CollectMap_Initialize_Out_Ty2"
-        ],
-        "next": [
-            "QuickHunt_NoAP_Rice",
-            "QuickHunt_AdventureRouteReBackHuntingGrounds_Pipeline"
-        ],
-        "focus": "BM.快速狩猎-狩猎地图返回默认位置ck"
-    },
     "QuickHunt_FastBattleMAXTouchAdventureRoute": {
         "desc": "B-2.冒险航线次数选择，点击MAX",
         "recognition": "OCR",
@@ -736,6 +677,48 @@
         "next": [
             "QuickHunt_FastBattleStart"
         ]
+    },
+    "QuickHunt_AdventureRoute_GoldReady": {
+        "desc": "金币图已选中且奖励角标已加载(有无双倍都算):免费米饭全部MAX打金币图",
+        "recognition": "And",
+        "all_of": [
+            "Rec_GoldGoblin_Clr",
+            {
+                "sub_name": "Badge",
+                "recognition": "Or",
+                "any_of": [
+                    "QuickHunt_CollectMapAdventureRouteDoubleCk1",
+                    "QuickHunt_CollectMapAdventureRouteDoubleCk1No"
+                ]
+            }
+        ],
+        "next": [
+            "QuickHunt_NoAP_Rice",
+            "QuickHunt_FastBattleMAXTouchAdventureRoute",
+            "[JumpBack]QuickHunt_QuickBattleButton"
+        ],
+        "focus": "BM.②平时打:米饭全打金币图"
+    },
+    "QuickHunt_AdventureRoute_ExpReady": {
+        "desc": "经验图已选中且奖励角标已加载(有无双倍都算):免费米饭全部MAX打经验图",
+        "recognition": "And",
+        "all_of": [
+            "Rec_ExpSlime_Clr",
+            {
+                "sub_name": "Badge",
+                "recognition": "Or",
+                "any_of": [
+                    "QuickHunt_CollectMapAdventureRouteDoubleCk1",
+                    "QuickHunt_CollectMapAdventureRouteDoubleCk1No"
+                ]
+            }
+        ],
+        "next": [
+            "QuickHunt_NoAP_Rice",
+            "QuickHunt_FastBattleMAXTouchAdventureRoute",
+            "[JumpBack]QuickHunt_QuickBattleButton"
+        ],
+        "focus": "BM.②平时打:米饭全打经验图"
     },
     "QuickHunt_NoAP_Rice": {
         "desc": "快速战斗子菜单,无AP为红字,mfa5.12.2存在子识别重名称Roi漏问题,暂时删除Ocr.未来需要回滚",
@@ -1251,7 +1234,7 @@
         "focus": "BB.狩猎-复位模块出口\n\n 失败,未知错误."
     },
     "QuickHunt_CollectMap_Initialize_Out_Ty2": {
-        "desc": "中央OCR 复位正确",
+        "desc": "中央OCR 复位正确,复位模块出口(出栈)。也被多处借作\"地图已复位\"判据",
         "recognition": "OCR",
         "roi": [
             538,
@@ -1273,13 +1256,10 @@
             ]
         ],
         "only_rec": true,
-        "next": [
-            "[Anchor]BattleMap_Reset"
-        ],
         "focus": "BB.狩猎-复位模块出口\n\n 复位位置正确-成功"
     },
     "QuickHunt_RiceRecheck": {
-        "desc": "#327 免费米饭清空兜底(jb1,挂Hub航线后):inverse判米饭是否耗尽,未耗尽则续打消化(Hunt强制MAX一轮吃光,故max_hit:1不循环);耗尽则null出栈返回Hub继续洞穴.HuntingGrounds_Entry常闭,UI关航线时开启(优先退狩猎场,避免越权);Hunt复位检查失败则JumpBack调复位模块.不写on_error(靠出栈自然结束,不触发Panic)",
+        "desc": "#327 免费米饭清空兜底(jb1,挂Hub平时段后):米饭未读到0则按interface<②平时打>再打一轮(MAX一轮吃光,故max_hit:1不循环);已读到0则不命中,Hub继续洞穴。②=狩猎场时HuntingGrounds_Entry开启直达狩猎场,否则RiceRecheck_Route复核复位后走航线;复位复核失败则JumpBack调复位模块。不写on_error(靠出栈自然结束,不触发Panic)",
         "max_hit": 1,
         "recognition": "OCR",
         "roi": [
@@ -1291,7 +1271,7 @@
         "expected": "^(?!0+/)\\d+/(?!0+$)\\d+$",
         "next": [
             "QuickHunt_RiceRecheck_HuntingGrounds_Entry",
-            "QuickHunt_RiceRecheck_Hunt",
+            "QuickHunt_RiceRecheck_Route",
             "[JumpBack]QuickHunt_RiceRecheck_Initialize"
         ],
         "focus": "BM.#327 免费米饭未清空,续打消化"
@@ -1321,60 +1301,24 @@
         ]
     },
     "QuickHunt_RiceRecheck_HuntingGrounds_Entry": {
-        "desc": "#327 兜底小入口(常闭):UI关闭航线时由case开启,剩余米饭优先退回狩猎场消化(避免越权把米饭倒入用户关闭的航线);2次失败再落Hunt用航线兜底",
-        "enabled": false,
+        "desc": "#327 续打入口:interface<②平时打>=狩猎场时开启,剩余米饭回狩猎场消化;否则关闭,落到RiceRecheck_Route走航线",
+        "enabled": true,
         "max_hit": 2,
-        "anchor": {
-            "BattleMap_Reset": ""
-        },
         "next": [
             "QuickHunt_CollectMap"
         ],
         "focus": "BM.退回打狩猎场"
     },
-    "QuickHunt_RiceRecheck_Hunt": {
-        "desc": "#327 兜底续打:先And复核复位正确(防前手异常退出),PatchPipeline强制覆写航线次数MAX(防'狩猎场MAX/双倍图x1'参数污染),再判当前关双倍图打MAX/切另一关找双倍/两关都无退狩猎场",
+    "QuickHunt_RiceRecheck_Route": {
+        "desc": "#327 续打(②平时打=冒险航线时走到这里):先And复核地图已复位,再交给QuickHunt_CollectMapAdventureRoute1按②选的金币/经验图打MAX",
         "recognition": "And",
         "all_of": [
             "QuickHunt_CollectMap_Initialize_Out_Ty2"
         ],
-        "action": "Custom",
-        "custom_action": "PatchPipeline",
-        "custom_action_param": {
-            "target": "QuickHunt_FastBattleMAXTouchAdventureRoute",
-            "patch": {
-                "expected": [
-                    "MAX"
-                ]
-            }
-        },
         "next": [
-            "QuickHunt_RiceRecheck_DoubleCk",
-            "QuickHunt_CollectMapAdventureRoute2"
+            "QuickHunt_CollectMapAdventureRoute1"
         ],
-        "focus": "BM.#327 打一轮双倍图"
-    },
-    "QuickHunt_RiceRecheck_DoubleCk": {
-        "desc": "#327 兜底:独立判当前关是否双倍图(固定DoubleExp/DoubleGold模板,不受'忽视双倍'override污染);命中(当前关双倍)则打MAX,未命中则miss落到CollectMapAdventureRoute2切另一关找双倍/两关都无则退狩猎场用光",
-        "recognition": "TemplateMatch",
-        "roi": [
-            413,
-            592,
-            159,
-            110
-        ],
-        "template": [
-            "DoubleExp.png",
-            "DoubleGold.png"
-        ],
-        "green_mask": true,
-        "threshold": 0.8,
-        "next": [
-            "QuickHunt_NoAP_Rice",
-            "QuickHunt_FastBattleMAXTouchAdventureRoute",
-            "[JumpBack]QuickHunt_QuickBattleButton"
-        ],
-        "focus": "BM.#327 当前关即双倍图,打MAX消化米饭"
+        "focus": "BM.#327 剩余米饭续打冒险航线"
     },
     "QuickHunt_MapLocReset_once": {
         "recognition": "ColorMatch",

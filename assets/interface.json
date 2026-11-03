@@ -140,11 +140,11 @@
             "default_check": true,
             "option": [
                 "快速狩猎日常-强制重跑",
-                "冒险航线",
-                "狩猎场",
+                "快速狩猎-双倍时先打",
+                "快速狩猎-平时打",
                 "圣石洞穴属性"
             ],
-            "description": "消耗每日免费米饭与火把，依次扫荡冒险航线·狩猎场、圣石洞穴。<br><span style=\"background-color:rgba(255,160,0,0.2)\"><b>注意：</b>请确认目标狩猎场已通关，且冒险航线<哥布林遗迹>已完成。</span>"
+            "description": "消耗每日免费米饭与火把。米饭先按<b>①双倍时先打</b>查看冒险航线有没有双倍，没有就按<b>②平时打</b>投到狩猎场或冒险航线；火把打圣石洞穴。<br><span style=\"background-color:rgba(255,160,0,0.2)\"><b>注意：</b>请确认目标狩猎场已通关，且冒险航线<哥布林遗迹>已完成。</span>"
         },
         {
             "name": "[执行]地图采集[单章]",
@@ -915,22 +915,99 @@
                 }
             }
         },
-        "冒险航线": {
-            "description": "是否扫荡冒险航线图。<br>关闭时，全部次数转入狩猎场",
-            "type": "switch",
+        "快速狩猎-双倍时先打": {
+            "type": "select",
+            "label": "①双倍时先打",
+            "default_case": "金币双倍",
+            "description": "免费米饭先看冒险航线当天有没有双倍。<br>按箭头顺序依次查看，第一个有双倍的图拿走全部米饭；都没有，就交给<b>②平时打</b>。",
             "cases": [
                 {
-                    "name": "Yes",
-                    "option": [
-                        "双倍策略",
-                        "资源策略",
-                        "米饭分配次数"
-                    ]
+                    "name": "不管双倍",
+                    "pipeline_override": {
+                        "QuickHunt_DoubleScan_ExpBefore": {
+                            "enabled": false
+                        },
+                        "QuickHunt_DoubleScan_Gold": {
+                            "enabled": false
+                        },
+                        "QuickHunt_DoubleScan_ExpAfter": {
+                            "enabled": false
+                        }
+                    }
                 },
                 {
-                    "name": "No",
-                    "description": "不打:不打航线图，全刷狩猎场。",
+                    "name": "金币双倍",
                     "pipeline_override": {
+                        "QuickHunt_DoubleScan_ExpBefore": {
+                            "enabled": false
+                        },
+                        "QuickHunt_DoubleScan_Gold": {
+                            "enabled": true
+                        },
+                        "QuickHunt_DoubleScan_ExpAfter": {
+                            "enabled": false
+                        }
+                    }
+                },
+                {
+                    "name": "经验双倍",
+                    "pipeline_override": {
+                        "QuickHunt_DoubleScan_ExpBefore": {
+                            "enabled": false
+                        },
+                        "QuickHunt_DoubleScan_Gold": {
+                            "enabled": false
+                        },
+                        "QuickHunt_DoubleScan_ExpAfter": {
+                            "enabled": true
+                        }
+                    }
+                },
+                {
+                    "name": "金币双倍 → 经验双倍",
+                    "pipeline_override": {
+                        "QuickHunt_DoubleScan_ExpBefore": {
+                            "enabled": false
+                        },
+                        "QuickHunt_DoubleScan_Gold": {
+                            "enabled": true
+                        },
+                        "QuickHunt_DoubleScan_ExpAfter": {
+                            "enabled": true
+                        }
+                    }
+                },
+                {
+                    "name": "经验双倍 → 金币双倍",
+                    "pipeline_override": {
+                        "QuickHunt_DoubleScan_ExpBefore": {
+                            "enabled": true
+                        },
+                        "QuickHunt_DoubleScan_Gold": {
+                            "enabled": true
+                        },
+                        "QuickHunt_DoubleScan_ExpAfter": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "快速狩猎-平时打": {
+            "type": "select",
+            "label": "②平时打",
+            "default_case": "狩猎场",
+            "description": "没碰上双倍时，免费米饭全部打这里；①选了<b>不管双倍</b>就是每天都打这里。<br>每日任务对狩猎场和冒险航线都认，选哪个都能完成。",
+            "cases": [
+                {
+                    "name": "狩猎场",
+                    "option": [
+                        "快速狩猎-狩猎场章节"
+                    ],
+                    "pipeline_override": {
+                        "QuickHunt_HuntingGrounds": {
+                            "enabled": true
+                        },
                         "QuickHunt_AdventureRoute": {
                             "enabled": false
                         },
@@ -938,26 +1015,85 @@
                             "enabled": true
                         }
                     }
-                }
-            ]
-        },
-        "狩猎场": {
-            "description": "是否扫荡狩猎场。<br>关闭时跳过；若同时选了<优先双倍>但当日无双倍图，仍会补打狩猎场。",
-            "type": "switch",
-            "cases": [
-                {
-                    "name": "Yes",
-                    "option": [
-                        "章节图策略"
-                    ]
                 },
                 {
-                    "name": "No",
+                    "name": "冒险航线·金币",
                     "pipeline_override": {
                         "QuickHunt_HuntingGrounds": {
                             "enabled": false
+                        },
+                        "QuickHunt_AdventureRoute": {
+                            "enabled": true
+                        },
+                        "QuickHunt_RiceRecheck_HuntingGrounds_Entry": {
+                            "enabled": false
+                        },
+                        "QuickHunt_CollectMapAdventureRoute_Select_Glod": {
+                            "enabled": true
+                        },
+                        "QuickHunt_CollectMapAdventureRoute_Select_Exp": {
+                            "enabled": false
                         }
                     }
+                },
+                {
+                    "name": "冒险航线·经验",
+                    "pipeline_override": {
+                        "QuickHunt_HuntingGrounds": {
+                            "enabled": false
+                        },
+                        "QuickHunt_AdventureRoute": {
+                            "enabled": true
+                        },
+                        "QuickHunt_RiceRecheck_HuntingGrounds_Entry": {
+                            "enabled": false
+                        },
+                        "QuickHunt_CollectMapAdventureRoute_Select_Glod": {
+                            "enabled": false
+                        },
+                        "QuickHunt_CollectMapAdventureRoute_Select_Exp": {
+                            "enabled": true
+                        }
+                    }
+                }
+            ]
+        },
+        "快速狩猎-狩猎场章节": {
+            "type": "select",
+            "label": "狩猎场章节",
+            "description": "打哪一章的狩猎场，需已通关。中期一般缺木，后期一般缺矿。",
+            "cases": [
+                {
+                    "name": "矿石·章节7",
+                    "pipeline_override": {
+                        "QuickHunt_CollectMap_SwipLeft": {
+                            "enabled": true
+                        },
+                        "QuickHunt_CollectMapHuntingGrounds_7": {
+                            "enabled": true
+                        },
+                        "QuickHunt_CollectMapHuntingGrounds_1": {
+                            "enabled": false
+                        }
+                    }
+                },
+                {
+                    "name": "木材·章节9",
+                    "pipeline_override": {
+                        "QuickHunt_CollectMap_SwipNoth": {
+                            "enabled": true
+                        },
+                        "QuickHunt_CollectMapHuntingGrounds_7": {
+                            "enabled": true
+                        },
+                        "QuickHunt_CollectMapHuntingGrounds_1": {
+                            "enabled": false
+                        }
+                    }
+                },
+                {
+                    "name": "低练度·章节1",
+                    "pipeline_override": {}
                 }
             ]
         },
@@ -1035,155 +1171,6 @@
                             "enabled": true
                         }
                     }
-                }
-            ]
-        },
-        "双倍策略": {
-            "type": "select",
-            "description": "双倍加成与资源倾向之间的优先级权衡策略。",
-            "cases": [
-                {
-                    "name": "优先双倍",
-                    "description": "优先：先按资源倾向筛选，若恰好有双倍则打航线；否则转打狩猎场。",
-                    "pipeline_override": {
-                        "QuickHunt_AdventureRouteReBackHuntingGrounds": {
-                            "enabled": true
-                        }
-                    }
-                },
-                {
-                    "name": "强制双倍",
-                    "description": "强制:优先保证打到双倍图，再尽量匹配资源倾向；无法匹配时打另一种双倍资源。",
-                    "pipeline_override": {}
-                },
-                {
-                    "name": "忽视双倍",
-                    "description": "忽视:不检查双倍状态，直接按资源倾向打航线。",
-                    "pipeline_override": {
-                        "QuickHunt_CollectMapAdventureRouteDoubleCk1": {
-                            "template": [
-                                "Exp.png",
-                                "Gold.png"
-                            ]
-                        },
-                        "QuickHunt_CollectMapAdventureRouteDoubleCk1No": {
-                            "enabled": false
-                        }
-                    }
-                }
-            ]
-        },
-        "资源策略": {
-            "description": "同等条件下优先刷取哪种资源。",
-            "type": "select",
-            "cases": [
-                {
-                    "name": "优先金币",
-                    "pipeline_override": {
-                        "QuickHunt_CollectMapAdventureRoute_Select_Glod": {
-                            "enabled": true
-                        },
-                        "QuickHunt_CollectMapAdventureRoute_Select_Exp": {
-                            "enabled": false
-                        }
-                    }
-                },
-                {
-                    "name": "优先经验",
-                    "pipeline_override": {
-                        "QuickHunt_CollectMapAdventureRoute_Select_Glod": {
-                            "enabled": false
-                        },
-                        "QuickHunt_CollectMapAdventureRoute_Select_Exp": {
-                            "enabled": true
-                        }
-                    }
-                }
-            ]
-        },
-        "米饭分配次数": {
-            "description": "米饭在狩猎场与冒险航线之间的分配策略。",
-            "label": "米饭分配",
-            "type": "select",
-            "cases": [
-                {
-                    "name": "狩猎场x1 / 双倍图MAX",
-                    "pipeline_override": {
-                        "QuickHunt_FastBattleMAXTouchAdventureRoute": {
-                            "expected": [
-                                "MAX"
-                            ]
-                        },
-                        "QuickHunt_FastBattleMAXTouchHuntingGrounds": {
-                            "expected": [
-                                "MIN"
-                            ]
-                        }
-                    }
-                },
-                {
-                    "name": "狩猎场MAX / 双倍图x1",
-                    "pipeline_override": {
-                        "QuickHunt_FastBattleMAXTouchAdventureRoute": {
-                            "expected": [
-                                "MIN"
-                            ]
-                        },
-                        "QuickHunt_FastBattleMAXTouchHuntingGrounds": {
-                            "expected": [
-                                "MAX"
-                            ]
-                        },
-                        "QuickHunt_Hub": {
-                            "next": [
-                                "[JumpBack]QuickHunt_OpenGui",
-                                "[JumpBack]QuickHunt_AdventureRoute",
-                                "[JumpBack]QuickHunt_HuntingGrounds",
-                                "[JumpBack]QuickHunt_RiceRecheck",
-                                "[JumpBack]QuickHunt_RiceZero_Ck",
-                                "[JumpBack]QuickHunt_CrystalCave",
-                                "[JumpBack]QuickHunt_Daily_Ck"
-                            ]
-                        }
-                    }
-                }
-            ]
-        },
-        "章节图策略": {
-            "type": "select",
-            "description": "目标刷取资源，中期一般缺木，后期一般缺矿。",
-            "cases": [
-                {
-                    "name": "矿石·章节7",
-                    "pipeline_override": {
-                        "QuickHunt_CollectMap_SwipLeft": {
-                            "enabled": true
-                        },
-                        "QuickHunt_CollectMapHuntingGrounds_7": {
-                            "enabled": true
-                        },
-                        "QuickHunt_CollectMapHuntingGrounds_1": {
-                            "enabled": false
-                        }
-                    }
-                },
-                {
-                    "name": "木材·章节9",
-                    "pipeline_override": {
-                        "QuickHunt_CollectMap_SwipNoth": {
-                            "enabled": true
-                        },
-                        "QuickHunt_CollectMapHuntingGrounds_7": {
-                            "enabled": true
-                        },
-                        "QuickHunt_CollectMapHuntingGrounds_1": {
-                            "enabled": false
-                        }
-                    }
-                },
-                {
-                    "name": "低练度·章节1",
-                    "pipeline_override": {}
                 }
             ]
         },
