@@ -522,14 +522,6 @@
             "確認"
         ]
     },
-    "Daily_Intimacy_Turn_NextPerson": {
-        "roi_offset": [
-            0,
-            75,
-            0,
-            0
-        ]
-    },
     "Daily_Intimacy_Exhausted": {
         "roi": [
             1075,
@@ -539,39 +531,229 @@
         ]
     },
     "Daily_Intimacy_Swip": {
-        "roi": [
-            70,
-            641,
-            78,
-            76
-        ],
+        "desc": "[PC] 左栏每格72px,上翻约7格(654→155),选中卡仍留在屏内",
         "custom_action_param": {
-            "action": "Swipe",
-            "begin": [
-                108,
-                654,
-                1,
-                1
-            ],
+            "proxy_node": "Agt_Proxy_Blank",
+            "proxy_override": {
+                "action": "Swipe",
+                "begin": [
+                    108,
+                    654
+                ],
+                "end": [
+                    108,
+                    155
+                ],
+                "duration": 800,
+                "end_hold": 1000
+            },
             "detect_roi": [
-                98,
-                652,
-                22,
-                22
+                80,
+                140,
+                60,
+                560
             ],
-            "duration": 800,
-            "end": [
-                108,
-                155,
-                1,
-                1
-            ],
-            "end_hold": 1000,
-            "proxy_node": "Custom_Proxy_Swipe",
-            "retry_times": 2,
+            "threshold": 3.0,
             "settle_delay": 500,
-            "threshold": 5.0
+            "on_changed": "next",
+            "on_unchanged": "error",
+            "unchanged_streak": 3
         }
+    },
+    "Rec_Intimacy_GridHeart": {
+        "desc": "[PC] 网格一行13张、行距143;红心模板为PC裁图(13x11),24颗≥0.9,误中≤0.73",
+        "roi": [
+            110,
+            100,
+            1030,
+            610
+        ]
+    },
+    "Sub_Intimacy_Band10_Lv": {
+        "roi_offset": [
+            14,
+            -3,
+            48,
+            5
+        ]
+    },
+    "Sub_Intimacy_Band15_Lv": {
+        "roi_offset": [
+            14,
+            -3,
+            48,
+            5
+        ]
+    },
+    "Sub_Intimacy_Band20_Lv": {
+        "roi_offset": [
+            14,
+            -3,
+            48,
+            5
+        ]
+    },
+    "Daily_Intimacy_Exhausted_Grid": {
+        "roi": [
+            1160,
+            20,
+            24,
+            26
+        ]
+    },
+    "Daily_Intimacy_Band15_Stop": {
+        "roi": [
+            601,
+            104,
+            110,
+            50
+        ]
+    },
+    "Daily_Intimacy_Band20_Stop": {
+        "roi": [
+            601,
+            104,
+            110,
+            50
+        ]
+    },
+    "Daily_Intimacy_GridDown": {
+        "desc": "[PC] 网格行距143,下翻两行拉286px",
+        "custom_action_param": {
+            "proxy_node": "Agt_Proxy_Blank",
+            "proxy_override": {
+                "action": "Swipe",
+                "begin": [
+                    640,
+                    520
+                ],
+                "end": [
+                    640,
+                    234
+                ],
+                "duration": 800,
+                "end_hold": 1000
+            },
+            "detect_roi": [
+                120,
+                110,
+                1000,
+                580
+            ],
+            "threshold": 3.0,
+            "settle_delay": 500,
+            "on_changed": "next",
+            "on_unchanged": "error",
+            "unchanged_streak": 2
+        }
+    },
+    "Rec_Intimacy_Cursor": {
+        "desc": "[PC] 黄三角为PC裁图(14x16),选中位置0.99-1.00,其余≤0.66",
+        "roi": [
+            62,
+            140,
+            40,
+            580
+        ]
+    },
+    "Sub_Intimacy_CursorBox": {
+        "roi_offset": [
+            31,
+            5,
+            -2,
+            -5
+        ]
+    },
+    "Anc_Intimacy_NextName": {
+        "roi_offset": [
+            -35,
+            104,
+            68,
+            6
+        ]
+    },
+    "Anc_Intimacy_NextRing": {
+        "desc": "[PC] 圆环为PC裁图(41x21),头像0.755-1.00,名字与格间背景≤0.59",
+        "roi_offset": [
+            -25,
+            45,
+            55,
+            -11
+        ],
+        "threshold": 0.7
+    },
+    "Anc_Intimacy_NextBox": {
+        "desc": "[PC] 左栏格距72(旧覆盖写75,第7步起偏出屏幕)",
+        "roi_offset": [
+            0,
+            72,
+            0,
+            0
+        ]
+    },
+    "Rec_Intimacy_LockText": {
+        "desc": "[PC] 锁定行在经验条与分隔线之间(实测文字 x771-938,y142-153),取整行横带容纳文案长短",
+        "roi": [
+            605,
+            138,
+            610,
+            24
+        ]
+    },
+    "Rec_Intimacy_LockDiamond": {
+        "desc": "[PC] 菱形实测 [1017,118,13,14];全局preset锁定1/1命中、非锁定4/4不中",
+        "roi": [
+            1002,
+            108,
+            44,
+            34
+        ]
+    },
+    "Rec_Intimacy_LockHead": {
+        "desc": "[PC] 锁头为PC裁图(9x12,比ADB小一圈);锁定1.000,同行文字与其他详情页≤0.63",
+        "roi": [
+            605,
+            136,
+            610,
+            28
+        ]
+    },
+    "Daily_Intimacy_Reward": {
+        "desc": "[PC] 未见增益红点样本:按ADB红点相对圆标的位置(+23,-16)按PC圆标缩小推估,ROI放宽,待实机",
+        "roi": [
+            924,
+            6,
+            32,
+            30
+        ],
+        "target": [
+            910,
+            18,
+            30,
+            30
+        ]
+    },
+    "Daily_Intimacy_Reward_GetAll": {
+        "roi": [
+            760,
+            258,
+            104,
+            34
+        ]
+    },
+    "Daily_Intimacy_Reward_Close": {
+        "roi": [
+            560,
+            145,
+            160,
+            32
+        ],
+        "target": [
+            838,
+            146,
+            30,
+            30
+        ]
     },
     "Daily_End_CassetteHome_PC": {
         "desc": "[PC v6] 日常收尾条件归位:六枢纽耗尽后仍留驻广场才复位,保次日开局安全;结构同上反相出口终止。",

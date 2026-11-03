@@ -1336,19 +1336,7 @@
         "recognition": "And",
         "all_of": [
             "Rec_Intimacy_GridHeart",
-            {
-                "recognition": "OCR",
-                "roi": "Rec_Intimacy_GridHeart",
-                "roi_offset": [
-                    14,
-                    -3,
-                    55,
-                    6
-                ],
-                "expected": "^L[vV]\\.?\\s*[1-9](?!\\d)",
-                "only_rec": true,
-                "order_by": "Vertical"
-            }
+            "Sub_Intimacy_Band10_Lv"
         ],
         "box_index": 1,
         "action": "Click",
@@ -1364,6 +1352,20 @@
             "[JumpBack]Global_WaitingForLoading"
         ],
         "focus": "亲密度:<10档从最高那张开始"
+    },
+    "Sub_Intimacy_Band10_Lv": {
+        "desc": "[检测]借网格红心框逐卡读等级标签,Band10档的等级。only_rec让输出框=ROI,同行y恒等",
+        "recognition": "OCR",
+        "roi": "Rec_Intimacy_GridHeart",
+        "roi_offset": [
+            14,
+            -3,
+            55,
+            6
+        ],
+        "expected": "^L[vV]\\.?\\s*[1-9](?!\\d)",
+        "only_rec": true,
+        "order_by": "Vertical"
     },
     "Daily_Intimacy_Band15": {
         "desc": "10-14档入口(网格页hub的一项)。本档周标未打才进;进档先清分页/本档标记,设下界锚点,再扫网格选卡走档;走完若本档没见到任何未锁定的卡就打本档周标",
@@ -1439,19 +1441,7 @@
         "recognition": "And",
         "all_of": [
             "Rec_Intimacy_GridHeart",
-            {
-                "recognition": "OCR",
-                "roi": "Rec_Intimacy_GridHeart",
-                "roi_offset": [
-                    14,
-                    -3,
-                    55,
-                    6
-                ],
-                "expected": "^L[vV]\\.?\\s*1[0-4](?!\\d)",
-                "only_rec": true,
-                "order_by": "Vertical"
-            }
+            "Sub_Intimacy_Band15_Lv"
         ],
         "box_index": 1,
         "action": "Click",
@@ -1467,6 +1457,20 @@
             "[JumpBack]Global_WaitingForLoading"
         ],
         "focus": "亲密度:10-14档从最高那张开始"
+    },
+    "Sub_Intimacy_Band15_Lv": {
+        "desc": "[检测]借网格红心框逐卡读等级标签,Band15档的等级。only_rec让输出框=ROI,同行y恒等",
+        "recognition": "OCR",
+        "roi": "Rec_Intimacy_GridHeart",
+        "roi_offset": [
+            14,
+            -3,
+            55,
+            6
+        ],
+        "expected": "^L[vV]\\.?\\s*1[0-4](?!\\d)",
+        "only_rec": true,
+        "order_by": "Vertical"
     },
     "Daily_Intimacy_Band15_Passed": {
         "desc": "本屏没有10-14档的卡却已看到更低档 → 本档为空(网格按等级降序),不必再翻,退栈结束本档",
@@ -1574,19 +1578,7 @@
         "recognition": "And",
         "all_of": [
             "Rec_Intimacy_GridHeart",
-            {
-                "recognition": "OCR",
-                "roi": "Rec_Intimacy_GridHeart",
-                "roi_offset": [
-                    14,
-                    -3,
-                    55,
-                    6
-                ],
-                "expected": "^L[vV]\\.?\\s*1[5-9](?!\\d)",
-                "only_rec": true,
-                "order_by": "Vertical"
-            }
+            "Sub_Intimacy_Band20_Lv"
         ],
         "box_index": 1,
         "action": "Click",
@@ -1602,6 +1594,20 @@
             "[JumpBack]Global_WaitingForLoading"
         ],
         "focus": "亲密度:15-19档从最高那张开始"
+    },
+    "Sub_Intimacy_Band20_Lv": {
+        "desc": "[检测]借网格红心框逐卡读等级标签,Band20档的等级。only_rec让输出框=ROI,同行y恒等",
+        "recognition": "OCR",
+        "roi": "Rec_Intimacy_GridHeart",
+        "roi_offset": [
+            14,
+            -3,
+            55,
+            6
+        ],
+        "expected": "^L[vV]\\.?\\s*1[5-9](?!\\d)",
+        "only_rec": true,
+        "order_by": "Vertical"
     },
     "Daily_Intimacy_Band20_Passed": {
         "desc": "本屏没有15-19档的卡却已看到更低档 → 本档为空(网格按等级降序),不必再翻,退栈结束本档",
@@ -1796,45 +1802,48 @@
         "desc": "认左栏选中头像旁的黄三角,把SetBox登记到选中的头像上(偏移只在这里做一次)。网格点进来时选中卡在最上格,剩不足7张时在下面几格;翻页后选中卡仍在屏内。用形状模板不用颜色:左栏背后的酒馆灯光与三角同色",
         "recognition": "And",
         "all_of": [
-            {
-                "sub_name": "Cursor",
-                "recognition": "TemplateMatch",
-                "roi": [
-                    80,
-                    150,
-                    32,
-                    570
-                ],
-                "template": [
-                    "Intimacy_Cursor.png"
-                ],
-                "threshold": 0.85
-            },
-            {
-                "recognition": "ColorMatch",
-                "roi": "Cursor",
-                "roi_offset": [
-                    35,
-                    2,
-                    -4,
-                    -6
-                ],
-                "lower": [
-                    0,
-                    0,
-                    0
-                ],
-                "upper": [
-                    255,
-                    255,
-                    255
-                ]
-            }
+            "Rec_Intimacy_Cursor",
+            "Sub_Intimacy_CursorBox"
         ],
         "box_index": 1,
         "pre_delay": 0,
         "anchor": "SetBox",
         "post_delay": 0
+    },
+    "Rec_Intimacy_Cursor": {
+        "desc": "[识别]详情页左栏选中头像旁的黄三角(形状模板,框固定15x16)",
+        "recognition": "TemplateMatch",
+        "roi": [
+            80,
+            150,
+            32,
+            570
+        ],
+        "template": [
+            "Intimacy_Cursor.png"
+        ],
+        "threshold": 0.85
+    },
+    "Sub_Intimacy_CursorBox": {
+        "desc": "[检测]从黄三角框偏移到选中头像上,得到SetBox的固定形状框",
+        "recognition": "ColorMatch",
+        "roi": "Rec_Intimacy_Cursor",
+        "roi_offset": [
+            35,
+            2,
+            -4,
+            -6
+        ],
+        "lower": [
+            0,
+            0,
+            0
+        ],
+        "upper": [
+            255,
+            255,
+            255
+        ]
     },
     "Daily_Intimacy_Set_FirstPerson": {
         "desc": "兜底:认不到黄三角时点左栏最上格并登记SetBox",
@@ -1880,46 +1889,52 @@
         "desc": "[运算]当前卡亲密度已被升级条件锁住(Lv10觉醒锁/Lv15潜力锁),谈心不涨经验。锁定行文字、经验前红色警示菱形、锁头图标任一命中即算;三者都漏认时当未锁定处理(=改造前行为)",
         "recognition": "Or",
         "any_of": [
-            {
-                "recognition": "OCR",
-                "roi": [
-                    745,
-                    166,
-                    300,
-                    24
-                ],
-                "expected": [
-                    "解锁下一级",
-                    "解鎖下一等級"
-                ]
-            },
-            {
-                "recognition": "Custom",
-                "custom_recognition": "RedDotDetector",
-                "custom_recognition_param": {
-                    "preset": "Agt_RedDot_Preset"
-                },
-                "roi": [
-                    952,
-                    134,
-                    40,
-                    34
-                ]
-            },
-            {
-                "recognition": "TemplateMatch",
-                "roi": [
-                    740,
-                    164,
-                    320,
-                    28
-                ],
-                "template": [
-                    "Intimacy_LockHead.png"
-                ],
-                "threshold": 0.85
-            }
+            "Rec_Intimacy_LockText",
+            "Rec_Intimacy_LockDiamond",
+            "Rec_Intimacy_LockHead"
         ]
+    },
+    "Rec_Intimacy_LockText": {
+        "desc": "[识别]详情页锁定行文字(觉醒锁/潜力锁共同尾巴,简繁)",
+        "recognition": "OCR",
+        "roi": [
+            745,
+            166,
+            300,
+            24
+        ],
+        "expected": [
+            "解锁下一级",
+            "解鎖下一等級"
+        ]
+    },
+    "Rec_Intimacy_LockDiamond": {
+        "desc": "[识别]锁定时经验数字前的红色警示菱形(红点识别,全局preset)",
+        "recognition": "Custom",
+        "custom_recognition": "RedDotDetector",
+        "custom_recognition_param": {
+            "preset": "Agt_RedDot_Preset"
+        },
+        "roi": [
+            952,
+            134,
+            40,
+            34
+        ]
+    },
+    "Rec_Intimacy_LockHead": {
+        "desc": "[识别]锁定行前的锁头图标;随文案长度左右漂移,ROI取整行",
+        "recognition": "TemplateMatch",
+        "roi": [
+            740,
+            164,
+            320,
+            28
+        ],
+        "template": [
+            "Intimacy_LockHead.png"
+        ],
+        "threshold": 0.85
     },
     "Daily_Intimacy_Locked_Turn": {
         "desc": "锁定卡:直接下一位(遮住后面的谈心)。下一位不在本屏时不命中,交给Locked_Swip翻页",
@@ -2066,68 +2081,74 @@
         "focus": "一轮谈心结束"
     },
     "Anc_Intimacy_NextSlot": {
-        "desc": "[识别]左栏当前卡(SetBox)下方还有下一位:下一格名字或头像圆环任一可见。圆环ROI高度写0,延伸到屏幕下缘,只露上半截的第7格也在有效ROI内;圆环模板只留灰色环带,内外涂绿,背景场景最高0.57",
+        "desc": "[识别]左栏当前卡(SetBox)下方还有下一位:下一格名字或头像圆环任一可见",
         "recognition": "Or",
         "any_of": [
-            {
-                "recognition": "OCR",
-                "roi": "[Anchor]SetBox",
-                "roi_offset": [
-                    -36,
-                    120,
-                    75,
-                    14
-                ],
-                "expected": "[一-龥A-Za-z]{2}"
-            },
-            {
-                "recognition": "TemplateMatch",
-                "roi": "[Anchor]SetBox",
-                "roi_offset": [
-                    -28,
-                    56,
-                    58,
-                    -10
-                ],
-                "template": [
-                    "Intimacy_AvatarRing.png"
-                ],
-                "green_mask": true,
-                "threshold": 0.8
-            }
+            "Anc_Intimacy_NextName",
+            "Anc_Intimacy_NextRing"
         ]
+    },
+    "Anc_Intimacy_NextName": {
+        "desc": "[识别]SetBox下一格头像下方的名字",
+        "recognition": "OCR",
+        "roi": "[Anchor]SetBox",
+        "roi_offset": [
+            -36,
+            120,
+            75,
+            14
+        ],
+        "expected": "[一-龥A-Za-z]{2}"
+    },
+    "Anc_Intimacy_NextRing": {
+        "desc": "[识别]SetBox下方的头像圆环上半弧。ROI高度写0延伸到屏幕下缘,只露上半截的末格也在有效ROI内;模板只留灰色环带,内外涂绿,背景场景最高0.57",
+        "recognition": "TemplateMatch",
+        "roi": "[Anchor]SetBox",
+        "roi_offset": [
+            -28,
+            56,
+            58,
+            -10
+        ],
+        "template": [
+            "Intimacy_AvatarRing.png"
+        ],
+        "green_mask": true,
+        "threshold": 0.8
     },
     "Daily_Intimacy_Turn_NextPerson": {
         "desc": "下一位谈心对象:确认下一格有人才点,并把SetBox挪过去。用门卫代替数格子,本屏没有下一位就落到翻页",
         "recognition": "And",
         "all_of": [
             "Anc_Intimacy_NextSlot",
-            {
-                "recognition": "ColorMatch",
-                "roi": "[Anchor]SetBox",
-                "roi_offset": [
-                    0,
-                    86,
-                    0,
-                    0
-                ],
-                "lower": [
-                    0,
-                    0,
-                    0
-                ],
-                "upper": [
-                    255,
-                    255,
-                    255
-                ]
-            }
+            "Anc_Intimacy_NextBox"
         ],
         "box_index": 1,
         "action": "Click",
         "anchor": "SetBox",
         "post_delay": 3000,
         "focus": "下一位谈心对象"
+    },
+    "Anc_Intimacy_NextBox": {
+        "desc": "[识别]SetBox下一格的点击框(全色ColorMatch,形状与SetBox相同)",
+        "recognition": "ColorMatch",
+        "roi": "[Anchor]SetBox",
+        "roi_offset": [
+            0,
+            86,
+            0,
+            0
+        ],
+        "lower": [
+            0,
+            0,
+            0
+        ],
+        "upper": [
+            255,
+            255,
+            255
+        ]
     },
     "Daily_Intimacy_Exhausted": {
         "recognition": "OCR",
