@@ -2049,10 +2049,20 @@
         "post_delay": 1500
     },
     "Daily_Intimacy_Talk_Out": {
+        "desc": "一轮谈心结束回到详情页。清Switch_Set,下一拍重新认黄三角登记SetBox:选中卡若被换过(如中途手动点了别的头像),下一位从实际选中的卡往下算",
         "recognition": "Or",
         "any_of": [
             "Daily_Intimacy_CatalogCard"
         ],
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "ResetTag",
+        "custom_action_param": {
+            "tags": [
+                "Intimacy_Switch_Set"
+            ]
+        },
+        "post_delay": 0,
         "focus": "一轮谈心结束"
     },
     "Anc_Intimacy_NextSlot": {
