@@ -1092,14 +1092,50 @@
         ]
     },
     "Daily_Intimacy_Switch": {
-        "desc": "亲密度谈心存档闸:本游戏日已谈完则不命中,上级next就此耗尽,退栈换下一个子模块",
-        "recognition": "Custom",
-        "custom_recognition": "CheckCoolDown",
-        "custom_recognition_param": {
-            "card_name": "Daily_Intimacy",
-            "cycle_type": "g_daily"
-        },
+        "desc": "亲密度谈心存档闸:本游戏日已谈完,或三档都打了本周周标,则不命中,上级next就此耗尽,退栈换下一个子模块。命中时清掉本模块全部计数(tag存在agent内存,跨task不清)",
+        "recognition": "And",
+        "all_of": [
+            {
+                "recognition": "Custom",
+                "custom_recognition": "CheckCoolDown",
+                "custom_recognition_param": {
+                    "card_name": "Daily_Intimacy",
+                    "cycle_type": "g_daily"
+                }
+            },
+            {
+                "recognition": "Custom",
+                "custom_recognition": "CheckCoolDown",
+                "custom_recognition_param": {
+                    "targets": [
+                        {
+                            "card_name": "Daily_Intimacy_Band10_Idle",
+                            "cycle_type": "g_weekly"
+                        },
+                        {
+                            "card_name": "Daily_Intimacy_Band15_Idle",
+                            "cycle_type": "g_weekly"
+                        },
+                        {
+                            "card_name": "Daily_Intimacy_Band20_Idle",
+                            "cycle_type": "g_weekly"
+                        }
+                    ],
+                    "match": "any"
+                }
+            }
+        ],
         "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "ResetTag",
+        "custom_action_param": {
+            "tags": [
+                "Intimacy_Switch_Set",
+                "Intimacy_BandFree",
+                "Intimacy_GridBottom",
+                "Intimacy_GridScrolled"
+            ]
+        },
         "post_delay": 0,
         "next": [
             "Daily_Intimacy_Ready",
@@ -1160,6 +1196,7 @@
         ]
     },
     "Daily_Intimacy_Enter": {
+        "desc": "网格页hub。三档按优先级排队(<10→10-14→15-19),各档max_hit 1;档内结束都先回网格再退栈到这里。模块出口(次数用完/三档走完)只挂在这里的平级next上,不在JumpBack子流程里直接出模块",
         "recognition": "OCR",
         "roi": [
             220,
@@ -1169,8 +1206,12 @@
         ],
         "expected": "亲密度",
         "next": [
-            "Daily_Intimacy_RedHeart",
-            "Daily_Intimacy_TalkClear"
+            "Daily_Intimacy_TalkClear",
+            "Daily_Intimacy_Exhausted_Grid",
+            "[JumpBack]Daily_Intimacy_Band10",
+            "[JumpBack]Daily_Intimacy_Band15",
+            "[JumpBack]Daily_Intimacy_Band20",
+            "Daily_Intimacy_Wrap"
         ],
         "focus": "亲密度主页"
     },
@@ -1192,30 +1233,525 @@
         "repeat_delay": 500,
         "focus": "[WRN]需要消除亲密度教程"
     },
-    "Daily_Intimacy_RedHeart": {
+    "Daily_Intimacy_Exhausted_Grid": {
+        "desc": "网格页右上今日剩余谈心次数为0 → 收尾",
+        "recognition": "OCR",
+        "roi": [
+            1132,
+            26,
+            32,
+            28
+        ],
+        "expected": "^0$",
+        "next": [
+            "Daily_Intimacy_Wrap"
+        ],
+        "focus": "谈心次数已耗尽"
+    },
+    "Rec_Intimacy_GridHeart": {
+        "desc": "[识别]亲密度网格页每张卡等级前的小红心。实测24颗全为1.000、网格内外误中≤0.74;兼作「当前在网格页」判据",
         "recognition": "TemplateMatch",
         "roi": [
             101,
-            237,
+            130,
             1071,
-            309
+            590
         ],
-        "template": "Intimacy_Redheart.png",
+        "template": [
+            "Intimacy_Redheart.png"
+        ],
+        "threshold": 0.9,
+        "order_by": "Vertical"
+    },
+    "Daily_Intimacy_Band10": {
+        "desc": "<10档入口(网格页hub的一项)。本档周标未打才进;进档先清分页/本档标记,设下界锚点,再扫网格选卡走档;走完若本档没见到任何未锁定的卡就打本档周标",
+        "max_hit": 1,
+        "recognition": "And",
+        "all_of": [
+            "Rec_Intimacy_GridHeart",
+            "Daily_Intimacy_Band10_Switch"
+        ],
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "ResetTag",
+        "custom_action_param": {
+            "tags": [
+                "Intimacy_Switch_Set",
+                "Intimacy_BandFree",
+                "Intimacy_GridBottom"
+            ]
+        },
+        "anchor": {
+            "Intimacy_Stop": ""
+        },
+        "post_delay": 0,
+        "timeout": 1,
+        "next": [
+            "[JumpBack]Daily_Intimacy_Band10_Scan",
+            "[JumpBack]Daily_Intimacy_GridReset",
+            "Daily_Intimacy_Band10_Idle"
+        ],
+        "focus": "亲密度谈心:<10档"
+    },
+    "Daily_Intimacy_Band10_Switch": {
+        "desc": "<10档周标闸:本周已判定该档无可谈对象则不命中。手控开关强制执行时由interface改成DirectHit",
+        "recognition": "Custom",
+        "custom_recognition": "CheckCoolDown",
+        "custom_recognition_param": {
+            "card_name": "Daily_Intimacy_Band10_Idle",
+            "cycle_type": "g_weekly"
+        },
+        "pre_delay": 0,
+        "post_delay": 0
+    },
+    "Daily_Intimacy_Band10_Idle": {
+        "desc": "<10档走完仍未见到未锁定的卡(网格里没有<10的卡;这档不会被锁) → 打本档周标,到周一08:00前不再进此档",
+        "recognition": "Custom",
+        "custom_recognition": "CheckTag",
+        "custom_recognition_param": {
+            "tag": "Intimacy_BandFree",
+            "max": 1
+        },
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "MarkComplete",
+        "custom_action_param": {
+            "card_name": "Daily_Intimacy_Band10_Idle",
+            "cycle_type": "g_weekly"
+        },
+        "post_delay": 0,
+        "focus": "[WRN]亲密度<10档本周无可谈对象,本周跳过此档"
+    },
+    "Daily_Intimacy_Band10_Scan": {
+        "desc": "扫网格:本屏有本档卡就点进去走档;看得到更低档却没有本档卡=本档为空;都不是就下翻两行再看。翻到底(GridDown打标后不再命中)则本节点超时退栈",
+        "max_hit": 1,
+        "timeout": 3000,
+        "next": [
+            "Daily_Intimacy_Band10_Pick",
+            "[JumpBack]Daily_Intimacy_GridDown"
+        ]
+    },
+    "Daily_Intimacy_Band10_Pick": {
+        "desc": "网格里<10档读序第一张(即本档最高等级)点进详情页。借红心框逐卡OCR等级:only_rec让输出框=ROI,同行y恒等,Vertical排序才精确(检测模式框y会抖,选错卡)",
+        "recognition": "And",
+        "all_of": [
+            "Rec_Intimacy_GridHeart",
+            {
+                "recognition": "OCR",
+                "roi": "Rec_Intimacy_GridHeart",
+                "roi_offset": [
+                    14,
+                    -3,
+                    55,
+                    6
+                ],
+                "expected": "^L[vV]\\.?\\s*[1-9](?!\\d)",
+                "only_rec": true,
+                "order_by": "Vertical"
+            }
+        ],
+        "box_index": 1,
         "action": "Click",
         "target_offset": [
-            5,
-            -15,
+            0,
+            -70,
             0,
             0
         ],
         "post_delay": 3000,
         "next": [
             "Daily_Intimacy_CatalogCard",
-            "Daily_Intimacy_RedHeart"
+            "[JumpBack]Global_WaitingForLoading"
+        ],
+        "focus": "亲密度:<10档从最高那张开始"
+    },
+    "Daily_Intimacy_Band15": {
+        "desc": "10-14档入口(网格页hub的一项)。本档周标未打才进;进档先清分页/本档标记,设下界锚点,再扫网格选卡走档;走完若本档没见到任何未锁定的卡就打本档周标",
+        "max_hit": 1,
+        "recognition": "And",
+        "all_of": [
+            "Rec_Intimacy_GridHeart",
+            "Daily_Intimacy_Band15_Switch"
+        ],
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "ResetTag",
+        "custom_action_param": {
+            "tags": [
+                "Intimacy_Switch_Set",
+                "Intimacy_BandFree",
+                "Intimacy_GridBottom"
+            ]
+        },
+        "anchor": {
+            "Intimacy_Stop": "Daily_Intimacy_Band15_Stop"
+        },
+        "post_delay": 0,
+        "timeout": 1,
+        "next": [
+            "[JumpBack]Daily_Intimacy_Band15_Scan",
+            "[JumpBack]Daily_Intimacy_GridReset",
+            "Daily_Intimacy_Band15_Idle"
+        ],
+        "focus": "亲密度谈心:10-14档"
+    },
+    "Daily_Intimacy_Band15_Switch": {
+        "desc": "10-14档周标闸:本周已判定该档无可谈对象则不命中。手控开关强制执行时由interface改成DirectHit",
+        "recognition": "Custom",
+        "custom_recognition": "CheckCoolDown",
+        "custom_recognition_param": {
+            "card_name": "Daily_Intimacy_Band15_Idle",
+            "cycle_type": "g_weekly"
+        },
+        "pre_delay": 0,
+        "post_delay": 0
+    },
+    "Daily_Intimacy_Band15_Idle": {
+        "desc": "10-14档走完仍未见到未锁定的卡(全部被觉醒锁住或本档为空) → 打本档周标,到周一08:00前不再进此档",
+        "recognition": "Custom",
+        "custom_recognition": "CheckTag",
+        "custom_recognition_param": {
+            "tag": "Intimacy_BandFree",
+            "max": 1
+        },
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "MarkComplete",
+        "custom_action_param": {
+            "card_name": "Daily_Intimacy_Band15_Idle",
+            "cycle_type": "g_weekly"
+        },
+        "post_delay": 0,
+        "focus": "[WRN]亲密度10-14档本周无可谈对象,本周跳过此档"
+    },
+    "Daily_Intimacy_Band15_Scan": {
+        "desc": "扫网格:本屏有本档卡就点进去走档;看得到更低档却没有本档卡=本档为空;都不是就下翻两行再看。翻到底(GridDown打标后不再命中)则本节点超时退栈",
+        "max_hit": 1,
+        "timeout": 3000,
+        "next": [
+            "Daily_Intimacy_Band15_Pick",
+            "Daily_Intimacy_Band15_Passed",
+            "[JumpBack]Daily_Intimacy_GridDown"
         ]
     },
+    "Daily_Intimacy_Band15_Pick": {
+        "desc": "网格里10-14档读序第一张(即本档最高等级)点进详情页。借红心框逐卡OCR等级:only_rec让输出框=ROI,同行y恒等,Vertical排序才精确(检测模式框y会抖,选错卡)",
+        "recognition": "And",
+        "all_of": [
+            "Rec_Intimacy_GridHeart",
+            {
+                "recognition": "OCR",
+                "roi": "Rec_Intimacy_GridHeart",
+                "roi_offset": [
+                    14,
+                    -3,
+                    55,
+                    6
+                ],
+                "expected": "^L[vV]\\.?\\s*1[0-4](?!\\d)",
+                "only_rec": true,
+                "order_by": "Vertical"
+            }
+        ],
+        "box_index": 1,
+        "action": "Click",
+        "target_offset": [
+            0,
+            -70,
+            0,
+            0
+        ],
+        "post_delay": 3000,
+        "next": [
+            "Daily_Intimacy_CatalogCard",
+            "[JumpBack]Global_WaitingForLoading"
+        ],
+        "focus": "亲密度:10-14档从最高那张开始"
+    },
+    "Daily_Intimacy_Band15_Passed": {
+        "desc": "本屏没有10-14档的卡却已看到更低档 → 本档为空(网格按等级降序),不必再翻,退栈结束本档",
+        "recognition": "Or",
+        "any_of": [
+            "Daily_Intimacy_Band10_Pick"
+        ],
+        "pre_delay": 0,
+        "post_delay": 0
+    },
+    "Daily_Intimacy_Band15_Stop": {
+        "desc": "走档下界:当前卡已跌到Lv10以下(前一档已处理过) → 回网格结束本档。由Band15设锚点Intimacy_Stop指向",
+        "recognition": "OCR",
+        "roi": [
+            719,
+            124,
+            151,
+            62
+        ],
+        "expected": [
+            "^[1-9]$"
+        ],
+        "replace": [
+            [
+                "\\D",
+                ""
+            ]
+        ],
+        "next": [
+            "Global_BackPageHub_Once"
+        ],
+        "focus": "亲密度:本档已走完"
+    },
+    "Daily_Intimacy_Band20": {
+        "desc": "15-19档入口(网格页hub的一项)。本档周标未打才进;进档先清分页/本档标记,设下界锚点,再扫网格选卡走档;走完若本档没见到任何未锁定的卡就打本档周标",
+        "max_hit": 1,
+        "recognition": "And",
+        "all_of": [
+            "Rec_Intimacy_GridHeart",
+            "Daily_Intimacy_Band20_Switch"
+        ],
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "ResetTag",
+        "custom_action_param": {
+            "tags": [
+                "Intimacy_Switch_Set",
+                "Intimacy_BandFree",
+                "Intimacy_GridBottom"
+            ]
+        },
+        "anchor": {
+            "Intimacy_Stop": "Daily_Intimacy_Band20_Stop"
+        },
+        "post_delay": 0,
+        "timeout": 1,
+        "next": [
+            "[JumpBack]Daily_Intimacy_Band20_Scan",
+            "[JumpBack]Daily_Intimacy_GridReset",
+            "Daily_Intimacy_Band20_Idle"
+        ],
+        "focus": "亲密度谈心:15-19档"
+    },
+    "Daily_Intimacy_Band20_Switch": {
+        "desc": "15-19档周标闸:本周已判定该档无可谈对象则不命中。手控开关强制执行时由interface改成DirectHit",
+        "recognition": "Custom",
+        "custom_recognition": "CheckCoolDown",
+        "custom_recognition_param": {
+            "card_name": "Daily_Intimacy_Band20_Idle",
+            "cycle_type": "g_weekly"
+        },
+        "pre_delay": 0,
+        "post_delay": 0
+    },
+    "Daily_Intimacy_Band20_Idle": {
+        "desc": "15-19档走完仍未见到未锁定的卡(全部被觉醒/潜力锁住或本档为空) → 打本档周标,到周一08:00前不再进此档",
+        "recognition": "Custom",
+        "custom_recognition": "CheckTag",
+        "custom_recognition_param": {
+            "tag": "Intimacy_BandFree",
+            "max": 1
+        },
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "MarkComplete",
+        "custom_action_param": {
+            "card_name": "Daily_Intimacy_Band20_Idle",
+            "cycle_type": "g_weekly"
+        },
+        "post_delay": 0,
+        "focus": "[WRN]亲密度15-19档本周无可谈对象,本周跳过此档"
+    },
+    "Daily_Intimacy_Band20_Scan": {
+        "desc": "扫网格:本屏有本档卡就点进去走档;看得到更低档却没有本档卡=本档为空;都不是就下翻两行再看。翻到底(GridDown打标后不再命中)则本节点超时退栈",
+        "max_hit": 1,
+        "timeout": 3000,
+        "next": [
+            "Daily_Intimacy_Band20_Pick",
+            "Daily_Intimacy_Band20_Passed",
+            "[JumpBack]Daily_Intimacy_GridDown"
+        ]
+    },
+    "Daily_Intimacy_Band20_Pick": {
+        "desc": "网格里15-19档读序第一张(即本档最高等级)点进详情页。借红心框逐卡OCR等级:only_rec让输出框=ROI,同行y恒等,Vertical排序才精确(检测模式框y会抖,选错卡)",
+        "recognition": "And",
+        "all_of": [
+            "Rec_Intimacy_GridHeart",
+            {
+                "recognition": "OCR",
+                "roi": "Rec_Intimacy_GridHeart",
+                "roi_offset": [
+                    14,
+                    -3,
+                    55,
+                    6
+                ],
+                "expected": "^L[vV]\\.?\\s*1[5-9](?!\\d)",
+                "only_rec": true,
+                "order_by": "Vertical"
+            }
+        ],
+        "box_index": 1,
+        "action": "Click",
+        "target_offset": [
+            0,
+            -70,
+            0,
+            0
+        ],
+        "post_delay": 3000,
+        "next": [
+            "Daily_Intimacy_CatalogCard",
+            "[JumpBack]Global_WaitingForLoading"
+        ],
+        "focus": "亲密度:15-19档从最高那张开始"
+    },
+    "Daily_Intimacy_Band20_Passed": {
+        "desc": "本屏没有15-19档的卡却已看到更低档 → 本档为空(网格按等级降序),不必再翻,退栈结束本档",
+        "recognition": "Or",
+        "any_of": [
+            "Daily_Intimacy_Band10_Pick",
+            "Daily_Intimacy_Band15_Pick"
+        ],
+        "pre_delay": 0,
+        "post_delay": 0
+    },
+    "Daily_Intimacy_Band20_Stop": {
+        "desc": "走档下界:当前卡已跌到Lv15以下(前一档已处理过) → 回网格结束本档。由Band20设锚点Intimacy_Stop指向",
+        "recognition": "OCR",
+        "roi": [
+            719,
+            124,
+            151,
+            62
+        ],
+        "expected": [
+            "^([1-9]|1[0-4])$"
+        ],
+        "replace": [
+            [
+                "\\D",
+                ""
+            ]
+        ],
+        "next": [
+            "Global_BackPageHub_Once"
+        ],
+        "focus": "亲密度:本档已走完"
+    },
+    "Daily_Intimacy_GridDown": {
+        "desc": "网格下翻两行(行距172,拉344px)。画面变了→记「翻过」后退栈重扫;连续两次没变=到底→记「到底」后退栈,本档扫描随之结束",
+        "recognition": "Custom",
+        "custom_recognition": "CheckTag",
+        "custom_recognition_param": {
+            "tag": "Intimacy_GridBottom",
+            "max": 1
+        },
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "SmartAction",
+        "custom_action_param": {
+            "proxy_node": "Agt_Proxy_Blank",
+            "proxy_override": {
+                "action": "Swipe",
+                "begin": [
+                    640,
+                    560
+                ],
+                "end": [
+                    640,
+                    216
+                ],
+                "duration": 800,
+                "end_hold": 1000
+            },
+            "detect_roi": [
+                145,
+                138,
+                1015,
+                515
+            ],
+            "threshold": 3.0,
+            "settle_delay": 500,
+            "on_changed": "next",
+            "on_unchanged": "error",
+            "unchanged_streak": 2
+        },
+        "post_delay": 0,
+        "timeout": 1000,
+        "next": [
+            "Daily_Intimacy_GridDown_Moved"
+        ],
+        "on_error": [
+            "Daily_Intimacy_GridDown_Bottom",
+            "Global_Null"
+        ]
+    },
+    "Daily_Intimacy_GridDown_Moved": {
+        "desc": "网格翻过页:打开GridReset(tag-1形态),本档结束后退主页重进复位到顶",
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "UpdateTag",
+        "custom_action_param": {
+            "tag": "Intimacy_GridScrolled",
+            "value": -1
+        },
+        "post_delay": 0
+    },
+    "Daily_Intimacy_GridDown_Bottom": {
+        "desc": "网格已到底:关掉GridDown,本档扫描在Scan超时后结束",
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "UpdateTag",
+        "custom_action_param": {
+            "tag": "Intimacy_GridBottom",
+            "value": 1
+        },
+        "post_delay": 0
+    },
+    "Daily_Intimacy_GridReset": {
+        "desc": "本档翻过网格才命中:退主页再点亲密度进来,网格回到顶部,下一档从头扫",
+        "recognition": "Custom",
+        "custom_recognition": "CheckTag",
+        "custom_recognition_param": {
+            "tag": "Intimacy_GridScrolled",
+            "max": 0
+        },
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "ResetTag",
+        "custom_action_param": {
+            "tags": [
+                "Intimacy_GridScrolled"
+            ]
+        },
+        "post_delay": 0,
+        "next": [
+            "Daily_Intimacy_GridReset_In",
+            "[JumpBack]Global_BackPageHub_Once"
+        ]
+    },
+    "Daily_Intimacy_GridReset_In": {
+        "desc": "主页点亲密度图标重进网格",
+        "recognition": "And",
+        "all_of": [
+            "Rec_Intimacy_Tpl"
+        ],
+        "action": "Click",
+        "post_delay": 3000,
+        "next": [
+            "Daily_Intimacy_GridReset_Done",
+            "[JumpBack]Global_WaitingForLoading"
+        ]
+    },
+    "Daily_Intimacy_GridReset_Done": {
+        "desc": "已回到网格页,退栈",
+        "recognition": "Or",
+        "any_of": [
+            "Rec_Intimacy_GridHeart"
+        ],
+        "pre_delay": 0,
+        "post_delay": 0
+    },
     "Daily_Intimacy_CatalogCard": {
-        "desc": "在亲密度目录卡中",
+        "desc": "在亲密度详情页(走档hub)。顺序即优先级:登记当前卡→次数用完/跌出本档就回网格→锁定卡直接下一位→记「本档见过未锁定的卡」→谈心→下一位→翻页",
         "recognition": "OCR",
         "roi": [
             218,
@@ -1228,8 +1764,12 @@
         "next": [
             "[JumpBack]Daily_Intimacy_Switch_Set",
             "Daily_Intimacy_Exhausted",
+            "[Anchor]Intimacy_Stop",
+            "[JumpBack]Daily_Intimacy_Locked_Turn",
+            "Daily_Intimacy_Locked_Swip",
+            "[JumpBack]Daily_Intimacy_FreeMark",
             "[JumpBack]Daily_Intimacy_Up",
-            "[JumpBack]Daily_Intimacy_Switch_Turn",
+            "[JumpBack]Daily_Intimacy_Turn_NextPerson",
             "Daily_Intimacy_Swip"
         ],
         "focus": "亲密度目录"
@@ -1248,28 +1788,56 @@
             "value": 1
         },
         "next": [
+            "Daily_Intimacy_Set_Selected",
             "Daily_Intimacy_Set_FirstPerson"
         ]
     },
-    "Daily_Intimacy_Switch_Turn": {
-        "recognition": "Custom",
-        "custom_recognition": "CheckTag",
-        "custom_recognition_param": {
-            "tag": "Intimacy_Switch_Turn",
-            "max": 6
-        },
-        "action": "Custom",
-        "custom_action": "UpdateTag",
-        "custom_action_param": {
-            "tag": "Intimacy_Switch_Turn",
-            "value": 1
-        },
-        "next": [
-            "Daily_Intimacy_Turn_NextPerson"
-        ]
+    "Daily_Intimacy_Set_Selected": {
+        "desc": "认左栏选中头像旁的黄三角,把SetBox登记到选中的头像上(偏移只在这里做一次)。网格点进来时选中卡在最上格,剩不足7张时在下面几格;翻页后选中卡仍在屏内。用形状模板不用颜色:左栏背后的酒馆灯光与三角同色",
+        "recognition": "And",
+        "all_of": [
+            {
+                "sub_name": "Cursor",
+                "recognition": "TemplateMatch",
+                "roi": [
+                    80,
+                    150,
+                    32,
+                    570
+                ],
+                "template": [
+                    "Intimacy_Cursor.png"
+                ],
+                "threshold": 0.85
+            },
+            {
+                "recognition": "ColorMatch",
+                "roi": "Cursor",
+                "roi_offset": [
+                    35,
+                    2,
+                    -4,
+                    -6
+                ],
+                "lower": [
+                    0,
+                    0,
+                    0
+                ],
+                "upper": [
+                    255,
+                    255,
+                    255
+                ]
+            }
+        ],
+        "box_index": 1,
+        "pre_delay": 0,
+        "anchor": "SetBox",
+        "post_delay": 0
     },
     "Daily_Intimacy_Set_FirstPerson": {
-        "desc": "设定第一位人员左边",
+        "desc": "兜底:认不到黄三角时点左栏最上格并登记SetBox",
         "recognition": "ColorMatch",
         "roi": [
             124,
@@ -1291,12 +1859,99 @@
         "anchor": "SetBox",
         "post_delay": 1000
     },
-    "Daily_Intimacy_Up": {
-        "desc": "可以谈心的对象 开始谈心",
+    "Daily_Intimacy_FreeMark": {
+        "desc": "当前卡未锁定(锁定卡已被前面的Locked_*截走) → 记「本档见过未锁定的卡」,本档就不会打周标。每档只记一次",
+        "recognition": "Custom",
+        "custom_recognition": "CheckTag",
+        "custom_recognition_param": {
+            "tag": "Intimacy_BandFree",
+            "max": 1
+        },
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "UpdateTag",
+        "custom_action_param": {
+            "tag": "Intimacy_BandFree",
+            "value": 1
+        },
+        "post_delay": 0
+    },
+    "Cpt_Intimacy_Locked": {
+        "desc": "[运算]当前卡亲密度已被升级条件锁住(Lv10觉醒锁/Lv15潜力锁),谈心不涨经验。锁定行文字、经验前红色警示菱形、锁头图标任一命中即算;三者都漏认时当未锁定处理(=改造前行为)",
+        "recognition": "Or",
+        "any_of": [
+            {
+                "recognition": "OCR",
+                "roi": [
+                    745,
+                    166,
+                    300,
+                    24
+                ],
+                "expected": [
+                    "解锁下一级",
+                    "解鎖下一等級"
+                ]
+            },
+            {
+                "recognition": "Custom",
+                "custom_recognition": "RedDotDetector",
+                "custom_recognition_param": {
+                    "preset": "Agt_RedDot_Preset"
+                },
+                "roi": [
+                    952,
+                    134,
+                    40,
+                    34
+                ]
+            },
+            {
+                "recognition": "TemplateMatch",
+                "roi": [
+                    740,
+                    164,
+                    320,
+                    28
+                ],
+                "template": [
+                    "Intimacy_LockHead.png"
+                ],
+                "threshold": 0.85
+            }
+        ]
+    },
+    "Daily_Intimacy_Locked_Turn": {
+        "desc": "锁定卡:直接下一位(遮住后面的谈心)。下一位不在本屏时不命中,交给Locked_Swip翻页",
         "recognition": "And",
         "all_of": [
-            "Sub_Intimacy_Number",
-            "Sub_Intimacy_LV"
+            "Cpt_Intimacy_Locked",
+            "Anc_Intimacy_NextSlot"
+        ],
+        "pre_delay": 0,
+        "post_delay": 0,
+        "next": [
+            "Daily_Intimacy_Turn_NextPerson"
+        ],
+        "focus": "锁定:需觉醒/潜力释放,跳过"
+    },
+    "Daily_Intimacy_Locked_Swip": {
+        "desc": "锁定卡且本屏已无下一位 → 翻页。用平级next而非JumpBack:Swip经Swich_Reset平级回到目录页,JumpBack会留下悬空返回点",
+        "recognition": "Or",
+        "any_of": [
+            "Cpt_Intimacy_Locked"
+        ],
+        "pre_delay": 0,
+        "post_delay": 0,
+        "next": [
+            "Daily_Intimacy_Swip"
+        ]
+    },
+    "Daily_Intimacy_Up": {
+        "desc": "还有谈心次数(1/1)就谈心。上界由选卡保证、下界由Stop保证、锁定由Locked_*遮住,这里不再读等级",
+        "recognition": "And",
+        "all_of": [
+            "Sub_Intimacy_Number"
         ],
         "action": "Click",
         "target_offset": [
@@ -1323,25 +1978,6 @@
         ],
         "expected": "(\\d+)\\s*[/:：|\\-~]\\s*\\1(?!\\d)",
         "only_rec": true
-    },
-    "Sub_Intimacy_LV": {
-        "desc": "谈心等级围栏",
-        "recognition": "OCR",
-        "roi": [
-            719,
-            124,
-            151,
-            62
-        ],
-        "expected": [
-            "^([1-9]|1[0-9])$"
-        ],
-        "replace": [
-            [
-                "\\D",
-                ""
-            ]
-        ]
     },
     "Daily_Intimacy_Up_MSG": {
         "recognition": "OCR",
@@ -1419,28 +2055,66 @@
         ],
         "focus": "一轮谈心结束"
     },
+    "Anc_Intimacy_NextSlot": {
+        "desc": "[识别]左栏当前卡(SetBox)下方还有下一位:下一格名字或头像圆环任一可见。圆环ROI高度写0,延伸到屏幕下缘,只露上半截的第7格也在有效ROI内;圆环模板只留灰色环带,内外涂绿,背景场景最高0.57",
+        "recognition": "Or",
+        "any_of": [
+            {
+                "recognition": "OCR",
+                "roi": "[Anchor]SetBox",
+                "roi_offset": [
+                    -36,
+                    120,
+                    75,
+                    14
+                ],
+                "expected": "[一-龥A-Za-z]{2}"
+            },
+            {
+                "recognition": "TemplateMatch",
+                "roi": "[Anchor]SetBox",
+                "roi_offset": [
+                    -28,
+                    56,
+                    58,
+                    -10
+                ],
+                "template": [
+                    "Intimacy_AvatarRing.png"
+                ],
+                "green_mask": true,
+                "threshold": 0.8
+            }
+        ]
+    },
     "Daily_Intimacy_Turn_NextPerson": {
-        "desc": "下一位谈心对象",
-        "recognition": "ColorMatch",
-        "roi": "[Anchor]SetBox",
-        "roi_offset": [
-            0,
-            86,
-            0,
-            0
+        "desc": "下一位谈心对象:确认下一格有人才点,并把SetBox挪过去。用门卫代替数格子,本屏没有下一位就落到翻页",
+        "recognition": "And",
+        "all_of": [
+            "Anc_Intimacy_NextSlot",
+            {
+                "recognition": "ColorMatch",
+                "roi": "[Anchor]SetBox",
+                "roi_offset": [
+                    0,
+                    86,
+                    0,
+                    0
+                ],
+                "lower": [
+                    0,
+                    0,
+                    0
+                ],
+                "upper": [
+                    255,
+                    255,
+                    255
+                ]
+            }
         ],
-        "lower": [
-            0,
-            0,
-            0
-        ],
-        "upper": [
-            255,
-            255,
-            255
-        ],
+        "box_index": 1,
         "action": "Click",
-        "target": "[Anchor]SetBox",
         "anchor": "SetBox",
         "post_delay": 3000,
         "focus": "下一位谈心对象"
@@ -1456,12 +2130,157 @@
         "expected": "^0",
         "only_rec": true,
         "next": [
-            "Daily_Intimacy_End"
+            "Global_BackPageHub_Once"
         ],
         "focus": "谈心次数已耗尽"
     },
+    "Daily_Intimacy_Swip": {
+        "desc": "左栏上翻约5格,选中卡仍留在屏内供Set_Selected重新登记。拉不动=列表到底 → 回网格结束本档",
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "SmartAction",
+        "custom_action_param": {
+            "proxy_node": "Agt_Proxy_Blank",
+            "proxy_override": {
+                "action": "Swipe",
+                "begin": [
+                    129,
+                    615
+                ],
+                "end": [
+                    129,
+                    188
+                ],
+                "duration": 800,
+                "end_hold": 1000
+            },
+            "detect_roi": [
+                100,
+                170,
+                60,
+                540
+            ],
+            "threshold": 3.0,
+            "settle_delay": 500,
+            "on_changed": "next",
+            "on_unchanged": "error",
+            "unchanged_streak": 3
+        },
+        "post_delay": 0,
+        "timeout": 1000,
+        "next": [
+            "Daily_Intimacy_Swich_Reset"
+        ],
+        "on_error": [
+            "Global_BackPageHub_Once",
+            "Global_Null"
+        ]
+    },
+    "Daily_Intimacy_Swich_Reset": {
+        "action": "Custom",
+        "custom_action": "ResetTag",
+        "custom_action_param": {
+            "tags": [
+                "Intimacy_Switch_Set"
+            ]
+        },
+        "next": [
+            "Daily_Intimacy_CatalogCard"
+        ]
+    },
+    "Daily_Intimacy_Wrap": {
+        "desc": "三档走完或次数用完,在网格页收尾:先领亲密度增益奖励,再打日标",
+        "recognition": "Or",
+        "any_of": [
+            "Rec_Intimacy_GridHeart"
+        ],
+        "pre_delay": 0,
+        "post_delay": 0,
+        "next": [
+            "[JumpBack]Daily_Intimacy_Reward",
+            "Daily_Intimacy_End"
+        ]
+    },
+    "Daily_Intimacy_Reward": {
+        "desc": "「亲密度增益」右侧圆标有红点 → 点开领奖。max_hit防领不掉时反复打开",
+        "max_hit": 2,
+        "recognition": "Custom",
+        "custom_recognition": "RedDotDetector",
+        "custom_recognition_param": {
+            "preset": "Agt_RedDot_Preset"
+        },
+        "roi": [
+            862,
+            10,
+            30,
+            30
+        ],
+        "action": "Click",
+        "target": [
+            838,
+            25,
+            32,
+            32
+        ],
+        "post_delay": 2000,
+        "next": [
+            "Daily_Intimacy_Reward_GetAll",
+            "Daily_Intimacy_Reward_Close"
+        ],
+        "focus": "亲密度增益有可领奖励"
+    },
+    "Daily_Intimacy_Reward_GetAll": {
+        "recognition": "OCR",
+        "roi": [
+            785,
+            236,
+            120,
+            42
+        ],
+        "expected": [
+            "全部领取",
+            "全部領取"
+        ],
+        "action": "Click",
+        "post_delay": 2000,
+        "next": [
+            "[JumpBack]Daily_Intimacy_Reward_Confirm",
+            "Daily_Intimacy_Reward_Close"
+        ]
+    },
+    "Daily_Intimacy_Reward_Confirm": {
+        "desc": "获得奖励弹窗,点掉",
+        "recognition": "And",
+        "all_of": [
+            "Rec_Reward_Ocr"
+        ],
+        "action": "Click",
+        "post_delay": 2000
+    },
+    "Daily_Intimacy_Reward_Close": {
+        "desc": "关闭亲密度增益弹窗,回到网格页后退栈",
+        "recognition": "OCR",
+        "roi": [
+            520,
+            104,
+            240,
+            38
+        ],
+        "expected": [
+            "亲密度增益",
+            "親密度加成"
+        ],
+        "action": "Click",
+        "target": [
+            880,
+            105,
+            32,
+            32
+        ],
+        "post_delay": 1500
+    },
     "Daily_Intimacy_End": {
-        "desc": "亲密度谈心的正常出口:谈心次数归零才会走到这里,打完标再走公共复位。Daily_Intimacy_Swip的on_error也去Global_ToHomePage,那条是异常路径,不经过这里",
+        "desc": "亲密度谈心的正常出口:只从网格页收尾(Wrap)进来,打日标再走公共复位",
         "pre_delay": 0,
         "action": "Custom",
         "custom_action": "MarkComplete",
@@ -1474,67 +2293,5 @@
             "Global_ToHomePage"
         ],
         "focus": "亲密度谈心完成,已记录"
-    },
-    "Daily_Intimacy_Swip": {
-        "max_hit": 3,
-        "recognition": "OCR",
-        "roi": [
-            85,
-            591,
-            92,
-            88
-        ],
-        "expected": [
-            "^[a-zA-Z\u4e00-\u9fa5]+$"
-        ],
-        "action": "Custom",
-        "custom_action": "SmartSwipe",
-        "custom_action_param": {
-            "proxy_node": "Custom_Proxy_Swipe",
-            "action": "Swipe",
-            "begin": [
-                129,
-                615,
-                1,
-                1
-            ],
-            "end": [
-                129,
-                188,
-                1,
-                1
-            ],
-            "detect_roi": [
-                116,
-                612,
-                26,
-                25
-            ],
-            "duration": 800,
-            "end_hold": 1000,
-            "settle_delay": 500,
-            "retry_times": 2,
-            "threshold": 5.0
-        },
-        "next": [
-            "Daily_Intimacy_Swich_Reset"
-        ],
-        "on_error": [
-            "Global_ToHomePage",
-            "Global_Null"
-        ]
-    },
-    "Daily_Intimacy_Swich_Reset": {
-        "action": "Custom",
-        "custom_action": "ResetTag",
-        "custom_action_param": {
-            "tags": [
-                "Intimacy_Switch_Set",
-                "Intimacy_Switch_Turn"
-            ]
-        },
-        "next": [
-            "Daily_Intimacy_CatalogCard"
-        ]
     }
 }

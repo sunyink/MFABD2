@@ -564,6 +564,15 @@
                         },
                         "Daily_Intimacy_Switch": {
                             "recognition": "DirectHit"
+                        },
+                        "Daily_Intimacy_Band10_Switch": {
+                            "recognition": "DirectHit"
+                        },
+                        "Daily_Intimacy_Band15_Switch": {
+                            "recognition": "DirectHit"
+                        },
+                        "Daily_Intimacy_Band20_Switch": {
+                            "recognition": "DirectHit"
                         }
                     }
                 },
@@ -2029,58 +2038,18 @@
             ]
         },
         "亲密度谈心": {
-            "description": "在亲密度目录中依次与符合等级条件且仍有次数的对象谈心。",
+            "description": "按等级分三档谈心：先把 10 级以下的推到 10 级，再推 10–14 级，最后 15–19 级；每档从等级最高的那张开始。<br>等级被<b>角色觉醒</b>或<b>服装潜力释放</b>卡住的对象会跳过，不浪费次数。某档本周没有可谈对象时，到下周一前不再进入该档；三档都没有则整周跳过。<br>结束后顺带领取亲密度增益奖励。",
             "type": "switch",
             "cases": [
                 {
                     "name": "Yes",
-                    "pipeline_override": {},
-                    "option": [
-                        "亲密度谈心等级筛选"
-                    ]
+                    "pipeline_override": {}
                 },
                 {
                     "name": "No",
                     "pipeline_override": {
                         "Daily_Intimacy_HUB": {
                             "enabled": false
-                        }
-                    }
-                }
-            ]
-        },
-        "亲密度谈心等级筛选": {
-            "description": "仅与亲密度等级低于所选阈值的对象谈心。",
-            "type": "select",
-            "default_case": "Lv<10",
-            "cases": [
-                {
-                    "name": "Lv<10",
-                    "pipeline_override": {
-                        "Sub_Intimacy_LV": {
-                            "expected": [
-                                "^[1-9]$"
-                            ]
-                        }
-                    }
-                },
-                {
-                    "name": "Lv<15",
-                    "pipeline_override": {
-                        "Sub_Intimacy_LV": {
-                            "expected": [
-                                "^([1-9]|1[0-4])$"
-                            ]
-                        }
-                    }
-                },
-                {
-                    "name": "Lv<20",
-                    "pipeline_override": {
-                        "Sub_Intimacy_LV": {
-                            "expected": [
-                                "^([1-9]|1[0-9])$"
-                            ]
                         }
                     }
                 }

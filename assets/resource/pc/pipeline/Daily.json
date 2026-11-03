@@ -488,14 +488,6 @@
     "Daily_Intimacy_TalkClear": {
         "focus": "[WRN]需要消除亲密度教程(PC缺素材图)"
     },
-    "Daily_Intimacy_RedHeart": {
-        "roi": [
-            89,
-            195,
-            1053,
-            222
-        ]
-    },
     "Daily_Intimacy_CatalogCard": {
         "roi": [
             180,
@@ -507,12 +499,6 @@
             "亲密度增益",
             "親密度加成"
         ]
-    },
-    "Daily_Intimacy_Switch_Turn": {
-        "custom_recognition_param": {
-            "max": 8,
-            "tag": "Intimacy_Switch_Turn"
-        }
     },
     "Daily_Intimacy_Set_FirstPerson": {
         "roi": [
@@ -528,14 +514,6 @@
             649,
             37,
             25
-        ]
-    },
-    "Sub_Intimacy_LV": {
-        "roi": [
-            601,
-            104,
-            110,
-            50
         ]
     },
     "Daily_Intimacy_Up_MSG": {
