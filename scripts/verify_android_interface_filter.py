@@ -222,10 +222,16 @@ class AndroidInterfaceFilterTest(unittest.TestCase):
                         self.assertEqual(installed["resource"], INSTALL.prepare_interface_for_target(self.interface, target)["resource"])
             self.assertEqual({path.relative_to(source): path.read_bytes() for path in source.rglob("*") if path.is_file()}, source_files)
 
-    def test_desktop_targets_only_relocate_multi_save(self):
-        # The source keeps the switch global for per-task clients; MFAA gets it inside the task.
+    def test_desktop_targets_relocate_multi_save_and_pc_window(self):
+        # The source keeps these global for per-task clients; MFAA gets the switch inside its task
+        # and the PC window options on the controllers they name.
         expected = deepcopy(self.interface)
         expected["global_option"].remove("启用多存档")
+        for name in ("PC窗口分辨率", "PC启动最小化"):
+            expected["global_option"].remove(name)
+        controllers = {item["name"]: item for item in expected["controller"]}
+        controllers["PC客户端"]["option"] = ["PC窗口分辨率", "PC启动最小化"]
+        controllers["PC客户端(Cursor)"]["option"] = ["PC窗口分辨率"]
         next(task for task in expected["task"] if task["entry"] == "Env_MultiSave_Config")["option"] = ["启用多存档"]
         del expected["option"]["存档名称"]["pipeline_override"]
         del next(case for case in expected["option"]["启用多存档"]["cases"] if case["name"] == "No")["pipeline_override"]
