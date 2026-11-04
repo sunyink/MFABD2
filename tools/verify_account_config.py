@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT), str(ROOT / "agent")]
 from utils.instance_account_config import (
     ACCOUNT_INPUT, ACCOUNT_OPTION, INJECT_NODE, STOP_ENTRY, SWITCH_OPTION, TASK_ENTRY,
-    parse_instance_account, read_instance_account,
+    OptionDefaults, defaults_from_interface, parse_instance_account, read_instance_account,
 )
 from utils.account_sync import AccountSession, account_source
 from utils.persistent_store import AccountNotReadyError, PersistentStore, SharedStore
@@ -24,6 +24,24 @@ def config(number="1", index=0, checked=True):
     return {"TaskItems": [{"name": "renamed by user", "entry": TASK_ENTRY, "default_check": checked,
                            "option": [{"name": SWITCH_OPTION, "index": index, "sub_options": [
                                {"name": ACCOUNT_OPTION, "data": {ACCOUNT_INPUT: number}}]}]}]}
+
+
+INTERFACE = {"option": {
+    SWITCH_OPTION: {"type": "switch", "default_case": "Yes",
+                    "cases": [{"name": "Yes", "option": [ACCOUNT_OPTION]}, {"name": "No"}]},
+    ACCOUNT_OPTION: {"type": "input", "inputs": [{"name": ACCOUNT_INPUT, "default": "0", "verify": "^[0-9]+$"}]},
+}}
+
+
+def layered(option):
+    return {"TaskItems": [{"name": "多存档", "entry": TASK_ENTRY, "option": [option]}]}
+
+
+def interface_with(switch=None, account=None):
+    document = deepcopy(INTERFACE)
+    document["option"][SWITCH_OPTION].update(switch or {})
+    document["option"][ACCOUNT_OPTION].update(account or {})
+    return document
 
 
 def store_type():
@@ -114,6 +132,76 @@ class ConfigTests(unittest.TestCase):
         self.assertFalse(parse_instance_account(document).valid)
 
 
+class LayeredConfigTests(unittest.TestCase):
+    """Newer MFAA stores only values that differ from the interface default."""
+
+    def setUp(self):
+        self.defaults = defaults_from_interface(INTERFACE)
+
+    def result(self, option, defaults="interface"):
+        selection = parse_instance_account(layered(option), self.defaults if defaults == "interface" else defaults)
+        return selection.account_id, selection.enabled
+
+    def test_unset_values_follow_the_interface_default(self):
+        for option in ({"name": SWITCH_OPTION},
+                       {"name": SWITCH_OPTION, "sub_options": []},
+                       {"name": SWITCH_OPTION, "sub_options": [{"name": ACCOUNT_OPTION}]},
+                       {"name": SWITCH_OPTION, "sub_options": [{"name": ACCOUNT_OPTION, "data": {}}]},
+                       {"name": SWITCH_OPTION, "sub_options": [{"name": ACCOUNT_OPTION, "data": {ACCOUNT_INPUT: None}}]}):
+            with self.subTest(option=option):
+                self.assertEqual(self.result(option), ("0", True))
+                # Without the interface an unset value is never guessed.
+                self.assertFalse(parse_instance_account(layered(option)).valid)
+
+    def test_saved_name_wins_over_index_and_must_exist(self):
+        self.assertEqual(self.result({"name": SWITCH_OPTION, "index": 1, "selected_case": "No"}), ("0", False))
+        self.assertEqual(self.result({"name": SWITCH_OPTION, "index": 1, "selected_case": "No"}, None), ("0", False))
+        stale_index = {"name": SWITCH_OPTION, "index": 1, "selected_case": "Yes",
+                       "sub_options": [{"name": ACCOUNT_OPTION, "data": {ACCOUNT_INPUT: "5"}}]}
+        self.assertEqual(self.result(stale_index), ("5", True))
+        for value in ("Maybe", "", 0, True):
+            with self.subTest(value=value):
+                self.assertFalse(parse_instance_account(
+                    layered({"name": SWITCH_OPTION, "index": 0, "selected_case": value}), self.defaults).valid)
+
+    def test_saved_number_overrides_the_default_and_is_still_checked(self):
+        def number(data):
+            return {"name": SWITCH_OPTION, "sub_options": [{"name": ACCOUNT_OPTION, "data": data}]}
+        self.assertEqual(self.result(number({ACCOUNT_INPUT: "007"})), ("007", True))
+        for data in ({ACCOUNT_INPUT: ""}, {ACCOUNT_INPUT: "x"}, {ACCOUNT_INPUT: 1}, "garbage", []):
+            with self.subTest(data=data):
+                self.assertFalse(parse_instance_account(layered(number(data)), self.defaults).valid)
+
+    def test_interface_default_rules_match_mfaa(self):
+        unset = {"name": SWITCH_OPTION}
+        self.assertEqual(self.result(unset, defaults_from_interface(interface_with({"default_case": "No"}))), ("0", False))
+        undeclared = interface_with()
+        del undeclared["option"][SWITCH_OPTION]["default_case"]
+        self.assertEqual(self.result(unset, defaults_from_interface(undeclared)), ("0", True))
+        broken = defaults_from_interface(interface_with({"default_case": "Maybe"}))
+        self.assertIsNone(broken.switch)
+        self.assertFalse(parse_instance_account(layered(unset), broken).valid)
+        self.assertEqual(self.result({"name": SWITCH_OPTION, "index": 1}, broken), ("0", False))
+        no_number = defaults_from_interface(interface_with(account={"inputs": [{"name": ACCOUNT_INPUT}]}))
+        self.assertFalse(parse_instance_account(layered(unset), no_number).valid)
+        numeric = interface_with(account={"inputs": [{"name": ACCOUNT_INPUT, "default": 3}]})
+        self.assertEqual(defaults_from_interface(numeric).account, "3")
+        duplicated = interface_with({"cases": [{"name": "Yes"}, {"name": "Yes"}]})
+        for document in (None, {}, {"option": {}}, duplicated, interface_with(account={"inputs": []})):
+            with self.subTest(document=document):
+                self.assertIsNone(defaults_from_interface(document))
+
+    def test_layered_client_fixtures(self):
+        # Emitted by MFAAvalonia 85e03214 (option default layering) during the 2026-11-04 trial.
+        folder = ROOT / "tools/fixtures/account_config"
+        for name, expected in (("layered-default", ("0", True)), ("layered-no", ("0", False))):
+            data = json.loads((folder / f"mfaa-{name}.json").read_text(encoding="utf-8-sig"))
+            selection = parse_instance_account(data, self.defaults)
+            self.assertEqual((selection.account_id, selection.enabled), expected)
+        unset = json.loads((folder / "mfaa-layered-default.json").read_text(encoding="utf-8-sig"))
+        self.assertFalse(parse_instance_account(unset).valid)
+
+
 class FileAndSessionTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
@@ -139,6 +227,14 @@ class FileAndSessionTests(unittest.TestCase):
         self.assertEqual(read_instance_account(self.root, "default").account_id, "3")
         for identity in ("", "..", "../A", "..\\A", "A/B", "A:C"):
             self.assertFalse(read_instance_account(self.root, identity, attempts=1).valid)
+
+    def test_unset_values_read_the_interface_next_to_the_config(self):
+        (self.folder / "A.json").write_text(json.dumps(layered({"name": SWITCH_OPTION})), encoding="utf-8-sig")
+        self.assertFalse(read_instance_account(self.root, "A", attempts=1).valid)
+        (self.root / "interface.json").write_text(json.dumps(INTERFACE, ensure_ascii=False), encoding="utf-8-sig")
+        self.assertEqual(read_instance_account(self.root, "A", attempts=1).account_id, "0")
+        (self.root / "interface.json").write_text("{", encoding="utf-8")
+        self.assertFalse(read_instance_account(self.root, "A", attempts=1).valid)
 
     def test_truncated_file_retries_without_writing_ui_config(self):
         self.write("7")
@@ -396,6 +492,7 @@ class InterfaceTests(unittest.TestCase):
         # MFAA pre-populates Index=0 when reading the PI string option list;
         # default_case cannot replace an already populated index.
         self.assertEqual(switch["cases"][initial[0]["index"]]["name"], "Yes")
+        self.assertEqual(defaults_from_interface(interface), OptionDefaults(("Yes", "No"), "Yes", "0"))
         option = interface["option"][ACCOUNT_OPTION]
         self.assertNotIn("pipeline_override", option)
         self.assertEqual((option["inputs"][0]["default"], option["inputs"][0]["verify"]), ("0", "^[0-9]+$"))
