@@ -47,6 +47,15 @@ def _fmt(size):
         return repr(size)
 
 
+def _measurable(size):
+    """客户区宽高都大于 0 才算量到了尺寸。"""
+    try:
+        width, height = size
+        return width > 0 and height > 0
+    except (TypeError, ValueError):
+        return False
+
+
 def resize(api, hwnd, budget, target=TARGET):
     until = min(budget.deadline, budget.clock() + RESIZE_WINDOW)
     restore_requested = exit_requested = resize_requested = False
@@ -68,8 +77,13 @@ def resize(api, hwnd, budget, target=TARGET):
                 api.exit_fullscreen(hwnd)
                 exit_requested = True
             stable_since = None
+        elif not _measurable(size := api.client_size(hwnd)):
+            # 窗口正在还原途中。框架施加伪最小化是「设透明 → 不激活地还原」，还原由游戏线程
+            # 异步处理，中间有几十毫秒窗口已不是 iconic、客户区却还是 0×0。占位任务让上个
+            # 任务的最小化跨过边界，下个任务开头就可能撞上；resize_client 按 0×0 推算边框
+            # 会把窗口调成乱尺寸（实机 2380×1374），而请求只投一次、无从纠正。等它量得出再说。
+            stable_since = None
         else:
-            size = api.client_size(hwnd)
             if original_size is None:
                 original_size = size
             if size == target:
@@ -111,9 +125,9 @@ def align_window(api, hwnd, budget, options):
         pass
     actual = api.client_size(hwnd)
     geometry_ready = geometry_ready and actual == options.target
-    if was_minimized:
-        # Iconic windows can report 0x0. Measure after restoring instead of
-        # treating the iconic size as a real resolution or an optimization hint.
+    if was_minimized or not _measurable(before):
+        # Iconic or still-restoring windows can report 0x0. Measure after restoring instead of
+        # treating that size as a real resolution or an optimization hint.
         before = restored_size if restored_size is not None else actual
     note = ""
     if actual != options.target:
