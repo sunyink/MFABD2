@@ -490,8 +490,20 @@ class PCTests(ContractTest):
                 with self.assertRaises(PreparationError):
                     pc.prepare(api, self.budget(), hwnd=7)
                 self.assertLessEqual(self.clock.now, pc.RESIZE_WINDOW + 0.1)
-                self.assertEqual(api.resizes, 1)
+                # 量不出尺寸就推不出边框，不能拿它去请求调整。
+                self.assertEqual(api.resizes, 0)
                 self.assertEqual(api.scans, 0)
+
+    def test_restoring_window_is_waited_out_not_resized(self):
+        # 框架施加伪最小化后的还原途中：不是 iconic，客户区却还是 0×0（实机 11-05，下个任务开头 36 ms）。
+        api = NativeAPI()
+        api.pseudo_minimized = lambda hwnd: True
+        api.client_size = lambda hwnd: (0, 0) if self.clock.now < 0.15 else pc.TARGET
+        pc.prepare(api, self.budget(), hwnd=7, options=PCOptions(minimize=True))
+        self.assertEqual(api.resizes, 0)
+        self.assertLess(self.clock.now, 0.5)
+        self.assertIn(f"{pc._fmt(pc.TARGET)} → {pc._fmt(pc.TARGET)}（无需调整）", self.messages[-1])
+        self.assertIn("最小化状态已确认", self.messages[-1])
 
     def test_wrong_size_but_matching_aspect_continues(self):
         # 1920×1080 与 720p 目标同为 16:9，框架按短边缩放即可，不该为此杀任务。
