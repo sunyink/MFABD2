@@ -23,7 +23,7 @@
             },
             "permission_required": true,
             "display_short_side": 720,
-            "description": "鼠标不抢,窗口移动,建议最小化"
+            "description": "鼠标不抢,窗口移动,默认后台最小化"
         },
         {
             "name": "PC客户端(Cursor)",
@@ -38,7 +38,7 @@
             },
             "permission_required": true,
             "display_short_side": 720,
-            "description": "短暂抢鼠标控制权,窗口不动"
+            "description": "短暂抢鼠标控制权,窗口不动,不最小化"
         }
     ],
     "pretask": [
@@ -454,11 +454,11 @@
         },
         "PC启动最小化": {
             "type": "switch",
-            "label": "PC启动后最小化",
+            "label": "后台操作（任务开始时最小化）",
             "controller": [
                 "PC客户端"
             ],
-            "default_case": "No",
+            "default_case": "Yes",
             "description": "每个任务开始时先校正分辨率、再最小化游戏，减少后台操作时窗口跳动的干扰。<br>最小化后框架仍能截图：它会把窗口设为透明并开启点击穿透，这是 MaaFramework 自身的后台截图机制；想查看画面，点任务栏中的游戏即可恢复。任务结束或停止时，框架可能自动恢复窗口。<br>下一个任务开始时生效。",
             "cases": [
                 {
