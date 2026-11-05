@@ -8,7 +8,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from release_channel import resolve
+from release_channel import resolve, resolve_mfaa_commit
 
 
 def push(message="", branch="main"):
@@ -91,7 +91,97 @@ class ReleaseChannelChecks(unittest.TestCase):
             subprocess.run([sys.executable, "-B", str(Path(__file__).with_name("release_channel.py"))],
                            env=env, check=True, capture_output=True, text=True)
             self.assertEqual(output.read_text(encoding="utf-8"),
-                             "existing=preserved\nversion_type=beta\nconcurrency_group=beta\n")
+                             "existing=preserved\nversion_type=beta\nconcurrency_group=beta\nmfaa_commit=\n")
+
+    def test_script_emits_marker_and_rejects_bad_marker_before_writing(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            event = root / "event.json"
+            output = root / "output.txt"
+            env = dict(os.environ, GITHUB_EVENT_PATH=str(event), GITHUB_OUTPUT=str(output),
+                       GITHUB_EVENT_NAME="push", GITHUB_REF="refs/heads/main")
+            script = str(Path(__file__).with_name("release_channel.py"))
+            event.write_text(json.dumps({"head_commit": {"message": "fix: x\n\n[mfaa:9AA52B]\n[deploy-beta]"}}),
+                             encoding="utf-8")
+            subprocess.run([sys.executable, "-B", script], env=env, check=True, capture_output=True, text=True)
+            self.assertEqual(output.read_text(encoding="utf-8"),
+                             "version_type=beta\nconcurrency_group=beta\nmfaa_commit=9aa52b\n")
+            output.unlink()
+            event.write_text(json.dumps({"head_commit": {"message": "fix: x\n\n[mfaa:六位提交号]\n[deploy-beta]"}}),
+                             encoding="utf-8")
+            result = subprocess.run([sys.executable, "-B", script], env=env, capture_output=True, text=True)
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("::error::", result.stdout)
+            self.assertFalse(output.exists())
+
+    def test_tag_push_without_head_commit_reads_checked_out_commit(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            git = ["git", "-C", str(root), "-c", "user.name=t", "-c", "user.email=t@t", "-c", "core.hooksPath=/dev/null"]
+            subprocess.run(["git", "init", "-q", str(root)], check=True)
+            subprocess.run(git + ["commit", "-q", "--allow-empty", "-m", "Merge:'fix/x'| y\n\n[mfaa:7FF8C6]"], check=True)
+            event = root / "event.json"
+            output = root / "output.txt"
+            event.write_text(json.dumps({"ref": "refs/tags/v4.6.1"}), encoding="utf-8")
+            env = dict(os.environ, GITHUB_EVENT_PATH=str(event), GITHUB_OUTPUT=str(output),
+                       GITHUB_EVENT_NAME="push", GITHUB_REF="refs/tags/v4.6.1")
+            subprocess.run([sys.executable, "-B", str(Path(__file__).with_name("release_channel.py"))],
+                           env=env, cwd=root, check=True, capture_output=True, text=True)
+            self.assertEqual(output.read_text(encoding="utf-8"),
+                             "version_type=release\nconcurrency_group=release\nmfaa_commit=7ff8c6\n")
+
+
+def pushed(message):
+    return resolve_mfaa_commit("push", {"head_commit": {"message": message}})
+
+
+class MfaaCommitMarkerChecks(unittest.TestCase):
+    def test_marker_line_selects_fork_build_anywhere_in_message(self):
+        cases = {
+            "fix: x\n\n[mfaa:9aa52b]\n[deploy-beta]": "9aa52b",
+            "fix: x\n\n[mfaa:9AA52B]": "9aa52b",
+            "fix: x\n\n  [mfaa:00000a]  \r\n[deploy-alpha]": "00000a",
+            "fix: x\n\n[mfaa:9aa52b] [deploy-beta]": "9aa52b",
+            "fix: x\n\n[MFAA:9aa52b]": "9aa52b",
+            "fix: x\n\n[mfaa:9aa52b]\nbody\n[mfaa:9aa52b]": "9aa52b",
+        }
+        for message, expected in cases.items():
+            with self.subTest(message=message):
+                self.assertEqual(pushed(message), expected)
+
+    def test_no_marker_keeps_requirements_client(self):
+        for message in ("", "fix: x", "fix: x\n\n[deploy-beta]", "docs: 说明 [mfaa:9aa52b] 标记的写法",
+                        "fix: x\n\n#[mfaa:9aa52b]\n[deploy-beta]", "fix: x\n\nmfaa:9aa52b"):
+            with self.subTest(message=message):
+                self.assertEqual(pushed(message), "")
+
+    def test_malformed_or_conflicting_markers_fail_instead_of_falling_back(self):
+        for message in ("[mfaa:六位提交号]\n[deploy-beta]", "[mfaa:]", "[mfaa:9aa52]", "[mfaa:9aa52b0]",
+                        "[mfaa:9aa52g]", "[mfaa: 9aa52b]", "[mfaa:9aa52b", "[mfaa:9aa52b;id]",
+                        "fix: x\n\n[mfaa:9aa52b]\n[mfaa:7ff8c6]\n[deploy-beta]"):
+            with self.subTest(message=message), self.assertRaises(ValueError):
+                pushed(message)
+
+    def test_tag_push_uses_tagged_commit_marker(self):
+        event = {"head_commit": {"message": "Merge:'fix/x'| y\n\n[mfaa:9aa52b]"}}
+        self.assertEqual(resolve("push", "refs/tags/v4.6.5", event)["version_type"], "release")
+        self.assertEqual(resolve_mfaa_commit("push", event), "9aa52b")
+
+    def test_marker_does_not_disturb_last_line_channel_rule(self):
+        self.assertEqual(push("fix: x\n\n[mfaa:9aa52b]\n[deploy-beta]")["version_type"], "beta")
+        self.assertEqual(push("fix: x\n\n[deploy-beta]\n[mfaa:9aa52b]")["version_type"], "ci")
+
+    def test_manual_input_and_other_events(self):
+        self.assertEqual(resolve_mfaa_commit("workflow_dispatch", {"inputs": {"mfaa_commit": " 7FF8C6 "}}), "7ff8c6")
+        self.assertEqual(resolve_mfaa_commit("workflow_dispatch", {"inputs": {"mfaa_commit": ""}}), "")
+        self.assertEqual(resolve_mfaa_commit("workflow_dispatch", {"inputs": {}}), "")
+        for bad in ("abcde", "abcdef0", "abcdef\nversion_type=release"):
+            with self.subTest(bad=bad), self.assertRaises(ValueError):
+                resolve_mfaa_commit("workflow_dispatch", {"inputs": {"mfaa_commit": bad}})
+        # Manual runs ignore commit text; PR builds never package a fork client.
+        event = {"inputs": {}, "head_commit": {"message": "[mfaa:9aa52b]"}}
+        self.assertEqual(resolve_mfaa_commit("workflow_dispatch", event), "")
+        self.assertEqual(resolve_mfaa_commit("pull_request", event), "")
 
 
 if __name__ == "__main__":
