@@ -288,7 +288,8 @@
         ]
     },
     "Equip_EquipUpSelect": {
-        "desc": "点击对号",
+        "desc": "点击对号打开强化等级框。弹框后底色变淡、色核不再命中，所以自引用只在绿√还在时重点（游戏吞操作），最多 3 次；没选中装备时游戏在中部飘「请选择装备后重新尝试」，排在自引用前的 Err 接走去精炼，不会反复点√刷提示。",
+        "max_hit": 3,
         "recognition": "ColorMatch",
         "roi": [
             1155,
@@ -312,7 +313,9 @@
         "post_delay": 1500,
         "next": [
             "Equip_EquipUp_EnterLV",
-            "Equip_EquipUp_SetLv_Entry"
+            "Equip_EquipUp_SetLv_Entry",
+            "Equip_EquipUpSelect_Err",
+            "Equip_EquipUpSelect"
         ],
         "focus": "EM.色核通过，强化N"
     },

@@ -296,6 +296,7 @@
         ]
     },
     "Arbitrage_Merchant_Entry": {
+        "desc": "点商人交互图标打开砍价页。正常点后 2.0–2.2 秒必见砍价页；若 5 秒内既无砍价页、图标也不在（角色被带离商人，2026-11-04 PC 实录一次），走寻路列表回到商人，退栈回来由自引用再点。寻路按钮次数用尽则静默退栈。",
         "recognition": "Or",
         "any_of": [
             "Arbitrage_Merchant_Ico"
@@ -305,9 +306,14 @@
             "Merchant_Bypass": ""
         },
         "post_delay": 2000,
+        "timeout": 5000,
         "next": [
             "Arbitrage_Merchant_Dialog",
             "Arbitrage_Merchant_Entry"
+        ],
+        "on_error": [
+            "[JumpBack]Arbitrage_NviGuide_Butt",
+            "Global_Null"
         ],
         "focus": "打开折扣商店..."
     },
