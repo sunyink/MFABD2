@@ -38,7 +38,7 @@ on:
     inputs:
       mfaa_commit:
         type: string
-        description: "自家 MFAA 六位提交号（留空使用 requirements.txt 中的上游版本）"
+        description: "自家 MFAA 六位提交号（留空使用 requirements.txt 中的上游版本；推送时用提交信息里的 [mfaa:六位号]）"
         required: false
         default: ""
       deploy_beta:
@@ -66,11 +66,11 @@ jobs:
   route:
     name: Resolve release channel
     runs-on: ubuntu-latest
-    # Sync pushes only dispatch the two release channels; they own no build slot.
-    if: "github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/') || !contains(github.event.head_commit.message, '[deploy-sync]')"
     outputs:
       version_type: ${{ steps.channel.outputs.version_type }}
       concurrency_group: ${{ steps.channel.outputs.concurrency_group }}
+      # 手动运行取输入；推送取提交信息里以 [mfaa:六位号] 开头的那行。写错直接在这里失败，不回落官方客户端。
+      mfaa_commit: ${{ steps.channel.outputs.mfaa_commit }}
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
       - name: Verify release channel and publication rules
@@ -95,5 +95,5 @@ jobs:
     uses: ./.github/workflows/install-build.yml
     with:
       version_type: ${{ needs.route.outputs.version_type }}
-      mfaa_commit: ${{ github.event_name == 'workflow_dispatch' && inputs.mfaa_commit || '' }}
+      mfaa_commit: ${{ needs.route.outputs.mfaa_commit }}
     secrets: inherit
