@@ -8,6 +8,7 @@ assets/interface.json 是开发配置：VS Code MaaSupport 直接读它，agent 
 设计、步骤顺序的理由与否决过的方案见 priv doc/发布与CI.md §二。
 """
 
+import argparse
 from copy import deepcopy
 from dataclasses import dataclass
 import json
@@ -74,11 +75,13 @@ class Target:
     version: str
     install: Path  # 产物根：agent 步骤要看便携 Python 在不在，校验要看 pretask 落点
     branding: Path = BRANDING
+    # 终检重算一遍时不必再往日志与 step summary 里重复报一次图标与解释器的选择。
+    announce: bool = True
 
 
 def target_for(target_os: str, version: str = "v0.0.0", install: Path = ROOT / "install",
-               branding: Path = BRANDING) -> Target:
-    return Target(release_target(target_os), version, Path(install), Path(branding))
+               branding: Path = BRANDING, announce: bool = True) -> Target:
+    return Target(release_target(target_os), version, Path(install), Path(branding), announce)
 
 
 # ── pretask 的启动路径 ─────────────────────────────────────────────────────────
@@ -229,6 +232,11 @@ def narrow_to_android(interface, target):
                                   if name not in ANDROID_ACCOUNT_OPTIONS]
     for name in ANDROID_ACCOUNT_OPTIONS:
         interface.get("option", {}).pop(name, None)
+    # Options that name only controllers the APK does not have (the PC window pair, which
+    # relocate_pc_window_options hung on the Win32 controllers just removed) would be orphans.
+    for name, option in list(interface.get("option", {}).items()):
+        if option.get("controller") and adb_name not in option["controller"]:
+            del interface["option"][name]
     task_names = {task["name"] for task in interface["task"]}
     for preset in interface.get("preset", []):
         preset["task"] = [task for task in preset.get("task", []) if task.get("name") in task_names]
@@ -269,11 +277,12 @@ def set_agent_launch(interface, target):
     executable = platform.agent_exec
     if target.platform == "macos":
         # 有嵌入用嵌入，没嵌入用系统。CI 的便携 Python 步骤排在 install.py 之前。
-        if (target.install / "python" / "bin" / "python3").exists():
-            print("[macOS] 检测到便携版 Python，已启用独立环境模式。")
-        else:
-            print("[macOS] 未检测到便携版 Python，回退到系统 python3。")
+        portable = (target.install / "python" / "bin" / "python3").exists()
+        if not portable:
             executable = "python3"
+        if target.announce:
+            print("[macOS] 检测到便携版 Python，已启用独立环境模式。" if portable
+                  else "[macOS] 未检测到便携版 Python，回退到系统 python3。")
     agent = interface.setdefault("agent", {})
     agent["child_exec"] = executable
     agent["child_args"] = list(platform.agent_args)
@@ -296,10 +305,12 @@ def set_runtime_icon(interface, target):
     try:
         validate_png(target.branding / RUNTIME_ICON_SOURCE)
     except Exception as error:
-        report("MFAA runtime", error)
+        if target.announce:
+            report("MFAA runtime", error)
         return
     interface["icon"] = RUNTIME_ICON
-    report("MFAA runtime")
+    if target.announce:
+        report("MFAA runtime")
 
 
 def package_files(interface: dict, target: Target) -> dict:
@@ -318,7 +329,8 @@ def stamp_version(interface, target):
     """Stamp the package version into "version" and the title.
 
     A resource hot update installs the package's copy of this file, then MFAA rewrites only
-    "version" and "github" (VersionChecker.UpdateResource), so the title keeps this stamp.
+    "version" and "github" (MFAAvalonia VersionChecker.UpdateResourceCore), so the title keeps
+    this stamp.
     """
     interface["version"] = target.version
     if "title" in interface:
@@ -381,39 +393,147 @@ def atomic_write(path: Path, data: bytes) -> None:
             temporary.unlink(missing_ok=True)
 
 
-def check_installed(written: dict, expected: dict, target: Target) -> None:
-    """Read-back checks on the written file.
+ANDROID_BASE_LAYER = "./resource/base"
+# What the pinned MaaFwApp parses; it silently drops options of any other (or no) type.
+ANDROID_OPTION_TYPES = {"select", "switch", "checkbox", "input"}
 
-    install.py once only printed when writing failed: the package kept the repository's
-    child_exec (the developer .venv), every platform's Agent failed to start, and no later
-    step noticed. Everything here raises instead.
+
+def dev_paths(value, where="interface"):
+    """Yield (location, text) for every string that still points into a developer .venv."""
+    if isinstance(value, dict):
+        for key, item in value.items():
+            yield from dev_paths(item, f"{where}.{key}")
+    elif isinstance(value, list):
+        for index, item in enumerate(value):
+            name = item.get("name") if isinstance(item, dict) else None
+            yield from dev_paths(item, f"{where}[{name!r}]" if name else f"{where}[{index}]")
+    elif isinstance(value, str) and ".venv" in value.lower():
+        yield where, value
+
+
+def option_references(interface: dict) -> list:
+    """(owner, option name) for every place that names an option."""
+    references = [("global_option", name) for name in interface.get("global_option", [])]
+    for section in ("task", "resource", "controller"):
+        for item in interface.get(section, []):
+            references += [(f"{section}:{item.get('name')}", name) for name in item.get("option", [])]
+    for option_name, option in interface.get("option", {}).items():
+        for case in option.get("cases", []):
+            references += [(f"option:{option_name}/{case.get('name')}", name) for name in case.get("option", [])]
+    for preset in interface.get("preset", []):
+        for task in preset.get("task", []):
+            references += [(f"preset:{preset.get('name')}/{task.get('name')}", name) for name in task.get("option", {})]
+    return references
+
+
+def check_options(interface: dict, android: bool = False) -> list:
+    """Every named option must exist; returns the options nothing names (orphans)."""
+    options = interface.get("option", {})
+    if android:
+        invalid = [name for name, value in options.items() if value.get("type") not in ANDROID_OPTION_TYPES]
+        if invalid:
+            raise ValueError(f"Android UI cannot parse option types: {invalid}")
+    references = option_references(interface)
+    missing = [(owner, name) for owner, name in references if name not in options]
+    if missing:
+        raise ValueError(f"Option references are missing: {missing}")
+    tasks = {task.get("name") for task in interface.get("task", [])}
+    lost = [(preset.get("name"), task.get("name")) for preset in interface.get("preset", [])
+            for task in preset.get("task", []) if task.get("name") not in tasks]
+    if lost:
+        raise ValueError(f"Presets name tasks that do not exist: {lost}")
+    return sorted(set(options) - {name for _, name in references})
+
+
+def verify(written: dict, target: Target, on_disk: bool = True) -> None:
+    """The release contract, on the file as packaged (or as found inside the APK).
+
+    on_disk=False skips what needs the package directory around the file. target.version
+    None skips the version checks (an APK checked without its build metadata).
     """
-    if written != expected:
-        raise ValueError("interface.json 回读不符: 写入后的内容与本次配置不一致")
-    child_exec = written.get("agent", {}).get("child_exec", "")
-    if ".venv" in child_exec:
-        raise ValueError(f"child_exec 仍指向开发环境虚拟环境: {child_exec}")
+    platform = PLATFORMS[target.platform]
+    # install.py once only printed when writing failed: the package kept the repository's
+    # child_exec (the developer .venv), every platform's Agent failed to start, and no later
+    # step noticed. Any .venv string anywhere is a development path that leaked.
+    for where, text in dev_paths(written):
+        raise ValueError(f"{where} 仍指向开发环境虚拟环境: {text}")
+
+    if target.version is not None:
+        if written.get("version") != target.version:
+            raise ValueError(f"version is {written.get('version')!r}, expected {target.version!r}")
+        match = TITLE_VERSION.search(written.get("title", ""))
+        if "title" in written and (not match or match.group(1) != target.version):
+            raise ValueError(f"title does not show {target.version!r}: {written['title']!r}")
+
+    agent = written.get("agent") or {}
+    if not agent:
+        raise ValueError("interface.json does not declare its required agent")
+    allowed = {platform.agent_exec}
+    if target.platform == "macos" and not (on_disk and (target.install / "python" / "bin" / "python3").exists()):
+        allowed = {"python3"} if on_disk else allowed | {"python3"}
+    if agent.get("child_exec") not in allowed or agent.get("child_args") != list(platform.agent_args):
+        raise ValueError(f"agent {agent!r} does not match the {target.platform} launch")
+
+    runnable = {item.get("name") for item in written.get("controller", [])
+                if item.get("type") not in platform.foreign_controllers}
     for pretask in written.get("pretask", []):
-        for value in [pretask.get("exec", ""), *pretask.get("args", [])]:
-            if ".venv" in value.lower():
-                raise ValueError(f"pretask {pretask.get('name', '<unnamed>')!r} 仍指向开发环境虚拟环境: {value}")
-    # pretask 路径存在性：悬空的 exec 会让 pretask 静默不执行——上层软件不报错，
-    # 运行日志里连一条警告都没有。这正是线上踩过的坑，必须在构建期就发现。
-    install = target.install
-    for pretask in written.get("pretask", []):
-        if PRETASK_SCRIPT not in "".join(pretask.get("args", [])):
+        name = pretask.get("name", "<unnamed>")
+        if pretask.get("controller") and not runnable & set(pretask["controller"]):
+            raise ValueError(f"pretask {name!r} serves no controller that runs on {target.platform}")
+        scripts = [arg for arg in pretask.get("args", []) if Path(arg.replace("\\", "/")).name == PRETASK_SCRIPT]
+        if platform.launch_pretask and scripts:
+            raise ValueError(f"pretask {name!r} still launches {scripts[0]} by a relative path")
+        # pretask 路径存在性：悬空的 exec 会让 pretask 静默不执行——上层软件不报错，
+        # 运行日志里连一条警告都没有。这正是线上踩过的坑，必须在构建期就发现。
+        if not on_disk or PRETASK_SCRIPT not in "".join(pretask.get("args", [])):
             continue
+        install = target.install
         if not (install / "agent" / PRETASK_SCRIPT).is_file():
             raise ValueError(f"{install / 'agent' / PRETASK_SCRIPT} 缺失，pretask 必然起不来")
         resolved = (pretask_anchor(install) / pretask.get("exec", "")).resolve()
         if not (install / "python").is_dir():
             # 本地手动出包时还没解开嵌入式解释器，只提示不中止；CI 里它总是先就绪。
-            print(f"⚠️ 跳过 pretask exec 存在性检查（{install / 'python'} 尚未就绪）：{resolved}")
+            if target.announce:
+                print(f"⚠️ 跳过 pretask exec 存在性检查（{install / 'python'} 尚未就绪）：{resolved}")
         elif not resolved.is_file():
             raise ValueError(f"pretask exec 在 {PRETASK_ANCHOR} 锚点下不存在: {resolved}")
-    for relative, data in package_files(written, target).items():
-        if not (install / relative).is_file() or (install / relative).read_bytes() != data:
-            raise ValueError(f"interface.json points at {relative}, which is missing or is not the branding image")
+
+    # Unreferenced options are harmless to the clients, so they warn (once, at install time).
+    orphans = check_options(written, android=target.platform == "android")
+    if orphans and target.announce:
+        print(f"::warning title=Release interface::Options nothing refers to: {orphans}")
+
+    if target.platform == "android":
+        controllers = written.get("controller", [])
+        if len(controllers) != 1 or controllers[0].get("type") != "Adb":
+            raise ValueError("Android payload must expose only its Adb controller declaration")
+        resources = written.get("resource", [])
+        if not resources or any(resource.get("controller") and controllers[0]["name"] not in resource["controller"]
+                                for resource in resources):
+            raise ValueError("Android payload contains incompatible resource choices")
+        if any(resource.get("path", [])[-1:] != [ANDROID_NATIVE_LAYER] for resource in resources):
+            raise ValueError("Android native overlay is not the last resource layer")
+        # An overlay with no base under it still loads, and then has almost no nodes.
+        if any(resource.get("path", [])[:1] != [ANDROID_BASE_LAYER] for resource in resources):
+            raise ValueError("Android payload lost its base resource layer")
+        # The released identity gets its RID from the PI profile; one here would also
+        # point CI builds at MirrorChyan, which only ever serves the released APK.
+        if "mirrorchyan_rid" in written:
+            raise ValueError("Android payload must not advertise a MirrorChyan RID")
+
+    if not platform.runtime_icon and written.get("icon") == RUNTIME_ICON:
+        raise ValueError(f"{target.platform} does not ship {RUNTIME_ICON}")
+    if on_disk:
+        for relative, data in package_files(written, target).items():
+            if not (target.install / relative).is_file() or (target.install / relative).read_bytes() != data:
+                raise ValueError(f"interface.json points at {relative}, which is missing or is not the branding image")
+
+
+def check_installed(written: dict, expected: dict, target: Target) -> None:
+    """Read-back right after writing: the file must hold what was built, and keep the contract."""
+    if written != expected:
+        raise ValueError("interface.json 回读不符: 写入后的内容与本次配置不一致")
+    verify(written, target)
 
 
 def write_package(install_dir: Path, interface: dict, files: dict) -> None:
@@ -450,3 +570,42 @@ def install(install_dir: Path, target_os: str, version: str, source: Path = SOUR
     check_installed(written, interface, target)
     print(f"✅ interface.json 已按 {target.platform} 生成: child_exec={written['agent']['child_exec']}")
     return written
+
+
+def verify_package(install_dir: Path, target_os: str, version: str, source: Path = SOURCE,
+                   branding: Path = BRANDING) -> dict:
+    """The last gate before upload, run as its own CI step after everything else touched install/.
+
+    The packaged file must still equal a fresh build from the source: no later step (MFAA
+    merge, comment stripping, icons, ...) may change or overwrite it. Then the contract again.
+    """
+    install_dir = Path(install_dir)
+    target = target_for(target_os, version, install_dir, branding, announce=False)
+    written = json.loads((install_dir / "interface.json").read_text(encoding="utf-8"))
+    expected = build(load_source(source), target)
+    if written != expected:
+        keys = sorted(key for key in set(written) | set(expected) if written.get(key) != expected.get(key))
+        raise ValueError(f"interface.json 与按源文件重算的结果不一致（字段 {keys}）：install.py 之后有步骤"
+                         f"改动或覆盖了它，或者这里的 --target/--version 与传给 install.py 的不同")
+    verify(written, target)
+    return written
+
+
+def main(argv=None) -> None:
+    parser = argparse.ArgumentParser(description="Release interface.json (scripts/release_interface.py).")
+    commands = parser.add_subparsers(dest="command", required=True)
+    gate = commands.add_parser("verify", help="last gate before upload (see verify_package)")
+    gate.add_argument("install", type=Path, help="package directory holding interface.json")
+    gate.add_argument("--target", required=True, help="matrix.os or android")
+    gate.add_argument("--version", required=True, help="the tag this package is built for")
+    args = parser.parse_args(argv)
+    try:
+        verify_package(args.install, args.target, args.version)
+    except Exception as error:
+        print(f"::error title=Release interface::{error}")
+        raise SystemExit(1) from error
+    print(f"✅ {args.install / 'interface.json'} 符合 {args.target} 的发布约定")
+
+
+if __name__ == "__main__":
+    main()

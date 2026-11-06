@@ -776,6 +776,13 @@ jobs:
       - name: Verify packaged project identity statement
         run: python scripts/verify_branding.py install
 
+      # 上传前最后一道，必须排在所有碰 install/ 的步骤之后：install/interface.json 要与按源文件
+      # 重算的结果完全一致（拦 MFAA 合并、剥注释、图标等后续步骤的改动或覆盖），再过一遍发布约定。
+      # 规则在 scripts/release_interface.py，它是这个文件唯一的写入者。
+      - name: Verify release interface
+        shell: bash
+        run: python scripts/release_interface.py verify install --target "${{ matrix.os }}" --version "${{ needs.meta.outputs.tag }}"
+
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: MFABD2-${{ needs.meta.outputs.tag }}-${{ matrix.os }}-${{ matrix.arch }}

@@ -157,6 +157,8 @@ jobs:
             "$BUILD_PYTHON" scripts/strip_build_comments.py install
           fi
           "$BUILD_PYTHON" check_resource.py install
+          # 打进 APK 前的最后一道：interface.json 与按源文件重算的结果一致，且满足安卓约定。
+          "$BUILD_PYTHON" scripts/release_interface.py verify install --target android --version "$PROJECT_VERSION"
       - name: Assemble Android Python dependencies
         working-directory: android-upstream
         env:

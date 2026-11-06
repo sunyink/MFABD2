@@ -49,14 +49,24 @@ class RealSourceTest(unittest.TestCase):
         return ri.build(self.source if document is None else document,
                         ri.target_for(target, version, self.install))
 
-    def test_source_is_not_mutated_and_desktop_targets_are_idempotent(self):
+    def test_source_is_not_mutated_and_every_target_is_idempotent_and_keeps_the_contract(self):
         before = deepcopy(self.source)
         for target in (*DESKTOP, "android"):
             with self.subTest(target=target):
                 release = self.build(target)
                 self.assertEqual(self.source, before)
-                if target in DESKTOP:
-                    self.assertEqual(self.build(target, release), release)
+                self.assertEqual(self.build(target, release), release)
+                ri.verify(release, ri.target_for(target, "v0.0.0", self.install), on_disk=False)
+                self.assertEqual(ri.check_options(release, android=target == "android"), [])
+
+    def test_android_drops_options_for_controllers_it_does_not_have(self):
+        release = self.build("android")
+        for name in ri.PC_WINDOW_OPTIONS:
+            self.assertIn(name, self.source["option"])
+            self.assertNotIn(name, release["option"])
+
+    def test_source_option_types_parse_on_android(self):
+        ri.check_options(self.source, android=True)
 
     def test_desktop_targets_differ_only_in_agent_and_pretask(self):
         # MirrorChyan's hot-update package carries the win-x86_64 interface.json to every desktop
@@ -273,7 +283,7 @@ class InstallTest(unittest.TestCase):
                              ("args", [r"..\.venv\other.py"])):
             with self.subTest(field=field):
                 pretask = {"name": "unrelated-tool", "exec": "python3", "args": ["other.py"], field: value}
-                with self.assertRaisesRegex(ValueError, r"pretask 'unrelated-tool'.*\.venv"):
+                with self.assertRaisesRegex(ValueError, r"pretask\['unrelated-tool'\]\.\w+.*\.venv"):
                     self.install({"pretask": [pretask]}, "win-x64")
 
     def test_non_windows_drops_only_exclusively_win32_pretasks(self):
@@ -379,6 +389,117 @@ class InstallTest(unittest.TestCase):
             with self.assertRaisesRegex(OSError, "partial write failed"):
                 ri.atomic_write(self.output / "interface.json", b"new contents")
         self.assertEqual(self.files(), before)
+
+
+class GateTest(unittest.TestCase):
+    """verify_package / the CLI: the last step before upload, after everything else touched install/."""
+
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.output = Path(temporary.name) / "install"
+        (self.output / "agent").mkdir(parents=True)
+        (self.output / "agent" / ri.PRETASK_SCRIPT).write_text("# fixture", encoding="utf-8")
+        (self.output / "python").mkdir()
+        (self.output / "python" / "python.exe").write_bytes(b"")
+        with patch("sys.stdout", new_callable=io.StringIO):
+            ri.install(self.output, "win", "v1.2.3")
+        self.interface = self.output / "interface.json"
+
+    def gate(self, version="v1.2.3"):
+        with patch("sys.stdout", new_callable=io.StringIO) as log:
+            ri.main(["verify", str(self.output), "--target", "win", "--version", version])
+        return log.getvalue()
+
+    def rejected(self, version="v1.2.3"):
+        with patch("sys.stdout", new_callable=io.StringIO) as log, self.assertRaises(SystemExit) as raised:
+            ri.main(["verify", str(self.output), "--target", "win", "--version", version])
+        self.assertEqual(raised.exception.code, 1)
+        self.assertIn("::error title=Release interface::", log.getvalue())
+        return log.getvalue()
+
+    def edit(self, change):
+        interface = json.loads(self.interface.read_text(encoding="utf-8"))
+        change(interface)
+        self.interface.write_text(json.dumps(interface, ensure_ascii=False), encoding="utf-8")
+
+    def test_untouched_package_passes_quietly(self):
+        output = self.gate()
+        self.assertNotIn("MFAA runtime", output)
+        self.assertIn("符合 win 的发布约定", output)
+
+    def test_wrong_version_is_rejected(self):
+        self.assertIn("'version'", self.rejected("v1.2.4"))
+
+    def test_any_later_edit_is_rejected_with_the_field(self):
+        self.edit(lambda interface: interface["agent"].update(child_exec="python3"))
+        self.assertIn("['agent']", self.rejected())
+
+    def test_overwritten_icon_image_is_rejected(self):
+        (self.output / ri.RUNTIME_ICON).write_bytes(b"something else's image")
+        self.assertIn(ri.RUNTIME_ICON, self.rejected())
+
+    def test_missing_interpreter_is_rejected(self):
+        (self.output / "python" / "python.exe").unlink()
+        self.assertIn("锚点下不存在", self.rejected())
+
+
+class ContractTest(unittest.TestCase):
+    """verify() on its own: what a release interface.json must never contain."""
+
+    def setUp(self):
+        self.target = ri.target_for("linux", "v0.0.1", Path(tempfile.gettempdir()), announce=False)
+        self.release = ri.build(source(), self.target)
+
+    def assert_rejected(self, change, pattern):
+        document = deepcopy(self.release)
+        change(document)
+        with self.assertRaisesRegex(ValueError, pattern):
+            ri.verify(document, self.target, on_disk=False)
+
+    def test_development_paths_are_rejected_anywhere(self):
+        def leak(document):
+            document["option"]["前置助手"]["description"] = r"see ..\.venv\Scripts"
+
+        self.assert_rejected(leak, r"option\.前置助手\.description.*\.venv")
+
+    def test_missing_option_reference_is_rejected(self):
+        self.assert_rejected(lambda document: document["global_option"].append("不存在的选项"), "不存在的选项")
+
+    def test_preset_naming_a_missing_task_is_rejected(self):
+        self.assert_rejected(lambda document: document["preset"][0]["task"].append({"name": "ghost"}), "ghost")
+
+    def test_unreferenced_option_only_warns(self):
+        document = deepcopy(self.release)
+        document["option"]["孤儿"] = {"type": "switch", "cases": []}
+        self.assertEqual(ri.check_options(document), ["孤儿"])
+        target = ri.target_for("linux", "v0.0.1", Path(tempfile.gettempdir()))
+        with patch("sys.stdout", new_callable=io.StringIO) as log:
+            ri.verify(document, target, on_disk=False)
+        self.assertIn("::warning title=Release interface::Options nothing refers to: ['孤儿']", log.getvalue())
+
+    def test_pretask_for_a_foreign_controller_is_rejected(self):
+        def foreign(document):
+            document["pretask"] = [{"name": "pc", "controller": ["PC客户端"], "exec": "python3"}]
+
+        self.assert_rejected(foreign, "serves no controller")
+
+    def test_android_contract(self):
+        target = ri.target_for("android", "v0.0.1", Path(tempfile.gettempdir()), announce=False)
+        release = ri.build(source(), target)
+        ri.verify(release, target, on_disk=False)
+        for change, pattern in (
+            (lambda document: document.update(mirrorchyan_rid="MFABD2"), "RID"),
+            (lambda document: document["controller"].append({"name": "PC", "type": "Win32"}), "only its Adb"),
+            (lambda document: document["resource"][0]["path"].pop(), "native overlay"),
+            (lambda document: document["resource"][0]["path"].pop(0), "base resource layer"),
+            (lambda document: document.update(icon=ri.RUNTIME_ICON), "does not ship"),
+            (lambda document: document["option"]["前置助手"].update(type="radio"), "option types"),
+        ):
+            document = deepcopy(release)
+            change(document)
+            with self.subTest(pattern=pattern), self.assertRaisesRegex(ValueError, pattern):
+                ri.verify(document, target, on_disk=False)
 
 
 if __name__ == "__main__":
