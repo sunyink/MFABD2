@@ -525,7 +525,7 @@
             42
         ]
     },
-    "Collect_TeleporCircle_OnFoot_Skirmish": {
+    "Collect_Skirmish_Escape": {
         "roi": [
             144,
             69,
@@ -533,7 +533,7 @@
             307
         ]
     },
-    "Collect_TeleporCircle_OnFoot_Skirmish_Tpause": {
+    "Collect_Skirmish_Escape_Pause": {
         "target": [
             1189,
             29,
@@ -541,7 +541,7 @@
             11
         ]
     },
-    "Collect_TeleporCircle_OnFoot_Skirmish_TRun": {
+    "Collect_Skirmish_Escape_Run": {
         "roi": [
             488,
             654,
@@ -549,7 +549,7 @@
             33
         ]
     },
-    "Collect_TeleporCircle_OnFoot_Skirmish_TRun_Ty2": {
+    "Collect_Skirmish_Escape_Confirm": {
         "roi": [
             665,
             419,
@@ -634,6 +634,15 @@
         "expected": [
             "探索告示板",
             "任務布告欄"
+        ]
+    },
+    "Collect_WayPoint_Eileen": {
+        "desc": "[PC] 同 Collect_WayPoint_Board 的下拉列表,与旅馆、告示板共用同一 roi。",
+        "roi": [
+            205,
+            25,
+            180,
+            600
         ]
     },
     "Collect_WayPoint_Inn": {

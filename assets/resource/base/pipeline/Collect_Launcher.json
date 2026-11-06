@@ -2786,10 +2786,27 @@
             "[JumpBack]Global_WaitingForLoading",
             "[JumpBack]Collect_FirstPack",
             "[JumpBack]Collect_FirstPack_Talk",
+            "[JumpBack]Collect_Pack_Skirmish",
             "[Anchor]Pack_Bypass",
             "Collect_OperationsMain_Sandplay",
             "Collect_Pack_Click"
         ]
+    },
+    "Collect_Pack_Skirmish": {
+        "desc": "进卡后、认到箱庭前就撞上遭遇战：调通用脱战链逃跑并快速移动离开，之后按卡分流 | 有整卡旁路的卡（活动、异教塔、救赎、C3）交 Pack_Bypass 入口自行处理；普通卡落在阵上直接退栈，回了主城就步行回阵后退栈，再由 Collect_Pack_Click 交通用箱庭入口。",
+        "recognition": "Or",
+        "any_of": [
+            "Collect_Skirmish_Escape"
+        ],
+        "pre_delay": 0,
+        "post_delay": 0,
+        "next": [
+            "[JumpBack]Collect_Skirmish_Escape",
+            "[Anchor]Pack_Bypass",
+            "Collect_Skirmish_OnCircle",
+            "Collect_TeleporCircle_OnFoot_Start"
+        ],
+        "focus": "CM.L.进卡遭遇战-逃跑"
     },
     "Collect_FirstPack": {
         "desc": "事件图可能会有新卡带",
