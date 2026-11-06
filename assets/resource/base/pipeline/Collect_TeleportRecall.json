@@ -651,6 +651,7 @@
         "focus": "CTOB.打开导航地图"
     },
     "Collect_TeleporCircle_OnFoot_NviMap": {
+        "desc": "导航地图已打开（读底栏按钮），步行回阵在当前页找阵 | 也被各处借作「地图已打开」判据。活动卡与 M14 的步行吸取入口不挂在这里：活动卡进卡走 Collect_IM_Entry，M14 走 Collect_Special_M14_NviMap_Enter。",
         "recognition": "OCR",
         "roi": [
             538,
@@ -666,7 +667,6 @@
         "action": "DoNothing",
         "next": [
             "Collect_TeleporCircle_OnFoot_TPIco",
-            "Collect_InitiatingManual_Onfoot_Start",
             "Collect_TeleporCircle_OnFoot_Sandbox",
             "[JumpBack]Global_ToSandBox"
         ],
@@ -742,8 +742,89 @@
             "Collect_TeleporCircle_OnFoot_StateResolGroup_Step1_Right"
         ]
     },
+    "Collect_IM_Entry": {
+        "desc": "活动卡（地图没有传送阵）进卡入口 | 由 Collect_Pack_Event_1/3/4/5 的 Pack_Bypass 进入，不走通用箱庭入口，也不回传送阵。确认箱庭后清零本模块带 max_hit 的节点，再清步行标签、开导航地图按标题分发。同轮重进从首次状态开始。本模块新增带 max_hit 的节点时要补进这份清单。失败一律默认退栈回选卡列表，不写完成。",
+        "recognition": "Or",
+        "any_of": [
+            "Global_ToSandBox_Enter"
+        ],
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "ClearNodeHitCount",
+        "custom_action_param": {
+            "node_name": [
+                "Collect_IM_Locate",
+                "Collect_IM_OnFoot_NviMap_E01_A2_Move",
+                "Collect_IM_OnFoot_NviMap_E01_B2_Move",
+                "Collect_IM_OnFoot_NviMap_E03_A2_Move",
+                "Collect_IM_OnFoot_NviMap_E03_B2_Move",
+                "Collect_IM_OnFoot_NviMap_E04_A2_Move",
+                "Collect_IM_OnFoot_NviMap_E04_B2_Move",
+                "Collect_IM_OnFoot_NviMap_E05_A2_Move",
+                "Collect_IM_OnFoot_NviMap_E05_B2_Move"
+            ]
+        },
+        "post_delay": 0,
+        "next": [
+            "Collect_IM_Entry_ResetTag"
+        ],
+        "focus": "IM.活动卡进卡-开导航地图步行吸取"
+    },
+    "Collect_IM_Entry_ResetTag": {
+        "desc": "清掉上次没走完留下的步行阶段标签与子菜单重开计数，让本次从第一次放技能开始。",
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "ResetTag",
+        "custom_action_param": {
+            "tags": [
+                "IM_Skill_1",
+                "IM_Skill_End",
+                "NviMap_Sub_Err"
+            ]
+        },
+        "post_delay": 0,
+        "next": [
+            "Collect_IM_Locate"
+        ]
+    },
+    "Collect_IM_Locate": {
+        "desc": "在箱庭点左上小地图打开导航地图 | 活动卡入口与子菜单点不动后的重开（Collect_IM_OnFoot_NviMap_Sub_Err_Out）共用。max_hit 4 由 Collect_IM_Entry 与 Collect_IM_M14_Prepare 清零；点了没打开就重点，用完或超时即退栈。",
+        "max_hit": 4,
+        "recognition": "Or",
+        "any_of": [
+            "Rec_SandBox_Pin_Tpl",
+            "Rec_SandBox_Run_Tpl"
+        ],
+        "action": "Click",
+        "target": [
+            148,
+            119,
+            34,
+            38
+        ],
+        "post_delay": 2500,
+        "timeout": 5000,
+        "next": [
+            "Collect_IM_Locate_Ready",
+            "Collect_IM_Locate"
+        ],
+        "focus": "IM.打开导航地图"
+    },
+    "Collect_IM_Locate_Ready": {
+        "desc": "确认导航地图已打开再读标题分发 | 标题不在活动/M14 名单里时超时退栈，不写完成。",
+        "recognition": "Or",
+        "any_of": [
+            "Collect_TeleporCircle_OnFoot_NviMap"
+        ],
+        "pre_delay": 0,
+        "post_delay": 0,
+        "timeout": 5000,
+        "next": [
+            "Collect_InitiatingManual_Onfoot_Start"
+        ]
+    },
     "Collect_InitiatingManual_Onfoot_Start": {
-        "desc": "[入口]IM=特殊步行.吸取地图",
+        "desc": "[入口]IM 步行吸取：按导航地图标题分发到各图的步行路线 | 调用方：活动卡经 Collect_IM_Locate_Ready，M14 经 Collect_Special_M14_NviMap_Enter；都已确认地图打开。",
         "recognition": "OCR",
         "roi": [
             175,
@@ -794,12 +875,6 @@
             "Collect_IM_OnFoot_NviMap_E01_A2",
             "[JumpBack]Collect_IM_DouMap_Tab"
         ],
-        "on_error": [
-            "Global_QuickCart_MenuReset",
-            "[JumpBack]Global_ToSandBox",
-            "Global_Null_Exception",
-            "Global_Null_Panic"
-        ],
         "focus": "CTB.特殊地图-夏日骑士-01"
     },
     "Collect_IM_OnFoot_NviMap_E01_B1": {
@@ -820,12 +895,6 @@
             "[JumpBack]Collect_IM_OnFoot_NviMap_Skill01",
             "Collect_IM_OnFoot_NviMap_E01_B2",
             "[JumpBack]Collect_IM_DouMap_Tab"
-        ],
-        "on_error": [
-            "Global_QuickCart_MenuReset",
-            "[JumpBack]Global_ToSandBox",
-            "Global_Null_Exception",
-            "Global_Null_Panic"
         ],
         "focus": "CTB.特殊地图-夏日骑士-01"
     },
@@ -901,7 +970,7 @@
         "focus": "小地图图标子菜单"
     },
     "Collect_IM_OnFoot_NviMap_Sub_Err": {
-        "desc": "ui子菜单无法点击回退后,从此重开",
+        "desc": "折叠子菜单点了没反应：退出地图后重开 | 游戏 bug，进卡后第一次弹出的折叠子菜单能识别但点不动，退出地图重开才点得动（见 priv 公共返程计划 §17.2）。计 NviMap_Sub_Err，最多 5 次；先回箱庭，再由 Sub_Err_Out 交 Collect_IM_Locate 重开地图、按标题重新分发。",
         "recognition": "Custom",
         "custom_recognition": "CheckTag",
         "custom_recognition_param": {
@@ -920,12 +989,13 @@
         ]
     },
     "Collect_IM_OnFoot_NviMap_Sub_Err_Out": {
+        "desc": "已回箱庭，重开导航地图 | 不经回阵步行模块：活动地图没有传送阵，M14 也只需重开地图。",
         "recognition": "Or",
         "any_of": [
             "Global_ToSandBox_Enter"
         ],
         "next": [
-            "Collect_TeleporCircle_OnFoot_Start"
+            "Collect_IM_Locate"
         ]
     },
     "Collect_IM_OnFoot_NviMap_E01_B2_Move": {
@@ -1167,12 +1237,6 @@
             "Collect_IM_OnFoot_NviMap_E03_A2",
             "[JumpBack]Collect_IM_DouMap_Tab"
         ],
-        "on_error": [
-            "Global_QuickCart_MenuReset",
-            "[JumpBack]Global_ToSandBox",
-            "Global_Null_Exception",
-            "Global_Null_Panic"
-        ],
         "focus": "CTB.特殊地图-海滨天使-01"
     },
     "Collect_IM_OnFoot_NviMap_E03_B1": {
@@ -1193,12 +1257,6 @@
             "[JumpBack]Collect_IM_OnFoot_NviMap_Skill01",
             "Collect_IM_OnFoot_NviMap_E03_B2",
             "[JumpBack]Collect_IM_DouMap_Tab"
-        ],
-        "on_error": [
-            "Global_QuickCart_MenuReset",
-            "[JumpBack]Global_ToSandBox",
-            "Global_Null_Exception",
-            "Global_Null_Panic"
         ],
         "focus": "CTB.特殊地图-海滨天使-01"
     },
@@ -1316,12 +1374,6 @@
             "Collect_IM_OnFoot_NviMap_E04_A2",
             "[JumpBack]Collect_IM_DouMap_Tab"
         ],
-        "on_error": [
-            "Global_QuickCart_MenuReset",
-            "[JumpBack]Global_ToSandBox",
-            "Global_Null_Exception",
-            "Global_Null_Panic"
-        ],
         "focus": "CTB.特殊地图-记忆边缘-01"
     },
     "Collect_IM_OnFoot_NviMap_E04_B1": {
@@ -1342,12 +1394,6 @@
             "[JumpBack]Collect_IM_OnFoot_NviMap_Skill01",
             "Collect_IM_OnFoot_NviMap_E04_B2",
             "[JumpBack]Collect_IM_DouMap_Tab"
-        ],
-        "on_error": [
-            "Global_QuickCart_MenuReset",
-            "[JumpBack]Global_ToSandBox",
-            "Global_Null_Exception",
-            "Global_Null_Panic"
         ],
         "focus": "CTB.特殊地图-记忆边缘-01"
     },
@@ -1434,12 +1480,6 @@
             "Collect_IM_OnFoot_NviMap_E05_A2",
             "[JumpBack]Collect_IM_DouMap_Tab"
         ],
-        "on_error": [
-            "Global_QuickCart_MenuReset",
-            "[JumpBack]Global_ToSandBox",
-            "Global_Null_Exception",
-            "Global_Null_Panic"
-        ],
         "focus": "CTB.特殊地图-戏水女王-01"
     },
     "Collect_IM_OnFoot_NviMap_E05_B1": {
@@ -1460,12 +1500,6 @@
             "[JumpBack]Collect_IM_OnFoot_NviMap_Skill01",
             "Collect_IM_OnFoot_NviMap_E05_B2",
             "[JumpBack]Collect_IM_DouMap_Tab"
-        ],
-        "on_error": [
-            "Global_QuickCart_MenuReset",
-            "[JumpBack]Global_ToSandBox",
-            "Global_Null_Exception",
-            "Global_Null_Panic"
         ],
         "focus": "CTB.特殊地图-戏水女王-01"
     },
@@ -1495,14 +1529,15 @@
         "focus": "CTB.特殊地图-神圣审判"
     },
     "Collect_IM_M14_Prepare": {
-        "desc": "每次进入M14步行采集时清零专用返程和拉卡带调用次数，避免上次中断影响本次收尾。",
+        "desc": "每次进入M14步行采集时清零专用返程、拉卡带与重开地图的调用次数，避免上次中断或此前的活动卡影响本次。子菜单重开也会回到这里，重开总数由 NviMap_Sub_Err 限制。",
         "pre_delay": 0,
         "action": "Custom",
         "custom_action": "ClearNodeHitCount",
         "custom_action_param": {
             "node_name": [
                 "Collect_IM_M14_ReturnOnce",
-                "Collect_IM_M14_OpenMenuOnce"
+                "Collect_IM_M14_OpenMenuOnce",
+                "Collect_IM_Locate"
             ]
         },
         "post_delay": 0,

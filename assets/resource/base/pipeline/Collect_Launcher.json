@@ -2625,7 +2625,8 @@
         "anchor": {
             "Pack_Click": "Collect_Pack_Event_1",
             "CurrentCollectPack": "Collect_Pack_Event_1",
-            "PackScan_Return": "Collect_PackScan_Prepare"
+            "PackScan_Return": "Collect_PackScan_Prepare",
+            "Pack_Bypass": "Collect_IM_Entry"
         },
         "post_delay": 0,
         "next": [
@@ -2689,7 +2690,8 @@
         "anchor": {
             "Pack_Click": "Collect_Pack_Event_3",
             "CurrentCollectPack": "Collect_Pack_Event_3",
-            "PackScan_Return": "Collect_PackScan_Prepare"
+            "PackScan_Return": "Collect_PackScan_Prepare",
+            "Pack_Bypass": "Collect_IM_Entry"
         },
         "post_delay": 0,
         "next": [
@@ -2721,7 +2723,8 @@
         "anchor": {
             "Pack_Click": "Collect_Pack_Event_4",
             "CurrentCollectPack": "Collect_Pack_Event_4",
-            "PackScan_Return": "Collect_PackScan_Prepare"
+            "PackScan_Return": "Collect_PackScan_Prepare",
+            "Pack_Bypass": "Collect_IM_Entry"
         },
         "post_delay": 0,
         "next": [
@@ -2753,7 +2756,8 @@
         "anchor": {
             "Pack_Click": "Collect_Pack_Event_5",
             "CurrentCollectPack": "Collect_Pack_Event_5",
-            "PackScan_Return": "Collect_PackScan_Prepare"
+            "PackScan_Return": "Collect_PackScan_Prepare",
+            "Pack_Bypass": "Collect_IM_Entry"
         },
         "post_delay": 0,
         "next": [
