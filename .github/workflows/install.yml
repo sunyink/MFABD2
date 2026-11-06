@@ -38,7 +38,7 @@ on:
     inputs:
       mfaa_commit:
         type: string
-        description: "自家 MFAA 六位提交号（留空使用 requirements.txt 中的上游版本；推送时用提交信息里的 [mfaa:六位号]）"
+        description: "自家 MFAA 六位提交号（留空使用 requirements.txt 中的上游版本；推送时用提交信息或标签说明里的 [mfaa:六位号]）"
         required: false
         default: ""
       deploy_beta:
@@ -69,7 +69,7 @@ jobs:
     outputs:
       version_type: ${{ steps.channel.outputs.version_type }}
       concurrency_group: ${{ steps.channel.outputs.concurrency_group }}
-      # 手动运行取输入；推送取提交信息里以 [mfaa:六位号] 开头的那行。写错直接在这里失败，不回落官方客户端。
+      # 手动运行取输入；推送取以 [mfaa:六位号] 开头的那行，标签说明优先于所标提交。写错直接在这里失败，不回落官方客户端。
       mfaa_commit: ${{ steps.channel.outputs.mfaa_commit }}
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6

@@ -36,49 +36,72 @@ def resolve(event_name: str, ref: str, event: dict) -> dict[str, str]:
     return {"version_type": version_type, "concurrency_group": group}
 
 
-def resolve_mfaa_commit(event_name: str, event: dict) -> str:
-    """Return the six-character fork build to package, or "" for the requirements.txt client.
+def marked_commit(message: str) -> str:
+    """Return the number from lines starting with `[mfaa:abcdef]`, or "" when there is none.
 
-    Manual runs take the `mfaa_commit` input. Pushes (branches and tags) take a line in the
-    head commit message that starts with `[mfaa:abcdef]`, so it may share the last line with a
-    deploy marker. Malformed or conflicting markers fail here, before the build replaces any
-    in-progress release run, instead of silently falling back to the upstream client.
+    The marker may share its line with a deploy marker. Malformed or conflicting markers raise,
+    so a typo fails the run instead of silently packaging the upstream client.
     """
-    if event_name == "workflow_dispatch":
-        value = str((event.get("inputs") or {}).get("mfaa_commit") or "").strip()
-        values = [value] if value else []
-    elif event_name == "push":
-        message = (event.get("head_commit") or {}).get("message") or ""
-        lines = [line.strip() for line in message.splitlines()]
-        values = []
-        for line in lines:
-            if line.lower().startswith("[mfaa:"):
-                match = MFAA_MARKER.match(line)
-                values.append(match[1] if match else line)
-    else:
-        return ""
     commits = set()
-    for value in values:
+    for line in message.splitlines():
+        line = line.strip()
+        if not line.lower().startswith("[mfaa:"):
+            continue
+        match = MFAA_MARKER.match(line)
+        value = match[1] if match else line
         if not SHORT_COMMIT.fullmatch(value.lower()):
             raise ValueError(f"自家 MFAA 提交号必须恰好为六位十六进制字符，收到 {value!r}")
         commits.add(value.lower())
     if len(commits) > 1:
-        raise ValueError(f"提交信息里有多个不同的自家 MFAA 提交号：{', '.join(sorted(commits))}")
+        raise ValueError(f"同一段说明里有多个不同的自家 MFAA 提交号：{', '.join(sorted(commits))}")
     return commits.pop() if commits else ""
+
+
+def resolve_mfaa_commit(event_name: str, event: dict, tag_message: str = "") -> str:
+    """Return the six-character fork build to package, or "" for the requirements.txt client.
+
+    Manual runs take the `mfaa_commit` input. Pushes read the marker from the annotated tag's
+    message first (official releases keep the hand-picked version in the tag name), then from
+    the head commit message. All of this is settled before the build replaces any in-progress
+    run of the same channel.
+    """
+    if event_name == "workflow_dispatch":
+        value = str((event.get("inputs") or {}).get("mfaa_commit") or "").strip()
+        if value and not SHORT_COMMIT.fullmatch(value.lower()):
+            raise ValueError(f"自家 MFAA 提交号必须恰好为六位十六进制字符，收到 {value!r}")
+        return value.lower()
+    if event_name != "push":
+        return ""
+    return marked_commit(tag_message) or marked_commit((event.get("head_commit") or {}).get("message") or "")
+
+
+def git(*args: str) -> str:
+    return subprocess.run(["git", *args], check=True, capture_output=True, text=True, encoding="utf-8").stdout
+
+
+def tag_message(ref: str) -> str:
+    """Return the message of the pushed annotated tag, or "" for a lightweight tag."""
+    # actions/checkout may hold the pushed tag as a lightweight ref; fetch the real object first.
+    git("fetch", "--quiet", "--no-tags", "origin", f"+{ref}:{ref}")
+    if git("cat-file", "-t", ref).strip() != "tag":
+        return ""
+    return git("for-each-ref", "--format=%(contents)", ref)
 
 
 def main() -> None:
     event = json.loads(Path(os.environ["GITHUB_EVENT_PATH"]).read_text(encoding="utf-8"))
     event_name = os.environ["GITHUB_EVENT_NAME"]
-    outputs = resolve(event_name, os.environ["GITHUB_REF"], event)
-    marker_event = event
-    if event_name == "push" and not (event.get("head_commit") or {}).get("message"):
-        # Some tag pushes arrive without head_commit (v4.6.1); read the checked-out commit instead.
-        message = subprocess.run(["git", "log", "-1", "--format=%B"], check=True, capture_output=True,
-                                 text=True, encoding="utf-8").stdout
-        marker_event = {"head_commit": {"message": message}}
+    ref = os.environ["GITHUB_REF"]
+    outputs = resolve(event_name, ref, event)
+    marker_event, annotation = event, ""
+    if event_name == "push":
+        if not (event.get("head_commit") or {}).get("message"):
+            # Some tag pushes arrive without head_commit (v4.6.1); read the checked-out commit instead.
+            marker_event = {"head_commit": {"message": git("log", "-1", "--format=%B")}}
+        if ref.startswith("refs/tags/"):
+            annotation = tag_message(ref)
     try:
-        outputs["mfaa_commit"] = resolve_mfaa_commit(event_name, marker_event)
+        outputs["mfaa_commit"] = resolve_mfaa_commit(event_name, marker_event, annotation)
     except ValueError as error:
         print(f"::error::{error}")
         raise SystemExit(1)
