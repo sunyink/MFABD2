@@ -179,6 +179,10 @@ jobs:
       # install / android 两条构建链都 needs 本 job，所以图标脚本只在这里验一次。
       - name: Check application icon preparation
         run: python scripts/verify_icons.py
+
+      # 发布 interface.json 的改写规则（scripts/release_interface.py）；产物本身在各构建 job 末尾再核一次。
+      - name: Check release interface rules
+        run: python scripts/verify_release_interface.py
   install:
     needs: [meta, resource_check]
     # PR 只跑资源检查，不跑完整构建

@@ -10,6 +10,7 @@ import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
+import release_interface
 import version_rules
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -170,7 +171,9 @@ def prepare_ui(upstream: Path, settings: dict, code: int, identity: str = RELEAS
     prefix, segment = settings["application_id"].rsplit('.', 1)
     if segment != "mfabd2" or not re.fullmatch(r"[a-z][a-z0-9_.]*", prefix):
         raise ValueError("Application ID must match the mfabd2 profile")
-    interface = json.loads((ROOT / "assets/interface.json").read_text(encoding="utf-8"))
+    # The RID comes from the source: release_interface.narrow_to_android drops it from the APK's
+    # interface.json, and this profile entry is where the released identity gets it back.
+    interface = release_interface.load_source(ROOT / "assets/interface.json")
     apply_identity_to_profile(profile or ROOT / "android/pi-profile.yaml", segment, identity,
                               interface.get("mirrorchyan_rid", ""))
     gradle = upstream / "build-logic/convention/src/main/kotlin/com/aliothmoon/maafw/gradle"

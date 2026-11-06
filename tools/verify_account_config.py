@@ -1,6 +1,5 @@
 """Instance selection/storage regression tests. All files live in temporary dirs."""
 from copy import deepcopy
-import importlib.util
 import json
 from pathlib import Path
 import sys
@@ -441,9 +440,14 @@ class InterfaceTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.source = json.loads((ROOT / "assets/interface.json").read_text(encoding="utf-8"), strict=False)
-        spec = importlib.util.spec_from_file_location("test_install", ROOT / "install.py")
-        cls.installer = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(cls.installer)
+        # The relocation rules themselves are tested in CI by scripts/verify_release_interface.py;
+        # here they only produce the release shape the agent reads.
+        sys.path.insert(0, str(ROOT / "scripts"))
+        import release_interface
+        cls.release = release_interface
+
+    def build(self, target):
+        return self.release.build(self.source, self.release.target_for(target, install=Path(tempfile.gettempdir())))
 
     def test_source_shape_for_per_task_clients(self):
         # MaaSupport shows global options in every task and injects them per task.
@@ -457,28 +461,10 @@ class InterfaceTests(unittest.TestCase):
         nodes = json.loads((ROOT / "assets/resource/base/pipeline/Dummy.json").read_text(encoding="utf-8"))
         self.assertEqual((nodes[INJECT_NODE]["enabled"], nodes[INJECT_NODE]["attach"]), (False, {"account_id": ""}))
 
-    def test_relocation_rejects_ambiguous_sources(self):
-        relocate = self.installer.relocate_multi_save_switch
-        doubled = deepcopy(self.source)
-        doubled["task"].append(deepcopy(next(t for t in doubled["task"] if t["entry"] == TASK_ENTRY)))
-        owned = deepcopy(self.source)
-        next(t for t in owned["task"] if t["entry"] == TASK_ENTRY)["option"] = ["前置助手"]
-        lost = deepcopy(self.source)
-        lost["global_option"].remove(SWITCH_OPTION)
-        undefined = deepcopy(self.source)
-        del undefined["option"][ACCOUNT_OPTION]
-        for document in (doubled, owned, lost, undefined):
-            with self.assertRaises(ValueError):
-                relocate(document)
-        bare = {"global_option": ["前置助手"], "task": [{"name": "x", "entry": "y"}]}
-        relocate(bare)
-        self.assertEqual(bare, {"global_option": ["前置助手"], "task": [{"name": "x", "entry": "y"}]})
-
     def test_release_shape_presets_and_android_filter(self):
         before = deepcopy(self.source)
-        interface = self.installer.prepare_interface_for_target(self.source, "win-x64")
+        interface = self.build("win-x64")
         self.assertEqual(self.source, before)
-        self.assertEqual(self.installer.prepare_interface_for_target(interface, "win-x64"), interface)
         self.assertNotIn(INJECT_NODE, json.dumps(interface, ensure_ascii=False))
         task = next(t for t in interface["task"] if t["entry"] == TASK_ENTRY)
         self.assertEqual((task["name"], task["label"], task["option"]),
@@ -502,7 +488,7 @@ class InterfaceTests(unittest.TestCase):
         nodes = json.loads((ROOT / "assets/resource/base/pipeline/Dummy.json").read_text(encoding="utf-8"))
         self.assertFalse(set(nodes[TASK_ENTRY]) & {"action", "custom_action", "next"})
         self.assertEqual(nodes[STOP_ENTRY]["action"], "StopTask")
-        apk = self.installer.prepare_interface_for_target(self.source, "android-arm64")
+        apk = self.build("android-arm64")
         self.assertEqual(self.source, before)
         self.assertFalse(any(t["entry"] == TASK_ENTRY for t in apk["task"]))
         self.assertNotIn(SWITCH_OPTION, apk["global_option"])

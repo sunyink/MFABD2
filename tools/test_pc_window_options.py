@@ -1,4 +1,4 @@
-"""Offline contract tests; only the startup modules and install.py (release interface) load."""
+"""Offline contract tests; only the startup modules load."""
 import argparse
 import importlib.abc
 import importlib.util
@@ -36,14 +36,6 @@ def load_production(root):
         spec.loader.exec_module(module)
         loaded.append(module)
     return loaded
-
-
-def load_installer(root):
-    sys.path.insert(0, str(root))
-    spec = importlib.util.spec_from_file_location('release_install', root / 'install.py')
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
 
 
 class Clock:
@@ -724,7 +716,11 @@ class Contracts(unittest.TestCase):
 
 
 class ReleaseInterface(unittest.TestCase):
-    """The source keeps the PC window options global; releases hang them on their controllers."""
+    """The source keeps the PC window options global for per-task clients.
+
+    How releases hang them on their controllers is scripts/release_interface.py's contract,
+    tested in CI by scripts/verify_release_interface.py.
+    """
     NAMES = ('PC窗口分辨率', 'PC启动最小化')
 
     def setUp(self):
@@ -735,40 +731,10 @@ class ReleaseInterface(unittest.TestCase):
             self.assertIn(name, self.source['global_option'])
         self.assertFalse(any('option' in item for item in self.source['controller']))
 
-    def test_release_moves_options_onto_their_controllers(self):
-        before = json.loads(json.dumps(self.source))
-        release = installer.prepare_interface_for_target(self.source, 'win-x64')
-        self.assertEqual(self.source, before)
-        self.assertEqual(installer.prepare_interface_for_target(release, 'win-x64'), release)
-        self.assertFalse(set(self.NAMES) & set(release['global_option']))
-        owned = {item['name']: item.get('option') for item in release['controller']}
-        self.assertEqual(owned, {'Adb': None, 'PlayCover': None,
-                                 'PC客户端': ['PC窗口分辨率', 'PC启动最小化'],
-                                 'PC客户端(Cursor)': ['PC窗口分辨率']})
-
     def test_resolution_defaults_to_1080p_even_from_the_first_case(self):
         # A client that starts a new option at item 0 instead of default_case still lands on 1080p.
         option = self.source['option']['PC窗口分辨率']
         self.assertEqual((option['default_case'], option['cases'][0]['name']), ('1080p', '1080p'))
-
-    def test_android_release_drops_them_with_the_pc_controllers(self):
-        apk = installer.prepare_interface_for_target(self.source, 'android-arm64')
-        self.assertFalse(set(self.NAMES) & set(apk['global_option']))
-        self.assertEqual([item['name'] for item in apk['controller']], ['Adb'])
-        self.assertNotIn('option', apk['controller'][0])
-
-    def test_relocation_rejects_broken_sources(self):
-        undefined = json.loads(json.dumps(self.source))
-        del undefined['option']['PC启动最小化']
-        unowned = json.loads(json.dumps(self.source))
-        del unowned['option']['PC窗口分辨率']['controller']
-        foreign = json.loads(json.dumps(self.source))
-        foreign['option']['PC窗口分辨率']['controller'].append('Adb')
-        lost = json.loads(json.dumps(self.source))
-        lost['global_option'].remove('PC窗口分辨率')
-        for document in (undefined, unowned, foreign, lost):
-            with self.assertRaises(ValueError):
-                installer.relocate_pc_window_options(document)
 
 
 if __name__ == '__main__':
@@ -777,5 +743,4 @@ if __name__ == '__main__':
     args, remaining = parser.parse_known_args()
     common, options, pc, guard = load_production(args.project_root.resolve())
     ROOT = args.project_root.resolve()
-    installer = load_installer(ROOT)
     unittest.main(argv=[sys.argv[0]] + remaining)
