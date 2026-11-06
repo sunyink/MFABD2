@@ -16,10 +16,12 @@ from pathlib import Path
 import re
 import tempfile
 
+from prepare_icons import report, validate_png
 from strip_build_comments import strip_jsonc_comments, strip_trailing_commas
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "assets" / "interface.json"
+BRANDING = ROOT / "release" / "branding"
 
 
 # ── 平台表 ────────────────────────────────────────────────────────────────────
@@ -32,6 +34,8 @@ class Platform:
     foreign_controllers: frozenset = frozenset()
     # 把 pretask 里的 pc_bootstrap.py 换成 -c 载荷（理由见 PRETASK_* 常量）。
     launch_pretask: bool = False
+    # MFAA 的标题栏/窗口/托盘图标（见 set_runtime_icon）。安卓启动器图标在 pi-profile，不在这里。
+    runtime_icon: bool = True
 
 
 AGENT_MAIN = "{PROJECT_DIR}/agent/main.py"
@@ -45,7 +49,7 @@ PLATFORMS = {
     "macos": Platform("{PROJECT_DIR}/python/bin/python3", ("-u", AGENT_MAIN), frozenset({"Win32"})),
     "linux": Platform("python3", ("-u", AGENT_MAIN), frozenset({"Win32"})),
     # APK 的 Agent 由 android/pi-profile.yaml 的 agent.runtimes 拉起，这里只需声明存在。
-    "android": Platform("python3", ("-u", AGENT_MAIN), frozenset({"Win32"})),
+    "android": Platform("python3", ("-u", AGENT_MAIN), frozenset({"Win32"}), runtime_icon=False),
 }
 TARGET_PREFIXES = (
     ("win", ("win",)),
@@ -69,10 +73,12 @@ class Target:
     platform: str
     version: str
     install: Path  # 产物根：agent 步骤要看便携 Python 在不在，校验要看 pretask 落点
+    branding: Path = BRANDING
 
 
-def target_for(target_os: str, version: str = "v0.0.0", install: Path = ROOT / "install") -> Target:
-    return Target(release_target(target_os), version, Path(install))
+def target_for(target_os: str, version: str = "v0.0.0", install: Path = ROOT / "install",
+               branding: Path = BRANDING) -> Target:
+    return Target(release_target(target_os), version, Path(install), Path(branding))
 
 
 # ── pretask 的启动路径 ─────────────────────────────────────────────────────────
@@ -273,6 +279,36 @@ def set_agent_launch(interface, target):
     agent["child_args"] = list(platform.agent_args)
 
 
+# MFAA shares one bitmap between its title, window and tray icons (release/branding/README.md).
+# resource/ui/ is not in any resource's loading list, so the image is UI only.
+RUNTIME_ICON = "resource/ui/title.png"
+RUNTIME_ICON_SOURCE = "title.png"
+
+
+def set_runtime_icon(interface, target):
+    """Optional branding: art that is missing or malformed warns and keeps the previous icon.
+
+    Only the art is optional. The image itself is written by install() together with this
+    file, image first, so no interface.json ever points at a missing or partial image.
+    """
+    if not PLATFORMS[target.platform].runtime_icon:
+        return
+    try:
+        validate_png(target.branding / RUNTIME_ICON_SOURCE)
+    except Exception as error:
+        report("MFAA runtime", error)
+        return
+    interface["icon"] = RUNTIME_ICON
+    report("MFAA runtime")
+
+
+def package_files(interface: dict, target: Target) -> dict:
+    """Files that ship beside interface.json because it points at them."""
+    if PLATFORMS[target.platform].runtime_icon and interface.get("icon") == RUNTIME_ICON:
+        return {RUNTIME_ICON: validate_png(target.branding / RUNTIME_ICON_SOURCE)}
+    return {}
+
+
 # The version shown between "...(sunyink/MFABD2)" and " | 游戏版本：". The space before the
 # bar stays outside the match, so the replacement is the bare version.
 TITLE_VERSION = re.compile(r"(?<=MFABD2\))(.*?)(?=\s*\|\s*游戏版本：)")
@@ -294,13 +330,14 @@ def stamp_version(interface, target):
 
 
 # 顺序即执行顺序：先挪选项（与平台无关，且要在裁剪前按名字核对 Win32 控制器），再按目标
-# 裁剪，然后定启动方式（要看裁剪后还剩哪些控制器），最后盖版本号。
+# 裁剪，然后定启动方式（要看裁剪后还剩哪些控制器），最后是图标与版本号。
 STEPS = (
     relocate_multi_save_switch,
     relocate_pc_window_options,
     narrow_to_android,
     shape_pretask,
     set_agent_launch,
+    set_runtime_icon,
     stamp_version,
 )
 
@@ -374,15 +411,41 @@ def check_installed(written: dict, expected: dict, target: Target) -> None:
             print(f"⚠️ 跳过 pretask exec 存在性检查（{install / 'python'} 尚未就绪）：{resolved}")
         elif not resolved.is_file():
             raise ValueError(f"pretask exec 在 {PRETASK_ANCHOR} 锚点下不存在: {resolved}")
+    for relative, data in package_files(written, target).items():
+        if not (install / relative).is_file() or (install / relative).read_bytes() != data:
+            raise ValueError(f"interface.json points at {relative}, which is missing or is not the branding image")
 
 
-def install(install_dir: Path, target_os: str, version: str, source: Path = SOURCE) -> dict:
+def write_package(install_dir: Path, interface: dict, files: dict) -> None:
+    """Write the files interface.json points at first, then interface.json itself.
+
+    If interface.json cannot be written, put back what those files replaced, so the
+    package is left exactly as it was.
+    """
+    previous = {}
+    for relative, data in files.items():
+        path = install_dir / relative
+        previous[path] = path.read_bytes() if path.exists() else None
+        atomic_write(path, data)
+    try:
+        atomic_write(install_dir / "interface.json", dumps(interface).encode("utf-8"))
+    except Exception:
+        for path, data in previous.items():
+            if data is None:
+                path.unlink(missing_ok=True)
+            else:
+                atomic_write(path, data)
+        raise
+
+
+def install(install_dir: Path, target_os: str, version: str, source: Path = SOURCE,
+            branding: Path = BRANDING) -> dict:
     """Build, write once, read back. Call after resources and agent/ are in install_dir."""
     install_dir = Path(install_dir)
-    target = target_for(target_os, version, install_dir)
+    target = target_for(target_os, version, install_dir, branding)
     interface = build(load_source(source), target)
+    write_package(install_dir, interface, package_files(interface, target))
     path = install_dir / "interface.json"
-    atomic_write(path, dumps(interface).encode("utf-8"))
     written = json.loads(path.read_text(encoding="utf-8"))
     check_installed(written, interface, target)
     print(f"✅ interface.json 已按 {target.platform} 生成: child_exec={written['agent']['child_exec']}")

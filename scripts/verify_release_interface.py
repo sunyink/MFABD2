@@ -204,7 +204,7 @@ class InstallTest(unittest.TestCase):
         (self.output / "agent").mkdir(parents=True)
         (self.output / "agent" / ri.PRETASK_SCRIPT).write_text("# fixture", encoding="utf-8")
 
-    def install(self, document, target, tamper=None, version="v0.0.1"):
+    def install(self, document, target, tamper=None, version="v0.0.1", branding=ri.BRANDING):
         path = Path(self.temporary.name) / "interface.json"
         path.write_text(json.dumps(document, ensure_ascii=False), encoding="utf-8")
         original = ri.dumps
@@ -215,8 +215,12 @@ class InstallTest(unittest.TestCase):
                 tamper(value)
             return original(value)
 
-        with patch.object(ri, "dumps", side_effect=dumps), patch("sys.stdout", new_callable=io.StringIO):
-            return ri.install(self.output, target, version, path)
+        self.log = io.StringIO()
+        with patch.object(ri, "dumps", side_effect=dumps), patch("sys.stdout", self.log):
+            return ri.install(self.output, target, version, path, branding)
+
+    def files(self):
+        return {path.relative_to(self.output).as_posix() for path in self.output.rglob("*") if path.is_file()}
 
     def test_windows_install_rewrites_pretask_paths(self):
         document = source()
@@ -307,10 +311,74 @@ class InstallTest(unittest.TestCase):
         self.assertEqual(self.install(source(), "macos")["agent"]["child_exec"],
                          "{PROJECT_DIR}/python/bin/python3")
 
-    def test_install_leaves_only_the_interface_behind(self):
-        before = {path for path in self.output.rglob("*")}
+    def test_install_adds_only_the_interface_and_its_image(self):
+        before = self.files()
         self.install(source(), "linux")
-        self.assertEqual({path for path in self.output.rglob("*")} - before, {self.output / "interface.json"})
+        self.assertEqual(self.files() - before, {"interface.json", ri.RUNTIME_ICON})
+        self.install(source(), "android")
+        self.assertNotIn("icon", json.loads((self.output / "interface.json").read_text(encoding="utf-8")))
+
+    def test_desktop_runtime_icon_lands_with_its_image(self):
+        for target in DESKTOP:
+            with self.subTest(target=target):
+                installed = self.install(source(), target)
+                self.assertEqual(installed["icon"], ri.RUNTIME_ICON)
+                self.assertEqual((self.output / ri.RUNTIME_ICON).read_bytes(),
+                                 (ri.BRANDING / ri.RUNTIME_ICON_SOURCE).read_bytes())
+                self.assertIn("MFAA runtime: applied", self.log.getvalue())
+
+    def test_missing_or_broken_art_keeps_the_previous_icon_and_warns(self):
+        broken = Path(self.temporary.name) / "broken"
+        broken.mkdir()
+        (broken / ri.RUNTIME_ICON_SOURCE).write_bytes(b"not a png")
+        for branding in (Path(self.temporary.name) / "absent", broken):
+            with self.subTest(branding=branding.name):
+                installed = self.install(source(), "win", branding=branding)
+                self.assertNotIn("icon", installed)
+                self.assertFalse((self.output / ri.RUNTIME_ICON).exists())
+                self.assertIn("::warning title=Optional application icon::MFAA runtime", self.log.getvalue())
+
+    def test_failed_interface_write_removes_new_or_restores_existing_image(self):
+        title = self.output / ri.RUNTIME_ICON
+        title.parent.mkdir(parents=True)
+        interface = self.output / "interface.json"
+        interface.write_bytes(b"previous interface")
+        write = ri.atomic_write
+
+        def fail_interface(path, data):
+            if path == interface:
+                raise OSError("interface write failed")
+            write(path, data)
+
+        for previous in (None, b"previous image"):
+            with self.subTest(previous=previous):
+                if previous is not None:
+                    title.write_bytes(previous)
+                with patch.object(ri, "atomic_write", side_effect=fail_interface):
+                    with self.assertRaisesRegex(OSError, "interface write failed"):
+                        self.install(source(), "win")
+                self.assertEqual(interface.read_bytes(), b"previous interface")
+                self.assertEqual(title.read_bytes() if title.exists() else None, previous)
+
+    def test_partial_write_leaves_no_temporary_file(self):
+        factory = ri.tempfile.NamedTemporaryFile
+
+        def failing_file(*args, **kwargs):
+            handle = factory(*args, **kwargs)
+            write = handle.write
+
+            def fail(data):
+                write(data[:3])
+                raise OSError("partial write failed")
+
+            handle.write = fail
+            return handle
+
+        before = self.files()
+        with patch.object(ri.tempfile, "NamedTemporaryFile", side_effect=failing_file):
+            with self.assertRaisesRegex(OSError, "partial write failed"):
+                ri.atomic_write(self.output / "interface.json", b"new contents")
+        self.assertEqual(self.files(), before)
 
 
 if __name__ == "__main__":
