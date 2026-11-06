@@ -57,13 +57,11 @@ def marked_commit(message: str) -> str:
     return commits.pop() if commits else ""
 
 
-def resolve_mfaa_commit(event_name: str, event: dict, tag_message: str = "") -> str:
+def resolve_mfaa_commit(event_name: str, event: dict) -> str:
     """Return the six-character fork build to package, or "" for the requirements.txt client.
 
-    Manual runs take the `mfaa_commit` input. Pushes read the marker from the annotated tag's
-    message first (official releases keep the hand-picked version in the tag name), then from
-    the head commit message. All of this is settled before the build replaces any in-progress
-    run of the same channel.
+    Manual runs take the `mfaa_commit` input and branch pushes take the head commit's marker.
+    Both are strict: a typo fails before the build replaces any in-progress run of the channel.
     """
     if event_name == "workflow_dispatch":
         value = str((event.get("inputs") or {}).get("mfaa_commit") or "").strip()
@@ -72,7 +70,19 @@ def resolve_mfaa_commit(event_name: str, event: dict, tag_message: str = "") -> 
         return value.lower()
     if event_name != "push":
         return ""
-    return marked_commit(tag_message) or marked_commit((event.get("head_commit") or {}).get("message") or "")
+    return marked_commit((event.get("head_commit") or {}).get("message") or "")
+
+
+def tag_mfaa_commit(message: str) -> tuple[str, str]:
+    """Return (fork build, warning) for an official release tag.
+
+    Only the tag's own message counts, never the tagged commit. Without a usable marker the
+    release goes out with the requirements.txt client instead of failing.
+    """
+    try:
+        return marked_commit(message), ""
+    except ValueError as error:
+        return "", f"标签说明里的自家 UI 标记无效：{error}；本次按 requirements.txt 的客户端发版"
 
 
 def git(*args: str) -> str:
@@ -93,18 +103,24 @@ def main() -> None:
     event_name = os.environ["GITHUB_EVENT_NAME"]
     ref = os.environ["GITHUB_REF"]
     outputs = resolve(event_name, ref, event)
-    marker_event, annotation = event, ""
-    if event_name == "push":
-        if not (event.get("head_commit") or {}).get("message"):
-            # Some tag pushes arrive without head_commit (v4.6.1); read the checked-out commit instead.
-            marker_event = {"head_commit": {"message": git("log", "-1", "--format=%B")}}
-        if ref.startswith("refs/tags/"):
-            annotation = tag_message(ref)
-    try:
-        outputs["mfaa_commit"] = resolve_mfaa_commit(event_name, marker_event, annotation)
-    except ValueError as error:
-        print(f"::error::{error}")
-        raise SystemExit(1)
+    tag_push = event_name == "push" and ref.startswith("refs/tags/")
+    if tag_push:
+        try:
+            commit, warning = tag_mfaa_commit(tag_message(ref))
+        except subprocess.CalledProcessError as error:
+            detail = " ".join((error.stderr or "").split())
+            commit, warning = "", f"读不到标签说明（{detail}）；本次按 requirements.txt 的客户端发版"
+        if warning:
+            print(f"::warning::{warning}")
+    else:
+        try:
+            commit = resolve_mfaa_commit(event_name, event)
+        except ValueError as error:
+            print(f"::error::{error}")
+            raise SystemExit(1)
+    outputs["mfaa_commit"] = commit
+    # A tag-selected build that cannot be resolved later also falls back instead of failing.
+    outputs["mfaa_fallback"] = "true" if tag_push else "false"
     with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as stream:
         for key, value in outputs.items():
             print(f"{key}={value}")

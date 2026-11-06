@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import subprocess
 from pathlib import Path
 import tempfile
 import unittest
@@ -228,6 +229,48 @@ class ResolveSourceTests(unittest.TestCase):
             fetch, download, _ = self.resolver(release_edits=edit)
             with self.subTest(edit=edit.__name__), self.assertRaises(ValueError):
                 mfaa_source.resolve_source("v2.16.2", "00000a", fetch, download)
+
+
+class FallbackTests(unittest.TestCase):
+    UPSTREAM = {"repository": mfaa_source.UPSTREAM, "tag": "v2.16.2", "commit": ""}
+
+    def test_tag_release_falls_back_when_fork_build_cannot_be_resolved(self):
+        failures = (
+            mock.Mock(return_value={"sha": "b" * 40}),  # short sha resolves elsewhere
+            mock.Mock(side_effect=subprocess.CalledProcessError(1, ["gh"], stderr="gh: Not Found (HTTP 404)\n")),
+            mock.Mock(side_effect=lambda path: {"sha": SHA} if path.endswith("/commits/00000a") else []),
+        )
+        for fetch in failures:
+            download = mock.Mock(side_effect=AssertionError("download must not run"))
+            with self.subTest(fetch=fetch):
+                source, warning = mfaa_source.resolve_or_fallback("v2.16.2", "00000a", True, fetch, download)
+                self.assertEqual(source, self.UPSTREAM)
+                self.assertIn("00000a", warning)
+                self.assertIn("requirements.txt", warning)
+                self.assertNotIn("\n", warning)
+        _, warning = mfaa_source.resolve_or_fallback("v2.16.2", "00000a", True, failures[1], mock.Mock())
+        self.assertIn("HTTP 404", warning)
+
+    def test_without_fallback_failures_still_raise(self):
+        fetch = mock.Mock(side_effect=lambda path: {"sha": SHA} if path.endswith("/commits/00000a") else [])
+        with self.assertRaises(ValueError):
+            mfaa_source.resolve_or_fallback("v2.16.2", "00000a", False, fetch, mock.Mock())
+        fetch = mock.Mock(side_effect=subprocess.CalledProcessError(1, ["gh"], stderr="boom"))
+        with self.assertRaises(subprocess.CalledProcessError):
+            mfaa_source.resolve_or_fallback("v2.16.2", "00000a", False, fetch, mock.Mock())
+
+    def test_resolvable_fork_build_is_used_even_with_fallback(self):
+        release, raw = make_release()
+
+        def fetch(path):
+            if path.endswith("/commits/00000a") or path.endswith(f"/commits/{quote(TAG, safe='')}"):
+                return {"sha": SHA}
+            return [release]
+
+        source, warning = mfaa_source.resolve_or_fallback("v2.16.2", "00000a", True, fetch, mock.Mock(return_value=raw))
+        self.assertEqual(source, {"repository": mfaa_source.FORK, "tag": TAG, "commit": SHA})
+        self.assertEqual(warning, "")
+        self.assertEqual(mfaa_source.resolve_or_fallback("v2.16.2", "", True), (self.UPSTREAM, ""))
 
 
 class VerifyExtractedTests(unittest.TestCase):

@@ -69,8 +69,10 @@ jobs:
     outputs:
       version_type: ${{ steps.channel.outputs.version_type }}
       concurrency_group: ${{ steps.channel.outputs.concurrency_group }}
-      # 手动运行取输入；推送取以 [mfaa:六位号] 开头的那行，标签说明优先于所标提交。写错直接在这里失败，不回落官方客户端。
+      # 手动运行取输入，推分支取提交信息，写错直接在这里失败；推标签只取标签说明，
+      # 没写、写错或找不到对应的包都按 requirements.txt 的客户端发版。
       mfaa_commit: ${{ steps.channel.outputs.mfaa_commit }}
+      mfaa_fallback: ${{ steps.channel.outputs.mfaa_fallback }}
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
       - name: Verify release channel and publication rules
@@ -96,4 +98,5 @@ jobs:
     with:
       version_type: ${{ needs.route.outputs.version_type }}
       mfaa_commit: ${{ needs.route.outputs.mfaa_commit }}
+      mfaa_fallback: ${{ needs.route.outputs.mfaa_fallback == 'true' }}
     secrets: inherit

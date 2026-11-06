@@ -127,6 +127,20 @@ def resolve_source(upstream_tag, override, fetch=api, download=asset_bytes):
     return dict(repository=FORK, tag=tag, commit=sha)
 
 
+def resolve_or_fallback(upstream_tag, override, fallback, fetch=api, download=asset_bytes):
+    """Return (source, warning). With fallback, an unusable fork build selects the upstream client."""
+    try:
+        return resolve_source(upstream_tag, override, fetch, download), ""
+    except Exception as error:
+        if not fallback:
+            raise
+        detail = (getattr(error, "stderr", None) or b"")
+        detail = (detail.decode("utf-8", "replace") if isinstance(detail, bytes) else detail).strip() or str(error)
+        detail = " ".join(detail.split())  # workflow commands and the summary quote take one line
+        return (dict(repository=UPSTREAM, tag=upstream_tag, commit=""),
+                f"自家 MFAA {override.strip()} 对不上：{detail}；本次按 requirements.txt 的 {upstream_tag} 发版")
+
+
 def verify_extracted(root, tag, sha, rid):
     if not re.fullmatch(r"[0-9a-f]{40}", sha) or rid not in RIDS:
         raise ValueError("自家 MFAA 校验需要完整提交与有效平台")
@@ -146,6 +160,8 @@ def main():
     resolve = sub.add_parser("resolve")
     resolve.add_argument("--tag", required=True)
     resolve.add_argument("--commit", default="")
+    resolve.add_argument("--fallback", choices=("true", "false"), default="false",
+                         help="use the upstream client when the fork build cannot be resolved")
     verify = sub.add_parser("verify")
     verify.add_argument("--root", type=Path, required=True)
     verify.add_argument("--tag", required=True)
@@ -155,7 +171,9 @@ def main():
     if args.action == "verify":
         verify_extracted(args.root, args.tag, args.commit, args.rid)
         return
-    source = resolve_source(args.tag, args.commit)
+    source, warning = resolve_or_fallback(args.tag, args.commit, args.fallback == "true")
+    if warning:
+        print(f"::warning::{warning}")
     print(json.dumps(source, ensure_ascii=False, indent=2))
     if output := os.environ.get("GITHUB_OUTPUT"):
         with open(output, "a", encoding="utf-8") as stream:
@@ -165,6 +183,8 @@ def main():
         with open(summary, "a", encoding="utf-8") as stream:
             stream.write(f"### MFAAvalonia package source\n\nRepository: `{source['repository']}`\n\n"
                          f"Tag: `{source['tag']}`\n\nCommit: `{source['commit'] or 'upstream requirements.txt pin'}`\n")
+            if warning:
+                stream.write(f"\n> [!WARNING]\n> {warning}\n")
 
 
 if __name__ == "__main__":
