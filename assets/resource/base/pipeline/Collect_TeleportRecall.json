@@ -742,6 +742,16 @@
             "Collect_TeleporCircle_OnFoot_StateResolGroup_Step1_Right"
         ]
     },
+    "Collect_IM_Rejoin": {
+        "desc": "活动卡逃跑后接回活动入口 | 由 Collect_Pack_Event_1/3/4/5 进卡时设的锚点 Skirmish_Resume 指向，供普通卡的逃跑薄壳（Collect_Pack_Skirmish、Collect_OperationsMain_Skirmish）在逃完后优先走：本节点必定命中，所以活动卡永远落不到后面的步行回阵、开传送阵面板（活动图没有传送阵）。随后等活动入口认到箱庭，重新清计次、开地图按标题分发；等不到就超时退栈回选卡列表，不写完成。",
+        "pre_delay": 0,
+        "post_delay": 0,
+        "timeout": 10000,
+        "next": [
+            "Collect_IM_Entry"
+        ],
+        "focus": "IM.遭遇战后接回活动步行"
+    },
     "Collect_IM_Entry": {
         "desc": "活动卡（地图没有传送阵）进卡入口 | 由 Collect_Pack_Event_1/3/4/5 的 Pack_Bypass 进入，不走通用箱庭入口，也不回传送阵。确认箱庭后清零本模块带 max_hit 的节点，再清步行标签、开导航地图按标题分发。同轮重进从首次状态开始。本模块新增带 max_hit 的节点时要补进这份清单。失败一律默认退栈回选卡列表，不写完成。",
         "recognition": "Or",

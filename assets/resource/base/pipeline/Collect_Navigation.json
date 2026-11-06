@@ -49,7 +49,7 @@
         "focus": "CM.N.箱庭模块启动"
     },
     "Collect_OperationsMain_Skirmish": {
-        "desc": "普通卡箱庭里撞上遭遇战：调通用脱战链逃跑并快速移动离开，之后回到传送阵再交回箱庭入口 | 落在阵上（狩猎场）直接退栈；回了主城就步行走回阵（Collect_TeleporCircle_OnFoot_Start，到阵后其出口退栈），不用传送技能。",
+        "desc": "普通卡箱庭里撞上遭遇战：调通用脱战链逃跑并快速移动离开，之后回到传送阵再交回箱庭入口 | 活动卡（Skirmish_Resume 已设）接回活动入口，不走后面的回阵；落在阵上（狩猎场）直接退栈；回了主城就步行走回阵（Collect_TeleporCircle_OnFoot_Start，到阵后其出口退栈），不用传送技能。",
         "recognition": "Or",
         "any_of": [
             "Collect_Skirmish_Escape"
@@ -58,6 +58,7 @@
         "post_delay": 0,
         "next": [
             "[JumpBack]Collect_Skirmish_Escape",
+            "[Anchor]Skirmish_Resume",
             "Collect_Skirmish_OnCircle",
             "Collect_TeleporCircle_OnFoot_Start"
         ],
