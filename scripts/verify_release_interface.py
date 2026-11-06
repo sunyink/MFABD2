@@ -56,10 +56,7 @@ class RealSourceTest(unittest.TestCase):
                 release = self.build(target)
                 self.assertEqual(self.source, before)
                 if target in DESKTOP:
-                    again = self.build(target, release)
-                    release.pop("title")
-                    again.pop("title")
-                    self.assertEqual(again, release)
+                    self.assertEqual(self.build(target, release), release)
 
     def test_desktop_targets_differ_only_in_agent_and_pretask(self):
         # MirrorChyan's hot-update package carries the win-x86_64 interface.json to every desktop
@@ -131,8 +128,15 @@ class RealSourceTest(unittest.TestCase):
     def test_version_is_stamped_into_field_and_title(self):
         release = self.build("win", version="v9.9.9")
         self.assertEqual(release["version"], "v9.9.9")
-        self.assertIn("MFABD2)v9.9.9", release["title"])
-        self.assertNotIn(self.source["version"], release["title"])
+        # Exactly the source's spacing around the version; it used to gain a space per run.
+        self.assertEqual(release["title"], self.source["title"].replace(self.source["version"], "v9.9.9"))
+        self.assertIn("MFABD2)v9.9.9 | 游戏版本：", release["title"])
+
+    def test_title_without_a_version_slot_fails(self):
+        document = deepcopy(self.source)
+        document["title"] = document["title"].replace("游戏版本：", "游戏版本:")
+        with self.assertRaisesRegex(ValueError, "version slot"):
+            self.build("win", document)
 
     def test_relocation_rejects_broken_pc_window_sources(self):
         undefined = deepcopy(self.source)

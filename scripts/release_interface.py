@@ -273,15 +273,24 @@ def set_agent_launch(interface, target):
     agent["child_args"] = list(platform.agent_args)
 
 
-# Hot updates rewrite "version" again on the client side (MFAA keeps the package's file and
-# stamps the update's version into it), so this is only the full package's value.
-TITLE_VERSION = r"(?<=MFABD2\))(.*?)(?=\s*\|\s*游戏版本：)"
+# The version shown between "...(sunyink/MFABD2)" and " | 游戏版本：". The space before the
+# bar stays outside the match, so the replacement is the bare version.
+TITLE_VERSION = re.compile(r"(?<=MFABD2\))(.*?)(?=\s*\|\s*游戏版本：)")
 
 
 def stamp_version(interface, target):
+    """Stamp the package version into "version" and the title.
+
+    A resource hot update installs the package's copy of this file, then MFAA rewrites only
+    "version" and "github" (VersionChecker.UpdateResource), so the title keeps this stamp.
+    """
     interface["version"] = target.version
     if "title" in interface:
-        interface["title"] = re.sub(TITLE_VERSION, f"{target.version} ", interface["title"])
+        title, hits = TITLE_VERSION.subn(target.version, interface["title"], count=1)
+        # A reworded title used to keep the source's stale version without a word.
+        if not hits:
+            raise ValueError(f"title has no version slot between 'MFABD2)' and '| 游戏版本：': {interface['title']!r}")
+        interface["title"] = title
 
 
 # 顺序即执行顺序：先挪选项（与平台无关，且要在裁剪前按名字核对 Win32 控制器），再按目标
