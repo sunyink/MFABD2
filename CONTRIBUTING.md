@@ -80,7 +80,7 @@
 
 **划重点**：[maa-support-extension](https://github.com/neko-para/maa-support-extension) 一个 VSCode 插件把编辑、查看、调试全包了，能直接对着本仓库连模拟器跑任务、单点调试，反馈就在眼前。**所以真正的最小上手 = 模拟器 + 这个插件。** 这也是我手写 Pipeline 的主力路子。
 
-**Agent 的 Python 环境只需建一次。** 在仓库根目录运行 `py -3.10 agent/utils/venv_ops.py`，它会建好 `.venv` 并装上依赖（`interface.json` 的 `child_exec` 就指向这里）。之后不用管：Agent 每次启动会核对 `.venv` 的 maafw 与调试器内核版本、`requirements.txt` 是否一致，不一致就弹出「MFABD2 开发环境同步」窗口补装，装完自动继续启动。要下载新包时可能超过调试器的连接等待（VS Code 设置项 `maa.agentTimeout`），调试器会先报连接失败，等窗口关掉后重新启动即可。弹不出窗口时（如从 MFAAvalonia 启动），日志里会给出要手动运行的命令。
+**Agent 的 Python 环境只需建一次。** 装好 Python 3.11 后，在仓库根目录运行 `py -3.11 agent/utils/venv_ops.py`，它会建好 `.venv` 并装上依赖（`interface.json` 的 `child_exec` 就指向这里）。之后不用管：Agent 每次启动会核对 `.venv` 的 maafw 与调试器内核版本、`requirements.txt` 是否一致，不一致就弹出「MFABD2 开发环境同步」窗口补装，装完自动继续启动。要下载新包时可能超过调试器的连接等待（VS Code 设置项 `maa.agentTimeout`），调试器会先报连接失败，等窗口关掉后重新启动即可。弹不出窗口时（如从 MFAAvalonia 启动），日志里会给出要手动运行的命令。
 
 **非 Windows 开发者注意**：仓库里 `assets/interface.json` 的 `agent.child_exec` 写的是 `../.venv/Scripts/python.exe`——Windows 的 venv 布局。macOS / Linux 上虚拟环境的解释器在 `bin/` 下，这个路径不存在，**Agent 会静默起不来**（进程都没创建成功，日志里什么都看不到）。本地改两处，注意**别提交**：
 

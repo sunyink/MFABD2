@@ -2,8 +2,9 @@ json-with-comments
 requests>=2.25.0
 pytz
 loguru
-numpy<2
-Pillow>=9.0.0
+# 带原生扩展的两个与安卓 (android/release.json) 钉同一版本：桌面各平台与安卓跑同一份行为
+numpy==2.3.2
+Pillow==11.0.0
 
 # -------------------------------------------------------
 # [核心版本配置]

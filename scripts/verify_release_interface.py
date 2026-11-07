@@ -1,6 +1,6 @@
 """Contract tests for scripts/release_interface.py: what each target's interface.json becomes.
 
-Runs on the build jobs' Python 3.10 as well as 3.11, with the standard library only.
+Runs on the build jobs' Python 3.11, with the standard library only.
 """
 
 import io
