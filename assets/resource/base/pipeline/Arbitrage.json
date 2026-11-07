@@ -8044,8 +8044,8 @@
         ]
     },
     "Arbitrage_SellMaterials": {
-        "desc": "⑤出售多余材料的阶段入口，默认关闭。由Arbitrage_Action_Hub调用；先清除两个Ensure计数，确保④退出商店后可重新准备行情和进店。Ensure的max_hit:1防本阶段回跳重入；材料预留与出售数量由Python计算。",
-        "enabled": false,
+        "desc": "⑤出售多余材料的阶段入口，默认开启。由Arbitrage_Action_Hub调用；先清除两个Ensure计数，确保④退出商店后可重新准备行情和进店。Ensure的max_hit:1防本阶段回跳重入；材料预留与出售数量由Python计算。",
+        "enabled": true,
         "max_hit": 1,
         "pre_delay": 0,
         "action": "Custom",

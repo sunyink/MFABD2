@@ -7996,8 +7996,8 @@
         "出售多余材料": {
             "label": "⑤ 出售多余材料",
             "type": "switch",
-            "default_case": "No",
-            "description": "只出售达到峰值且超过保留量的材料。保留量不限制③制作消耗。",
+            "default_case": "Yes",
+            "description": "只出售达到峰值且超过保留量的材料。保留量不限制③制作消耗。<br>②推荐采购表含转卖用的材料，关闭后这些材料只会留在背包。",
             "cases": [
                 {
                     "name": "Yes",
