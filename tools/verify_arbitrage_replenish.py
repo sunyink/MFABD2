@@ -102,7 +102,7 @@ class PurchaseSupplyTests(unittest.TestCase):
     def test_default_confirmed_salt_shops_are_not_replenished(self):
         self.prepare()
         purchased = lists.completed_purchase_items(99, DAY)
-        sold = {"三国同盟", "被遗忘的战争", "试炼之路"}
+        sold = {"三国同盟", "被遗忘的战争", "试炼之路", "霍尔蒙克斯", "神圣审判", "美丽无望", "海滨天使"}
         self.assertTrue({(shop, "盐") for shop in sold} <= purchased)
         baseline = {row["shop_name"] for row in salt_plan()["requests"]}
         remaining = {row["shop_name"] for row in salt_plan(purchased)["requests"]}
@@ -314,7 +314,8 @@ class DiscountPurchaseTests(unittest.TestCase):
                     adjuster.action.assert_called_once_with("min_node")
                     adjuster.adjust.assert_not_called()
 
-    def test_discounted_chili_unlocks_profitable_recipe(self):
+    def test_four_star_tonic_makes_sweet_chili_shrimp_unprofitable(self):
+        # 四星每份 7 瓶：786 − 材料 496 − 315 = −25，按「星级＝瓶数」时会误判为可补买。
         name = "甜辣鲜虾"
         entry = NS(name=name, enabled=True, reason="", entry="test_recipe")
         market = {"day": DAY, "complete": True, "items": [
@@ -324,11 +325,28 @@ class DiscountPurchaseTests(unittest.TestCase):
         inventory = {"虾": 5259, "小麦": 16553, "料酒": 516, "甜辣酱": 0}
         plan = build_replenish_plan([entry], inventory, market, supply, day=DAY, budget=10800, sell_names={name},
                                     profit_surrender_percent=100)
-        self.assertEqual(plan["cook_today_candidates"], [name])
-        self.assertEqual((plan["requests"][0]["target"], plan["requests"][0]["max_unit_price"]), (100, 108))
-        self.assertEqual((plan["estimated_spend"], plan["allocations"][0]["portions"],
-                          plan["allocations"][0]["estimated_gain"]), (10800, 50, 1300))
+        self.assertEqual((plan["cook_today_candidates"], plan["requests"]), ([], []))
+        self.assertEqual([row["reason"] for row in plan["skipped"] if row["recipe"] == name],
+                         ["cooking_not_better_than_raw_sale"])
         self.assertEqual(DATA["tonic_unit_price"], 45)
+
+    def test_three_star_replenish_counts_five_tonic_bottles(self):
+        name = "鱼子酱蛋包饭"
+        entry = NS(name=name, enabled=True, reason="", entry="test_recipe")
+        market = {"day": DAY, "complete": True, "items": [
+            {"name": item, "peak_price": price} for item, price in
+            {name: 494, "鱼子酱罐头": 72, "鸡蛋": 12, "黄油": 30}.items()]}
+        supply = {**DATA, "shops": {"美丽无望": DATA["shops"]["美丽无望"]}}
+        inventory = {"鱼子酱罐头": 0, "鸡蛋": 1000, "黄油": 1000}
+        plan = build_replenish_plan([entry], inventory, market, supply, day=DAY, budget=9000, sell_names={name},
+                                    profit_surrender_percent=100)
+        allocation = plan["allocations"][0]
+        self.assertEqual(plan["cook_today_candidates"], [name])
+        self.assertEqual((plan["requests"][0]["target"], plan["requests"][0]["max_unit_price"]), (100, 90))
+        # 494 − 材料 228 − 5 瓶×45 = 41；买价高于直卖 (90−72)×2 = 36 后每份剩 5。
+        self.assertEqual(allocation["profit_basis"]["base_gain_per_portion"], 41)
+        self.assertEqual((allocation["portions"], allocation["estimated_gain"]), (50, 250))
+        self.assertEqual((allocation["estimated_tonic_count"], allocation["estimated_tonic_cost"]), (250, 11250))
 
     def test_regular_purchase_navigation_keeps_discount_entry(self):
         for name in ("Arbitrage_Buy_Open", "Arbitrage_Buy_CurrentFavorites"):
