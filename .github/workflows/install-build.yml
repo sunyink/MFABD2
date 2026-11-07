@@ -145,7 +145,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
-          python-version: "3.10"
+          python-version: "3.11"
 
       - name: Install maafw
         env:
@@ -203,8 +203,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # 打包进去的 Python 四个桌面平台统一 3.11.9（Windows 嵌入包的最后一个 3.11 二进制版），
+          # 依赖一律按 requirements.txt 装，不再按平台另指 numpy。
           # -------------------------------------------------------------------
-          # 🪟 Windows (x86_64) - 使用 Python 3.10
+          # 🪟 Windows (x86_64)
           # -------------------------------------------------------------------
           - os: win
             arch: x86_64
@@ -212,26 +214,24 @@ jobs:
             mfa_os: "win"
             mfa_arch: "x64"
             # Windows 专用配置
-            embed_version: "3.10.11" # Python 嵌入包版本
-            py_ver_short: "3.10" # 用于 pip 参数
+            embed_version: "3.11.9" # Python 嵌入包版本
+            py_ver_short: "3.11" # 用于 pip 参数
             py_arch: "amd64" # Python 官网文件名后缀
             pip_plat: "win_amd64" # pip 平台标签
-            numpy_req: "numpy<2"
 
           # -------------------------------------------------------------------
-          # 🪟 Windows (ARM64) - 使用 Python 3.11 (原生支持更好)
+          # 🪟 Windows (ARM64)
           # -------------------------------------------------------------------
           - os: win
             arch: aarch64
             runner: windows-latest
             mfa_os: "win"
             mfa_arch: "arm64"
-            # Windows 专用配置 (切到 3.11)
+            # Windows 专用配置
             embed_version: "3.11.9"
             py_ver_short: "3.11"
             py_arch: "arm64"
             pip_plat: "win_arm64"
-            numpy_req: "numpy>=2" # winarm64 没有<2的预编译包.
 
           # -------------------------------------------------------------------
           # 🍎 macOS (x64)
@@ -241,9 +241,8 @@ jobs:
             runner: macos-latest
             mfa_os: "osx"
             mfa_arch: "x64"
-            numpy_req: "numpy<2"
-            standalone_url: "https://github.com/indygreg/python-build-standalone/releases/download/20240107/cpython-3.10.13+20240107-x86_64-apple-darwin-install_only.tar.gz"
-            standalone_sha256: "47da6831e269ad6af603f59bbd4767636c5749bd70a24363c9cf003c32c8ecfc"
+            standalone_url: "https://github.com/astral-sh/python-build-standalone/releases/download/20240415/cpython-3.11.9+20240415-x86_64-apple-darwin-install_only.tar.gz"
+            standalone_sha256: "9afd734f63a23783cf0257bef25c9231ffc80e7747486dc54cf72f325213fd15"
 
           # -------------------------------------------------------------------
           # 🍎 macOS (ARM64)
@@ -253,9 +252,8 @@ jobs:
             runner: macos-latest
             mfa_os: "osx"
             mfa_arch: "arm64"
-            numpy_req: "numpy<2"
-            standalone_url: "https://github.com/indygreg/python-build-standalone/releases/download/20240107/cpython-3.10.13+20240107-aarch64-apple-darwin-install_only.tar.gz"
-            standalone_sha256: "4d19a0509c274f360a5c250d71a2af7263ebaf898ecdb71427f3532cbc6b2cf7"
+            standalone_url: "https://github.com/astral-sh/python-build-standalone/releases/download/20240415/cpython-3.11.9+20240415-aarch64-apple-darwin-install_only.tar.gz"
+            standalone_sha256: "7af7058f7c268b4d87ed7e08c2c7844ef8460863b3e679db3afdce8bb1eedfae"
 
           # -------------------------------------------------------------------
           # 🐧 Linux (x64)
@@ -265,7 +263,6 @@ jobs:
             runner: ubuntu-latest
             mfa_os: "linux"
             mfa_arch: "x64"
-            numpy_req: "numpy<2"
 
           # -------------------------------------------------------------------
           # 🐧 Linux (ARM64)
@@ -275,7 +272,6 @@ jobs:
             runner: ubuntu-latest
             mfa_os: "linux"
             mfa_arch: "arm64"
-            numpy_req: "numpy<2"
 
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
@@ -283,11 +279,11 @@ jobs:
           submodules: true
 
       # 设置构建环境的 Python (用于运行 install.py 等脚本)
-      # 这里的版本不影响 Windows 打包进去的嵌入式 Python 版本
+      # 这里的版本不影响 Windows 打包进去的嵌入式 Python 版本；与之同为 3.11 只为脚本只守一条版本线
       - name: Set up Build Environment
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
-          python-version: "3.10"
+          python-version: "3.11"
           cache: "" # 禁用缓存，避免 macOS 上反序列化失败警告
 
       # 显式指定 bash，确保在 Windows 上也能用 cp/rm/mkdir 等命令
@@ -351,7 +347,7 @@ jobs:
         run: |
           echo "⬇️ Downloading Python Embed ${{ matrix.embed_version }} for ${{ matrix.py_arch }}..."
 
-          # 1. 下载：利用 Matrix 变量 (支持 3.10 和 3.11)
+          # 1. 下载：利用 Matrix 变量
           curl -L -o python_embed.zip "https://www.python.org/ftp/python/${{ matrix.embed_version }}/python-${{ matrix.embed_version }}-embed-${{ matrix.py_arch }}.zip"
 
           # 2. 解压 (Windows Runner 自带 7z)
@@ -362,8 +358,7 @@ jobs:
           python3 -c "import pathlib; p = next(pathlib.Path('install/python').glob('*._pth')); p.write_text(p.read_text().replace('#import site', 'import site'))"
 
           # 3. 开启 site 支持
-          # 注意：这里我们构造 python3x._pth 文件名，因为 3.10 是 python310._pth，3.11 是 python311._pth
-          # 简单的做法是通配符，或者用 Python 脚本找
+          # 注意：._pth 文件名带版本号（3.11 是 python311._pth），所以用通配符找
           python3 -c "
           import pathlib
           import re
@@ -376,29 +371,13 @@ jobs:
 
           # 4. 重点：安装依赖
           # 使用 --only-binary=:all: 强制下载 Wheel 包 (这对 Pillow/Numpy 在 Windows 上至关重要)
-
-          # 使用 Python 精准剔除 numpy，防止误伤注释或其他包
-          python3 -c "
-          import re
-          with open('requirements.txt', 'r') as f_in, open('requirements_no_numpy.txt', 'w') as f_out:
-              for line in f_in:
-                  # 正则解释：
-                  # ^\s* : 行首允许有空格
-                  # numpy      : 必须是 numpy
-                  # \s* : 允许 numpy 后面有空格
-                  # ([<>=!~;]|$) : 后面必须跟着版本比较符、分号，或者是行尾
-                  if not re.match(r'^\s*numpy\s*([<>=!~;]|$)', line, re.IGNORECASE):
-                      f_out.write(line)
-          "
-
           python3 -m pip install \
             --platform ${{ matrix.pip_plat }} \
             --python-version ${{ matrix.py_ver_short }} \
             --only-binary=:all: \
             --no-cache-dir \
             --target install/python/Lib/site-packages \
-            "${{ matrix.numpy_req }}" \
-            -r requirements_no_numpy.txt \
+            -r requirements.txt \
             maafw==$MAA_VERSION
 
       # ----------------------------------------------------------------
@@ -432,18 +411,9 @@ jobs:
           echo "📦 Installing Dependencies (macOS)..."
           PY_EXEC="install/python/bin/python3"
 
-          # 剔除 numpy
-          "$PY_EXEC" -c "
-          import re
-          with open('requirements.txt', 'r') as f_in, open('requirements_no_numpy.txt', 'w') as f_out:
-              for line in f_in:
-                  if not re.match(r'^\s*numpy\s*([<>=!~;]|$)', line, re.IGNORECASE):
-                      f_out.write(line)
-          "
-
           # 安装依赖到便携版环境
           "$PY_EXEC" -m pip install --upgrade pip
-          "$PY_EXEC" -m pip install "${{ matrix.numpy_req }}" -r requirements_no_numpy.txt maafw==$MAA_VERSION
+          "$PY_EXEC" -m pip install -r requirements.txt maafw==$MAA_VERSION
 
           # 清理缓存
           "$PY_EXEC" -m pip cache purge
@@ -765,6 +735,20 @@ jobs:
                   print(f'Removing redundant bin: {p}')
                   shutil.rmtree(p)
           "
+
+      # 打包时 pip 只做了解析：用包里的解释器、按发布时的内核库路径真导入一遍。
+      # Windows ARM64 的解释器在 x64 runner 上跑不起来，只能跳过。
+      - name: Verify bundled Python
+        if: matrix.os == 'macos' || (matrix.os == 'win' && matrix.arch == 'x86_64')
+        shell: bash
+        run: |
+          if [ "${{ matrix.os }}" = "win" ]; then
+            PY_EXEC="install/python/python.exe"
+          else
+            PY_EXEC="install/python/bin/python3"
+          fi
+          "$PY_EXEC" -B -s scripts/verify_bundled_python.py --python 3.11 \
+            --library-dir "install/runtimes/${{ matrix.mfa_os }}-${{ matrix.mfa_arch }}/native"
 
       - name: Verify packaged project identity statement
         run: python scripts/verify_branding.py install

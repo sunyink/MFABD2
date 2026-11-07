@@ -41,7 +41,7 @@ class _InvalidRecord(ValueError):
 
 
 def _absolute_directory(value):
-    # Python 3.10 isabs accepts a root without a drive (\game). Do not let the
+    # Before Python 3.13, isabs accepts a root without a drive (\game). Do not let the
     # pretask working directory or current drive complete an installation path.
     path = value.replace("/", "\\")
     if path.lower().startswith("\\\\?\\unc\\"):

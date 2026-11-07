@@ -151,7 +151,7 @@ Android 不运行项目的桌面 venv 创建或安装步骤。宿主必须提供
 尚未提供桌面旧存档或早期 Android 试验存档的自动迁移。
 应用卸载或清除应用数据不属于“保留存档的覆盖升级”。
 
-本地最小验证（**需要 Python 3.11+**；项目桌面 dev 环境默认的 3.10 会在
+本地最小验证（**需要 Python 3.11+**，与桌面 dev 环境同版本；更旧的会在
 `hashlib.file_digest` 与 `TestCase.enterContext` 上直接报 AttributeError）：
 
 ```sh

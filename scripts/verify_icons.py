@@ -188,10 +188,7 @@ class IconTests(unittest.TestCase):
         self.assertEqual(self.executable.read_bytes(), b"original executable")
 
     def start(self, patcher):
-        """addCleanup, not enterContext: the same source runs on the 3.10 build jobs."""
-        value = patcher.start()
-        self.addCleanup(patcher.stop)
-        return value
+        return self.enterContext(patcher)
 
     def mock_tool(self):
         self.start(patch.object(icons, "RCEDIT_SHA256", icons.hashlib.sha256(b"test tool").hexdigest()))

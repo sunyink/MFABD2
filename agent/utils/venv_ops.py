@@ -8,7 +8,7 @@ Agent 启动处在客户端的连接计时里（VS Code 插件按设置项 maa.a
     不一致就在新窗口拉起同步，等它完成后接着启动。客户端先等不及结束了 Agent 也无妨：
     同步在独立进程里不受牵连，窗口关闭后重新启动即可。
   · sync()：本文件作为脚本运行，建 venv、装依赖，全程持锁。首次搭环境也用它：
-        py -3.10 agent/utils/venv_ops.py
+        py -3.11 agent/utils/venv_ops.py
 发布包没有 requirements.txt，不走这里；用户侧从不当场下载。
 """
 
@@ -34,7 +34,9 @@ CLIENT_MAAFW_ENV = "PI_CLIENT_MAAFW_VERSION"
 # 客户端没报版本、环境里也还没装 maafw 时，按此范围安装。
 FALLBACK_MAAFW_SPEC = ">=5.11,<6.1"
 VENV_NAME = ".venv"
-PREFERRED_PYTHON_VERSION = "3.10"
+# 与发布包里的 Python 同版本；也是下限：更旧的装不上 numpy==2.3.2。
+# 本文件作为脚本时要能在旧解释器上跑起来报出这句话，别用新语法。
+PREFERRED_PYTHON_VERSION = "3.11"
 PIP_INDEX = "https://pypi.tuna.tsinghua.edu.cn/simple"
 # =========================================================
 # 以下状态文件都在 .venv 里，删掉 .venv 一并清空。
@@ -290,7 +292,7 @@ def _installed_maafw(python: Path):
     raw = result.stdout.strip()
     return normalize_version(raw) or raw  # 同 installed_maafw_version，去掉元数据里的 v
 
-def find_preferred_python() -> str:
+def find_preferred_python() -> "str | None":
     if sys.platform == "win32":
         try:
             cmd = ["py", f"-{PREFERRED_PYTHON_VERSION}", "-c", "import sys; print(sys.executable)"]
@@ -303,17 +305,30 @@ def find_preferred_python() -> str:
         if path:
             return path
     current = f"{sys.version_info.major}.{sys.version_info.minor}"
+    if sys.version_info[:2] < _minor(PREFERRED_PYTHON_VERSION):
+        print(f"❌ 没找到 Python {PREFERRED_PYTHON_VERSION}，当前解释器 {current} 装不上依赖；"
+              f"请先安装 Python {PREFERRED_PYTHON_VERSION}。")
+        return None
     print(f"⚠️ 没找到 Python {PREFERRED_PYTHON_VERSION}，改用当前解释器 ({current})。")
     return sys.executable
 
-def check_existing_venv_version(venv_path: Path):
+def _minor(version: str) -> tuple:
+    return tuple(int(part) for part in version.split(".")[:2])
+
+def check_existing_venv_version(venv_path: Path) -> bool:
+    """更旧的 venv 装不上依赖，只能重建（不替用户删）；更新的照用，只提醒。"""
     for line in _read(venv_path / "pyvenv.cfg").splitlines():
         if line.startswith("version"):
             version = line.split("=")[1].strip()
+            if _minor(version) < _minor(PREFERRED_PYTHON_VERSION):
+                print(f"❌ 虚拟环境是 Python {version}，依赖要求 {PREFERRED_PYTHON_VERSION} 及以上。"
+                      f"请删除 {venv_path} 后运行 py -{PREFERRED_PYTHON_VERSION} agent/utils/venv_ops.py 重建。")
+                return False
             if not version.startswith(PREFERRED_PYTHON_VERSION):
                 print(f"⚠️ 虚拟环境是 Python {version}，首选 {PREFERRED_PYTHON_VERSION}；"
                       f"遇到兼容问题可删除 .venv 重建。")
-            return
+            return True
+    return True
 
 def _in_kill_on_close_job() -> bool:
     """当前进程所在作业关闭时会结束它的话，同步就可能停在卸了旧版、没装新版的半路。"""
@@ -337,9 +352,12 @@ def _in_kill_on_close_job() -> bool:
 def _sync_locked(project_root: Path, venv_path: Path, target) -> bool:
     python = get_venv_executable(venv_path)
     if python.exists():
-        check_existing_venv_version(venv_path)
+        if not check_existing_venv_version(venv_path):
+            return False
     else:
         base = find_preferred_python()
+        if base is None:
+            return False
         print(f"创建虚拟环境 {venv_path}（基础解释器 {base}）", flush=True)
         if not _run([base, "-m", "venv", str(venv_path)]):
             return False

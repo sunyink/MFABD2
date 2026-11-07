@@ -56,7 +56,7 @@ def _boot_log(directory=None, note=""):
     return None
 
 
-# The embedded Windows interpreter uses python310._pth and does not add the
+# The embedded Windows interpreter uses python311._pth and does not add the
 # script directory to sys.path. Resolve from this file, not the UI's cwd.
 sys.path.insert(0, str(AGENT_DIR))
 
