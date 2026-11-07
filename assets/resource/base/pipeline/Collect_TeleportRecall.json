@@ -753,7 +753,7 @@
         "focus": "IM.遭遇战后接回活动步行"
     },
     "Collect_IM_Entry": {
-        "desc": "活动卡（地图没有传送阵）进卡入口 | 由 Collect_Pack_Event_1/3/4/5 的 Pack_Bypass 进入，不走通用箱庭入口，也不回传送阵。确认箱庭后清零本模块带 max_hit 的节点，再清步行标签、开导航地图按标题分发。同轮重进从首次状态开始。本模块新增带 max_hit 的节点时要补进这份清单。失败一律默认退栈回选卡列表，不写完成。",
+        "desc": "活动卡（地图没有传送阵）进卡入口 | 由 Collect_Pack_Event_1/3/4/5 的 Pack_Bypass 进入，不走通用箱庭入口，也不回传送阵。确认箱庭后清零本模块带 max_hit 的节点，再清步行标签、开导航地图按标题分发。同轮重进从首次状态开始。本模块新增带 max_hit 的节点时要补进这份清单；逃跑薄壳 Collect_IM_Skirmish 与脱战链按卡计次，由进卡前的 Collect_Pack_ResetSkirmish 清零，不在此列（遇敌接回本入口时不重置，次数才限得住）。失败一律默认退栈回选卡列表，不写完成。",
         "recognition": "Or",
         "any_of": [
             "Global_ToSandBox_Enter"
@@ -764,7 +764,6 @@
         "custom_action_param": {
             "node_name": [
                 "Collect_IM_Locate",
-                "Collect_Skirmish_Escape",
                 "Collect_IM_OnFoot_NviMap_E01_A2_Move",
                 "Collect_IM_OnFoot_NviMap_E01_B2_Move",
                 "Collect_IM_OnFoot_NviMap_E03_A2_Move",
@@ -837,7 +836,8 @@
         ]
     },
     "Collect_IM_Skirmish": {
-        "desc": "步行吸取中撞上遭遇战：调通用脱战链逃跑，回到箱庭后从清标签重来 | 逃跑后人可能在出发图、半路或目的图，不接回原流程，交 Collect_IM_Entry_ResetTag 清步行标签、重开地图按标题重新分发。逃不掉时脱战链超时退栈，这里再试，次数由 Collect_Skirmish_Escape 的 max_hit 限住（Collect_IM_Entry 清零）。",
+        "desc": "步行吸取中撞上遭遇战：调通用脱战链逃跑，回到箱庭后从清标签重来 | 逃跑后人可能在出发图、半路或目的图，不接回原流程，交 Collect_IM_Entry_ResetTag 清步行标签、重开地图按标题重新分发。逃不掉时脱战链超时退栈，回到这里会马上再进脱战链，重试次数由 Collect_Skirmish_Escape 的 max_hit 限住。本节点 max_hit 8 限的是额度用完后的重进：按节点名借识别不看对方的 max_hit，脱战链用完后本节点照样认得出战斗画面，没有它就会与 _ResetTag 零延迟互跳。两者都由进卡前的 Collect_Pack_ResetSkirmish 清零；用完后不再命中，调用方按各自超时退栈。",
+        "max_hit": 8,
         "recognition": "Or",
         "any_of": [
             "Collect_Skirmish_Escape"
@@ -2091,7 +2091,8 @@
         "focus": "CTOB.行路中施放'压制'"
     },
     "Collect_TeleporCircle_OnFoot_Skirmish": {
-        "desc": "步行回阵途中撞上遭遇战：调通用脱战链逃跑，回到箱庭后重开导航地图继续往传送阵走 | 逃跑步骤在 Collect_Skirmish_Escape；本节点只决定逃完之后做什么。",
+        "desc": "步行回阵途中撞上遭遇战：调通用脱战链逃跑，回到箱庭后重开导航地图继续往传送阵走 | 逃跑步骤在 Collect_Skirmish_Escape；本节点只决定逃完之后做什么。max_hit 8 限脱战链额度用完后的重进（按节点名借识别不看对方的 max_hit），由进卡前的 Collect_Pack_ResetSkirmish 清零。",
+        "max_hit": 8,
         "recognition": "Or",
         "any_of": [
             "Collect_Skirmish_Escape"
@@ -2105,7 +2106,7 @@
         "focus": "CTOB.进入战斗界面"
     },
     "Collect_Skirmish_Escape": {
-        "desc": "[通用脱战][JumpBack 子程序] 撞上遭遇战时点暂停 → 逃跑 → 确认逃跑，回到箱庭后退栈，逃完做什么由调用方决定 | 调用方（各留一个薄壳决定逃完做什么）：卡带进卡 Collect_Pack_Skirmish、通用箱庭入口 Collect_OperationsMain_Skirmish、步行回阵 Collect_TeleporCircle_OnFoot_Skirmish、活动步行 Collect_IM_Skirmish。认战斗界面左上的换位图标（Onfight.png，ADB/PC 实测都中）。入口清零链内计次；本节点 max_hit 8 由 Collect_OperationsMain_Sandplay、Collect_IM_Entry 每张卡清零，防止逃不掉时调用方反复重进。逃完马上用左上寻路列表快速移动离开原地（原地的怪约 3 秒内会再撞上），列表打不开或没有可选地点时直接退栈。逃不掉时超时退栈交还调用方。",
+        "desc": "[通用脱战][JumpBack 子程序] 撞上遭遇战时点暂停 → 逃跑 → 确认逃跑，回到箱庭后退栈，逃完做什么由调用方决定 | 调用方（各留一个薄壳决定逃完做什么）：卡带进卡 Collect_Pack_Skirmish、通用箱庭入口 Collect_OperationsMain_Skirmish、步行回阵 Collect_TeleporCircle_OnFoot_Skirmish、活动步行 Collect_IM_Skirmish。认战斗界面左上的换位图标（Onfight.png，ADB/PC 实测都中）。入口清零链内计次。本节点 max_hit 8 是一张卡内的逃跑总次数：链退栈后薄壳会从头重查 next，战斗画面还在就马上再进本节点，重试只靠这个数限住；进卡前由 Collect_Pack_ResetSkirmish 清零。用完后薄壳照样认得出战斗画面（按节点名借识别不看本节点的 max_hit），所以每个薄壳另有自己的 max_hit 8 限重进，同处清零。额度用完仍困在战斗里时只退栈，不重启：重启后进箱庭还在原位，照样挂（用户 11-07）。逃完马上用左上寻路列表快速移动离开原地（原地的怪约 3 秒内会再撞上），列表打不开或没有可选地点时直接退栈。逃不掉时超时退栈交还调用方。",
         "max_hit": 8,
         "recognition": "TemplateMatch",
         "roi": [
@@ -2530,7 +2531,7 @@
         ],
         "expected": [
             "探索告示板",
-            "探索佈告欄"
+            "任務布告欄"
         ],
         "action": "Click",
         "anchor": {
@@ -2776,7 +2777,7 @@
             "酒[馆館]",
             "旅[馆館]",
             "探索告示板",
-            "探索佈告欄",
+            "任務布告欄",
             "狩[猎獵][场場]"
         ]
     },
@@ -3199,7 +3200,7 @@
         ],
         "expected": [
             "探索告示板",
-            "探索佈告欄"
+            "任務布告欄"
         ],
         "pre_delay": 0,
         "action": "Click",
@@ -3228,7 +3229,7 @@
                 "recognition": "OCR",
                 "expected": [
                     "探索告示板",
-                    "探索佈告欄"
+                    "任務布告欄"
                 ]
             }
         ],

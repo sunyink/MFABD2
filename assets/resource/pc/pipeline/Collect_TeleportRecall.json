@@ -624,16 +624,12 @@
         ]
     },
     "Collect_WayPoint_Board": {
-        "desc": "[PC] 寻路下拉列表在 PC 上更长且更靠上。roi 取自 #466 已删节点的 PC 实测值。",
+        "desc": "[PC] 寻路下拉列表在 PC 上更长且更靠上。roi 取自 #466 已删节点的 PC 实测值。繁体名「任務布告欄」已写进 base，这里不再覆盖 expected。",
         "roi": [
             205,
             25,
             180,
             600
-        ],
-        "expected": [
-            "探索告示板",
-            "任務布告欄"
         ]
     },
     "Collect_WayPoint_Eileen": {
