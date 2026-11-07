@@ -2,7 +2,7 @@
 
 import copy
 import threading
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from . import mfaalog
 from .name_i18n import canon
@@ -17,15 +17,20 @@ MARKET_RETENTION_DAYS = 62
 OBSERVATION_LIMIT = 200
 
 _LOCK = threading.RLock()
+_KST = timezone(timedelta(hours=9))
 
 
 def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def market_day() -> str:
-    """行情缓存暂以 UTC 日期分桶；商店实际换日时刻尚待核实，交易仍须子页核价。"""
-    return datetime.now(timezone.utc).date().isoformat()
+def market_day(at: str | None = None) -> str:
+    """价目表日：收购价 00:00 KST 换日（游戏日是 09:00 KST，即 UTC 日期）；交易仍须子页核价。
+
+    给 at（ISO 时刻）时取该时刻所在的价目表日，供扫描按开始读价的时刻归日。
+    """
+    moment = datetime.fromisoformat(at) if at else datetime.now(timezone.utc)
+    return moment.astimezone(_KST).date().isoformat()
 
 
 def get_purchase_alignments() -> dict:
@@ -156,10 +161,12 @@ def get_market_snapshot(day: str | None = None) -> dict | None:
 
 def save_market_snapshot(scan: dict, day: str | None = None) -> bool:
     """保存所有物品视图里的当天行情；完整缓存不会被失败重扫覆盖。"""
+    observed_at = scan.get("observed_at") or utc_now()
     snapshot = {
-        "day": day or market_day(),
+        # 跨 0 点的扫描混有换价前后的价格，归到开扫那天，新的一天按缺失重扫。
+        "day": day or market_day(observed_at),
         "parser_version": MARKET_PARSER_VERSION,
-        "observed_at": scan.get("observed_at") or utc_now(),
+        "observed_at": observed_at,
         "scope": "all_sellable_items",
         "complete": bool(scan.get("complete")),
         "termination_reason": scan.get("termination_reason", "unknown"),
