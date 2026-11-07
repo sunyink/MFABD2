@@ -1088,6 +1088,9 @@ jobs:
       needs.release.result == 'success' &&
       (github.event_name == 'workflow_dispatch' || needs.meta.outputs.version_type != 'ci')
     runs-on: ubuntu-latest
+    # 发布在上一个 job 已经完成，通知送没送达都不改变构建结果。
+    # 送达失败由 Send Notification 自己写摘要并正常退出；这里兜住其余意外（解析提交信息出错、runner 故障等）。
+    continue-on-error: true
     steps:
       - name: Extract commit info
         id: commit-info
@@ -1171,7 +1174,13 @@ jobs:
           # 故 curl / jq 一律显式接管退出码，保证失败时诊断信息能打出来
           if [ -z "$NOTIFY_URL" ] || [ -z "$QMSG_GROUPS" ]; then
             echo "::error::NOTIFY_URL 或 QMSG_GROUPS 未配置"
-            exit 1
+            {
+              echo "### 构建通知未送达"
+              echo
+              echo "- NOTIFY_URL 或 QMSG_GROUPS 未配置"
+              echo "- 构建产物与 Release **不受影响**，失败的只是通知通道"
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
           fi
 
           # 中继是自建的（NapCat + Cloudflare Tunnel），重启或隧道重连会留下秒级到十几秒的空窗，
@@ -1278,6 +1287,5 @@ jobs:
               fi
               echo "- 构建产物与 Release **不受影响**，失败的只是通知通道"
             } >> "$GITHUB_STEP_SUMMARY"
-            # 自建中继挂了需要人工介入，故意保持非零退出：让这次 run 标红充当故障告警
-            exit 1
+            # 不以非零退出告警：run 的成败只反映构建与发布。中继故障靠上面的 ::error:: 注解和摘要提示
           fi
