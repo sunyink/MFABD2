@@ -219,6 +219,7 @@
         "focus": "CSB.'吸取'技能已无法使用(OCR耗尽已在Collect_Skill3_2_Depleted判定)"
     },
     "Collect_Skill3_2": {
+        "desc": "施放'吸取'：点识别框后等 2 秒 | 动作 LootFeedCast 平时就是点击加等待；Collect_Skill_FeedCollect 启用时，这 2 秒改成连拍左侧获得列表（只截图不识别），列表还在出条就多拍一会儿，最多 5 秒。3-3、3-5 的施放节点同此。",
         "max_hit": 6,
         "recognition": "And",
         "all_of": [
@@ -256,8 +257,15 @@
                 "count": 25
             }
         ],
-        "action": "Click",
-        "post_delay": 2000,
+        "action": "Custom",
+        "custom_action": "LootFeedCast",
+        "custom_action_param": {
+            "feed": "collect",
+            "tag": "吸取",
+            "watch_ms": 2000,
+            "switch": "Collect_Skill_FeedCollect"
+        },
+        "post_delay": 0,
         "next": [
             "Collect_Skill3_2_NoTarget",
             "Collect_Skill3_2_Start"
@@ -397,8 +405,15 @@
                 "count": 80
             }
         ],
-        "action": "Click",
-        "post_delay": 2000,
+        "action": "Custom",
+        "custom_action": "LootFeedCast",
+        "custom_action_param": {
+            "feed": "collect",
+            "tag": "召集",
+            "watch_ms": 2000,
+            "switch": "Collect_Skill_FeedCollect"
+        },
+        "post_delay": 0,
         "next": [
             "Collect_Skill3_3_Start"
         ],
@@ -510,8 +525,15 @@
                 "count": 30
             }
         ],
-        "action": "Click",
-        "post_delay": 2000,
+        "action": "Custom",
+        "custom_action": "LootFeedCast",
+        "custom_action_param": {
+            "feed": "collect",
+            "tag": "压制",
+            "watch_ms": 2000,
+            "switch": "Collect_Skill_FeedCollect"
+        },
+        "post_delay": 0,
         "next": [
             "Collect_Skill3_5_Start"
         ],
@@ -560,12 +582,49 @@
         ],
         "timeout": 10000,
         "next": [
+            "[JumpBack]Collect_Skill_FeedCollect",
             "[Anchor]QuickSkill_Egress"
         ],
         "on_error": [
             "[JumpBack]Global_QuickCart_MenuReset",
             "Global_Null"
         ]
+    },
+    "Collect_Skill_FeedCollect": {
+        "desc": "[读掉落]出口前收一次：等左侧获得列表停下，把施放期间连拍攒下的条目一次识别并播报 | 默认关，由 interface「记录吸取掉落」打开；三个施放节点的 LootFeedCast 也看它是否启用来决定连不连拍。识别 LootFeedPending=本轮点过技能或有没收的条目，收完不再命中，TapReset 自然走向出口；一个技能都没放时不命中、零耗时。读不出只少一条记录，不拦出口。",
+        "enabled": false,
+        "recognition": "Custom",
+        "custom_recognition": "LootFeedPending",
+        "custom_recognition_param": {
+            "feed": "collect"
+        },
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "LootFeedCollect",
+        "custom_action_param": {
+            "feed": "collect",
+            "label": "吸取"
+        },
+        "post_delay": 0,
+        "focus": "CSB.读取本轮掉落"
+    },
+    "Agt_LootFeed_Layout": {
+        "desc": "[数据]py 独占，勿挂进管路。左侧获得列表的版式，LootFeed 系列动作读它的 attach | base 选一套内置版式（adb / pc，数值在 agent/utils/loot_feed.py 的 LAYOUTS），其余键逐项覆盖：box_x0 图标底框左边、box_w 底框边长、cy0 第 0 格底框中线、pitch 格距、slots 屏内完整格数、text_x0/text_x1 文字条左右。",
+        "enabled": false,
+        "attach": {
+            "base": "adb"
+        }
+    },
+    "Agt_LootFeed_Line_Ocr": {
+        "desc": "[识别]py 独占，勿挂进管路。LootFeedCollect 把若干条目的文字条横向拼成一行后，用它整行只认字不找框；roi 每次由 py 传入，这里的值只是占位。",
+        "recognition": "OCR",
+        "roi": [
+            0,
+            0,
+            1280,
+            47
+        ],
+        "only_rec": true
     },
     "Collect_Skill_KillFocus": {
         "action": "StopTask",

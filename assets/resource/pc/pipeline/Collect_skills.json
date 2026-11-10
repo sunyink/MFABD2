@@ -246,5 +246,10 @@
             74,
             70
         ]
+    },
+    "Agt_LootFeed_Layout": {
+        "attach": {
+            "base": "pc"
+        }
     }
 }
