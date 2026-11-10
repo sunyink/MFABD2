@@ -219,8 +219,9 @@ def _collect(context, session, feed, params):
     tracker.notes.clear()
     record = {"time": time.time(), "feed": feed, "label": params.get("label"), "items": items,
               "unread": unread, "resync": resync}
-    confirms = "、".join(f"{c['tag'] or '?'} " + ("未见确认" if c["confirmed"] is None else f"{(c['confirmed'] - c['t']) * 1000:.0f}ms")
-                        for c in session.casts)
+    confirms = "、".join(
+        f"{c['tag'] or '?'} " + ("未见确认" if c["confirmed"] is None else f"{(c['confirmed'] - c['t']) * 1000:.0f}ms")
+        + f"/拍 {c.get('watched', 0) * 1000:.0f}ms" for c in session.casts)
     session.casts.clear()
     loot_feed.add_record(feed, record)
 
@@ -232,7 +233,7 @@ def _collect(context, session, feed, params):
         tail += f"；字典里没有: {'、'.join(unknown)}" if unknown else ""
         mfaalog.info(f"[LootFeed]{label} 掉落 {len(items)} 条: {text}{tail}")
     mfaalog.debug(f"[LootFeed]{label} 连拍累计 {session.frames} 帧，收尾等待 {waited * 1000:.0f}ms，"
-                  f"识别 {calls} 次 {read_s * 1000:.0f}ms，重同步 {resync} 次；点击到确认: {confirms or '无'}")
+                  f"识别 {calls} 次 {read_s * 1000:.0f}ms，重同步 {resync} 次；各次点击到确认/连拍时长: {confirms or '无'}")
     session.frames = 0
     return record
 
@@ -291,6 +292,7 @@ class LootFeedCastAction(CustomAction):
             return cast["confirmed"] is not None and now - cast["confirmed"] < after_s
 
         _watch_safely(context, session, watch_s, float(params.get("max_ms", 5000)) / 1000, hold, on_frame)
+        cast["watched"] = time.monotonic() - cast["t"]
         return bool(clicked)
 
 
