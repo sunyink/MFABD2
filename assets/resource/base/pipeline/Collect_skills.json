@@ -219,7 +219,7 @@
         "focus": "CSB.'吸取'技能已无法使用(OCR耗尽已在Collect_Skill3_2_Depleted判定)"
     },
     "Collect_Skill3_2": {
-        "desc": "施放'吸取'：点识别框后等 2 秒 | 动作 LootFeedCast 平时就是点击加等待；Collect_Skill_FeedCollect 启用时，这 2 秒改成连拍左侧获得列表（只截图不识别），列表还在出条就多拍一会儿，最多 5 秒。3-3、3-5 的施放节点同此。",
+        "desc": "施放'吸取'：点识别框后等 2 秒 | 动作 LootFeedCast 平时就是点击加等待；Collect_Skill_FeedCollect 启用时，这 2 秒改成连拍左侧获得列表（只截图不识别），列表还在出条就多拍一会儿，最多 5 秒；连拍时拿本节点的识别看按钮，按钮不再可点（游戏确认施放）后至少再拍 1 秒。3-3、3-5 的施放节点同此。",
         "max_hit": 6,
         "recognition": "And",
         "all_of": [

@@ -13,10 +13,17 @@
     switch     LootFeedCast：一个节点名，它启用时才连拍，否则只点击并等 watch_ms（与原节点等价）
     tag        LootFeedCast：记在这次点击之后到达的条目上（如 "吸取"）
     watch_ms   Cast/Watch：至少连拍多久。默认 2000
+    confirm    LootFeedCast：false 时不判「游戏确认」（见下）。默认 true
+    after_ms   LootFeedCast：游戏确认之后至少再拍这么久。默认 1000
     max_ms     连拍或等待的上限。Cast/Watch 默认 5000，Collect 默认 4000
-    grace_ms   Collect：距最近一次点击至少这么久才认为不会再来（点击到首条实测 0.4–1.2 秒）。默认 1200
+    grace_ms   Collect：最后一次施放被游戏确认后至少这么久才认为不会再来；没看到确认的从收取开始算。默认 1000
     settle_ms  Collect：列表这么久没有新动静才算停。默认 500
     label      Collect：写进结果与日志的标签
+
+游戏确认：点下去到游戏真正放出技能隔多久不一定（实测 0.85–2.5 秒，探查生效时吸取的前摇更长），
+列表在确认后 0.15–0.3 秒才开始出。LootFeedCast 连拍时拿每一帧重跑本节点自己的识别：按钮不再可点
+（识别连续 0.3 秒不命中）就是确认了，从那一刻起再拍 after_ms。窗口内没等到确认就照常返回，
+由流程回到分流节点重判——与原来「等 2 秒再判」一致。
 
 版式（底框位置、格距…）读节点 Agt_LootFeed_Layout 的 attach，覆盖包改那个节点即可。
 """
@@ -38,6 +45,7 @@ LAYOUT_NODE = "Agt_LootFeed_Layout"
 OCR_NODE = "Agt_LootFeed_Line_Ocr"
 FRAME_PERIOD = 0.09      # 连拍周期（秒）。出条间隔 0.2 秒，离线回放在 0.3 秒间隔下仍全对
 READ_BUDGET = 15.0       # 一次 Collect 里识别最多花这么久，超了剩下的记为没读成
+CONFIRM_STREAK = 0.3     # 按下时按钮会闪约 0.15 秒，识别要连续这么久不命中才算技能已被吃掉
 
 
 def _params(argv):
@@ -81,7 +89,7 @@ def _grab(context):
     return img if img is not None and getattr(img, "ndim", 0) == 3 else None
 
 
-def _watch(context, session, min_s, max_s, hold=None):
+def _watch(context, session, min_s, max_s, hold=None, on_frame=None):
     """连拍并喂给跟踪器。过了 min_s 且列表不在出条（且 hold 不再要求）就停，最迟 max_s。"""
     start = time.monotonic()
     while not context.tasker.stopping:
@@ -91,6 +99,8 @@ def _watch(context, session, min_s, max_s, hold=None):
         if img is not None:
             session.tracker.feed(now, img)
             session.frames += 1
+            if on_frame:
+                on_frame(now, img)
         elapsed = now - start
         if elapsed >= max_s:
             break
@@ -101,11 +111,11 @@ def _watch(context, session, min_s, max_s, hold=None):
             time.sleep(rest)
 
 
-def _watch_safely(context, session, min_s, max_s):
+def _watch_safely(context, session, min_s, max_s, hold=None, on_frame=None):
     """连拍出任何错都退化成原来的固定等待，不影响施放流程。"""
     start = time.monotonic()
     try:
-        _watch(context, session, min_s, max_s)
+        _watch(context, session, min_s, max_s, hold, on_frame)
     except Exception as e:
         mfaalog.error(f"[LootFeed] 连拍出错，退回固定等待: {e!r}")
         rest = min_s - (time.monotonic() - start)
@@ -174,18 +184,20 @@ def _read(context, tracker, entries):
 
 def _collect(context, session, feed, params):
     tracker = session.tracker
-    grace = float(params.get("grace_ms", 1200)) / 1000
+    grace = float(params.get("grace_ms", 1000)) / 1000
     settle = float(params.get("settle_ms", 500)) / 1000
     max_s = float(params.get("max_ms", 4000)) / 1000
-    last_cast = session.casts[-1][0] if session.casts else None
+    waited = time.monotonic()
+    # 流程走到出口时技能都已被确认；没在连拍里看到确认的，最晚就是此刻刚确认
+    last = session.casts[-1] if session.casts else None
+    since = None if last is None else (last["confirmed"] if last["confirmed"] is not None else waited)
 
     def hold(now):
-        if last_cast is not None and now - last_cast < grace:
+        if since is not None and now - since < grace:
             return True
         latest = max(t for t in (tracker.t_last_new, tracker.t_last_glow, float("-inf")) if t is not None)
         return now - latest < settle or tracker.unsettled(now) > 0
 
-    waited = time.monotonic()
     _watch(context, session, 0.0, max_s, hold)
     waited = time.monotonic() - waited
 
@@ -200,13 +212,15 @@ def _collect(context, session, feed, params):
             continue
         raw, count, score, attempt = got
         name, known = _resolve_name(raw, score)
-        after = next((tag for t, tag in reversed(session.casts) if t <= e.t_first), None)
+        after = next((c["tag"] for c in reversed(session.casts) if c["t"] <= e.t_first), None)
         items.append({"name": name, "raw": raw, "count": count, "score": round(score, 4), "known": known,
                       "after": after, "reread": attempt, "frames": e.seen, "occluded": e.sig_changed})
     resync = sum(1 for n in tracker.notes if n[1] == "resync")
     tracker.notes.clear()
     record = {"time": time.time(), "feed": feed, "label": params.get("label"), "items": items,
               "unread": unread, "resync": resync}
+    confirms = "、".join(f"{c['tag'] or '?'} " + ("未见确认" if c["confirmed"] is None else f"{(c['confirmed'] - c['t']) * 1000:.0f}ms")
+                        for c in session.casts)
     session.casts.clear()
     loot_feed.add_record(feed, record)
 
@@ -218,7 +232,7 @@ def _collect(context, session, feed, params):
         tail += f"；字典里没有: {'、'.join(unknown)}" if unknown else ""
         mfaalog.info(f"[LootFeed]{label} 掉落 {len(items)} 条: {text}{tail}")
     mfaalog.debug(f"[LootFeed]{label} 连拍累计 {session.frames} 帧，收尾等待 {waited * 1000:.0f}ms，"
-                  f"识别 {calls} 次 {read_s * 1000:.0f}ms，重同步 {resync} 次")
+                  f"识别 {calls} 次 {read_s * 1000:.0f}ms，重同步 {resync} 次；点击到确认: {confirms or '无'}")
     session.frames = 0
     return record
 
@@ -243,16 +257,40 @@ class LootFeedCastAction(CustomAction):
         except Exception as e:
             mfaalog.error(f"[LootFeed] LootFeedCast 点击失败: {e!r}")
             return False
+        session = None
         try:
-            session = _session(context, argv, str(params.get("feed", "default")))                 if _switched_on(context, params) else None
+            if _switched_on(context, params):
+                session = _session(context, argv, str(params.get("feed", "default")))
         except Exception as e:
             mfaalog.error(f"[LootFeed] 会话建立失败，本次只点击不连拍: {e!r}")
-            session = None
         if session is None:
             time.sleep(watch_s)          # 没开记录：与原来的点击 + post_delay 等价
             return bool(clicked)
-        session.casts.append((time.monotonic(), params.get("tag")))
-        _watch_safely(context, session, watch_s, float(params.get("max_ms", 5000)) / 1000)
+
+        cast = {"t": time.monotonic(), "tag": params.get("tag"), "confirmed": None}
+        session.casts.append(cast)
+        node = argv.node_name if params.get("confirm", True) else None
+        after_s = float(params.get("after_ms", 1000)) / 1000
+        miss_since = None
+
+        def on_frame(now, img):
+            nonlocal miss_since
+            if not node or cast["confirmed"] is not None:
+                return
+            detail = context.run_recognition(node, img)
+            if detail is None:
+                return
+            if detail.hit:
+                miss_since = None
+            elif miss_since is None:
+                miss_since = now
+            elif now - miss_since >= CONFIRM_STREAK:
+                cast["confirmed"] = miss_since
+
+        def hold(now):
+            return cast["confirmed"] is not None and now - cast["confirmed"] < after_s
+
+        _watch_safely(context, session, watch_s, float(params.get("max_ms", 5000)) / 1000, hold, on_frame)
         return bool(clicked)
 
 
