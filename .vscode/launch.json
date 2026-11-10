@@ -22,7 +22,15 @@
             "program": "${workspaceFolder}/agent/main.py",
             "args": ["{AGENT_ID}"],
             "env": "{AGENT_ENV}",
-            "python": "${workspaceFolder}/.venv/Scripts/python.exe",
+            "windows": {
+                "python": "${workspaceFolder}/.venv/Scripts/python.exe"
+            },
+            "linux": {
+                "python": "${workspaceFolder}/.venv/bin/python"
+            },
+            "osx": {
+                "python": "${workspaceFolder}/.venv/bin/python"
+            },
             "pythonArgs": [
                 "-u",
                 "-X",

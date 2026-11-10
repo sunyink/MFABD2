@@ -8260,8 +8260,11 @@
         }
     ],
     "agent": {
-        "child_exec": "../.venv/Scripts/python.exe",
+        "child_exec": "uv",
         "child_args": [
+            "run",
+            "--no-project",
+            "python",
             "-u",
             "-X",
             "utf8=1",
