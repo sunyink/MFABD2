@@ -48,13 +48,13 @@ jobs:
           mkdir -p deps/tools
 
           # 需要同步的 schema 文件清单（须与上游 MaaXYZ/MaaFramework tools/ 实际文件名一致）
+          # custom.action / custom.recognition 两个文件不在此列：上游那两份是空壳，
+          # 本仓库的是自己写的 Custom 参数声明，同步会把它们覆盖回空壳。
           files=(
             interface.schema.json
             interface_import.schema.json
             interface_config.schema.json
             pipeline.schema.json
-            custom.action.schema.json
-            custom.recognition.schema.json
           )
 
           base="https://raw.githubusercontent.com/MaaXYZ/MaaFramework/main/tools"

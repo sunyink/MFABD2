@@ -18,6 +18,8 @@ on:
       - "release/branding/**"
       - "TRADEMARKS.md"
       - "**.py"
+      # Custom 参数声明，资源检查里的冷检查读它；只改它也要重新检查。
+      - "deps/tools/custom.*.schema.json"
       # 内核版本是从这里钉住的 MFAAvalonia 里探测出来的，改它等于换内核。
       - "requirements.txt"
   pull_request:
@@ -33,6 +35,7 @@ on:
       - "release/branding/**"
       - "TRADEMARKS.md"
       - "**.py"
+      - "deps/tools/custom.*.schema.json"
       - "requirements.txt"
   workflow_dispatch:
     inputs:
