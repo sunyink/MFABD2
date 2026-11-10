@@ -272,7 +272,7 @@ def shape_pretask(interface, target):
 
 
 def set_agent_launch(interface, target):
-    """The source points at the developer's .venv (kept on purpose, see 发布与CI.md §2.1)."""
+    """The source launches through `uv run` for development; no package has uv, so every target replaces it."""
     platform = PLATFORMS[target.platform]
     executable = platform.agent_exec
     if target.platform == "macos":

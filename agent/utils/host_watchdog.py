@@ -20,17 +20,24 @@ venv redirector（源码 PC/launcher.c，产物 venvlauncher.exe）。它读 pyv
 干等子进程并转发退出码。Python 3.7.2+ 在 Windows 上 `python -m venv` 建出来的环境
 一律如此。
 
-于是只要 `child_exec` 指向 `.venv/Scripts/python.exe`（interface.json 现在正是如此），
-真 Agent 进程的父**永远是这个 launcher**，而不是 UI：
+于是只要解释器是 `.venv/Scripts/python.exe`，真 Agent 进程的父**永远是这个 launcher**，而不是 UI：
     MFAAvalonia / pwsh  →  venv launcher  →  agent(本进程)
 拿 `getppid()` 当宿主会构成自指死锁 —— launcher 在等 agent 退出，watchdog 在等
 launcher 退出，`WaitForSingleObject` 永不 signaled，守护 100% 失效。
 （实测：agent 是 Px7144，却打印「宿主守护已启动 (UI pid=5820)」，5820 就是 launcher。）
 
+【uv 也是这样一层】
+interface.json 的 agent 段现在用 `uv run` 启动，链路变成：
+    MFAAvalonia / Code  →  uv  →  venv launcher  →  agent(本进程)
+uv 起了子进程之后只是等它结束、顺带转发信号，**Windows 与类 Unix 上都不做进程替换**
+（uv 源码 crates/uv-command-support/src/child.rs 的 run_to_completion，0.13.7 核对）。
+所以它与 launcher 同理：宿主崩了它还活着，把它当宿主就又是自指死锁。实测只结束 uv.exe 时
+两个 python 进程都会留下。类 Unix 上原本没有包装层，经 uv 启动后同样多出这一层。
+
 【实现要点】
 Windows 上启动时做一次进程快照，从父进程沿祖先链向上：
-  · 途中每一层 python（launcher 及任何 python 包装）都**纳入监视**并继续向上；
-  · 第一个非 python 祖先即真正的宿主（MFAAvalonia / pwsh / Code.exe），纳入监视后停止。
+  · 途中每一层包装（uv、launcher 及任何 python 包装）都**纳入监视**并继续向上；
+  · 第一个不是包装的祖先即真正的宿主（MFAAvalonia / pwsh / Code.exe），纳入监视后停止。
 对选中的目标各持一个 `OpenProcess(SYNCHRONIZE)` 句柄，用 `WaitForMultipleObjects`
 等**任意一个**退出。句柄绑定具体内核对象，PID 被复用也不会误判；目标一退出等待立即
 返回，不必等到下一个轮询周期。
@@ -40,7 +47,8 @@ Windows 上启动时做一次进程快照，从父进程沿祖先链向上：
 `child_exec`（pwsh → venv launcher → agent）只要 3 跳，而 VSCode 的 `debug_session`
 要走 6 跳才到宿主（debugpy 是 adapter → launcher → 目标 三级，每级各套一层
 venv launcher）。POSIX 上没有 redirector 结构（`os.execv` 就地替换），
-仍退化为 `getppid()` 变化检测。
+用 `getppid()` 变化检测；父进程是 uv 时再往上记一层，轮询时看 uv 有没有被过继
+（宿主退出后 uv 的父进程号会变，本进程的不会）。
 
 一个目标都没拿到时 `available` 为 False，调用方应回退到原来的阻塞 join，
 行为不会比现状更差。
@@ -75,6 +83,37 @@ _MAX_INTERMEDIATE_TARGETS = 16
 
 # 视作「中间层」的映像名：命中则继续向上找真宿主
 _PYTHON_IMAGES = ("python.exe", "pythonw.exe", "python3.exe")
+_UV_IMAGES = ("uv.exe", "uvw.exe")
+# 类 Unix 上 uv 的进程名
+_UV_NAMES = ("uv", "uvw")
+
+
+def _parse_proc_stat(raw: str):
+    """/proc/<pid>/stat 的一行 → (父进程号, 进程名)。
+
+    形如 `123 (名字) S 45 ...`；名字里可以有空格和括号，所以按最后一个右括号切。
+    """
+    head, _, tail = raw.rpartition(")")
+    return int(tail.split()[1]), head.split("(", 1)[1]
+
+
+def _posix_process(pid: int):
+    """类 Unix 上查一个进程的 (父进程号, 可执行文件名)，查不到返回 None。Linux 读 /proc，其余问 ps。"""
+    try:
+        with open(f"/proc/{pid}/stat", "rb") as handle:
+            return _parse_proc_stat(handle.read().decode("utf-8", "replace"))
+    except (OSError, ValueError, IndexError):
+        pass
+    try:
+        import subprocess
+
+        out = subprocess.run(  # nosec
+            ["ps", "-o", "ppid=", "-o", "comm=", "-p", str(pid)],
+            capture_output=True, text=True, timeout=3,
+        ).stdout.split(None, 1)
+        return int(out[0]), os.path.basename(out[1].strip()) if len(out) > 1 else ""
+    except Exception:
+        return None
 
 
 def _same_path(a: str, b: str) -> bool:
@@ -111,6 +150,7 @@ class HostWatchdog:
         self.targets = []           # List[_WatchTarget]
         self.exited_target = None   # 触发退出判定的那个目标，供调用方写日志
         self._kernel32 = None
+        self._posix_wrappers = []   # 类 Unix：[(uv 的 pid, 它启动时的父进程号)]，从近到远
 
         try:
             self.ppid = os.getppid()
@@ -125,14 +165,41 @@ class HostWatchdog:
         if sys.platform == "win32":
             self._init_windows()
         else:
-            # POSIX 下 getppid() 变化即可判定，无需额外资源
+            # POSIX 下 getppid() 变化即可判定；父进程是 uv 时再记下它上面那一层
+            self._posix_wrappers = self._resolve_posix_wrappers()
             self.available = True
 
     def describe(self) -> str:
         """给日志用的一行描述。"""
+        if self._posix_wrappers:
+            chain = " / ".join(f"{pid}(uv)" for pid, _ in self._posix_wrappers)
+            return f"{chain} / {self._posix_wrappers[-1][1]}(host)"
         if not self.targets:
             return f"ppid={self.ppid}(未解析)"
         return " / ".join(str(t) for t in self.targets)
+
+    # ------------------------------------------------------------------
+    # 类 Unix
+    # ------------------------------------------------------------------
+    def _resolve_posix_wrappers(self) -> list:
+        """从父进程往上，把连续的 uv 包装层记成 (pid, 当时的父进程号)。父进程不是 uv 就是空表。"""
+        wrappers, cur = [], self.ppid
+        for _ in range(_MAX_ANCESTOR_DEPTH):
+            info = _posix_process(cur)
+            if info is None or info[1] not in _UV_NAMES:
+                break
+            wrappers.append((cur, info[0]))
+            cur = info[0]
+        return wrappers
+
+    def _posix_host_gone(self) -> bool:
+        """uv 被过继（父进程号变了）= 它上面那层退出了。uv 自己退出由 getppid() 变化覆盖。"""
+        for pid, parent in self._posix_wrappers:
+            info = _posix_process(pid)
+            if info is None or info[0] != parent:
+                self.exited_target = _WatchTarget(parent, "", "host")
+                return True
+        return False
 
     # ------------------------------------------------------------------
     # Windows
@@ -175,7 +242,7 @@ class HostWatchdog:
             # 对宿主失效 —— §12 那次栽的就是「日志不说谎但也不说实话」。
             if not any(t.role == "host" for t in self.targets):
                 mfaalog.warning(
-                    f"[Watchdog] 祖先链已走到上限仍未找到非 python 宿主，当前只监视 "
+                    f"[Watchdog] 祖先链已走到上限仍未找到真正的宿主，当前只监视 "
                     f"{self.describe()}。这些包装层若先于宿主退出仍能感知，但宿主"
                     "自身异常退出时可能感知不到 —— 链路确实更深就调高 _MAX_ANCESTOR_DEPTH"
                 )
@@ -292,7 +359,10 @@ class HostWatchdog:
             if self._is_intermediate(image_name, image_path):
                 if intermediates < _MAX_INTERMEDIATE_TARGETS:
                     # 判据 1 命中时说明它就是启动我的那个 venv launcher
-                    role = "venv-launcher" if _same_path(image_path, sys.executable) else "python"
+                    if _same_path(image_path, sys.executable):
+                        role = "venv-launcher"
+                    else:
+                        role = "uv" if (image_name or "").lower() in _UV_IMAGES else "python"
                     self.targets.append(_WatchTarget(cur, image_name, role, handle))
                     intermediates += 1
                 else:
@@ -311,10 +381,11 @@ class HostWatchdog:
         判据 1（强）：它的映像就是我自称的解释器 —— 只有 venv redirector 会这样，
                      因为 __PYVENV_LAUNCHER__ 把我的 sys.executable 改写成了它的路径。
         判据 2（兜底）：映像名是 python.exe / pythonw.exe。
+        判据 3：映像名是 uv.exe —— `uv run` 那一层，见模块头。
         """
         if _same_path(image_path, sys.executable):
             return True
-        return (image_name or "").lower() in _PYTHON_IMAGES
+        return (image_name or "").lower() in _PYTHON_IMAGES + _UV_IMAGES
 
     @staticmethod
     def _create_time(kernel32, pid: int, handle=None):
@@ -395,6 +466,9 @@ class HostWatchdog:
             return self._wait_windows(timeout)
 
         # POSIX: 轮询 getppid()。父进程退出后子进程被 reparent，ppid 必然改变。
+        # uv 那一层每次调用只查一遍：macOS 上要起一个 ps，没必要半秒一次。
+        if self._posix_host_gone():
+            return True
         deadline = time.monotonic() + timeout
         while True:
             try:
