@@ -147,6 +147,12 @@ jobs:
         with:
           python-version: "3.11"
 
+      # 只用标准库，放在装内核之前：Custom 名字没注册、参数写错这类问题几秒内就能报出来。
+      - name: Check Custom usage
+        run: |
+          python scripts/verify_custom_schema.py --self-test
+          python scripts/verify_custom_schema.py
+
       - name: Install maafw
         env:
           TARGET_VERSION: ${{ needs.meta.outputs.maa_version }}

@@ -110,6 +110,8 @@ node tools/format-json.cjs "assets/resource/**/*.json" assets/interface.json
 - **先看懂，再动手**：改现有的东西前，先搞懂它**现在为什么这么写**。很多看着"多余"的节点或字段，是踩过坑留下的柱子——看到一根不明所以的柱子，先弄清它撑着什么再决定拆不拆。搞不懂就来问，我乐意讲来龙去脉。**问一句，好过重复造轮子、或拆掉承重墙。**
 - **Pipeline JSON**：提交前跑过上面那条格式化命令，保持字段顺序和换行一致。
 - **Python**：跟着 `agent/` 现有风格走，日志用项目里的 `mfaalog`，别裸 `print`。
+- **用 Custom 时有补全，也有不跑游戏的检查**：在 VSCode 里写到 `"custom_action": "` 或 `"custom_recognition": "` 会列出全部已注册的名字，选定后 `custom_action_param` 里有哪些键、能填什么、各是什么意思都会提示。提交前可以跑 `python scripts/verify_custom_schema.py`（只用标准库，不用连模拟器），它专查以前要跑到那一步挂了才知道的错：名字没注册、必填参数漏了、键名拼错、取值代码不认、参数里指向的节点不存在。CI 的资源检查也会跑它。可省略的参数不填不会报。
+- **新增或改了 Custom**：到 `deps/tools/custom.action.schema.json` / `custom.recognition.schema.json` 里同步补一条定义，照旁边的抄即可，否则上面的检查会提示注册名与声明对不上。只声明「写错必出事」的约束，可省略的参数不要标必填。
 - **模块文档**：钓鱼模块有一份 [开发说明](docs/zh_cn/钓鱼模块开发说明.md)，写清了接口、参数在哪调、哪些是死代码。动这块之前先读它。
 - **Commit**：本仓库带了提交辅助，执行一次 `git config core.hooksPath scripts/hooks`，之后 `git commit` 会弹出辅助界面帮你规范格式。没用也行，把改动说清楚即可。
 - **资源包**：多包（base / NT 等）用 [MaaOWM](https://github.com/sunyink/MaaOWM) 管理，依序挂载、卸载时向目标包写回 Diff。
