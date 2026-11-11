@@ -434,6 +434,10 @@ def install_agent(target_os):
     if ".venv" in written:
         print(f"::error::child_exec 仍指向开发环境虚拟环境: {written}")
         sys.exit(1)
+    # 仓库里的 agent 段用 uv run 启动，那是给开发机用的；发布包里没有 uv。
+    if Path(written.replace("\\", "/")).stem.lower() == "uv":
+        print(f"::error::child_exec 仍是开发环境的启动命令: {written}")
+        sys.exit(1)
     if written_interface.get("pretask") != interface.get("pretask"):
         print("::error::pretask 回读不符: 写入后的内容与本次配置不一致")
         sys.exit(1)

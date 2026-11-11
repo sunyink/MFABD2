@@ -1,5 +1,5 @@
 {
     "agent.debug": {
-        "../.venv/Scripts/python.exe": "MFABD2 Agent"
+        "uv": "MFABD2 Agent"
     }
 }

@@ -79,7 +79,7 @@ python scripts/verify_icons.py
 ```
 
 CI runs this in `install.yml`'s `Check Resources` job, which both the desktop and
-the Android build depend on. The suite runs on Python 3.10, the same version the
+the Android build depend on. The suite runs on Python 3.11, the same version the
 build jobs use.
 
 Source/fallback tests do not establish Explorer, Dock, launcher, or device visual
