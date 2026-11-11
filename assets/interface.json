@@ -7447,19 +7447,19 @@
                             "enabled": true
                         },
                         "Arbitrage_Cooking_A8_Entry": {
-                            "enabled": true
+                            "enabled": false
                         },
                         "Arbitrage_Cooking_A8": {
                             "enabled": true
                         },
                         "Arbitrage_Cooking_A3_Entry": {
-                            "enabled": true
+                            "enabled": false
                         },
                         "Arbitrage_Cooking_A3": {
                             "enabled": true
                         },
                         "Arbitrage_Cooking_A9_Entry": {
-                            "enabled": true
+                            "enabled": false
                         },
                         "Arbitrage_Cooking_A9": {
                             "enabled": true
@@ -7490,9 +7490,6 @@
                 "蜂蜜黄油杏仁",
                 "火烤鱼板棒",
                 "鱼子酱蛋包饭",
-                "三角美乃滋饭团",
-                "甜辣鲜虾",
-                "三文鱼芥末寿司",
                 "地狱火紫菜包饭",
                 "透明沙拉",
                 "闪闪铁板虾",
