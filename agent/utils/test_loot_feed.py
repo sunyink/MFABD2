@@ -127,6 +127,25 @@ class TrackerTest(unittest.TestCase):
         tr = track(events, 10.0, windows=(2.0, 0.7), frozen_at=1.6)
         self.assertEqual(items_of(tr, events), [1, 2, 3])
 
+    def test_lower_row_revealed_one_frame_after_top(self):
+        # 到达箭头盖住上面两格：两条到齐后先只露出第 0 格（图标还带一点动画余色），下一帧第 1 格才露出来。
+        # 11-10 PC 实跑：这样会把第 0 格那条重复登记一次（金币×73500 记了两条）。余色轻重都要过。
+        events = [(0.5, 5, 1750), (0.7, 6, 73500)]
+        y0, y1, x0, w = LAY.row_top(0), LAY.row_top(1), LAY.box_x0, LAY.box_w
+        for tint in (0, 3, 6, 40):
+            tr, t = lf.FeedTracker(LAY), 0.0
+            while t < 4.5:
+                img = render(events, t)
+                if 0.5 <= t < 1.2:                      # 箭头动画期间两格都看不清
+                    img[y0:y1 + w, x0:x0 + w] = 200
+                elif 1.2 <= t < 1.2 + STEP:             # 只露出第 0 格，图标偏亮
+                    img[y1:y1 + w, x0:x0 + w] = 200
+                    inner = img[y0 + 6:y0 + w - 6, x0 + 6:x0 + w - 6]
+                    inner[:] = np.clip(inner.astype(np.int16) + tint, 0, 255).astype(np.uint8)
+                tr.feed(t, img)
+                t += STEP
+            self.assertEqual(items_of(tr, events), [5, 6], tint)
+
     def test_busy_then_quiet(self):
         events = [(0.5, 1, 100), (0.7, 2, 200)]
         tr, t, seen_busy = lf.FeedTracker(LAY), 0.0, False

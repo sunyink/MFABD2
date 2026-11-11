@@ -57,6 +57,7 @@ def layout_from(config):
 
 
 SOLID_MAX = 2.6   # 条目到达这么久以后不可能还是纯色（实测 2.05–2.15 秒后开始淡出）
+FRESH = 0.35           # 条目登记后这么久内若只见过一帧，那一帧的指纹不当硬证据
 CONT_GAP = 0.35   # 上次看到纯色不超过这么久，就认它还在（不管年龄）
 SIG_EXACT = 1.5   # 同一格原样没动时的指纹差（无损截图下为 0）
 SIG_GOOD = 4.5    # 不超过它算同一图标（同名实测最大 2.6，沾了到达闪光时到 3.9）
@@ -191,22 +192,26 @@ class FeedTracker:
         top = self.stack[0] if self.stack else None
         k_min = 1 if (top is not None and top.sig is not None and top.t_last is not None
                       and self._glow_open is not None and self._glow_open > top.t_last) else 0
-        best, fallback = None, None
+        best, weak, fallback = None, None, None
         for k in range(k_min, s_bot + 2):
-            good = bad = out = exact = 0
+            good = bad = out = exact = below = unsure = unsure_bad = 0
             for r in rows:
                 i = r.slot - k
                 if i < 0:
                     continue
                 if i >= len(self.stack):
                     out += 1           # 落在已知列表下方：这个 k 解释不了它
+                    below += i == len(self.stack) + below      # 其中紧贴列表底部、连成一串的
                     continue
                 e = self.stack[i]
                 if e.sig is None:
                     continue           # 还没看清的条目：通配
                 d = sig_distance(r.sig, e.sig)
+                fresh = e.seen <= 1 and t - e.t_first <= FRESH and d > SIG_GOOD
+                unsure += fresh        # 只见过一帧的新条目：那一帧的指纹可能还沾着到达动画，对不上不算数
                 if d > SIG_BAD or not self._alive(e, t):
                     bad += 1           # 图标不同；或这条早该淡出了，图标相同也不是它
+                    unsure_bad += fresh
                 elif d <= SIG_GOOD:
                     good += 1
                     exact += d <= SIG_EXACT
@@ -215,10 +220,19 @@ class FeedTracker:
                 key = (-(good - bad - out), -good, k)
                 if best is None or key < best[0]:
                     best = (key, k, good)
+            elif below and out == below and bad == unsure_bad and (unsure or good > bad):
+                # 说不通的只有两样：紧贴列表底部多出来的行，和只见过一帧的新条目指纹对不上。
+                # 到达箭头会盖住上面两格，两条到齐后常常先露出第 0 格（还带着动画余色）、下一帧才露出第 1 格。
+                # 多出来的行按「来得更早、之前没看清」补登记，不为它把整列判成全新（11-10 实跑：金币×73500 记了两条）
+                key = (below, k)
+                if weak is None or key < weak[0]:
+                    weak = (key, k, max(good, 1))
             elif not bad and not out and fallback is None:
                 fallback = k           # 没有硬证据但也不矛盾：取新条目最少的解释
         if best is not None:
             return best[1], best[2]
+        if weak is not None:
+            return weak[1], weak[2]
         if fallback is not None:
             return fallback, 0
         return None
@@ -482,7 +496,8 @@ _SESSIONS = {}     # (task_id, feed) → Session
 class Session:
     def __init__(self, layout):
         self.tracker = FeedTracker(layout)
-        self.casts = []      # [(时刻, tag)]：上次收取以来的点击
+        self.casts = []      # 上次收取以来的点击：{"t", "tag", "confirmed", …}
+        self.marks = []      # 上次收取以来的标记（不是点击，如落地补拍）：{"t", "tag", "mark": True}
         self.frames = 0
 
 

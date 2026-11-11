@@ -247,6 +247,14 @@
             70
         ]
     },
+    "Collect_Skill_FeedRefresh_Open": {
+        "target": [
+            132,
+            103,
+            10,
+            10
+        ]
+    },
     "Agt_LootFeed_Layout": {
         "attach": {
             "base": "pc"

@@ -1,12 +1,21 @@
 {
     "Collect_Skill_Start": {
-        "desc": "PVE点击技能队列开启（识别到3个中的2",
+        "desc": "PVE点击技能队列开启（识别到3个中的2 | 动作 LootFeedWatch 平时就是等 1 秒（原来的 post_delay）；Collect_Skill_FeedCollect 启用时这 1 秒改成连拍左侧获得列表：传送落地偶尔正好踩到采集点，没放技能就跳一格物品，不拍下来报表会少这一笔。拍到了记在「落地」名下，随本点出口一并播报；屏上有条目还没拍够时多拍一会儿，最多 2.5 秒。",
         "recognition": "Or",
         "any_of": [
             "Rec_SandBox_Pin_Tpl",
             "Rec_SandBox_Run_Tpl"
         ],
-        "post_delay": 1000,
+        "action": "Custom",
+        "custom_action": "LootFeedWatch",
+        "custom_action_param": {
+            "feed": "collect",
+            "tag": "落地",
+            "watch_ms": 1000,
+            "max_ms": 2500,
+            "switch": "Collect_Skill_FeedCollect"
+        },
+        "post_delay": 0,
         "next": [
             "Collect_Skill_Tap3_Enable",
             "[JumpBack]Collect_Skill_Tap3"
@@ -178,6 +187,7 @@
         "focus": "CSB.[WRN]无技能被设置,栏位3-2 吸取技能不存在"
     },
     "Collect_Skill3_2_Used": {
+        "desc": "'吸取'图标在、已用色（灰）⇒ 这个栏位放完了，去栏位3-3 | 动作 LootFeedConfirm：Collect_Skill_FeedCollect 启用时，把最近一次吸取补记为「已被游戏确认」。游戏吃下技能偶尔比施放节点的连拍窗口还晚，那一次在连拍里就没等到确认，收取时会当成没放成而不查卡住（11-10 实跑漏过一次）；开关没开时什么都不做。",
         "recognition": "And",
         "all_of": [
             {
@@ -213,13 +223,20 @@
                 "count": 50
             }
         ],
+        "action": "Custom",
+        "custom_action": "LootFeedConfirm",
+        "custom_action_param": {
+            "feed": "collect",
+            "tag": "吸取",
+            "switch": "Collect_Skill_FeedCollect"
+        },
         "next": [
             "Collect_Skill3_3_Start"
         ],
         "focus": "CSB.'吸取'技能已无法使用(OCR耗尽已在Collect_Skill3_2_Depleted判定)"
     },
     "Collect_Skill3_2": {
-        "desc": "施放'吸取'：点识别框后等 2 秒 | 动作 LootFeedCast 平时就是点击加等待；Collect_Skill_FeedCollect 启用时，这 2 秒改成连拍左侧获得列表（只截图不识别），列表还在出条就多拍一会儿，最多 5 秒；连拍时拿本节点的识别看按钮，按钮不再可点（游戏确认施放）后至少再拍 1 秒。3-3、3-5 的施放节点同此。",
+        "desc": "施放'吸取'：点识别框后等 2 秒 | 动作 LootFeedCast 平时就是点击加等待；Collect_Skill_FeedCollect 启用时，这 2 秒改成连拍左侧获得列表（只截图不识别），列表还在出条就多拍一会儿，最多 5 秒；连拍时拿本节点的识别看按钮，按钮不再可点（游戏确认施放）后至少再拍 1 秒。3-3、3-5 的施放节点同此。 | expect=true 只有吸取带：吸取一旦被确认就一定出条目（没东西可吸时游戏只弹提示、按钮不变），确认了却没来就是游戏卡住，收取时据此翻页补读；召集、压制确认后可能不出东西，不带。",
         "max_hit": 6,
         "recognition": "And",
         "all_of": [
@@ -262,6 +279,7 @@
         "custom_action_param": {
             "feed": "collect",
             "tag": "吸取",
+            "expect": true,
             "watch_ms": 2000,
             "switch": "Collect_Skill_FeedCollect"
         },
@@ -410,6 +428,9 @@
         "custom_action_param": {
             "feed": "collect",
             "tag": "召集",
+            "only": [
+                "金币"
+            ],
             "watch_ms": 2000,
             "switch": "Collect_Skill_FeedCollect"
         },
@@ -530,6 +551,11 @@
         "custom_action_param": {
             "feed": "collect",
             "tag": "压制",
+            "only": [
+                "金币",
+                "兽肉"
+            ],
+            "linger_ms": 3000,
             "watch_ms": 2000,
             "switch": "Collect_Skill_FeedCollect"
         },
@@ -591,7 +617,7 @@
         ]
     },
     "Collect_Skill_FeedCollect": {
-        "desc": "[读掉落]出口前收一次：等左侧获得列表停下，把施放期间连拍攒下的条目一次识别并播报 | 默认关，由 interface「记录吸取掉落」打开；三个施放节点的 LootFeedCast 也看它是否启用来决定连不连拍。识别 LootFeedPending=本轮点过技能或有没收的条目，收完不再命中，TapReset 自然走向出口；一个技能都没放时不命中、零耗时。读不出只少一条记录，不拦出口。",
+        "desc": "[读掉落]出口前收一次：等左侧获得列表停下，把施放期间连拍攒下的条目一次识别并播报 | 默认关，由 interface「记录吸取掉落」打开；三个施放节点的 LootFeedCast 也看它是否启用来决定连不连拍。识别 LootFeedPending=本轮点过技能或有没收的条目，收完不再命中，TapReset 自然走向出口；一个技能都没放时不命中、零耗时。读不出只少一条记录，不拦出口。 | 游戏偶发卡住（带 expect 的施放已确认、到下一次点击前一条都没来；同一个点上别的技能的列表可以照常出）时，动作在 py 里用 run_task 跑一次 refresh 指的 Collect_Skill_FeedRefresh，再连拍读一遍；仍没有就放弃。",
         "enabled": false,
         "recognition": "Custom",
         "custom_recognition": "LootFeedPending",
@@ -603,10 +629,68 @@
         "custom_action": "LootFeedCollect",
         "custom_action_param": {
             "feed": "collect",
-            "label": "吸取"
+            "label": "吸取",
+            "refresh": "Collect_Skill_FeedRefresh"
         },
         "post_delay": 0,
         "focus": "CSB.读取本轮掉落"
+    },
+    "Collect_Skill_FeedRefresh": {
+        "desc": "[读掉落·卡住补救]入口：清掉开图、关图两个节点的命中次数再开图 | 不在任何 next 里，只由 LootFeedCollect 在 py 里按名字 run_task（名字写在 Collect_Skill_FeedCollect 的 custom_action_param.refresh）。游戏偶尔在施放后不出获得列表，要进一次全屏页面再回场景才放出来（11-10 用户手测：开区域地图再退出可以，切技能页不行）。本链只做「开区域地图 → 点返回」，回到场景后的连拍与识别在 py 里。 | 不写识别：调用时刚过 TapReset，人在箱庭；真不在箱庭时 Open 认不到，3 秒后静默结束，py 照常往下。",
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "ClearNodeHitCount",
+        "custom_action_param": {
+            "node_name": [
+                "Collect_Skill_FeedRefresh_Open",
+                "Collect_Skill_FeedRefresh_Close"
+            ]
+        },
+        "post_delay": 0,
+        "timeout": 3000,
+        "next": [
+            "Collect_Skill_FeedRefresh_Open"
+        ],
+        "focus": "CSB.[WRN]获得列表没出现,开一次区域地图再退出"
+    },
+    "Collect_Skill_FeedRefresh_Open": {
+        "desc": "[读掉落·卡住补救]在箱庭点左上小地图开区域地图 | 坐标与等待照抄 Collect_S06_Floor_Read。点完仍看得到箱庭说明没打开，再点一次；max_hit 3 由入口清零，用完或 5 秒内两项都不中即静默结束。",
+        "max_hit": 3,
+        "recognition": "Or",
+        "any_of": [
+            "Rec_SandBox_Pin_Tpl",
+            "Rec_SandBox_Run_Tpl"
+        ],
+        "action": "Click",
+        "target": [
+            148,
+            119,
+            34,
+            38
+        ],
+        "post_delay": 2000,
+        "timeout": 5000,
+        "next": [
+            "Collect_Skill_FeedRefresh_Close",
+            "Collect_Skill_FeedRefresh_Open"
+        ]
+    },
+    "Collect_Skill_FeedRefresh_Close": {
+        "desc": "[读掉落·卡住补救]区域地图已打开（底栏文字，借 Collect_TeleporCircle_OnFoot_NviMap 的识别）⇒ 点左上返回 (111,41) 关图，链到此结束 | 不写 next、点完不等：回到场景后列表立刻开始出，等待会吃掉条目的停留时间，后面由 py 连拍。(111,41) 只能在地图打开时点，地图没开时那里是 buff 图标。",
+        "max_hit": 3,
+        "recognition": "Or",
+        "any_of": [
+            "Collect_TeleporCircle_OnFoot_NviMap"
+        ],
+        "pre_delay": 0,
+        "action": "Click",
+        "target": [
+            111,
+            41,
+            2,
+            2
+        ],
+        "post_delay": 0
     },
     "Agt_LootFeed_Layout": {
         "desc": "[数据]py 独占，勿挂进管路。左侧获得列表的版式，LootFeed 系列动作读它的 attach | base 选一套内置版式（adb / pc，数值在 agent/utils/loot_feed.py 的 LAYOUTS），其余键逐项覆盖：box_x0 图标底框左边、box_w 底框边长、cy0 第 0 格底框中线、pitch 格距、slots 屏内完整格数、text_x0/text_x1 文字条左右。",
