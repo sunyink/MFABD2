@@ -32,7 +32,7 @@ def check_scope(context, batch):
     if PersistentStore._current_account_id != batch.account_id:
         raise RuntimeError("出售期间账号已改变")
     if store.market_day() != batch.day:
-        raise RuntimeError("出售期间游戏日已刷新，停止旧日计划")
+        raise RuntimeError("出售期间价目表已换日，停止旧日计划")
 
 
 def _batch(argv):
