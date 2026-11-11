@@ -3,7 +3,7 @@
 from copy import deepcopy
 from datetime import date
 
-from .arbitrage_replenish_data import discounted_purchase_price
+from .arbitrage_replenish_data import TONIC_BOTTLES_BY_LEVEL, discounted_purchase_price
 from .arbitrage_replenish_profit import DEFAULT_PROFIT_SURRENDER_PERCENT, select_purchase, validate_profit_surrender_percent
 from .name_i18n import canon
 
@@ -100,7 +100,8 @@ def _candidate(recipe, material, available, prices, offers, budget, tonic_price,
     other_limits = [available[name] // count for name, count in ingredients.items() if name != material]
     if not other_limits:
         return None, {"reason": "no_other_material_bound"}
-    base_gain = prices[recipe["name"]] - sum(count * prices[name] for name, count in ingredients.items()) - recipe["level"] * tonic_price
+    bottles = TONIC_BOTTLES_BY_LEVEL[recipe["level"]]
+    base_gain = prices[recipe["name"]] - sum(count * prices[name] for name, count in ingredients.items()) - bottles * tonic_price
     candidate, detail = select_purchase(
         needed_per=needed_per, owned=owned, material_value=prices[material], base_gain=base_gain,
         offers=offers, budget=budget, max_portions=min(other_limits), percent=percent)
@@ -111,8 +112,8 @@ def _candidate(recipe, material, available, prices, offers, budget, tonic_price,
     candidate.update(stock_used=stock_used,
                      estimated_stock_value=sum(count * prices[name] for name, count in stock_used.items()),
                      estimated_peak_revenue=portions * prices[recipe["name"]],
-                     estimated_tonic_count=portions * recipe["level"],
-                     estimated_tonic_cost=portions * recipe["level"] * tonic_price,
+                     estimated_tonic_count=portions * bottles,
+                     estimated_tonic_cost=portions * bottles * tonic_price,
                      profit_basis={"material": material, "needed_per": needed_per, "owned": owned,
                                    "material_value": prices[material], "base_gain_per_portion": base_gain})
     return candidate, {}
@@ -184,7 +185,8 @@ def build_replenish_plan(entries, quantities, market, data, *, day, budget, sell
         if missing_prices:
             skip("peak_price_unknown", items=missing_prices)
             continue
-        if prices[name] - sum(count * prices[material] for material, count in ingredients.items()) - recipe["level"] * tonic_price <= 0:
+        tonic_cost = TONIC_BOTTLES_BY_LEVEL[recipe["level"]] * tonic_price
+        if prices[name] - sum(count * prices[material] for material, count in ingredients.items()) - tonic_cost <= 0:
             skip("cooking_not_better_than_raw_sale")
             continue
         shortages = [material for material, count in ingredients.items() if available[material] < count]
