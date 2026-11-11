@@ -8,7 +8,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from release_channel import resolve, resolve_mfaa_commit
+from release_channel import resolve, resolve_mfaa_commit, tag_mfaa_commit
 
 
 def push(message="", branch="main"):
@@ -91,7 +91,7 @@ class ReleaseChannelChecks(unittest.TestCase):
             subprocess.run([sys.executable, "-B", str(Path(__file__).with_name("release_channel.py"))],
                            env=env, check=True, capture_output=True, text=True)
             self.assertEqual(output.read_text(encoding="utf-8"),
-                             "existing=preserved\nversion_type=beta\nconcurrency_group=beta\nmfaa_commit=\n")
+                             "existing=preserved\nversion_type=beta\nconcurrency_group=beta\nmfaa_commit=\nmfaa_fallback=false\n")
 
     def test_script_emits_marker_and_rejects_bad_marker_before_writing(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -105,7 +105,7 @@ class ReleaseChannelChecks(unittest.TestCase):
                              encoding="utf-8")
             subprocess.run([sys.executable, "-B", script], env=env, check=True, capture_output=True, text=True)
             self.assertEqual(output.read_text(encoding="utf-8"),
-                             "version_type=beta\nconcurrency_group=beta\nmfaa_commit=9aa52b\n")
+                             "version_type=beta\nconcurrency_group=beta\nmfaa_commit=9aa52b\nmfaa_fallback=false\n")
             output.unlink()
             event.write_text(json.dumps({"head_commit": {"message": "fix: x\n\n[mfaa:六位提交号]\n[deploy-beta]"}}),
                              encoding="utf-8")
@@ -114,21 +114,60 @@ class ReleaseChannelChecks(unittest.TestCase):
             self.assertIn("::error::", result.stdout)
             self.assertFalse(output.exists())
 
-    def test_tag_push_without_head_commit_reads_checked_out_commit(self):
+
+
+class TagPushChecks(unittest.TestCase):
+    """Tag pushes run against a real origin so the annotated-tag fetch itself is exercised."""
+
+    def run_tag_push(self, commit_message, tag_message=None, with_head_commit=True):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            git = ["git", "-C", str(root), "-c", "user.name=t", "-c", "user.email=t@t", "-c", "core.hooksPath=/dev/null"]
-            subprocess.run(["git", "init", "-q", str(root)], check=True)
-            subprocess.run(git + ["commit", "-q", "--allow-empty", "-m", "Merge:'fix/x'| y\n\n[mfaa:7FF8C6]"], check=True)
-            event = root / "event.json"
-            output = root / "output.txt"
-            event.write_text(json.dumps({"ref": "refs/tags/v4.6.1"}), encoding="utf-8")
+            origin, clone = root / "origin", root / "clone"
+            config = ["-c", "user.name=t", "-c", "user.email=t@t", "-c", "core.hooksPath=/dev/null"]
+
+            def git(cwd, *args):
+                subprocess.run(["git", "-C", str(cwd), *config, *args], check=True, capture_output=True)
+
+            subprocess.run(["git", "init", "-q", str(origin)], check=True)
+            git(origin, "commit", "-q", "--allow-empty", "-m", commit_message)
+            if tag_message is None:
+                git(origin, "tag", "v4.6.5")
+            else:
+                git(origin, "tag", "-a", "v4.6.5", "-m", tag_message)
+            subprocess.run(["git", "clone", "-q", str(origin), str(clone)], check=True)
+            # Imitate actions/checkout, which can leave the pushed tag as a lightweight ref.
+            git(clone, "tag", "-f", "v4.6.5", "HEAD")
+            event, output = root / "event.json", root / "output.txt"
+            payload = {"head_commit": {"message": commit_message}} if with_head_commit else {}
+            event.write_text(json.dumps(payload), encoding="utf-8")
             env = dict(os.environ, GITHUB_EVENT_PATH=str(event), GITHUB_OUTPUT=str(output),
-                       GITHUB_EVENT_NAME="push", GITHUB_REF="refs/tags/v4.6.1")
-            subprocess.run([sys.executable, "-B", str(Path(__file__).with_name("release_channel.py"))],
-                           env=env, cwd=root, check=True, capture_output=True, text=True)
-            self.assertEqual(output.read_text(encoding="utf-8"),
-                             "version_type=release\nconcurrency_group=release\nmfaa_commit=7ff8c6\n")
+                       GITHUB_EVENT_NAME="push", GITHUB_REF="refs/tags/v4.6.5")
+            result = subprocess.run([sys.executable, "-B", str(Path(__file__).with_name("release_channel.py"))],
+                                    env=env, cwd=clone, capture_output=True, text=True, encoding="utf-8")
+            return result, output.read_text(encoding="utf-8") if output.exists() else None
+
+    def assert_selects(self, expected, *args, warned=False, **kwargs):
+        result, output = self.run_tag_push(*args, **kwargs)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(output, "version_type=release\nconcurrency_group=release\n"
+                                 f"mfaa_commit={expected}\nmfaa_fallback=true\n")
+        self.assertEqual("::warning::" in result.stdout, warned, result.stdout)
+
+    def test_annotated_tag_message_selects_fork_build(self):
+        self.assert_selects("9aa52b", "Merge:'fix/x'| y", "[mfaa:9AA52B]")
+        self.assert_selects("9aa52b", "Merge:'fix/x'| y\n\n[mfaa:7ff8c6]\n[deploy-beta]", "正式版\n\n[mfaa:9aa52b]")
+
+    def test_tag_without_marker_releases_upstream_client_and_ignores_commit(self):
+        for tag_message in ("", "正式版说明", None):
+            with self.subTest(tag_message=tag_message):
+                self.assert_selects("", "Merge:'fix/x'| y\n\n[mfaa:7ff8c6]", tag_message)
+        # Some tag pushes carry no head_commit at all (v4.6.1); that changes nothing either.
+        self.assert_selects("", "Merge:'fix/x'| y", "", with_head_commit=False)
+
+    def test_bad_tag_marker_warns_and_releases_upstream_client(self):
+        for tag_message in ("[mfaa:六位提交号]", "[mfaa:9aa52]", "[mfaa:9aa52b]\n[mfaa:85e032]"):
+            with self.subTest(tag_message=tag_message):
+                self.assert_selects("", "Merge:'fix/x'| y\n\n[mfaa:7ff8c6]", tag_message, warned=True)
 
 
 def pushed(message):
@@ -162,10 +201,16 @@ class MfaaCommitMarkerChecks(unittest.TestCase):
             with self.subTest(message=message), self.assertRaises(ValueError):
                 pushed(message)
 
-    def test_tag_push_uses_tagged_commit_marker(self):
-        event = {"head_commit": {"message": "Merge:'fix/x'| y\n\n[mfaa:9aa52b]"}}
-        self.assertEqual(resolve("push", "refs/tags/v4.6.5", event)["version_type"], "release")
-        self.assertEqual(resolve_mfaa_commit("push", event), "9aa52b")
+    def test_tag_message_marker_never_fails(self):
+        self.assertEqual(tag_mfaa_commit("[mfaa:9AA52B]"), ("9aa52b", ""))
+        self.assertEqual(tag_mfaa_commit(""), ("", ""))
+        self.assertEqual(tag_mfaa_commit("正式版说明"), ("", ""))
+        for message in ("[mfaa:六位提交号]", "[mfaa:]", "[mfaa:9aa52b]\n[mfaa:85e032]"):
+            with self.subTest(message=message):
+                commit, warning = tag_mfaa_commit(message)
+                self.assertEqual(commit, "")
+                self.assertIn("requirements.txt", warning)
+                self.assertNotIn("\n", warning)
 
     def test_marker_does_not_disturb_last_line_channel_rule(self):
         self.assertEqual(push("fix: x\n\n[mfaa:9aa52b]\n[deploy-beta]")["version_type"], "beta")

@@ -11,6 +11,10 @@ on:
         description: "Optional six-character commit from sunyink/MFAAvalonia:mfabd2"
         type: string
         default: ""
+      mfaa_fallback:
+        description: "Use the requirements.txt client when mfaa_commit cannot be resolved (tag releases)"
+        type: boolean
+        default: false
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -75,7 +79,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           UPSTREAM_TAG: ${{ steps.parse_config.outputs.mfaa_tag }}
           FORK_COMMIT: ${{ inputs.mfaa_commit }}
-        run: python3 scripts/mfaa_source.py resolve --tag "$UPSTREAM_TAG" --commit "$FORK_COMMIT"
+          FALLBACK: ${{ inputs.mfaa_fallback }}
+        run: python3 scripts/mfaa_source.py resolve --tag "$UPSTREAM_TAG" --commit "$FORK_COMMIT" --fallback "$FALLBACK"
 
       # 探测与最终打包必须使用同一来源；留空覆盖输入时沿用 requirements.txt。
       - name: Download MFAA for Detection
