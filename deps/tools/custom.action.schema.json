@@ -55,7 +55,11 @@
                 "SwitchAccountCheckpoint",
                 "StartupCheckApp",
                 "StartupRunApp",
-                "PC_StopApp"
+                "PC_StopApp",
+                "LootFeedCast",
+                "LootFeedWatch",
+                "LootFeedConfirm",
+                "LootFeedCollect"
             ]
         }
     },
@@ -209,6 +213,18 @@
         },
         {
             "$ref": "#/$defs/PC_StopApp"
+        },
+        {
+            "$ref": "#/$defs/LootFeedCast"
+        },
+        {
+            "$ref": "#/$defs/LootFeedWatch"
+        },
+        {
+            "$ref": "#/$defs/LootFeedConfirm"
+        },
+        {
+            "$ref": "#/$defs/LootFeedCollect"
         }
     ],
     "$defs": {
@@ -1915,6 +1931,183 @@
                 "custom_action": {
                     "const": "PC_StopApp",
                     "description": "关闭 PC 端游戏。"
+                }
+            }
+        },
+        "LootFeedCast": {
+            "properties": {
+                "custom_action": {
+                    "const": "LootFeedCast",
+                    "description": "施放技能并连拍左侧获得列表：点前序识别框，开关启用时连拍（只截图不识别），否则等 watch_ms，与点击 + post_delay 等价。"
+                },
+                "custom_action_param": {
+                    "type": "object",
+                    "properties": {
+                        "feed": {
+                            "type": "string",
+                            "description": "会话名，同一任务内同名的 LootFeed 系列共用一份跟踪状态，默认 default。"
+                        },
+                        "switch": {
+                            "type": "string",
+                            "minLength": 1,
+                            "x-node-ref": true,
+                            "description": "开关节点：它启用时才连拍，否则退回原来的固定等待。不写就一直连拍。"
+                        },
+                        "tag": {
+                            "type": "string",
+                            "description": "这次点击之后到达的条目记在它名下（如「吸取」）；LootFeedConfirm 按它找施放。"
+                        },
+                        "only": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            },
+                            "description": "这次施放只会出的物品名（字典里的简体名）；之后到达的条目不在其中就往前归给别的施放。"
+                        },
+                        "linger_ms": {
+                            "type": "number",
+                            "minimum": 0,
+                            "description": "本轮最后一次施放已确认、之后还没有条目来时，收取从确认起最多再等多久，默认 0 = 不额外等。"
+                        },
+                        "expect": {
+                            "type": "boolean",
+                            "description": "true = 被游戏确认就一定出条目（吸取是，召集、压制不一定），收取据此判游戏卡住。默认 false。"
+                        },
+                        "watch_ms": {
+                            "type": "number",
+                            "minimum": 0,
+                            "description": "至少连拍多久；开关没启用时就是固定等待时长。默认 2000。"
+                        },
+                        "confirm": {
+                            "type": "boolean",
+                            "description": "false 时不判「游戏确认」（连拍时重跑本节点识别，按钮不再可点即确认）。默认 true。"
+                        },
+                        "after_ms": {
+                            "type": "number",
+                            "minimum": 0,
+                            "description": "游戏确认之后至少再拍多久，默认 1000。"
+                        },
+                        "max_ms": {
+                            "type": "number",
+                            "minimum": 0,
+                            "description": "连拍上限，默认 5000。"
+                        }
+                    },
+                    "additionalProperties": false
+                }
+            }
+        },
+        "LootFeedWatch": {
+            "properties": {
+                "custom_action": {
+                    "const": "LootFeedWatch",
+                    "description": "只连拍左侧获得列表、不点击（如传送落地补拍）。开关没启用时只等 watch_ms。"
+                },
+                "custom_action_param": {
+                    "type": "object",
+                    "properties": {
+                        "feed": {
+                            "type": "string",
+                            "description": "会话名，同一任务内同名的 LootFeed 系列共用一份跟踪状态，默认 default。"
+                        },
+                        "switch": {
+                            "type": "string",
+                            "minLength": 1,
+                            "x-node-ref": true,
+                            "description": "开关节点：它启用时才连拍，否则退回原来的固定等待。不写就一直连拍。"
+                        },
+                        "tag": {
+                            "type": "string",
+                            "description": "给了就打一个标记，之后到达、又没有施放认领的条目记在它名下（如「落地」）。"
+                        },
+                        "watch_ms": {
+                            "type": "number",
+                            "minimum": 0,
+                            "description": "至少连拍多久；开关没启用时就是固定等待时长。默认 2000。"
+                        },
+                        "max_ms": {
+                            "type": "number",
+                            "minimum": 0,
+                            "description": "连拍上限，默认 5000；小于 watch_ms 时按 watch_ms。"
+                        }
+                    },
+                    "additionalProperties": false
+                }
+            }
+        },
+        "LootFeedConfirm": {
+            "properties": {
+                "custom_action": {
+                    "const": "LootFeedConfirm",
+                    "description": "流程认出技能已用掉时，把同 tag 最近一次 LootFeedCast 补记为已被游戏确认。开关没启用时什么都不做。"
+                },
+                "custom_action_param": {
+                    "type": "object",
+                    "properties": {
+                        "feed": {
+                            "type": "string",
+                            "description": "会话名，同一任务内同名的 LootFeed 系列共用一份跟踪状态，默认 default。"
+                        },
+                        "switch": {
+                            "type": "string",
+                            "minLength": 1,
+                            "x-node-ref": true,
+                            "description": "开关节点：它启用时才连拍，否则退回原来的固定等待。不写就一直连拍。"
+                        },
+                        "tag": {
+                            "type": "string",
+                            "description": "要补记的施放，与对应 LootFeedCast 的 tag 一致。"
+                        }
+                    },
+                    "additionalProperties": false
+                }
+            }
+        },
+        "LootFeedCollect": {
+            "properties": {
+                "custom_action": {
+                    "const": "LootFeedCollect",
+                    "description": "等左侧获得列表停下，把连拍攒下的条目一次识别并播报；读不出只少一条记录，总是返回成功。"
+                },
+                "custom_action_param": {
+                    "type": "object",
+                    "properties": {
+                        "feed": {
+                            "type": "string",
+                            "description": "会话名，同一任务内同名的 LootFeed 系列共用一份跟踪状态，默认 default。"
+                        },
+                        "label": {
+                            "type": "string",
+                            "description": "写进结果与日志的标签。"
+                        },
+                        "refresh": {
+                            "type": "string",
+                            "minLength": 1,
+                            "x-node-ref": true,
+                            "description": "带 expect 的施放已确认、却一条都没出（游戏卡住）时，用 run_task 跑一次的节点。不写只报警告。"
+                        },
+                        "refresh_wait_ms": {
+                            "type": "number",
+                            "minimum": 0,
+                            "description": "跑完 refresh 后最多等多久看列表开不开始出，默认 2500。"
+                        },
+                        "grace_ms": {
+                            "type": "number",
+                            "minimum": 0,
+                            "description": "最后一次施放被确认后至少这么久才认为不会再来，默认 1000。"
+                        },
+                        "settle_ms": {
+                            "type": "number",
+                            "minimum": 0,
+                            "description": "列表这么久没有新动静才算停，默认 500。"
+                        },
+                        "max_ms": {
+                            "type": "number",
+                            "minimum": 0,
+                            "description": "等待上限，默认 4000。"
+                        }
+                    },
+                    "additionalProperties": false
                 }
             }
         },
