@@ -156,7 +156,8 @@ Android 不运行项目的桌面 venv 创建或安装步骤。宿主必须提供
 
 ```sh
 python scripts/verify_android_runtime.py
-python scripts/verify_android_interface_filter.py
+python scripts/verify_release_interface.py   # 各目标 interface.json 怎么改写
+python scripts/verify_install_targets.py     # 各目标拷哪些文件
 python scripts/verify_android_overlay.py
 python scripts/verify_android_build.py
 python agent/recognition/test_rdd_hsv_rescue.py
@@ -175,7 +176,7 @@ python scripts/detect_maa_version.py agent-core-tag --maafw 5.14.3
 
 MaaFwApp 的“服务器”列表对应 PI 的 `resource`。其固定版本在配置层采用第一条 `Adb`
 controller 声明，实际运行使用 AndroidNativeController；该版本未按 `resource.controller`
-筛选列表。安装脚本在生成 Android interface 时应用这些限制，仅保留可用的控制器和资源。
+筛选列表。`scripts/release_interface.py` 在生成 Android interface 时应用这些限制，仅保留可用的控制器和资源。
 当前项目产物中只保留 `Adb` / `ADB`。桌面源码 interface 和桌面安装产物继续包含各平台声明。
 安卓资源显示为“安卓原生机”，实际按 `base → android_native` 加载；任务及预设按控制器限制筛选。
 安卓打包只复制 `base`、`android_native` 两个资源包，另保留 `Announcement` 公告帮助和资源根目录文件；
@@ -211,7 +212,7 @@ controller 声明，实际运行使用 AndroidNativeController；该版本未按
 - 当前上游只有 Stable/Beta 更新渠道，Alpha/CI 自动发现并不完整。
 - 只有正式身份的包带 Mirror酱 RID：`android_build.py prepare` 把 `assets/interface.json` 的 `mirrorchyan_rid`
   写进 PI profile 的 `update.mirrorchyanRid`（上游以它为准，压过 PI 自带字段）；APK 内的 `interface.json`
-  不带 RID，`verify_android_apk.py` 也这样检查。Mirror酱按 `os=android`、`arch=arm64` 查询，检查更新无需 CDK，下载需要有效 CDK。
+  由 `release_interface.py` 去掉 RID，`verify_android_apk.py` 也这样检查。Mirror酱按 `os=android`、`arch=arm64` 查询，检查更新无需 CDK，下载需要有效 CDK。
 - 两个来源的公测频道不对等：GitHub 源接受任何预发布、按安装编号取最大，会推到内测；Mirror酱的公测频道返回正式与公测中
   版本号较大的那个，且只收正式与公测的 APK。从 GitHub 装了内测再切到 Mirror酱，会一直显示已是最新，直到出现版本号更大的公测或正式版。
 - 新安装默认使用 GitHub 更新源，可在设置中选择 Mirror酱；不会覆盖用户已保存的来源偏好。

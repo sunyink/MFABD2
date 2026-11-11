@@ -19,13 +19,16 @@ open-source licenses.
 | `frame.png`   | Original 1024px transparent artwork; source for derived images           |
 | `app.icns`    | Approved macOS icon set, reserved for future `.app` packaging            |
 
-`scripts/prepare_icons.py` runs after desktop package assembly. It copies
-`title.png` to `install/resource/ui/title.png` and sets the generated root
-`interface.json` field to `"icon": "resource/ui/title.png"` only after the copy
-succeeds. `resource/ui/` holds application UI images, including future background
+The MFAA runtime icon is part of the generated root `interface.json`, so
+`scripts/release_interface.py` (called once by `install.py`, the only writer of
+that file) handles it: it copies `title.png` to `install/resource/ui/title.png`
+and sets `"icon": "resource/ui/title.png"`, writing the image before the
+interface. `resource/ui/` holds application UI images, including future background
 images; it is not registered in the task resource loading list. Background
-configuration is not implemented yet. Windows additionally uses rcedit 2.0.0, verified by SHA-256, on a
-temporary copy of `MFAAvalonia.exe`. The original executable is replaced only
+configuration is not implemented yet.
+
+`scripts/prepare_icons.py` runs after desktop package assembly for Windows only.
+It uses rcedit 2.0.0, verified by SHA-256, on a temporary copy of `MFAAvalonia.exe`. The original executable is replaced only
 after its Windows resource group references all seven approved images. No loose ICO or
 rcedit executable is shipped. DLL files are not modified.
 The source artwork, this README and unused ICNS stay in the repository. Existing
@@ -46,8 +49,9 @@ bitmap supported by the pinned upstream, not an adaptive foreground/background
 resource set. No new image-generation service runs in CI.
 
 Each optional operation reports success or fallback in the Actions log and step
-summary. If the desktop interface update fails after copying the image, the
-previous image is restored or the newly added image is removed. PNG and ICO
+summary. Only missing or malformed art is optional: if writing `interface.json`
+fails after the image was copied, the previous image is restored or the newly
+added image is removed, and the build stops. PNG and ICO
 validation bound their reads and decompression and reject malformed input with a
 validation error.
 
@@ -57,10 +61,11 @@ The exit code of `prepare_icons.py` answers "could the script run at all", never
 The icon steps therefore carry no `continue-on-error` — that would mute exactly
 the case that must stop the build. When the script reports `status=applied`, CI
 runs `prepare_icons.py <platform> --check`, which re-reads the produced artifact
-(`interface.json` and its image, the patched executable's resource group, or the
-Android profile and its launcher bitmap) and fails the build if the icon is not
-actually there. An optional feature may be skipped; it may not half-apply in
-silence.
+(the patched executable's resource group, or the Android profile and its launcher
+bitmap) and fails the build if the icon is not actually there. The runtime icon
+gets the same treatment from `release_interface.py`'s read-back, which compares
+the packaged image with `title.png`. An optional feature may be skipped; it may
+not half-apply in silence.
 
 Android release unit tests run on the original profile before optional icon
 preparation; any test failure stops the job without retrying. If APK assembly
@@ -75,11 +80,12 @@ assembly failure, signing failure, or APK verification failure remains fatal.
 ## Checks
 
 ```sh
-python scripts/verify_icons.py
+python scripts/verify_icons.py               # Windows EXE, Android launcher, PNG/ICO validation
+python scripts/verify_release_interface.py   # runtime icon in interface.json, among its other rules
 ```
 
-CI runs this in `install.yml`'s `Check Resources` job, which both the desktop and
-the Android build depend on. The suite runs on Python 3.10, the same version the
+CI runs both in `install.yml`'s `Check Resources` job, which both the desktop and
+the Android build depend on. The suites run on Python 3.10, the same version the
 build jobs use.
 
 Source/fallback tests do not establish Explorer, Dock, launcher, or device visual
