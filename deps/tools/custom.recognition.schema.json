@@ -19,7 +19,8 @@
                 "ArbitrageBuyRecordReady",
                 "ArbitrageBuyNeedsScan",
                 "ArbitrageBuyScanFinished",
-                "AgentPing"
+                "AgentPing",
+                "LootFeedPending"
             ]
         }
     },
@@ -65,6 +66,9 @@
         },
         {
             "$ref": "#/$defs/AgentPing"
+        },
+        {
+            "$ref": "#/$defs/LootFeedPending"
         }
     ],
     "$defs": {
@@ -568,6 +572,24 @@
                 "custom_recognition": {
                     "const": "AgentPing",
                     "description": "Agent 存活探针：Agent 通道正常则命中。"
+                }
+            }
+        },
+        "LootFeedPending": {
+            "properties": {
+                "custom_recognition": {
+                    "const": "LootFeedPending",
+                    "description": "上次 LootFeedCollect 之后又用 LootFeedCast 点过技能、或有还没收取的条目时命中（框 0,0,1,1）；收完不再命中。"
+                },
+                "custom_recognition_param": {
+                    "type": "object",
+                    "properties": {
+                        "feed": {
+                            "type": "string",
+                            "description": "会话名，与 LootFeedCast / LootFeedCollect 的一致，默认 default。"
+                        }
+                    },
+                    "additionalProperties": false
                 }
             }
         }
