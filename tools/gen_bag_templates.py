@@ -5,7 +5,7 @@
     agent/data/bag_item_names.json                    物品表：规范名、繁体名、档案、类别、图标、近亲颜色范围；各包的图集排布
 
 背包仓检在 py 里把整页截图切成格子，每格一次同全部图标比对（agent/utils/bag_cells.py），所以图标按格子原样
-对齐存放、不裁外接框；识别节点不再逐个物品找图。目录外的物品（活动道具、亲密饮品）也收进图集，档案记 other：
+对齐存放、不裁外接框；识别节点不再逐个物品找图。目录外的物品（活动道具、亲密饮品、宝箱）也收进图集，档案记 other：
 认得出它们，才能不点开就跳过。
 
 用法（素材路径按本机实际给）：
@@ -15,7 +15,8 @@
     加 --dump <目录> 另存每个图标的单张小图，供人工查看。
 
 素材：
-    --text   Asset-N-Text 快照目录：item_names.jsonl（物品名、表、编号、icon 字段）与 databases/common.db（分类列）
+    --text   Asset-N-Text 快照目录：item_names.jsonl（物品名、表、编号、icon 字段）与 databases/common.db（分类列；
+             宝箱的名字与图标也从这里读，见 load_boxes）
     --icons  原图目录，可给多个，按顺序优先；递归找 icon 字段同名的 PNG，只用 256×256 的那份
              （Asset-N 同名还有带 _#编号 的图集切片，尺寸不一，不能用）。Asset-N 根目录文件极多，扫一遍要几分钟。
 
@@ -135,7 +136,68 @@ def load_items(text_dir):
         seen.add(cn)
         items.append({"profile": found[0], "kind": found[1], "cn": cn, "tw": row["names"].get("zh-Hant") or "",
                       "alias": [raw] if raw != cn else [], "icon": icons[0]})
+    # 宝箱表里也有「只装一样东西、直接借那样东西的图标和名字」的条目（如名为初级天赋技能书的奖励），收进来会给目标物品的
+    # 图标挂上一个同名的目录外别名。所以图标已被物品表用过的、名字与已有物品相同的都不收：真箱子都有自己的图标。
+    used_icons = {item["icon"] for item in items}
+    used_names = {item["cn"] for item in items}
+    for cn, tw, icon in load_boxes(db):
+        cn = canon(cn)
+        if icon in used_icons or cn in used_names or (cn, icon) in other_seen:
+            continue
+        other_seen.add((cn, icon))
+        items.append({"profile": "other", "kind": "宝箱", "cn": cn, "tw": tw, "alias": [], "icon": icon})
     return items
+
+
+def _proto(blob):
+    """不带结构定义地读一条 protobuf：{字段号: 值}，同号取最后一个；变长整数与字符串够用，其余跳过。"""
+    def varint(at):
+        value = shift = 0
+        while True:
+            byte = blob[at]
+            at += 1
+            value |= (byte & 0x7F) << shift
+            shift += 7
+            if byte < 0x80:
+                return value, at
+    out, at = {}, 0
+    while at < len(blob):
+        key, at = varint(at)
+        field, wire = key >> 3, key & 7
+        if wire == 0:
+            out[field], at = varint(at)
+        elif wire == 2:
+            size, at = varint(at)
+            chunk = bytes(blob[at:at + size])
+            at += size
+            try:
+                out[field] = chunk.decode("utf-8")
+            except UnicodeDecodeError:
+                out[field] = chunk
+        elif wire in (1, 5):
+            at += 8 if wire == 1 else 4
+        else:
+            break
+    return out
+
+
+def load_boxes(db):
+    """宝箱：不在 item_names.jsonl 里，名字与图标在 RandomBoxTable / RandomBoxTextTable（protobuf，按字段号读）。
+
+    RandomBoxTable：3 图标、7 名字的文本编号（6 是说明）；RandomBoxTextTable：4 简体、7 繁体。
+    11-12 实测这样对出来的名字与模拟器上点开读到的 11 种箱名一致。箱子的数量没有用，收进来只为认出来好跳过、不点开。
+    返回 [(简体名, 繁体名, 图标)]，没有名字或图标的行不收。
+    """
+    texts = {key: _proto(blob) for key, blob in db.execute("select id, ProtoBuf from RandomBoxTextTable")}
+    boxes = []
+    for _, blob in db.execute("select id, ProtoBuf from RandomBoxTable"):
+        row = _proto(blob)
+        icon, text = row.get(3), texts.get(row.get(7), {})
+        cn, tw = text.get(4), text.get(7)
+        if isinstance(icon, str) and icon.startswith("icon_") and isinstance(cn, str) and cn.strip():
+            tw = tw if isinstance(tw, str) else ""
+            boxes.append((re.sub(r"\s+", "", cn), re.sub(r"\s+", "", tw), icon))     # 有的名字里带换行
+    return boxes
 
 
 def find_icons(dirs, stems):

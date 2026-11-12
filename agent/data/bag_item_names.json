@@ -167,6 +167,7 @@
                 "icon_resource124_24",
                 "icon_resource125_25",
                 "icon_resource126_26",
+                "icon_resource180001_349",
                 "icon_resource190001_395",
                 "icon_resource190002_396",
                 "icon_resource190003_397",
@@ -260,12 +261,78 @@
                 "icon_resource401_42",
                 "icon_resource411_43",
                 "icon_resource421_44",
+                "icon_resource50010_118",
+                "icon_resource50011_121",
+                "icon_resource50012_122",
+                "icon_resource50013_123",
+                "icon_resource50014_124",
+                "icon_resource50015_131",
+                "icon_resource50016_132",
+                "icon_resource50017_133",
+                "icon_resource50019_136",
+                "icon_resource50020_141",
+                "icon_resource50021_142",
+                "icon_resource50022_143",
+                "icon_resource50023_144",
+                "icon_resource50027_148",
+                "icon_resource50028_200",
+                "icon_resource50031_206",
+                "icon_resource50032_224",
+                "icon_resource50033_246",
+                "icon_resource50033_250",
+                "icon_resource50035_307",
+                "icon_resource50036_277",
+                "icon_resource50037_278",
+                "icon_resource50038_279",
+                "icon_resource50039_280",
+                "icon_resource50040_281",
+                "icon_resource50041_282",
+                "icon_resource50042_283",
+                "icon_resource50043_284",
+                "icon_resource50045_291",
+                "icon_resource50049_340",
+                "icon_resource50050_341",
+                "icon_resource50051_345",
+                "icon_resource50052_346",
+                "icon_resource50053_347",
+                "icon_resource50054_348",
+                "icon_resource50055_350",
+                "icon_resource50056_351",
+                "icon_resource50057_365",
+                "icon_resource50058_371",
+                "icon_resource50059_378",
+                "icon_resource50060_381",
+                "icon_resource50061_384",
+                "icon_resource50062_385",
+                "icon_resource50063_410",
+                "icon_resource50064_411",
+                "icon_resource50065_415",
                 "icon_resource501_45",
                 "icon_resource511_46",
                 "icon_resource521_63",
+                "icon_resource60011_94",
+                "icon_resource60012_95",
+                "icon_resource60013_96",
+                "icon_resource60014_97",
+                "icon_resource60015_98",
+                "icon_resource60016_99",
+                "icon_resource60017_100",
+                "icon_resource60018_101",
+                "icon_resource60019_102",
+                "icon_resource60021_104",
+                "icon_resource60022_105",
+                "icon_resource60023_163",
+                "icon_resource60024_212",
                 "icon_resource601_47",
                 "icon_resource602_48",
                 "icon_resource603_76",
+                "icon_resource70004_108",
+                "icon_resource70005_109",
+                "icon_resource70006_110",
+                "icon_resource70007_111",
+                "icon_resource70008_112",
+                "icon_resource70009_113",
+                "icon_resource70010_114",
                 "icon_resource701_219",
                 "icon_resource702_220",
                 "icon_resource703_221",
@@ -369,7 +436,11 @@
                 "icon_resource901_49",
                 "icon_resource906_50",
                 "icon_resource907_51",
-                "icon_resource910_54"
+                "icon_resource910_54",
+                "icon_resource9901_72",
+                "icon_resource9902_73",
+                "icon_resource9903_74",
+                "icon_resource9904_75"
             ]
         },
         "pc": {
@@ -536,6 +607,7 @@
                 "icon_resource124_24",
                 "icon_resource125_25",
                 "icon_resource126_26",
+                "icon_resource180001_349",
                 "icon_resource190001_395",
                 "icon_resource190002_396",
                 "icon_resource190003_397",
@@ -629,12 +701,78 @@
                 "icon_resource401_42",
                 "icon_resource411_43",
                 "icon_resource421_44",
+                "icon_resource50010_118",
+                "icon_resource50011_121",
+                "icon_resource50012_122",
+                "icon_resource50013_123",
+                "icon_resource50014_124",
+                "icon_resource50015_131",
+                "icon_resource50016_132",
+                "icon_resource50017_133",
+                "icon_resource50019_136",
+                "icon_resource50020_141",
+                "icon_resource50021_142",
+                "icon_resource50022_143",
+                "icon_resource50023_144",
+                "icon_resource50027_148",
+                "icon_resource50028_200",
+                "icon_resource50031_206",
+                "icon_resource50032_224",
+                "icon_resource50033_246",
+                "icon_resource50033_250",
+                "icon_resource50035_307",
+                "icon_resource50036_277",
+                "icon_resource50037_278",
+                "icon_resource50038_279",
+                "icon_resource50039_280",
+                "icon_resource50040_281",
+                "icon_resource50041_282",
+                "icon_resource50042_283",
+                "icon_resource50043_284",
+                "icon_resource50045_291",
+                "icon_resource50049_340",
+                "icon_resource50050_341",
+                "icon_resource50051_345",
+                "icon_resource50052_346",
+                "icon_resource50053_347",
+                "icon_resource50054_348",
+                "icon_resource50055_350",
+                "icon_resource50056_351",
+                "icon_resource50057_365",
+                "icon_resource50058_371",
+                "icon_resource50059_378",
+                "icon_resource50060_381",
+                "icon_resource50061_384",
+                "icon_resource50062_385",
+                "icon_resource50063_410",
+                "icon_resource50064_411",
+                "icon_resource50065_415",
                 "icon_resource501_45",
                 "icon_resource511_46",
                 "icon_resource521_63",
+                "icon_resource60011_94",
+                "icon_resource60012_95",
+                "icon_resource60013_96",
+                "icon_resource60014_97",
+                "icon_resource60015_98",
+                "icon_resource60016_99",
+                "icon_resource60017_100",
+                "icon_resource60018_101",
+                "icon_resource60019_102",
+                "icon_resource60021_104",
+                "icon_resource60022_105",
+                "icon_resource60023_163",
+                "icon_resource60024_212",
                 "icon_resource601_47",
                 "icon_resource602_48",
                 "icon_resource603_76",
+                "icon_resource70004_108",
+                "icon_resource70005_109",
+                "icon_resource70006_110",
+                "icon_resource70007_111",
+                "icon_resource70008_112",
+                "icon_resource70009_113",
+                "icon_resource70010_114",
                 "icon_resource701_219",
                 "icon_resource702_220",
                 "icon_resource703_221",
@@ -737,7 +875,11 @@
                 "icon_resource901_49",
                 "icon_resource906_50",
                 "icon_resource907_51",
-                "icon_resource910_54"
+                "icon_resource910_54",
+                "icon_resource9901_72",
+                "icon_resource9902_73",
+                "icon_resource9903_74",
+                "icon_resource9904_75"
             ]
         }
     },
@@ -3958,6 +4100,910 @@
             "profile": "other",
             "kind": "饮品",
             "icon": "icon_resource190007_401"
+        },
+        {
+            "cn": "半周年纪念UR传说装备箱",
+            "tw": "HalfAnniversaryUR傳說裝備箱",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource50027_148"
+        },
+        {
+            "cn": "1周年UR传说装备箱",
+            "tw": "1週年UR傳說裝備箱",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource50031_206"
+        },
+        {
+            "cn": "1.5周年UR传说装备箱",
+            "tw": "1.5週年UR傳說裝備箱",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource50035_307"
+        },
+        {
+            "cn": "等级成长支援箱",
+            "tw": "等級成長支援箱",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource50036_277"
+        },
+        {
+            "cn": "潜力释放支援箱",
+            "tw": "潛力解放支援箱",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource50037_278"
+        },
+        {
+            "cn": "觉醒支援箱",
+            "tw": "覺醒支援箱",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource50038_279"
+        },
+        {
+            "cn": "顶级UR物理装备组",
+            "tw": "頂級UR物理裝備組",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource50039_280"
+        },
+        {
+            "cn": "顶级UR魔法装备组",
+            "tw": "頂級UR魔法裝備組",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource50040_281"
+        },
+        {
+            "cn": "UR装备制作材料箱（物理武器）",
+            "tw": "UR裝備製作材料箱（物理武器）",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource50041_282"
+        },
+        {
+            "cn": "UR装备制作材料箱（魔法武器）",
+            "tw": "UR裝備製作材料箱（魔法武器）",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource50042_283"
+        },
+        {
+            "cn": "毒蛇之手制作材料箱",
+            "tw": "毒蛇之手製作材料箱",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource50043_284"
+        },
+        {
+            "cn": "水上乐园特别包裹",
+            "tw": "水上樂園特別組合箱",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource50032_224"
+        },
+        {
+            "cn": "2周年UR传说装备箱",
+            "tw": "2週年UR傳說裝備箱",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource50045_291"
+        },
+        {
+            "cn": "2.5周年UR传说装备箱",
+            "tw": "2.5週年UR傳說裝備箱",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource50049_340"
+        },
+        {
+            "cn": "装饰币箱子",
+            "tw": "裝飾幣箱子",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource50050_341"
+        },
+        {
+            "cn": "黛安娜的情人节巧克力礼盒",
+            "tw": "黛安娜的情人節巧克力箱",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource50057_365"
+        },
+        {
+            "cn": "UR传说装备随机箱",
+            "tw": "UR傳說裝備隨機箱",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource50060_381"
+        },
+        {
+            "cn": "炫彩效果4：贝拉的专属庇佑",
+            "tw": "炫彩效果4，貝拉的特別庇護",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource50061_384"
+        },
+        {
+            "cn": "炫彩效果5：艾莉诺的专属庇佑",
+            "tw": "炫彩效果5，艾莉諾的特別庇護",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource50062_385"
+        },
+        {
+            "cn": "传说UR物理装备组",
+            "tw": "傳說UR物理裝備組合",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource50063_410"
+        },
+        {
+            "cn": "传说UR魔法装备组",
+            "tw": "傳說UR魔法裝備組合",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource50064_411"
+        },
+        {
+            "cn": "SR专用装备随机箱",
+            "tw": "SR專用裝備隨機箱",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource9903_74"
+        },
+        {
+            "cn": "付费钻石抽抽乐奖励随机箱1",
+            "tw": "付費鑽石抽抽樂獎勵隨機箱1",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource50039_280"
+        },
+        {
+            "cn": "付费钻石抽抽乐奖励随机箱2",
+            "tw": "付費鑽石抽抽樂獎勵隨機箱2",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource50040_281"
+        },
+        {
+            "cn": "镜中之战\\n传说装备宝箱",
+            "tw": "鏡中之戰\\n傳說裝備寶藏箱",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource9904_75"
+        },
+        {
+            "cn": "镜中之战\\n英雄装备宝箱",
+            "tw": "鏡中之戰\\n英雄裝備寶藏箱",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource9903_74"
+        },
+        {
+            "cn": "镜中之战\\n稀有装备宝箱",
+            "tw": "鏡中之戰\\n稀有裝備寶藏箱",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource9902_73"
+        },
+        {
+            "cn": "金币箱",
+            "tw": "金幣箱",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource9904_75"
+        },
+        {
+            "cn": "钻石箱",
+            "tw": "鑽石箱",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource9903_74"
+        },
+        {
+            "cn": "制作材料箱",
+            "tw": "製作材料箱",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource9902_73"
+        },
+        {
+            "cn": "史莱姆箱",
+            "tw": "史萊姆箱",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource9901_72"
+        },
+        {
+            "cn": "稀有装备材料箱（恶魔城）",
+            "tw": "稀有裝備材料箱（惡魔城）",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource9903_74"
+        },
+        {
+            "cn": "普通宝石材料箱（恶魔城）",
+            "tw": "普通寶石材料箱（惡魔城）",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource9902_73"
+        },
+        {
+            "cn": "稀有宝石材料箱（恶魔城）",
+            "tw": "稀有寶石材料箱（惡魔城）",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource9903_74"
+        },
+        {
+            "cn": "付费钻石",
+            "tw": "付費鑽石",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource60011_94"
+        },
+        {
+            "cn": "付费钻石",
+            "tw": "付費鑽石",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource60012_95"
+        },
+        {
+            "cn": "付费钻石",
+            "tw": "付費鑽石",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource60013_96"
+        },
+        {
+            "cn": "付费钻石",
+            "tw": "付費鑽石",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource60014_97"
+        },
+        {
+            "cn": "付费钻石",
+            "tw": "付費鑽石",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource60015_98"
+        },
+        {
+            "cn": "付费钻石",
+            "tw": "付費鑽石",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource60016_99"
+        },
+        {
+            "cn": "付费钻石",
+            "tw": "付費鑽石",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource60017_100"
+        },
+        {
+            "cn": "鲜血鸡尾酒",
+            "tw": "血之雞尾酒",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource60018_101"
+        },
+        {
+            "cn": "鲜血鸡尾酒",
+            "tw": "血之雞尾酒",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource60019_102"
+        },
+        {
+            "cn": "米饭",
+            "tw": "白飯",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource60021_104"
+        },
+        {
+            "cn": "付费钻石",
+            "tw": "付費鑽石",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource70004_108"
+        },
+        {
+            "cn": "付费钻石",
+            "tw": "付費鑽石",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource70005_109"
+        },
+        {
+            "cn": "付费钻石",
+            "tw": "付費鑽石",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource70006_110"
+        },
+        {
+            "cn": "付费钻石",
+            "tw": "付費鑽石",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource70007_111"
+        },
+        {
+            "cn": "付费钻石",
+            "tw": "付費鑽石",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource70008_112"
+        },
+        {
+            "cn": "付费钻石",
+            "tw": "付費鑽石",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource70009_113"
+        },
+        {
+            "cn": "付费钻石",
+            "tw": "付費鑽石",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource70010_114"
+        },
+        {
+            "cn": "火把",
+            "tw": "火炬",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource60023_163"
+        },
+        {
+            "cn": "救赎之钥匙",
+            "tw": "救贖之鑰匙",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource60024_212"
+        },
+        {
+            "cn": "金币",
+            "tw": "金幣",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource50010_118"
+        },
+        {
+            "cn": "装饰币",
+            "tw": "裝飾幣",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource180001_349"
+        },
+        {
+            "cn": "金币袋",
+            "tw": "金幣袋",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource50010_118"
+        },
+        {
+            "cn": "情人节巧克力礼盒",
+            "tw": "情人節巧克力箱子",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource50033_246"
+        },
+        {
+            "cn": "夏日成长礼包1",
+            "tw": "SUMMERBOOST禮包1",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource50012_122"
+        },
+        {
+            "cn": "夏日成长礼包2",
+            "tw": "SUMMERBOOST禮包2",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource50013_123"
+        },
+        {
+            "cn": "夏日成长礼包3",
+            "tw": "SUMMERBOOST禮包3",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource50014_124"
+        },
+        {
+            "cn": "百日感恩节礼物",
+            "tw": "100日紀念感謝禮物",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource50019_136"
+        },
+        {
+            "cn": "秋季成长支援礼包1",
+            "tw": "秋天成長補給支援包1",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource50017_133"
+        },
+        {
+            "cn": "秋季成长支援礼包2",
+            "tw": "秋天成長補給支援包2",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource50016_132"
+        },
+        {
+            "cn": "秋季成长支援礼包3",
+            "tw": "秋天成長補給支援包3",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource50015_131"
+        },
+        {
+            "cn": "风之猫成长礼包1",
+            "tw": "WindyCat成長禮包1",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource50020_141"
+        },
+        {
+            "cn": "风之猫成长礼包2",
+            "tw": "WindyCat成長禮包2",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource50021_142"
+        },
+        {
+            "cn": "风之猫成长礼包3",
+            "tw": "WindyCat成長禮包3",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource50022_143"
+        },
+        {
+            "cn": "装备材料每周奖励",
+            "tw": "裝備材料每週獎勵",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource50053_347"
+        },
+        {
+            "cn": "料理食材每周奖励",
+            "tw": "料理食材每週獎勵",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource50051_345"
+        },
+        {
+            "cn": "食材箱",
+            "tw": "料理食材箱",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource50052_346"
+        },
+        {
+            "cn": "1级别装备材料箱",
+            "tw": "1等裝備材料箱",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource50053_347"
+        },
+        {
+            "cn": "1级别宝石材料箱",
+            "tw": "1等寶石材料箱",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource9901_72"
+        },
+        {
+            "cn": "达雷普料理食材箱",
+            "tw": "達雷普料理食材箱",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource50052_346"
+        },
+        {
+            "cn": "布伦料理食材箱",
+            "tw": "布倫料理食材箱",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource50052_346"
+        },
+        {
+            "cn": "3级别装备材料箱",
+            "tw": "3等裝備材料箱",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource9903_74"
+        },
+        {
+            "cn": "3级别宝石材料箱",
+            "tw": "3等寶石材料箱",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource9903_74"
+        },
+        {
+            "cn": "SR装备箱",
+            "tw": "SR裝備箱",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource9903_74"
+        },
+        {
+            "cn": "UR装备制作材料箱",
+            "tw": "UR裝備製作材料箱",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource9904_75"
+        },
+        {
+            "cn": "游戏卡",
+            "tw": "遊戲卡帶",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource60022_105"
+        },
+        {
+            "cn": "特产箱",
+            "tw": "特產箱",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource50051_345"
+        },
+        {
+            "cn": "N～SR装备箱",
+            "tw": "N～SR裝備箱",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource9904_75"
+        },
+        {
+            "cn": "低级食材箱",
+            "tw": "下級食材箱",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource50051_345"
+        },
+        {
+            "cn": "高级食材箱",
+            "tw": "高級食材箱",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource50052_346"
+        },
+        {
+            "cn": "低级装备材料箱",
+            "tw": "下級裝備材料箱",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource50053_347"
+        },
+        {
+            "cn": "高级装备材料箱",
+            "tw": "高級裝備材料箱",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource50054_348"
+        },
+        {
+            "cn": "制作材料箱",
+            "tw": "製作材料箱",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource50053_347"
+        },
+        {
+            "cn": "料理食材箱",
+            "tw": "料理材料箱",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource50051_345"
+        },
+        {
+            "cn": "蕾拉制作补给箱",
+            "tw": "蕾拉的製作補給箱",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource50053_347"
+        },
+        {
+            "cn": "悠丝缇亚料理包",
+            "tw": "悠絲緹亞的料理包",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource50052_346"
+        },
+        {
+            "cn": "夏日制作材料箱",
+            "tw": "夏日製作材料箱",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource50011_121"
+        },
+        {
+            "cn": "剧情食材箱",
+            "tw": "故事遊戲卡帶食材箱",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource50052_346"
+        },
+        {
+            "cn": "风之猫制作材料箱",
+            "tw": "WindyCat製作材料箱",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource50023_144"
+        },
+        {
+            "cn": "高级制作材料箱",
+            "tw": "高級製作材料箱",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource50054_348"
+        },
+        {
+            "cn": "高级制作材料箱x20",
+            "tw": "高級製作材料箱x20",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource50054_348"
+        },
+        {
+            "cn": "低级矿石箱",
+            "tw": "下級礦石箱",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource9901_72"
+        },
+        {
+            "cn": "花火节便当",
+            "tw": "花火節便當",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource50028_200"
+        },
+        {
+            "cn": "通行证材料箱",
+            "tw": "通行證材料箱",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource9902_73"
+        },
+        {
+            "cn": "低级圣石箱",
+            "tw": "下級聖石箱",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource9901_72"
+        },
+        {
+            "cn": "高级圣石箱",
+            "tw": "高級聖石箱",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource9901_72"
+        },
+        {
+            "cn": "夏季特别包裹",
+            "tw": "夏季特別組合箱",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource50032_224"
+        },
+        {
+            "cn": "学校卫生间套装",
+            "tw": "學校洗手間套組",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource50055_350"
+        },
+        {
+            "cn": "学校体育器材室套装",
+            "tw": "學校體育器材室套組",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource50056_351"
+        },
+        {
+            "cn": "GS25便当宝箱UR",
+            "tw": "GS25便當寶藏箱UR",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource50033_250"
+        },
+        {
+            "cn": "GS25便当宝箱SR",
+            "tw": "GS25便當寶藏箱SR",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource50033_250"
+        },
+        {
+            "cn": "GS25便当宝箱R",
+            "tw": "GS25便當寶藏箱R",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource50033_250"
+        },
+        {
+            "cn": "满级材料箱",
+            "tw": "滿等材料箱",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource9902_73"
+        },
+        {
+            "cn": "精炼／制作箱1",
+            "tw": "煉製/製作箱1",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource9902_73"
+        },
+        {
+            "cn": "精炼／制作箱2",
+            "tw": "煉製/製作箱2",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource9902_73"
+        },
+        {
+            "cn": "精炼／制作箱3",
+            "tw": "煉製/製作箱3",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource9902_73"
+        },
+        {
+            "cn": "刻印辅助箱",
+            "tw": "刻印輔助箱",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource9902_73"
+        },
+        {
+            "cn": "角色成长加速箱",
+            "tw": "角色成長衝刺組合",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource50059_378"
+        },
+        {
+            "cn": "1000日纪念箱",
+            "tw": "1000日紀念箱",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource50058_371"
+        },
+        {
+            "cn": "3周年烟花纪念箱",
+            "tw": "3週年煙火紀念箱",
+            "alias": [],
+            "profile": "other",
+            "kind": "宝箱",
+            "icon": "icon_resource50065_415"
         }
     ]
 }

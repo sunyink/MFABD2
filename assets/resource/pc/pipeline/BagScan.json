@@ -172,14 +172,6 @@
             43
         ]
     },
-    "Rec_BagScan_Category_Ocr": {
-        "roi": [
-            318,
-            251,
-            150,
-            27
-        ]
-    },
     "Rec_BagScan_Quantity_Ocr": {
         "roi": [
             322,
@@ -187,6 +179,34 @@
             281,
             34
         ]
+    },
+    "Agt_BagScan_Detail": {
+        "attach": {
+            "name": [
+                318,
+                213,
+                340,
+                43
+            ],
+            "name_lit": [
+                318,
+                213,
+                157,
+                43
+            ],
+            "quantity": [
+                322,
+                268,
+                281,
+                80
+            ],
+            "lit": 250,
+            "lit_count": 3,
+            "steady": 1.0,
+            "open_timeout": 2000,
+            "timeout": 5000,
+            "interval": 30
+        }
     },
     "Rec_BagScan_ConsTab_Lit_Clr": {
         "recognition": "ColorMatch",

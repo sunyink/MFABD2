@@ -49,9 +49,14 @@ class _Restart(Exception):
 
 @dataclass
 class Reading:
-    """一帧详情弹窗上的两段 OCR：名称 [(text, score)]，数量 [(text, score, box)]。"""
+    """一帧详情弹窗上的两段 OCR：名称 [(text, score)]，数量 [(text, score, box)]。
+
+    settled：这一帧由设备核实过「弹窗淡入已走完、画面静止」（MaaBagDevice 截帧判定），读数不必再截帧复核；
+    否则（退回原识别节点读的）照旧要相邻两帧一致才采信。
+    """
     names: list = field(default_factory=list)
     quantities: list = field(default_factory=list)
+    settled: bool = False
 
 
 @dataclass
@@ -466,6 +471,7 @@ class BagScanEngine:
             status, name = self._resolve_name(self.device.read_names())
         if status != "named" or name not in self.pending:
             return status, name, None       # 不是待查物品：知道它是谁就够了，不必读数
+        texts = {clean(text) for text, _ in first.names}
         if not first.quantities:            # 只看了名字点开的：补一帧名称数量都可读的
             for _ in range(self.confirm_frames):
                 self._check()
@@ -478,7 +484,9 @@ class BagScanEngine:
         previous = self._parse(first)
         if previous[0] is None:
             return status, name, self._scaled_quantity()
-        texts = {clean(text) for text, _ in first.names}
+        if first.settled and self._same_name(first.names, name, texts):
+            return status, name, previous[0]    # 取自已静止的那一帧：再截一帧也是同一张图，不必复核
+        texts |= {clean(text) for text, _ in first.names}
         for _ in range(self.confirm_frames - 1):
             self._check()
             reading = self.device.read_detail()

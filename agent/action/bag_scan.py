@@ -10,6 +10,7 @@ from collections import OrderedDict
 import copy
 from functools import lru_cache
 import json
+import time
 from uuid import uuid4
 
 from maa.agent.agent_server import AgentServer
@@ -19,6 +20,7 @@ from maa.custom_action import CustomAction
 from utils import mfaalog
 from utils.account_sync import sync_from_context
 from utils.bag_cells import Grid, icon_pack, item_table, read_page
+from utils.bag_detail import DetailLayout, bright, crop, plain_quantity, split_quantity, steady, stitch, text_box
 from utils.bag_scan_engine import BagScanEngine, Reading, Section
 from utils.inventory_store import save_scan_record, set_inventory_quantities, utc_now
 from utils.name_i18n import canon
@@ -31,12 +33,13 @@ __all__ = ["BagScan", "BagScanRun", "get_scan", "profile_names", "run_bag_scan"]
 ENTRY = "BagScan_Entry"
 RUN = "BagScan_Run"
 OPEN, READY = "BagScan_Detail_Open", "BagScan_Detail_Ready"
-PEEK, NAMED = "BagScan_Detail_Peek", "BagScan_Detail_Named"
 CLOSE, CLOSED = "BagScan_Detail_Close", "BagScan_Detail_Closed"
 PAGE, MOVED, BOTTOM = "BagScan_Page_Next", "BagScan_Page_Moved", "BagScan_Page_Bottom"
 SWIPE = "Agt_BagScan_Page_Swipe"
 RESET, RESET_EXIT = "BagScan_TabReset", "BagScan_TabReset_Egress"
 NAME_OCR, QUANTITY_OCR = "Rec_BagScan_Name_Ocr", "Rec_BagScan_Quantity_Ocr"
+# 详情弹窗的新读法：识别带与阈值在 Agt_BagScan_Detail；只识别的 OCR 节点；消耗品页签亮不亮（不亮 = 弹窗遮罩在）。
+DETAIL, TEXT_REC, TAB_LIT = "Agt_BagScan_Detail", "Rec_BagScan_Text_Rec", "Rec_BagScan_ConsTab_Lit_Clr"
 # 扫描类型、识别节点与各项上限在 Agt_BagScan_Config；列表的排布与图集在 Agt_BagScan_Grid（按资源包覆盖）。
 CONFIG, GRID = "Agt_BagScan_Config", "Agt_BagScan_Grid"
 OTHER = "other"     # 物品表里目录外物品（活动道具、亲密饮品）的档案名
@@ -126,11 +129,20 @@ def _ran(detail, node):
 
 
 class MaaBagDevice:
-    """把扫描核心要用的动作落到 BagScan.json 的节点上；坐标与轮询参数都在节点里，可按资源包覆盖。"""
+    """把扫描核心要用的动作落到 BagScan.json 的节点上；坐标与轮询参数都在节点里，可按资源包覆盖。
 
-    def __init__(self, context: Context, ready_node: str):
+    点开详情（设计 §17）：节点只管点击；py 截帧等弹窗淡入走完——遮罩在（消耗品页签不亮）、名称白字接近纯白、
+    且与上一帧几乎一样——再在那一帧上按颜色定出名称、数量的范围，拼成一行只识别一次。等的是画面状态，不是钟点。
+    哪一步不成（版式没见过、颜色没找到字、拼读拆不开）就退回原来的检测+识别节点，扫描核心照旧两帧复核。
+    """
+
+    def __init__(self, context: Context, ready_node: str, detail: dict):
         self.context = context
         self.ready_node = ready_node
+        self.layout = DetailLayout.from_attach(detail)
+        self.open_timeout = detail.get("open_timeout", 2000) / 1000
+        self.settle_timeout = detail.get("timeout", 5000) / 1000
+        self.interval = detail.get("interval", 30) / 1000
 
     def stopping(self):
         return bool(self.context.tasker.stopping)
@@ -150,25 +162,92 @@ class MaaBagDevice:
     def list_ready(self, image):
         return bool(self._recognize(self.ready_node, image).hit)
 
-    def open_detail(self, box):
-        detail = self.context.run_task(OPEN, {OPEN: {"target": list(box)}})
-        ready = _ran(detail, READY)
-        return _reading(ready.recognition) if ready is not None and ready.recognition is not None else None
+    def _settle(self, opening):
+        """截帧等详情弹窗淡入走完。返回 (结论, 截图)：
+
+        settled：遮罩在、名称左段有接近纯白的字、且与上一帧几乎一样（截图偶尔连着两次给同一帧，所以要和亮度一起看）；
+        opened：遮罩在，但到上限也没等到走完；None：弹窗不在——opening 为真时（刚点过）等 open_timeout 让它出来，
+        否则（弹窗本该开着）一帧就下结论。
+        """
+        started, previous, masked, image = time.monotonic(), None, False, None
+        while not self.stopping():
+            tick = time.monotonic()
+            image = self.capture()
+            if not self._recognize(TAB_LIT, image).hit:
+                masked = True
+                if bright(image, self.layout):
+                    if previous is not None and steady(previous, image, self.layout):
+                        return "settled", image
+                    previous = image
+                else:
+                    previous = None
+            elif masked or not opening:
+                return None, image
+            elapsed = time.monotonic() - started
+            if not masked and elapsed > self.open_timeout:
+                return None, image
+            if elapsed > self.settle_timeout:
+                return "opened", image
+            time.sleep(max(0.0, self.interval - (time.monotonic() - tick)))
+        return None, image
+
+    def _rec(self, image):
+        """只识别一块裁好的文字图（Rec_BagScan_Text_Rec，only_rec）。"""
+        result = self._recognize(TEXT_REC, image)
+        return [(str(getattr(item, "text", "")), float(getattr(item, "score", 0))) for item in _ocr_items(result)]
+
+    def _node_names(self, image):
+        result = self._recognize(NAME_OCR, image)
+        return [(str(getattr(item, "text", "")), float(getattr(item, "score", 0))) for item in _ocr_items(result)]
+
+    def _read_nodes(self, image, quantity):
+        """退回原来的检测+识别节点。读数不算核实过，扫描核心照旧两帧复核。"""
+        if quantity:
+            result = self._recognize(READY, image)
+            if result.hit:
+                return _reading(result)
+        return Reading(names=self._node_names(image))
+
+    def _read_frame(self, image, quantity):
+        """在走完的那一帧上读：按颜色定出名称（与数量）的范围；要数量时两段拼成一行只识别一次，拆不开再分开读。"""
+        name_box = text_box(image, self.layout.name, "white", self.layout)
+        quantity_box = text_box(image, self.layout.quantity, "blue", self.layout, top_line=True) if quantity else None
+        if name_box is None or (quantity and quantity_box is None):
+            return self._read_nodes(image, quantity)
+        if not quantity:
+            return Reading(names=self._rec(crop(image, name_box)), settled=True)
+        texts = self._rec(stitch(image, [name_box, quantity_box]))
+        parts = split_quantity("".join(text for text, _ in texts))
+        if parts is not None:
+            score = min(score for _, score in texts)
+            return Reading(names=[(parts[0], score)], quantities=[(parts[1], score, list(quantity_box))], settled=True)
+        quantities = [(plain_quantity(text), score, list(quantity_box)) for text, score in self._rec(crop(image, quantity_box))]
+        return Reading(names=self._rec(crop(image, name_box)), quantities=quantities, settled=True)
+
+    def open_detail(self, box, quantity=True):
+        """点开一格并读。None = 弹窗没出来（是否再点由扫描核心先看列表还在不在再定）。"""
+        self.context.run_task(OPEN, {OPEN: {"target": list(box)}})
+        state, image = self._settle(opening=True)
+        if state is None:
+            return None
+        return self._read_frame(image, quantity) if state == "settled" else self._read_nodes(image, quantity)
 
     def peek_detail(self, box):
-        """点开一格，只等名称可读（箱子的详情多一行，数量不在老位置）；返回只带名称的读数。"""
-        if _ran(self.context.run_task(PEEK, {PEEK: {"target": list(box)}}), NAMED) is None:
-            return None
-        names = self.read_names()
-        return Reading(names=names) if names else None
+        """点开一格，只读名称：认不出的格子多半不是要找的，用不着数量；是待查物品时扫描核心再要数量。"""
+        return self.open_detail(box, quantity=False)
 
     def read_detail(self):
-        result = self._recognize(READY, self.capture())
-        return _reading(result) if result.hit else None
+        """弹窗开着时再读一帧名称与数量；弹窗不在返回 None。"""
+        state, image = self._settle(opening=False)
+        if state is None:
+            return None
+        return self._read_frame(image, True) if state == "settled" else self._read_nodes(image, True)
 
     def read_names(self):
-        result = self._recognize(NAME_OCR, self.capture())
-        return [(str(getattr(item, "text", "")), float(getattr(item, "score", 0))) for item in _ocr_items(result)]
+        state, image = self._settle(opening=False)
+        if state is None:
+            return []
+        return (self._read_frame(image, False) if state == "settled" else self._read_nodes(image, False)).names
 
     def read_quantity_scaled(self):
         texts, _, _ = read_texts(self.context, QUANTITY_OCR, self.capture(), retry=True)
@@ -310,7 +389,7 @@ class BagScanRun(CustomAction):
                     raise RuntimeError("库存写入失败")
 
             engine = BagScanEngine(
-                MaaBagDevice(context, config["ready_node"]), lambda image: read_page(image, grid, pack), targets,
+                MaaBagDevice(context, config["ready_node"], context.get_node_object(DETAIL).attach), lambda image: read_page(image, grid, pack), targets,
                 known_names=frozenset(item["cn"] for item in _bag_items() if item["profile"] != OTHER),
                 grid_roi=grid.area, row_height=grid.pitch[1], columns=grid.columns, footer_rows=grid.footer,
                 sections=sections, loose_kinds=loose_kinds,

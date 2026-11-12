@@ -384,7 +384,7 @@
         }
     },
     "BagScan_Detail_Open": {
-        "desc": "py用run_task调用：点开一个物品格子的详情，坐标由py注入target。按rate_limit重试识别，直到BagScan_Detail_Ready读到名称与「拥有/持有…个」；超时由py分清是没点开（再点一次）还是开了没读清（接着读，不再点）。不靠固定等待：出现动画走到一半时字可能是虚影或不在识别框内，读不全就继续重试。等待上限5秒：OCR慢的机器上一轮识别就要一秒，3秒会有两成格子等不到（11-12模拟器实测）。",
+        "desc": "py用run_task调用：点开一个物品格子的详情，坐标由py注入target。只点击：弹窗淡入走没走完由py截帧判定（遮罩在、名称白字接近纯白、与上一帧几乎一样，识别带见Agt_BagScan_Detail），等的是画面状态，不是钟点。淡入途中字是半透明的，走完之前不读（11-12实测：点击后约0.4秒遮罩出现，约0.3秒淡入走完）。",
         "pre_delay": 0,
         "action": "Click",
         "target": [
@@ -393,15 +393,10 @@
             0,
             0
         ],
-        "post_delay": 0,
-        "timeout": 5000,
-        "rate_limit": 100,
-        "next": [
-            "BagScan_Detail_Ready"
-        ]
+        "post_delay": 0
     },
     "BagScan_Detail_Ready": {
-        "desc": "物品详情已可读：同一帧里数量（完整的「拥有/持有…个」）与名称都读到。数量排在前面：弹窗还在出现动画时数量先对不上，And 就此打住，这一轮少跑一次名称识别。py从这一帧的子识别结果按节点名取名称与数量，再截一帧复核，两帧名称、数量与数量文字位置一致才采信（agent/action/bag_scan.py）。",
+        "desc": "后备读法：py的截帧判定等不到弹窗走完、或按颜色找不到字时，用这个节点在当前帧上读名称与数量（检测+识别），py再截帧两帧复核。同一帧里数量（完整的「拥有/持有…个」）与名称都读到才算；数量排在前面，弹窗还在淡入时And就此打住、少跑一次名称识别。",
         "recognition": "And",
         "all_of": [
             "Rec_BagScan_Quantity_Ocr",
@@ -410,35 +405,43 @@
         "pre_delay": 0,
         "post_delay": 0
     },
-    "BagScan_Detail_Peek": {
-        "desc": "py用run_task调用：点开一个认不出的格子，只等BagScan_Detail_Named读到名称。认不出的多半不是要找的物品，用不着数量；箱子的详情还多一行，数量不在老位置，等BagScan_Detail_Ready会一直等不到。读出来是待查物品时py再按Ready读数量并两帧复核。",
-        "pre_delay": 0,
-        "action": "Click",
-        "target": [
-            0,
-            0,
-            0,
-            0
-        ],
-        "post_delay": 0,
-        "timeout": 5000,
-        "rate_limit": 100,
-        "next": [
-            "BagScan_Detail_Named"
-        ]
+    "Agt_BagScan_Detail": {
+        "desc": "py独占，勿挂进管路。物品详情弹窗的截帧判定与按颜色定字，资源包整节点覆盖（agent/utils/bag_detail.py）。name名称行、name_lit名称行里不与列表重叠的左段、quantity数量行（往下多留一行：宝箱多一行锁定开关，数量行下移约33像素）；lit/lit_count：名称左段至少有lit_count个三个通道都不低于lit的像素，才算淡入走到头（途中最亮约240出头）；steady：名称左段与上一帧的平均差低于它算静止（走完后0.00–0.01，途中2.8–37）；open_timeout点击后等遮罩出现的上限，timeout等走完的上限（毫秒），interval两次截帧的最小间隔。名称是白字、数量是浅蓝字，颜色阈值用模块默认值。",
+        "enabled": false,
+        "attach": {
+            "name": [
+                262,
+                183,
+                370,
+                51
+            ],
+            "name_lit": [
+                262,
+                183,
+                316,
+                51
+            ],
+            "quantity": [
+                265,
+                250,
+                280,
+                90
+            ],
+            "lit": 250,
+            "lit_count": 3,
+            "steady": 1.0,
+            "open_timeout": 2000,
+            "timeout": 5000,
+            "interval": 30
+        }
     },
-    "BagScan_Detail_Named": {
-        "desc": "物品详情的名称已可读：类别行与名称同一帧都读到。类别行（名称下面那行，如「材料」「宝箱」）只有弹窗里才有；只看名称不行——名称识别框右端伸进了列表第一列，弹窗没出来时会读到格子上的数字。py随后再截一帧读名称，目录外的名字要两次读到一样才采信。",
-        "recognition": "And",
-        "all_of": [
-            "Rec_BagScan_Category_Ocr",
-            "Rec_BagScan_Name_Ocr"
-        ],
-        "pre_delay": 0,
-        "post_delay": 0
+    "Rec_BagScan_Text_Rec": {
+        "desc": "背包详情的文字，只识别（不找字框）：py先按颜色定出名称、数量的外接框，裁下来（读数量时两段拼成一行）整块送进来，roi取整张小图。本机识别模型每调用一次约0.42秒、与字宽几乎无关，拼成一行比分开读省一次（11-12实测54格拼读与分读结果全同）。",
+        "recognition": "OCR",
+        "only_rec": true
     },
     "BagScan_Detail_Close": {
-        "desc": "py用run_task调用：点弹窗外空白处关闭物品详情，连点几下确保关掉；关闭本身有动画，按rate_limit重试识别直到消耗品页签恢复高亮。超时没亮，由py再点一轮或恢复。",
+        "desc": "py用run_task调用：点弹窗外空白处关闭物品详情，只点一下；关闭本身有动画，按rate_limit重试识别直到消耗品页签恢复高亮。超时没亮由py再关一次或恢复——「确保关掉」靠这个核对，不靠连点：同一处连点三下时，后两下落在已关掉的背包页上，紧接着点开下一格的那一下会被游戏吞掉（11-12模拟器实测：连点10次里吞5次，只点一下10次0次；上一版实跑「第一次没等到」的两成多半也是它）。",
         "pre_delay": 0,
         "action": "Click",
         "target": [
@@ -447,8 +450,6 @@
             17,
             16
         ],
-        "repeat": 3,
-        "repeat_delay": 150,
         "post_delay": 0,
         "timeout": 2000,
         "rate_limit": 100,
@@ -550,7 +551,7 @@
         ]
     },
     "Rec_BagScan_Name_Ocr": {
-        "desc": "背包详情名称。被BagScan_Detail_Ready引用，py重读名称时也直接调用；简繁名称交由背包名录处理。框宽取名称行的实际范围：票券名最长约16个全角字，仍是单行（11-12模拟器实测最右到x≈612）。",
+        "desc": "背包详情名称（检测+识别），后备读法用：被BagScan_Detail_Ready引用、py读名称的后备也直接调用；简繁名称交由背包名录处理。框宽取名称行的实际范围：票券名最长约16个全角字，仍是单行（11-12模拟器实测最右到x≈612）。弹窗开着时整框都在弹窗里。",
         "recognition": "OCR",
         "roi": [
             262,
@@ -559,18 +560,8 @@
             51
         ]
     },
-    "Rec_BagScan_Category_Ocr": {
-        "desc": "背包详情的类别行（名称下面那行）。只当「弹窗已经出来」的信号用，不核内容；框的右缘不能越过列表左沿，否则弹窗没出来时会读到列表上的字。被BagScan_Detail_Named引用。",
-        "recognition": "OCR",
-        "roi": [
-            262,
-            232,
-            300,
-            28
-        ]
-    },
     "Rec_BagScan_Quantity_Ocr": {
-        "desc": "背包详情数量：完整读取「拥有234,937个」，先去掉逗号、句点等分隔符，只认完整一行；不接受K缩写、不拼接独立识别结果。框只盖数量这一行：加高会把下面的说明文字也识别进去，单次识别从约0.5秒涨到2秒以上（11-12实测）。箱子的详情多一行锁定开关、数量不在这里，认不出的格子因此走BagScan_Detail_Peek只看名称。被BagScan_Detail_Ready引用；attach.retry_scale供py放大重读。",
+        "desc": "背包详情数量（检测+识别），后备读法用：完整读取「拥有234,937个」，先去掉逗号、句点等分隔符，只认完整一行；不接受K缩写、不拼接独立识别结果。框只盖数量这一行：加高会把下面的说明文字也识别进去，单次识别从约0.5秒涨到2秒以上（11-12实测）。宝箱的详情多一行锁定开关、数量不在这里——平常的读法按颜色找数量行，不受影响。被BagScan_Detail_Ready引用；attach.retry_scale供py放大重读。",
         "recognition": "OCR",
         "roi": [
             265,
