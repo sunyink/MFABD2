@@ -1,6 +1,6 @@
 {
     "BagScan_Entry": {
-        "desc": "背包仓检模块入口：从当前页面进入背包，复位、按料理食材排序后按页读取食材数量，再原路返回主页或箱庭。由启动器BagScan（agent/action/bag_scan.py）在子任务里run_task调用，也可[JumpBack]直接挂入（扫描参数在BagScan_Run.custom_action_param）。返回锚点BagReturn默认主页，从箱庭背包进入时改为箱庭。",
+        "desc": "背包仓检模块入口：从当前页面进入背包，复位、按料理食材排序后按页读取物品数量，再原路返回主页或箱庭。由启动器BagScan（agent/action/bag_scan.py）在子任务里run_task调用，也可[JumpBack]直接挂入（扫描参数在BagScan_Run.custom_action_param）。返回锚点BagReturn默认主页，从箱庭背包进入时改为箱庭。",
         "anchor": {
             "BagReturn": "Global_ToHomePage"
         },
@@ -133,12 +133,12 @@
         ]
     },
     "BagScan_Run": {
-        "desc": "按页读取食材精确数量并写入账号库存与扫描记录。agent/action/bag_scan.py的BagScanRun读取Agt_BagScan_Profile_Ingredients，逐页找图、点开详情读数、翻到末端或列表底部后判定未见物品为0；结束后经BagReturn锚点原路返回。参数由启动器在子任务里覆盖：label（扫描用途）、targets（all或名称列表）。",
+        "desc": "按页读取物品精确数量并写入账号库存与扫描记录。agent/action/bag_scan.py的BagScanRun把整页截图切成格子、每格同全部图标比对，只点开还没读数的目标与认不出的格子；各段走完或见到列表尽头的空格后判定未见物品为0，结束后经BagReturn锚点原路返回。参数由启动器在子任务里覆盖：scope（扫描类型，Agt_BagScan_Config.attach.scopes的键，一个或一组：A存货、B票券与养成、C装备制作材料）、label（扫描用途）、targets（all或名称列表）。",
         "pre_delay": 0,
         "action": "Custom",
         "custom_action": "BagScanRun",
         "custom_action_param": {
-            "profile": "Agt_BagScan_Profile_Ingredients",
+            "scope": "A",
             "label": "未指定",
             "targets": "all"
         },
@@ -146,7 +146,7 @@
         "next": [
             "[Anchor]BagReturn"
         ],
-        "focus": "背包仓检：按页读取食材数量"
+        "focus": "背包仓检：按页读取物品数量"
     },
     "BagScan_Sort": {
         "max_hit": 1,
@@ -384,7 +384,7 @@
         }
     },
     "BagScan_Detail_Open": {
-        "desc": "py用run_task调用：点开一个物品格子的详情，坐标由py注入target。按rate_limit重试识别，直到BagScan_Detail_Ready读到名称与「拥有/持有…个」；超时即没打开，由py重试或恢复。不靠固定等待：出现动画走到一半时字可能是虚影或不在识别框内，读不全就继续重试。",
+        "desc": "py用run_task调用：点开一个物品格子的详情，坐标由py注入target。按rate_limit重试识别，直到BagScan_Detail_Ready读到名称与「拥有/持有…个」；超时由py分清是没点开（再点一次）还是开了没读清（接着读，不再点）。不靠固定等待：出现动画走到一半时字可能是虚影或不在识别框内，读不全就继续重试。等待上限5秒：OCR慢的机器上一轮识别就要一秒，3秒会有两成格子等不到（11-12模拟器实测）。",
         "pre_delay": 0,
         "action": "Click",
         "target": [
@@ -394,18 +394,45 @@
             0
         ],
         "post_delay": 0,
-        "timeout": 3000,
+        "timeout": 5000,
         "rate_limit": 100,
         "next": [
             "BagScan_Detail_Ready"
         ]
     },
     "BagScan_Detail_Ready": {
-        "desc": "物品详情已可读：同一帧里名称与数量（完整的「拥有/持有…个」）都读到。py从这一帧的子识别结果取名称与数量，再截一帧复核，两帧名称、数量与数量文字位置一致才采信（agent/action/bag_scan.py）。",
+        "desc": "物品详情已可读：同一帧里数量（完整的「拥有/持有…个」）与名称都读到。数量排在前面：弹窗还在出现动画时数量先对不上，And 就此打住，这一轮少跑一次名称识别。py从这一帧的子识别结果按节点名取名称与数量，再截一帧复核，两帧名称、数量与数量文字位置一致才采信（agent/action/bag_scan.py）。",
         "recognition": "And",
         "all_of": [
-            "Rec_BagScan_Name_Ocr",
-            "Rec_BagScan_Quantity_Ocr"
+            "Rec_BagScan_Quantity_Ocr",
+            "Rec_BagScan_Name_Ocr"
+        ],
+        "pre_delay": 0,
+        "post_delay": 0
+    },
+    "BagScan_Detail_Peek": {
+        "desc": "py用run_task调用：点开一个认不出的格子，只等BagScan_Detail_Named读到名称。认不出的多半不是要找的物品，用不着数量；箱子的详情还多一行，数量不在老位置，等BagScan_Detail_Ready会一直等不到。读出来是待查物品时py再按Ready读数量并两帧复核。",
+        "pre_delay": 0,
+        "action": "Click",
+        "target": [
+            0,
+            0,
+            0,
+            0
+        ],
+        "post_delay": 0,
+        "timeout": 5000,
+        "rate_limit": 100,
+        "next": [
+            "BagScan_Detail_Named"
+        ]
+    },
+    "BagScan_Detail_Named": {
+        "desc": "物品详情的名称已可读：类别行与名称同一帧都读到。类别行（名称下面那行，如「材料」「宝箱」）只有弹窗里才有；只看名称不行——名称识别框右端伸进了列表第一列，弹窗没出来时会读到格子上的数字。py随后再截一帧读名称，目录外的名字要两次读到一样才采信。",
+        "recognition": "And",
+        "all_of": [
+            "Rec_BagScan_Category_Ocr",
+            "Rec_BagScan_Name_Ocr"
         ],
         "pre_delay": 0,
         "post_delay": 0
@@ -472,10 +499,10 @@
         "post_delay": 0
     },
     "BagScan_Page_Bottom": {
-        "desc": "翻页结果标记：连续两次下滑画面都没变。py补滑核对仍不动才按列表结束判定未见物品；没见到成长材料也照常收尾。",
+        "desc": "翻页结果标记：连续两次下滑画面都没变。背包没满时py见到列表尽头的整行空格就主动停下，走不到这里；背包满格没有空格时靠它判到底，py补滑核对仍不动才按列表结束判定未见物品。",
         "pre_delay": 0,
         "post_delay": 0,
-        "focus": "背包仓检：列表已滑到底，未见成长材料，按列表结束处理"
+        "focus": "背包仓检：列表已滑到底，按列表结束处理"
     },
     "Agt_BagScan_Page_Swipe": {
         "desc": "py独占，勿挂进管路。列表下滑一页：BagScan_Page_Next的SmartAction代理，py核对到底时也直接run_task它并看动作是否执行成功。拖动距离小于一页可见高度减一行，保证相邻两页至少重叠一行（py按此核对连续性，接不上就不判0）。滑后等画面静止，前后不另加延迟。",
@@ -502,1269 +529,6 @@
         },
         "post_delay": 0
     },
-    "Agt_BagScan_Profile_Ingredients": {
-        "desc": "py独占，勿挂进管路。背包仓检「食材」档案：目录、识别节点与页数、时限、复核参数。坐标与模板在各自节点里，资源包按节点覆盖。",
-        "enabled": false,
-        "attach": {
-            "catalog_node": "Agt_BagScan_Ingredients_Catalog",
-            "item_node": "Agt_BagScan_Item_Tpl",
-            "ready_node": "Agt_BagScan_Ingredients_Ready",
-            "end_node": "Agt_BagScan_Ingredients_End_Tpl",
-            "zero_evidence": "ingredient_boundary",
-            "max_pages": 30,
-            "timeout_seconds": 900,
-            "confirm_frames": 4,
-            "box_tolerance": 3,
-            "continuity_threshold": 12.0,
-            "color_node": "Agt_BagScan_Item_TplClr",
-            "color_sub": "Agt_BagScan_Item_Clr"
-        }
-    },
-    "Agt_BagScan_Profile_Dishes": {
-        "desc": "py独占，勿挂进管路。背包仓检「料理」档案：料理在料理食材排序里紧跟食材、在末端标志之前，所以与食材共用末端判据。可与其他档案一起扫（run_bag_scan 的 profiles）。",
-        "enabled": false,
-        "attach": {
-            "catalog_node": "Agt_BagScan_Dishes_Catalog",
-            "item_node": "Agt_BagScan_Item_Tpl",
-            "color_node": "Agt_BagScan_Item_TplClr",
-            "ready_node": "Agt_BagScan_Ingredients_Ready",
-            "confirm_frames": 4,
-            "box_tolerance": 3,
-            "continuity_threshold": 12.0,
-            "end_node": "Agt_BagScan_Ingredients_End_Tpl",
-            "zero_evidence": "ingredient_boundary",
-            "max_pages": 30,
-            "timeout_seconds": 900,
-            "color_sub": "Agt_BagScan_Item_Clr"
-        }
-    },
-    "Agt_BagScan_Profile_Growth": {
-        "desc": "py独占，勿挂进管路。背包仓检「养成」档案（货币票券与养成材料）：在任何排序里都没有可靠的段尾，不设末端，扫到列表底判 0。",
-        "enabled": false,
-        "attach": {
-            "catalog_node": "Agt_BagScan_Growth_Catalog",
-            "item_node": "Agt_BagScan_Item_Tpl",
-            "color_node": "Agt_BagScan_Item_TplClr",
-            "ready_node": "Agt_BagScan_Ingredients_Ready",
-            "confirm_frames": 4,
-            "box_tolerance": 3,
-            "continuity_threshold": 12.0,
-            "end_node": "",
-            "zero_evidence": "list_bottom",
-            "max_pages": 40,
-            "timeout_seconds": 1500,
-            "color_sub": "Agt_BagScan_Item_Clr"
-        }
-    },
-    "Agt_BagScan_Profile_Craft": {
-        "desc": "py独占，勿挂进管路。背包仓检「装备制作材料」档案：同养成档案，不设末端，扫到列表底判 0。",
-        "enabled": false,
-        "attach": {
-            "catalog_node": "Agt_BagScan_Craft_Catalog",
-            "item_node": "Agt_BagScan_Item_Tpl",
-            "color_node": "Agt_BagScan_Item_TplClr",
-            "ready_node": "Agt_BagScan_Ingredients_Ready",
-            "confirm_frames": 4,
-            "box_tolerance": 3,
-            "continuity_threshold": 12.0,
-            "end_node": "",
-            "zero_evidence": "list_bottom",
-            "max_pages": 40,
-            "timeout_seconds": 1500,
-            "color_sub": "Agt_BagScan_Item_Clr"
-        }
-    },
-    "Agt_BagScan_Ingredients_Catalog": {
-        "desc": "py独占，勿挂进管路。食材目录：规范名→背包模板。名称取自料理材料目录（如西蓝花的模板文件叫西兰花），资源包缺图的物品不列（PC包即如此），未列出的物品扫描时记为未知、不判0。",
-        "enabled": false,
-        "attach": {
-            "templates": {
-                "兽肉": "Shop/BagList/食材_兽肉.png",
-                "三文鱼": "Shop/BagList/食材_三文鱼.png",
-                "虾": "Shop/BagList/食材_虾.png",
-                "小麦": "Shop/BagList/食材_小麦.png",
-                "香草": "Shop/BagList/食材_香草.png",
-                "玉米": "Shop/BagList/食材_玉米.png",
-                "豆子": "Shop/BagList/食材_豆子.png",
-                "大麦": "Shop/BagList/食材_大麦.png",
-                "啤酒花": "Shop/BagList/食材_啤酒花.png",
-                "米": "Shop/BagList/食材_米.png",
-                "苹果": "Shop/BagList/食材_苹果.png",
-                "葡萄": "Shop/BagList/食材_葡萄.png",
-                "蘑菇": "Shop/BagList/食材_蘑菇.png",
-                "胡萝卜": "Shop/BagList/食材_胡萝卜.png",
-                "土豆": "Shop/BagList/食材_土豆.png",
-                "洋葱": "Shop/BagList/食材_洋葱.png",
-                "甜椒": "Shop/BagList/食材_甜椒.png",
-                "萝卜缨": "Shop/BagList/食材_萝卜缨.png",
-                "西蓝花": "Shop/BagList/食材_西兰花.png",
-                "番茄": "Shop/BagList/食材_番茄.png",
-                "西葫芦": {
-                    "template": "Shop/BagGen/西葫芦.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "咖啡豆": "Shop/BagList/食材_咖啡豆.png",
-                "白糖": "Shop/BagList/食材_白糖.png",
-                "奶酪": "Shop/BagList/食材_奶酪.png",
-                "鸡蛋": "Shop/BagList/食材_鸡蛋.png",
-                "黄油": "Shop/BagList/食材_黄油.png",
-                "牛奶": "Shop/BagList/食材_牛奶.png",
-                "金枪鱼罐头": "Shop/BagList/食材_金枪鱼罐头.png",
-                "袋装鸡胸肉": "Shop/BagList/食材_袋装鸡胸肉.png",
-                "巧克力": "Shop/BagList/食材_巧克力.png",
-                "吐司": "Shop/BagList/食材_吐司.png",
-                "橄榄油": "Shop/BagList/食材_橄榄油.png",
-                "甜辣酱": "Shop/BagList/食材_甜辣酱.png",
-                "蜂蜜": "Shop/BagList/食材_蜂蜜.png",
-                "盐": "Shop/BagList/食材_盐.png",
-                "哈密瓜": "Shop/BagList/食材_哈密瓜.png",
-                "辣椒": "Shop/BagList/食材_辣椒.png",
-                "藏红花": "Shop/BagList/食材_藏红花.png",
-                "杏仁": "Shop/BagList/食材_杏仁.png",
-                "水果罐头": "Shop/BagList/食材_水果罐头.png",
-                "鱼子酱罐头": "Shop/BagList/食材_鱼子酱罐头.png",
-                "调味海苔": "Shop/BagList/食材_调味海苔.png",
-                "凯洛药材": "Shop/BagList/食材_凯洛药材.png",
-                "姜黄": "Shop/BagList/食材_姜黄.png",
-                "永恒之爱": "Shop/BagList/食材_永恒之爱.png",
-                "芥末": "Shop/BagList/食材_芥末.png",
-                "料酒": "Shop/BagList/食材_料酒.png",
-                "雷瓦汀火腿": "Shop/BagList/食材_雷瓦汀火腿.png",
-                "番茄酱": {
-                    "template": "Shop/BagGen/番茄酱.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "辣椒素": "Shop/BagList/食材_辣椒素.png",
-                "松露油": "Shop/BagList/食材_松露油.png",
-                "蛋黄酱": "Shop/BagList/食材_蛋黄酱.png",
-                "卢戈山参": "Shop/BagList/食材_卢戈山参.png",
-                "生命木炭": "Shop/BagList/食材_生命木炭.png",
-                "闪光粉末": "Shop/BagList/食材_闪光粉末.png",
-                "透明蘑菇": "Shop/BagList/食材_透明蘑菇.png",
-                "穿山甲鳞片": {
-                    "template": "Shop/BagGen/穿山甲鳞片.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "能量蘑菇": {
-                    "template": "Shop/BagGen/能量蘑菇.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "秃鹫羽毛": "Shop/BagList/食材_秃鹫羽毛.png",
-                "魅惑粉末": {
-                    "template": "Shop/BagGen/魅惑粉末.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "黄金罗勒": "Shop/BagList/食材_黄金罗勒.png",
-                "能量药水": {
-                    "template": "Shop/BagGen/能量药水.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "灵魂鲜奶油": {
-                    "template": "Shop/BagGen/灵魂鲜奶油.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "维生素B浓缩液": {
-                    "template": "Shop/BagGen/维生素B浓缩液.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "能量粉末": "Shop/BagList/食材_能量粉末.png",
-                "地狱火辣酱": "Shop/BagList/食材_地狱火辣酱.png",
-                "卢戈狂想曲": {
-                    "template": "Shop/BagGen/卢戈狂想曲.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "生蚝": "Shop/BagList/食材_生蚝.png",
-                "大蒜": "Shop/BagList/食材_大蒜.png",
-                "樱桃": "Shop/BagList/食材_樱桃.png",
-                "胡椒": "Shop/BagList/食材_胡椒.png",
-                "肉桂": "Shop/BagList/食材_肉桂.png"
-            }
-        }
-    },
-    "Agt_BagScan_Dishes_Catalog": {
-        "desc": "py独占，勿挂进管路。料理目录。目录由 tools/gen_bag_templates.py 生成，别手改：规范名 → 模板路径，或 {template, threshold, color}。",
-        "enabled": false,
-        "attach": {
-            "templates": {
-                "不明料理": {
-                    "template": "Shop/BagGen/不明料理.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "蘑菇汤": {
-                    "template": "Shop/BagGen/蘑菇汤.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "炒蘑菇": {
-                    "template": "Shop/BagGen/炒蘑菇.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "烤菇串": {
-                    "template": "Shop/BagGen/烤菇串.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "蘑菇烤肉火锅": {
-                    "template": "Shop/BagGen/蘑菇烤肉火锅.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "土豆汤": {
-                    "template": "Shop/BagGen/土豆汤.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "达雷普黑啤酒": {
-                    "template": "Shop/BagGen/达雷普黑啤酒.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "黑啤酒炖锅": {
-                    "template": "Shop/BagGen/黑啤酒炖锅.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "烤蜂蜜苹果": {
-                    "template": "Shop/BagGen/烤蜂蜜苹果.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "桑格利亚酒": {
-                    "template": "Shop/BagGen/桑格利亚酒.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "流浪美食家烤肉": {
-                    "template": "Shop/BagGen/流浪美食家烤肉.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "喵拿铁": {
-                    "template": "Shop/BagGen/喵拿铁.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "炸三文鱼便当": {
-                    "template": "Shop/BagGen/炸三文鱼便当.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "草药三明治": {
-                    "template": "Shop/BagGen/草药三明治.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "哈密瓜雪酪": {
-                    "template": "Shop/BagGen/哈密瓜雪酪.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "藏红花甜茶": {
-                    "template": "Shop/BagGen/藏红花甜茶.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "甜椒意式烘蛋": {
-                    "template": "Shop/BagGen/甜椒意式烘蛋.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "三分熟鲜血布丁": {
-                    "template": "Shop/BagGen/三分熟鲜血布丁.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "蔬菜三明治": {
-                    "template": "Shop/BagGen/蔬菜三明治.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "三文鱼芥末寿司": {
-                    "template": "Shop/BagGen/三文鱼芥末寿司.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "玉米奶酪": {
-                    "template": "Shop/BagGen/玉米奶酪.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "豆奶酱意大利面": {
-                    "template": "Shop/BagGen/豆奶酱意大利面.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "炒土豆": {
-                    "template": "Shop/BagGen/炒土豆.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "酱炒牛排": {
-                    "template": "Shop/BagGen/酱炒牛排.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "甜辣鲜虾": {
-                    "template": "Shop/BagGen/甜辣鲜虾.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "蜂蜜黄油杏仁": {
-                    "template": "Shop/BagGen/蜂蜜黄油杏仁.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "凯洛养身汤": {
-                    "template": "Shop/BagGen/凯洛养身汤.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "巧克力面包": {
-                    "template": "Shop/BagGen/巧克力面包.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "金枪鱼鸡胸肉三明治": {
-                    "template": "Shop/BagGen/金枪鱼鸡胸肉三明治.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "水果冰沙": {
-                    "template": "Shop/BagGen/水果冰沙.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "火烤鱼板棒": {
-                    "template": "Shop/BagGen/火烤鱼板棒.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "巧克力鸡尾酒": {
-                    "template": "Shop/BagGen/巧克力鸡尾酒.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "鱼子酱蛋包饭": {
-                    "template": "Shop/BagGen/鱼子酱蛋包饭.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "三角美乃滋饭团": {
-                    "template": "Shop/BagGen/三角美乃滋饭团.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "鸡肉卷": {
-                    "template": "Shop/BagGen/鸡肉卷.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "卢戈镇晚餐": {
-                    "template": "Shop/BagGen/卢戈镇晚餐.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "土豆沙拉": {
-                    "template": "Shop/BagGen/土豆沙拉.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "雨血": {
-                    "template": "Shop/BagGen/雨血.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "卢戈山参烤串": {
-                    "template": "Shop/BagGen/卢戈山参烤串.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "煤炭饼干": {
-                    "template": "Shop/BagGen/煤炭饼干.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "闪闪铁板虾": {
-                    "template": "Shop/BagGen/闪闪铁板虾.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "透明沙拉": {
-                    "template": "Shop/BagGen/透明沙拉.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "亚拉里克咖喱": {
-                    "template": "Shop/BagGen/亚拉里克咖喱.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "能量藏红花烩饭": {
-                    "template": "Shop/BagGen/能量藏红花烩饭.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "提神醒脑炖锅": {
-                    "template": "Shop/BagGen/提神醒脑炖锅.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "魅惑三文鱼蔬菜卷": {
-                    "template": "Shop/BagGen/魅惑三文鱼蔬菜卷.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "幸运黄金披萨": {
-                    "template": "Shop/BagGen/幸运黄金披萨.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "能量葡萄汁": {
-                    "template": "Shop/BagGen/能量葡萄汁.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "鲜奶油巧克力蛋糕": {
-                    "template": "Shop/BagGen/鲜奶油巧克力蛋糕.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "维生素B炸弹芭菲": {
-                    "template": "Shop/BagGen/维生素B炸弹芭菲.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "能量松露薯条": {
-                    "template": "Shop/BagGen/能量松露薯条.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "地狱火紫菜包饭": {
-                    "template": "Shop/BagGen/地狱火紫菜包饭.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "洛克菲勒生蚝": {
-                    "template": "Shop/BagGen/洛克菲勒生蚝.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "泰瑞丝派": {
-                    "template": "Shop/BagGen/泰瑞丝派.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "三明治便当": {
-                    "template": "Shop/BagGen/三明治便当.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "手工蛋糕": {
-                    "template": "Shop/BagGen/手工蛋糕.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "香甜马卡龙": {
-                    "template": "Shop/BagGen/香甜马卡龙.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "街头烤鸡肉串": {
-                    "template": "Shop/BagGen/街头烤鸡肉串.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "香草牛排": {
-                    "template": "Shop/BagGen/香草牛排.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "冰镇甜点": {
-                    "template": "Shop/BagGen/冰镇甜点.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "炸猪排盖饭": {
-                    "template": "Shop/BagGen/炸猪排盖饭.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "橄榄油意面": {
-                    "template": "Shop/BagGen/橄榄油意面.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "汉堡排便当": {
-                    "template": "Shop/BagGen/汉堡排便当.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                }
-            }
-        }
-    },
-    "Agt_BagScan_Growth_Catalog": {
-        "desc": "py独占，勿挂进管路。养成目录（票券、技能书、精炼、升星、契约书、史莱姆、突破材料、远古水晶、服装选择券）。目录由 tools/gen_bag_templates.py 生成，别手改：规范名 → 模板路径，或 {template, threshold, color}。",
-        "enabled": false,
-        "attach": {
-            "templates": {
-                "初级天赋技能书": {
-                    "template": "Shop/BagGen/初级天赋技能书.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "进阶天赋技能书": {
-                    "template": "Shop/BagGen/进阶天赋技能书.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "高手天赋技能书": {
-                    "template": "Shop/BagGen/高手天赋技能书.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "达人天赋技能书": {
-                    "template": "Shop/BagGen/达人天赋技能书.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "黄色史莱姆": {
-                    "template": "Shop/BagGen/黄色史莱姆.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "蓝色史莱姆": {
-                    "template": "Shop/BagGen/蓝色史莱姆.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "红色史莱姆": {
-                    "template": "Shop/BagGen/红色史莱姆.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "精炼粉末": {
-                    "template": "Shop/BagGen/精炼粉末.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "1★升星之星": {
-                    "template": "Shop/BagGen/1★升星之星.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "2★升星之星": {
-                    "template": "Shop/BagGen/2★升星之星.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "3★升星之星": {
-                    "template": "Shop/BagGen/3★升星之星.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "4★升星之星": {
-                    "template": "Shop/BagGen/4★升星之星.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "5★升星之星": {
-                    "template": "Shop/BagGen/5★升星之星.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "精炼石": {
-                    "template": "Shop/BagGen/精炼石.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "精炼水晶": {
-                    "template": "Shop/BagGen/精炼水晶.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "火魔石": {
-                    "template": "Shop/BagGen/火魔石.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "水魔石": {
-                    "template": "Shop/BagGen/水魔石.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "风魔石": {
-                    "template": "Shop/BagGen/风魔石.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "光魔石": {
-                    "template": "Shop/BagGen/光魔石.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "暗魔石": {
-                    "template": "Shop/BagGen/暗魔石.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "五色魔石": {
-                    "template": "Shop/BagGen/五色魔石.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "火圣石": {
-                    "template": "Shop/BagGen/火圣石.png",
-                    "green_mask": true,
-                    "threshold": 0.85,
-                    "color": {
-                        "lower": [
-                            0,
-                            120,
-                            150
-                        ],
-                        "upper": [
-                            18,
-                            255,
-                            255
-                        ],
-                        "count": 474
-                    }
-                },
-                "水圣石": {
-                    "template": "Shop/BagGen/水圣石.png",
-                    "green_mask": true,
-                    "threshold": 0.85,
-                    "color": {
-                        "lower": [
-                            95,
-                            70,
-                            150
-                        ],
-                        "upper": [
-                            118,
-                            255,
-                            255
-                        ],
-                        "count": 284
-                    }
-                },
-                "风圣石": {
-                    "template": "Shop/BagGen/风圣石.png",
-                    "green_mask": true,
-                    "threshold": 0.85,
-                    "color": {
-                        "lower": [
-                            40,
-                            80,
-                            80
-                        ],
-                        "upper": [
-                            75,
-                            255,
-                            255
-                        ],
-                        "count": 479
-                    }
-                },
-                "光明圣石": {
-                    "template": "Shop/BagGen/光明圣石.png",
-                    "green_mask": true,
-                    "threshold": 0.85,
-                    "color": {
-                        "lower": [
-                            0,
-                            0,
-                            170
-                        ],
-                        "upper": [
-                            180,
-                            40,
-                            255
-                        ],
-                        "count": 562
-                    }
-                },
-                "黑暗圣石": {
-                    "template": "Shop/BagGen/黑暗圣石.png",
-                    "green_mask": true,
-                    "threshold": 0.85,
-                    "color": {
-                        "lower": [
-                            115,
-                            60,
-                            30
-                        ],
-                        "upper": [
-                            140,
-                            255,
-                            160
-                        ],
-                        "count": 639
-                    }
-                },
-                "和谐魔石": {
-                    "template": "Shop/BagGen/和谐魔石.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "烈焰魔石": {
-                    "template": "Shop/BagGen/烈焰魔石.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "冰河魔石": {
-                    "template": "Shop/BagGen/冰河魔石.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "暴风魔石": {
-                    "template": "Shop/BagGen/暴风魔石.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "闪光魔石": {
-                    "template": "Shop/BagGen/闪光魔石.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "深渊魔石": {
-                    "template": "Shop/BagGen/深渊魔石.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "星星魔石": {
-                    "template": "Shop/BagGen/星星魔石.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "女神之泪": {
-                    "template": "Shop/BagGen/女神之泪.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "远古水晶": {
-                    "template": "Shop/BagGen/远古水晶.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "刻印咒语书": {
-                    "template": "Shop/BagGen/刻印咒语书.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "生命精髓": {
-                    "template": "Shop/BagGen/生命精髓.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "力量精髓": {
-                    "template": "Shop/BagGen/力量精髓.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "忍耐精髓": {
-                    "template": "Shop/BagGen/忍耐精髓.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "觉醒灵药": {
-                    "template": "Shop/BagGen/觉醒灵药.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "狂暴火种": {
-                    "template": "Shop/BagGen/狂暴火种.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "异界火种": {
-                    "template": "Shop/BagGen/异界火种.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "抽抽乐券": {
-                    "template": "Shop/BagGen/抽抽乐券.png",
-                    "green_mask": true,
-                    "threshold": 0.8
-                },
-                "普通招募契约书": {
-                    "template": "Shop/BagGen/普通招募契约书.png",
-                    "green_mask": true,
-                    "threshold": 0.85,
-                    "color": {
-                        "lower": [
-                            0,
-                            0,
-                            120
-                        ],
-                        "upper": [
-                            40,
-                            90,
-                            255
-                        ],
-                        "count": 396
-                    }
-                },
-                "高级招募契约书": {
-                    "template": "Shop/BagGen/高级招募契约书.png",
-                    "green_mask": true,
-                    "threshold": 0.85,
-                    "color": {
-                        "lower": [
-                            15,
-                            120,
-                            150
-                        ],
-                        "upper": [
-                            30,
-                            255,
-                            255
-                        ],
-                        "count": 396
-                    }
-                },
-                "顶级招募契约书": {
-                    "template": "Shop/BagGen/顶级招募契约书.png",
-                    "green_mask": true,
-                    "threshold": 0.85,
-                    "color": {
-                        "lower": [
-                            115,
-                            40,
-                            120
-                        ],
-                        "upper": [
-                            150,
-                            255,
-                            255
-                        ],
-                        "count": 195
-                    }
-                },
-                "23年8月5★服装必得抽抽乐兑换券": {
-                    "template": "Shop/BagGen/23年8月5★服装必得抽抽乐兑换券.png",
-                    "green_mask": true,
-                    "threshold": 0.8
-                },
-                "23年8月4★服装必得抽抽乐兑换券": {
-                    "template": "Shop/BagGen/23年8月4★服装必得抽抽乐兑换券.png",
-                    "green_mask": true,
-                    "threshold": 0.8
-                },
-                "23年8月UR专用装备必得抽抽乐兑换券": {
-                    "template": "Shop/BagGen/23年8月UR专用装备必得抽抽乐兑换券.png",
-                    "green_mask": true,
-                    "threshold": 0.8
-                },
-                "23年8月SR专用装备必得抽抽乐兑换券": {
-                    "template": "Shop/BagGen/23年8月SR专用装备必得抽抽乐兑换券.png",
-                    "green_mask": true,
-                    "threshold": 0.8
-                },
-                "UR专用装备必得抽抽乐兑换券": {
-                    "template": "Shop/BagGen/UR专用装备必得抽抽乐兑换券.png",
-                    "green_mask": true,
-                    "threshold": 0.8
-                },
-                "SR专用装备必得抽抽乐兑换券": {
-                    "template": "Shop/BagGen/SR专用装备必得抽抽乐兑换券.png",
-                    "green_mask": true,
-                    "threshold": 0.8
-                },
-                "属性甄选抽抽乐兑换券": {
-                    "template": "Shop/BagGen/属性甄选抽抽乐兑换券.png",
-                    "green_mask": true,
-                    "threshold": 0.8
-                },
-                "24年12月5★服装必得抽抽乐兑换券": {
-                    "template": "Shop/BagGen/24年12月5★服装必得抽抽乐兑换券.png",
-                    "green_mask": true,
-                    "threshold": 0.8
-                },
-                "甄选专用抽抽乐券": {
-                    "template": "Shop/BagGen/甄选专用抽抽乐券.png",
-                    "green_mask": true,
-                    "threshold": 0.8
-                },
-                "25年6月5★服装必得抽抽乐兑换券": {
-                    "template": "Shop/BagGen/25年6月5★服装必得抽抽乐兑换券.png",
-                    "green_mask": true,
-                    "threshold": 0.8
-                },
-                "25年12月5★服装必得抽抽乐兑换券": {
-                    "template": "Shop/BagGen/25年12月5★服装必得抽抽乐兑换券.png",
-                    "green_mask": true,
-                    "threshold": 0.8
-                },
-                "3周年5★服装抽抽乐券": {
-                    "template": "Shop/BagGen/3周年5★服装抽抽乐券.png",
-                    "green_mask": true,
-                    "threshold": 0.8
-                },
-                "初学者用5★服装选择券": {
-                    "template": "Shop/BagGen/初学者用5★服装选择券.png",
-                    "green_mask": true,
-                    "threshold": 0.8
-                },
-                "1周年服装选择券": {
-                    "template": "Shop/BagGen/1周年服装选择券.png",
-                    "green_mask": true,
-                    "threshold": 0.8
-                },
-                "1.5周年服装选择券": {
-                    "template": "Shop/BagGen/1.5周年服装选择券.png",
-                    "green_mask": true,
-                    "threshold": 0.8
-                },
-                "推荐5★服装选择券": {
-                    "template": "Shop/BagGen/推荐5★服装选择券.png",
-                    "green_mask": true,
-                    "threshold": 0.8
-                },
-                "2周年服装选择券": {
-                    "template": "Shop/BagGen/2周年服装选择券.png",
-                    "green_mask": true,
-                    "threshold": 0.8
-                },
-                "Summer Splash服装选择券": {
-                    "template": "Shop/BagGen/Summer Splash服装选择券.png",
-                    "green_mask": true,
-                    "threshold": 0.8
-                },
-                "新年服装选择券": {
-                    "template": "Shop/BagGen/新年服装选择券.png",
-                    "green_mask": true,
-                    "threshold": 0.8
-                },
-                "3周年服装选择券": {
-                    "template": "Shop/BagGen/3周年服装选择券.png",
-                    "green_mask": true,
-                    "threshold": 0.8
-                },
-                "Farewell Summer！服装选择券": {
-                    "template": "Shop/BagGen/Farewell Summer！服装选择券.png",
-                    "green_mask": true,
-                    "threshold": 0.8
-                },
-                "幸运抽抽乐券": {
-                    "template": "Shop/BagGen/幸运抽抽乐券.png",
-                    "green_mask": true,
-                    "threshold": 0.8
-                },
-                "限定！名人兔女郎罗安幸运抽抽乐券": {
-                    "template": "Shop/BagGen/限定！名人兔女郎罗安幸运抽抽乐券.png",
-                    "green_mask": true,
-                    "threshold": 0.8
-                },
-                "2025年新年幸运抽抽乐券": {
-                    "template": "Shop/BagGen/2025年新年幸运抽抽乐券.png",
-                    "green_mask": true,
-                    "threshold": 0.8
-                },
-                "悠丝缇亚至臻皮肤幸运抽抽乐券": {
-                    "template": "Shop/BagGen/悠丝缇亚至臻皮肤幸运抽抽乐券.png",
-                    "green_mask": true,
-                    "threshold": 0.8
-                },
-                "2周年纪念幸运抽抽乐券": {
-                    "template": "Shop/BagGen/2周年纪念幸运抽抽乐券.png",
-                    "green_mask": true,
-                    "threshold": 0.8
-                },
-                "Summer Splash！幸运抽抽乐券": {
-                    "template": "Shop/BagGen/Summer Splash！幸运抽抽乐券.png",
-                    "green_mask": true,
-                    "threshold": 0.8
-                },
-                "泰瑞丝至臻皮肤幸运抽抽乐券": {
-                    "template": "Shop/BagGen/泰瑞丝至臻皮肤幸运抽抽乐券.png",
-                    "green_mask": true,
-                    "threshold": 0.8
-                },
-                "2.5周年！幸运抽抽乐券": {
-                    "template": "Shop/BagGen/2.5周年！幸运抽抽乐券.png",
-                    "green_mask": true,
-                    "threshold": 0.8
-                },
-                "杰尼斯至臻皮肤幸运抽抽乐券": {
-                    "template": "Shop/BagGen/杰尼斯至臻皮肤幸运抽抽乐券.png",
-                    "green_mask": true,
-                    "threshold": 0.8
-                },
-                "2026年新年幸运抽抽乐券": {
-                    "template": "Shop/BagGen/2026年新年幸运抽抽乐券.png",
-                    "green_mask": true,
-                    "threshold": 0.8
-                },
-                "莎赫拉查德至臻皮肤幸运抽抽乐券": {
-                    "template": "Shop/BagGen/莎赫拉查德至臻皮肤幸运抽抽乐券.png",
-                    "green_mask": true,
-                    "threshold": 0.8
-                },
-                "3周年纪念幸运抽抽乐券": {
-                    "template": "Shop/BagGen/3周年纪念幸运抽抽乐券.png",
-                    "green_mask": true,
-                    "threshold": 0.8
-                },
-                "尤里至臻皮肤幸运抽抽乐券": {
-                    "template": "Shop/BagGen/尤里至臻皮肤幸运抽抽乐券.png",
-                    "green_mask": true,
-                    "threshold": 0.8
-                },
-                "Farewell Summer！幸运抽抽乐券": {
-                    "template": "Shop/BagGen/Farewell Summer！幸运抽抽乐券.png",
-                    "green_mask": true,
-                    "threshold": 0.8
-                }
-            }
-        }
-    },
-    "Agt_BagScan_Craft_Catalog": {
-        "desc": "py独占，勿挂进管路。装备制作材料目录。目录由 tools/gen_bag_templates.py 生成，别手改：规范名 → 模板路径，或 {template, threshold, color}。",
-        "enabled": false,
-        "attach": {
-            "templates": {
-                "铁矿石": {
-                    "template": "Shop/BagGen/铁矿石.png",
-                    "green_mask": true,
-                    "threshold": 0.85,
-                    "color": {
-                        "lower": [
-                            0,
-                            0,
-                            50
-                        ],
-                        "upper": [
-                            180,
-                            45,
-                            220
-                        ],
-                        "count": 738
-                    }
-                },
-                "铜矿石": {
-                    "template": "Shop/BagGen/铜矿石.png",
-                    "green_mask": true,
-                    "threshold": 0.85,
-                    "color": {
-                        "lower": [
-                            3,
-                            100,
-                            100
-                        ],
-                        "upper": [
-                            12,
-                            255,
-                            255
-                        ],
-                        "count": 462
-                    }
-                },
-                "金矿石": {
-                    "template": "Shop/BagGen/金矿石.png",
-                    "green_mask": true,
-                    "threshold": 0.85,
-                    "color": {
-                        "lower": [
-                            15,
-                            140,
-                            140
-                        ],
-                        "upper": [
-                            26,
-                            255,
-                            255
-                        ],
-                        "count": 462
-                    }
-                },
-                "泥炭": {
-                    "template": "Shop/BagGen/泥炭.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "魔珍珠": {
-                    "template": "Shop/BagGen/魔珍珠.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "铁块": {
-                    "template": "Shop/BagGen/铁块.png",
-                    "green_mask": true,
-                    "threshold": 0.85,
-                    "color": {
-                        "lower": [
-                            0,
-                            0,
-                            30
-                        ],
-                        "upper": [
-                            180,
-                            50,
-                            140
-                        ],
-                        "count": 1309
-                    }
-                },
-                "铜块": {
-                    "template": "Shop/BagGen/铜块.png",
-                    "green_mask": true,
-                    "threshold": 0.85,
-                    "color": {
-                        "lower": [
-                            3,
-                            100,
-                            80
-                        ],
-                        "upper": [
-                            11,
-                            255,
-                            255
-                        ],
-                        "count": 573
-                    }
-                },
-                "金块": {
-                    "template": "Shop/BagGen/金块.png",
-                    "green_mask": true,
-                    "threshold": 0.85,
-                    "color": {
-                        "lower": [
-                            16,
-                            140,
-                            150
-                        ],
-                        "upper": [
-                            26,
-                            255,
-                            255
-                        ],
-                        "count": 131
-                    }
-                },
-                "煤炭": {
-                    "template": "Shop/BagGen/煤炭.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "钢铁块": {
-                    "template": "Shop/BagGen/钢铁块.png",
-                    "green_mask": true,
-                    "threshold": 0.85,
-                    "color": {
-                        "lower": [
-                            95,
-                            30,
-                            40
-                        ],
-                        "upper": [
-                            130,
-                            140,
-                            200
-                        ],
-                        "count": 1253
-                    }
-                },
-                "黄铜块": {
-                    "template": "Shop/BagGen/黄铜块.png",
-                    "green_mask": true,
-                    "threshold": 0.85,
-                    "color": {
-                        "lower": [
-                            11,
-                            90,
-                            90
-                        ],
-                        "upper": [
-                            17,
-                            255,
-                            255
-                        ],
-                        "count": 624
-                    }
-                },
-                "白金块": {
-                    "template": "Shop/BagGen/白金块.png",
-                    "green_mask": true,
-                    "threshold": 0.85,
-                    "color": {
-                        "lower": [
-                            0,
-                            0,
-                            120
-                        ],
-                        "upper": [
-                            180,
-                            45,
-                            255
-                        ],
-                        "count": 624
-                    }
-                },
-                "无烟煤": {
-                    "template": "Shop/BagGen/无烟煤.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "普通皮革": {
-                    "template": "Shop/BagGen/普通皮革.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "高级皮革": {
-                    "template": "Shop/BagGen/高级皮革.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "顶级皮革": {
-                    "template": "Shop/BagGen/顶级皮革.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "普通布料": {
-                    "template": "Shop/BagGen/普通布料.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "高级布料": {
-                    "template": "Shop/BagGen/高级布料.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "顶级布料": {
-                    "template": "Shop/BagGen/顶级布料.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "原木": {
-                    "template": "Shop/BagGen/原木.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "胶合板": {
-                    "template": "Shop/BagGen/胶合板.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                },
-                "强化胶合板": {
-                    "template": "Shop/BagGen/强化胶合板.png",
-                    "green_mask": true,
-                    "threshold": 0.85
-                }
-            }
-        }
-    },
     "Agt_BagScan_Ingredients_Ready": {
         "desc": "py独占，勿挂进管路。每页一次的完整就绪核对：消耗品页签亮起且排序为料理食材优先；详情弹窗的遮罩在时不命中。",
         "recognition": "And",
@@ -1785,61 +549,28 @@
             }
         ]
     },
-    "Agt_BagScan_Item_Tpl": {
-        "desc": "py独占，勿挂进管路。逐个目标注入模板找图；只点击图标、不读列表上的缩略数量。attach.row_height为列表行距、footer_rows为列表区最下方压着的固定底栏行数，py核对翻页连续性时剔掉底栏、只比真正滚动的部分。",
-        "recognition": "TemplateMatch",
-        "roi": [
-            578,
-            62,
-            600,
-            634
-        ],
-        "template": "Shop/BagList/食材_兽肉.png",
-        "threshold": 0.9,
-        "order_by": "Score",
-        "attach": {
-            "row_height": 100,
-            "footer_rows": 64
-        }
-    },
-    "Agt_BagScan_Item_Clr": {
-        "desc": "py独占，勿挂进管路。近亲物品的颜色核：对 Agt_BagScan_Item_Tpl 的每一个命中框数颜色像素；范围与像素门槛由 py 按目录项注入。",
-        "recognition": "ColorMatch",
-        "roi": "Agt_BagScan_Item_Tpl",
-        "method": 40,
-        "lower": [
-            0,
-            0,
-            0
-        ],
-        "upper": [
-            180,
-            255,
-            255
-        ],
-        "count": 1
-    },
-    "Agt_BagScan_Item_TplClr": {
-        "desc": "py独占，勿挂进管路。模板找候选、颜色挑格子。And 对外只留一个框，py 改读颜色子识别的 filtered 取全部通过的格子，不会漏点（设计 §14.4）。",
-        "recognition": "And",
-        "all_of": [
-            "Agt_BagScan_Item_Tpl",
-            "Agt_BagScan_Item_Clr"
-        ],
-        "box_index": 1
-    },
     "Rec_BagScan_Name_Ocr": {
-        "desc": "背包详情名称。被BagScan_Detail_Ready引用，py重读名称时也直接调用；简繁名称交由共用名录处理。",
+        "desc": "背包详情名称。被BagScan_Detail_Ready引用，py重读名称时也直接调用；简繁名称交由背包名录处理。框宽取名称行的实际范围：票券名最长约16个全角字，仍是单行（11-12模拟器实测最右到x≈612）。",
         "recognition": "OCR",
         "roi": [
             262,
             183,
-            215,
+            370,
             51
         ]
     },
+    "Rec_BagScan_Category_Ocr": {
+        "desc": "背包详情的类别行（名称下面那行）。只当「弹窗已经出来」的信号用，不核内容；框的右缘不能越过列表左沿，否则弹窗没出来时会读到列表上的字。被BagScan_Detail_Named引用。",
+        "recognition": "OCR",
+        "roi": [
+            262,
+            232,
+            300,
+            28
+        ]
+    },
     "Rec_BagScan_Quantity_Ocr": {
-        "desc": "背包详情数量：完整读取「拥有234,937个」，先去掉逗号、句点等分隔符，只认完整一行；不接受K缩写、不拼接独立识别结果。被BagScan_Detail_Ready引用；attach.retry_scale供py放大重读。",
+        "desc": "背包详情数量：完整读取「拥有234,937个」，先去掉逗号、句点等分隔符，只认完整一行；不接受K缩写、不拼接独立识别结果。框只盖数量这一行：加高会把下面的说明文字也识别进去，单次识别从约0.5秒涨到2秒以上（11-12实测）。箱子的详情多一行锁定开关、数量不在这里，认不出的格子因此走BagScan_Detail_Peek只看名称。被BagScan_Detail_Ready引用；attach.retry_scale供py放大重读。",
         "recognition": "OCR",
         "roi": [
             265,
@@ -1860,23 +591,70 @@
             "retry_scale": 3
         }
     },
-    "Agt_BagScan_Ingredients_End_Tpl": {
-        "desc": "py独占，勿挂进管路。任一成长材料命中即可能到了食材末端；py会点开该格核名，读出来不是食材才算末端。同屏目标先查再判末端。",
-        "recognition": "TemplateMatch",
-        "roi": [
-            578,
-            62,
-            600,
-            634
-        ],
-        "template": [
-            "Shop/BagList/成长材料_等级突破1.png",
-            "Shop/BagList/成长材料_生活技能书1.png",
-            "Shop/BagList/成长材料_生活技能书2.png",
-            "Shop/BagList/成长材料_生活技能书3.png",
-            "Shop/BagList/成长材料_生活技能书4.png",
-            "Shop/BagList/成长材料_史莱姆1.png"
-        ],
-        "threshold": 0.9
+    "Agt_BagScan_Config": {
+        "desc": "py独占，勿挂进管路。背包仓检的扫描类型与各项上限。scopes：启动器的scope参数取这里的键，可一个或一组；profiles是物品表（agent/data/bag_item_names.json）里的档案；segment=head表示这类物品在料理食材排序下从列表开头连成一段，走出这一段就给段内没见到的判0；run表示在列表中间连成一段，进去再出来就结清；tail表示没有可靠的段尾，扫到列表底。loose_kinds：彼此相像、图标信不过的类别，这类格子一律点开读名。",
+        "enabled": false,
+        "attach": {
+            "ready_node": "Agt_BagScan_Ingredients_Ready",
+            "scopes": {
+                "A": {
+                    "title": "存货",
+                    "profiles": [
+                        "ingredients",
+                        "dishes"
+                    ],
+                    "segment": "head",
+                    "zero_evidence": "ingredient_boundary"
+                },
+                "B": {
+                    "title": "票券与养成材料",
+                    "profiles": [
+                        "growth"
+                    ],
+                    "segment": "tail"
+                },
+                "C": {
+                    "title": "装备制作材料",
+                    "profiles": [
+                        "craft"
+                    ],
+                    "segment": "run",
+                    "zero_evidence": "section_end"
+                }
+            },
+            "loose_kinds": [
+                "票券",
+                "服装券",
+                "其他券"
+            ],
+            "max_pages": 40,
+            "timeout_seconds": 1500,
+            "confirm_frames": 4,
+            "box_tolerance": 3,
+            "continuity_threshold": 12.0
+        }
+    },
+    "Agt_BagScan_Grid": {
+        "desc": "py独占，勿挂进管路。背包列表在截图里的排布，资源包整节点覆盖。icons：agent/data里的图标图集（tools/gen_bag_templates.py生成）；area列表区、columns列数、left第一列格子左沿、pitch列距与行距、footer列表区最下方压着的固定底栏行数；row_offset图标相对边框估出的行上沿的竖直偏移（整页对齐失败时的后备值）；known认定一个图标的最低分、margin认定时要领先另一个图标的分差。",
+        "enabled": false,
+        "attach": {
+            "icons": "base",
+            "area": [
+                578,
+                62,
+                600,
+                634
+            ],
+            "columns": 6,
+            "left": 577,
+            "pitch": [
+                100.8,
+                101
+            ],
+            "footer": 64,
+            "row_offset": 0,
+            "known": 0.85,
+            "margin": 0.05
+        }
     }
 }

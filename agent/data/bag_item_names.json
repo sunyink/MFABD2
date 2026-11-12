@@ -1,1119 +1,2073 @@
 {
     "source": "2026-10-29",
-    "note": "tools/gen_bag_templates.py 生成，别手改。背包仓检目录物品的规范简体名与繁体名（PC 客户端）。",
+    "note": "tools/gen_bag_templates.py 生成，别手改。背包消耗品页的物品：档案 other 是目录外的，只为认出来好跳过。",
+    "packs": {
+        "base": {
+            "atlas": "bag_icons_base.png",
+            "cell": [
+                94,
+                94
+            ],
+            "band": [
+                16,
+                65
+            ],
+            "columns": 24,
+            "icons": [
+                "icon_food1001_1",
+                "icon_food1002_2",
+                "icon_food1003_3",
+                "icon_food1004_4",
+                "icon_food1005_5",
+                "icon_food1006_6",
+                "icon_food1007_7",
+                "icon_food1008_8",
+                "icon_food1009_9",
+                "icon_food1010_10",
+                "icon_food1011_11",
+                "icon_food1012_12",
+                "icon_food1013_13",
+                "icon_food1014_14",
+                "icon_food1015_15",
+                "icon_food1016_16",
+                "icon_food1017_17",
+                "icon_food1018_18",
+                "icon_food1019_19",
+                "icon_food1020_20",
+                "icon_food1021_21",
+                "icon_food1022_22",
+                "icon_food1023_23",
+                "icon_food1024_24",
+                "icon_food1025_25",
+                "icon_food1026_26",
+                "icon_food1027_27",
+                "icon_food1028_28",
+                "icon_food1029_29",
+                "icon_food1030_30",
+                "icon_food1031_31",
+                "icon_food1032_32",
+                "icon_food1033_33",
+                "icon_food1034_34",
+                "icon_food1035_35",
+                "icon_food1036_36",
+                "icon_food1037_37",
+                "icon_food1038_38",
+                "icon_food1039_39",
+                "icon_food1040_40",
+                "icon_food1041_41",
+                "icon_food1042_42",
+                "icon_food1043_43",
+                "icon_food1044_44",
+                "icon_food1045_45",
+                "icon_food1046_46",
+                "icon_food1047_47",
+                "icon_food1048_48",
+                "icon_food1049_49",
+                "icon_food1050_50",
+                "icon_food1051_51",
+                "icon_food1052_52",
+                "icon_food1053_53",
+                "icon_food1054_54",
+                "icon_food1055_55",
+                "icon_food1056_56",
+                "icon_food1057_57",
+                "icon_food1058_58",
+                "icon_food1059_59",
+                "icon_food1060_60",
+                "icon_food1061_61",
+                "icon_food1062_62",
+                "icon_food1063_63",
+                "icon_food1064_64",
+                "icon_food1065_65",
+                "icon_food1066_66",
+                "icon_food1067_67",
+                "icon_food1068_133",
+                "icon_food1069_134",
+                "icon_food1070_135",
+                "icon_food1071_136",
+                "icon_food1072_137",
+                "icon_food2001_1",
+                "icon_food2002_2",
+                "icon_food2003_3",
+                "icon_food2004_4",
+                "icon_food2005_5",
+                "icon_food2006_6",
+                "icon_food2007_7",
+                "icon_food2008_8",
+                "icon_food2009_9",
+                "icon_food2010_10",
+                "icon_food2011_11",
+                "icon_food2012_12",
+                "icon_food2013_13",
+                "icon_food2014_14",
+                "icon_food2015_15",
+                "icon_food2016_16",
+                "icon_food2017_17",
+                "icon_food2018_18",
+                "icon_food2019_19",
+                "icon_food2020_20",
+                "icon_food2021_21",
+                "icon_food2022_22",
+                "icon_food2023_23",
+                "icon_food2024_24",
+                "icon_food2025_25",
+                "icon_food2026_26",
+                "icon_food2027_27",
+                "icon_food2028_28",
+                "icon_food2029_29",
+                "icon_food2030_30",
+                "icon_food2031_31",
+                "icon_food2032_32",
+                "icon_food2033_33",
+                "icon_food2034_34",
+                "icon_food2035_35",
+                "icon_food2036_36",
+                "icon_food2037_37",
+                "icon_food2038_122",
+                "icon_food2038_38",
+                "icon_food2039_123",
+                "icon_food2040_124",
+                "icon_food2041_125",
+                "icon_food2042_126",
+                "icon_food2043_127",
+                "icon_food2044_128",
+                "icon_food2045_129",
+                "icon_food2046_130",
+                "icon_food2047_131",
+                "icon_food2048_132",
+                "icon_food3001_1",
+                "icon_food3002_2",
+                "icon_food3003_3",
+                "icon_food3004_4",
+                "icon_food3005_5",
+                "icon_food3006_6",
+                "icon_food3007_7",
+                "icon_food3008_8",
+                "icon_food3009_9",
+                "icon_food3010_10",
+                "icon_food3011_11",
+                "icon_food3012_12",
+                "icon_food3013_13",
+                "icon_food3014_14",
+                "icon_resource101_9",
+                "icon_resource102_10",
+                "icon_resource103_11",
+                "icon_resource104_12",
+                "icon_resource105_13",
+                "icon_resource106_14",
+                "icon_resource111_15",
+                "icon_resource112_16",
+                "icon_resource113_17",
+                "icon_resource114_18",
+                "icon_resource115_19",
+                "icon_resource116_20",
+                "icon_resource121_21",
+                "icon_resource122_22",
+                "icon_resource123_23",
+                "icon_resource124_24",
+                "icon_resource125_25",
+                "icon_resource126_26",
+                "icon_resource190001_395",
+                "icon_resource190002_396",
+                "icon_resource190003_397",
+                "icon_resource190004_398",
+                "icon_resource190005_399",
+                "icon_resource190006_400",
+                "icon_resource190007_401",
+                "icon_resource1_1",
+                "icon_resource20005_156",
+                "icon_resource20006_157",
+                "icon_resource20007_158",
+                "icon_resource20008_169",
+                "icon_resource20009_170",
+                "icon_resource20010_172",
+                "icon_resource20011_175",
+                "icon_resource20013_177",
+                "icon_resource20013_179",
+                "icon_resource20014_182",
+                "icon_resource20015_185",
+                "icon_resource20017_189",
+                "icon_resource20018_192",
+                "icon_resource20019_195",
+                "icon_resource20020_197",
+                "icon_resource20021_217",
+                "icon_resource20022_218",
+                "icon_resource20023_223",
+                "icon_resource20024_239",
+                "icon_resource20024_251",
+                "icon_resource20025_245",
+                "icon_resource20027_251",
+                "icon_resource20028_254",
+                "icon_resource20029_255",
+                "icon_resource20030_256",
+                "icon_resource20031_269",
+                "icon_resource20032_285",
+                "icon_resource20035_312",
+                "icon_resource20036_320",
+                "icon_resource20037_327",
+                "icon_resource20038_332",
+                "icon_resource20039_335",
+                "icon_resource20040_358",
+                "icon_resource20041_363",
+                "icon_resource20042_370",
+                "icon_resource20043_372",
+                "icon_resource20045_383",
+                "icon_resource20046_387",
+                "icon_resource20047_403",
+                "icon_resource20048_416",
+                "icon_resource20049_422",
+                "icon_resource20050_425",
+                "icon_resource20052_433",
+                "icon_resource201_27",
+                "icon_resource202_28",
+                "icon_resource203_29",
+                "icon_resource204_30",
+                "icon_resource205_31",
+                "icon_resource211_32",
+                "icon_resource212_33",
+                "icon_resource213_34",
+                "icon_resource214_35",
+                "icon_resource221_36",
+                "icon_resource222_37",
+                "icon_resource223_38",
+                "icon_resource224_62",
+                "icon_resource301_39",
+                "icon_resource311_40",
+                "icon_resource321_41",
+                "icon_resource40002_79",
+                "icon_resource40003_105",
+                "icon_resource40003_125",
+                "icon_resource40004_106",
+                "icon_resource40004_126",
+                "icon_resource40005_107",
+                "icon_resource40005_127",
+                "icon_resource40006_128",
+                "icon_resource40007_129",
+                "icon_resource40008_130",
+                "icon_resource40015_168",
+                "icon_resource40017_207",
+                "icon_resource40018_238",
+                "icon_resource40019_240",
+                "icon_resource40020_265",
+                "icon_resource40021_267",
+                "icon_resource40022_286",
+                "icon_resource40022_414",
+                "icon_resource40023_313",
+                "icon_resource40027_339",
+                "icon_resource40028_352",
+                "icon_resource40029_413",
+                "icon_resource40031_423",
+                "icon_resource401_42",
+                "icon_resource411_43",
+                "icon_resource421_44",
+                "icon_resource501_45",
+                "icon_resource511_46",
+                "icon_resource521_63",
+                "icon_resource601_47",
+                "icon_resource602_48",
+                "icon_resource603_76",
+                "icon_resource701_219",
+                "icon_resource702_220",
+                "icon_resource703_221",
+                "icon_resource704_222",
+                "icon_resource7777_57",
+                "icon_resource7780_58",
+                "icon_resource7781_65",
+                "icon_resource7782_66",
+                "icon_resource7783_67",
+                "icon_resource80001_116",
+                "icon_resource90001_117",
+                "icon_resource90002_119",
+                "icon_resource90003_135",
+                "icon_resource90004_137",
+                "icon_resource90005_140",
+                "icon_resource90006_149",
+                "icon_resource90007_150",
+                "icon_resource90008_152",
+                "icon_resource90009_154",
+                "icon_resource90010_165",
+                "icon_resource90011_167",
+                "icon_resource90012_174",
+                "icon_resource90013_178",
+                "icon_resource90014_181",
+                "icon_resource90015_183",
+                "icon_resource90016_188",
+                "icon_resource90017_191",
+                "icon_resource90018_194",
+                "icon_resource9001_59",
+                "icon_resource90020_202",
+                "icon_resource90020_203",
+                "icon_resource90021_208",
+                "icon_resource90022_209",
+                "icon_resource90024_215",
+                "icon_resource90025_216",
+                "icon_resource90026_226",
+                "icon_resource90027_232",
+                "icon_resource90027_303",
+                "icon_resource90028_234",
+                "icon_resource90029_236",
+                "icon_resource9002_60",
+                "icon_resource90030_241",
+                "icon_resource90031_243",
+                "icon_resource90032_309",
+                "icon_resource90033_247",
+                "icon_resource90033_310",
+                "icon_resource90034_252",
+                "icon_resource90035_257",
+                "icon_resource90036_259",
+                "icon_resource90037_261",
+                "icon_resource90038_263",
+                "icon_resource90039_266",
+                "icon_resource9003_61",
+                "icon_resource90040_268",
+                "icon_resource90041_271",
+                "icon_resource90042_273",
+                "icon_resource90043_275",
+                "icon_resource90044_287",
+                "icon_resource90045_289",
+                "icon_resource90046_293",
+                "icon_resource90048_298",
+                "icon_resource90049_299",
+                "icon_resource90050_300",
+                "icon_resource90055_310",
+                "icon_resource90056_314",
+                "icon_resource90057_316",
+                "icon_resource90058_319",
+                "icon_resource90061_328",
+                "icon_resource90062_330",
+                "icon_resource90063_336",
+                "icon_resource90065_342",
+                "icon_resource90066_343",
+                "icon_resource90067_344",
+                "icon_resource90068_353",
+                "icon_resource90069_355",
+                "icon_resource90071_359",
+                "icon_resource90072_361",
+                "icon_resource90073_364",
+                "icon_resource90075_368",
+                "icon_resource90076_373",
+                "icon_resource90077_374",
+                "icon_resource90078_376",
+                "icon_resource90079_379",
+                "icon_resource90081_386",
+                "icon_resource90082_388",
+                "icon_resource90083_390",
+                "icon_resource90084_392",
+                "icon_resource90085_393",
+                "icon_resource90086_394",
+                "icon_resource90087_402",
+                "icon_resource90090_406",
+                "icon_resource90091_408",
+                "icon_resource90092_412",
+                "icon_resource90093_417",
+                "icon_resource90094_419",
+                "icon_resource90095_421",
+                "icon_resource90096_424",
+                "icon_resource90097_426",
+                "icon_resource90098_428",
+                "icon_resource90099_430",
+                "icon_resource901_49",
+                "icon_resource906_50",
+                "icon_resource907_51",
+                "icon_resource910_54"
+            ]
+        },
+        "pc": {
+            "atlas": "bag_icons_pc.png",
+            "cell": [
+                79,
+                78
+            ],
+            "band": [
+                13,
+                54
+            ],
+            "columns": 24,
+            "icons": [
+                "icon_food1001_1",
+                "icon_food1002_2",
+                "icon_food1003_3",
+                "icon_food1004_4",
+                "icon_food1005_5",
+                "icon_food1006_6",
+                "icon_food1007_7",
+                "icon_food1008_8",
+                "icon_food1009_9",
+                "icon_food1010_10",
+                "icon_food1011_11",
+                "icon_food1012_12",
+                "icon_food1013_13",
+                "icon_food1014_14",
+                "icon_food1015_15",
+                "icon_food1016_16",
+                "icon_food1017_17",
+                "icon_food1018_18",
+                "icon_food1019_19",
+                "icon_food1020_20",
+                "icon_food1021_21",
+                "icon_food1022_22",
+                "icon_food1023_23",
+                "icon_food1024_24",
+                "icon_food1025_25",
+                "icon_food1026_26",
+                "icon_food1027_27",
+                "icon_food1028_28",
+                "icon_food1029_29",
+                "icon_food1030_30",
+                "icon_food1031_31",
+                "icon_food1032_32",
+                "icon_food1033_33",
+                "icon_food1034_34",
+                "icon_food1035_35",
+                "icon_food1036_36",
+                "icon_food1037_37",
+                "icon_food1038_38",
+                "icon_food1039_39",
+                "icon_food1040_40",
+                "icon_food1041_41",
+                "icon_food1042_42",
+                "icon_food1043_43",
+                "icon_food1044_44",
+                "icon_food1045_45",
+                "icon_food1046_46",
+                "icon_food1047_47",
+                "icon_food1048_48",
+                "icon_food1049_49",
+                "icon_food1050_50",
+                "icon_food1051_51",
+                "icon_food1052_52",
+                "icon_food1053_53",
+                "icon_food1054_54",
+                "icon_food1055_55",
+                "icon_food1057_57",
+                "icon_food1058_58",
+                "icon_food1059_59",
+                "icon_food1060_60",
+                "icon_food1061_61",
+                "icon_food1062_62",
+                "icon_food1063_63",
+                "icon_food1064_64",
+                "icon_food1065_65",
+                "icon_food1066_66",
+                "icon_food1067_67",
+                "icon_food1068_133",
+                "icon_food1069_134",
+                "icon_food1070_135",
+                "icon_food1071_136",
+                "icon_food1072_137",
+                "icon_food2001_1",
+                "icon_food2002_2",
+                "icon_food2003_3",
+                "icon_food2004_4",
+                "icon_food2005_5",
+                "icon_food2006_6",
+                "icon_food2007_7",
+                "icon_food2008_8",
+                "icon_food2009_9",
+                "icon_food2010_10",
+                "icon_food2011_11",
+                "icon_food2012_12",
+                "icon_food2013_13",
+                "icon_food2014_14",
+                "icon_food2015_15",
+                "icon_food2016_16",
+                "icon_food2017_17",
+                "icon_food2018_18",
+                "icon_food2019_19",
+                "icon_food2020_20",
+                "icon_food2021_21",
+                "icon_food2022_22",
+                "icon_food2023_23",
+                "icon_food2024_24",
+                "icon_food2025_25",
+                "icon_food2026_26",
+                "icon_food2027_27",
+                "icon_food2028_28",
+                "icon_food2029_29",
+                "icon_food2030_30",
+                "icon_food2031_31",
+                "icon_food2032_32",
+                "icon_food2033_33",
+                "icon_food2034_34",
+                "icon_food2035_35",
+                "icon_food2036_36",
+                "icon_food2037_37",
+                "icon_food2038_122",
+                "icon_food2038_38",
+                "icon_food2039_123",
+                "icon_food2040_124",
+                "icon_food2041_125",
+                "icon_food2042_126",
+                "icon_food2043_127",
+                "icon_food2044_128",
+                "icon_food2045_129",
+                "icon_food2046_130",
+                "icon_food2047_131",
+                "icon_food2048_132",
+                "icon_food3001_1",
+                "icon_food3002_2",
+                "icon_food3003_3",
+                "icon_food3004_4",
+                "icon_food3005_5",
+                "icon_food3006_6",
+                "icon_food3007_7",
+                "icon_food3008_8",
+                "icon_food3009_9",
+                "icon_food3010_10",
+                "icon_food3011_11",
+                "icon_food3012_12",
+                "icon_food3013_13",
+                "icon_food3014_14",
+                "icon_resource101_9",
+                "icon_resource102_10",
+                "icon_resource103_11",
+                "icon_resource104_12",
+                "icon_resource105_13",
+                "icon_resource106_14",
+                "icon_resource111_15",
+                "icon_resource112_16",
+                "icon_resource113_17",
+                "icon_resource114_18",
+                "icon_resource115_19",
+                "icon_resource116_20",
+                "icon_resource121_21",
+                "icon_resource122_22",
+                "icon_resource123_23",
+                "icon_resource124_24",
+                "icon_resource125_25",
+                "icon_resource126_26",
+                "icon_resource190001_395",
+                "icon_resource190002_396",
+                "icon_resource190003_397",
+                "icon_resource190004_398",
+                "icon_resource190005_399",
+                "icon_resource190006_400",
+                "icon_resource190007_401",
+                "icon_resource1_1",
+                "icon_resource20005_156",
+                "icon_resource20006_157",
+                "icon_resource20007_158",
+                "icon_resource20008_169",
+                "icon_resource20009_170",
+                "icon_resource20010_172",
+                "icon_resource20011_175",
+                "icon_resource20013_177",
+                "icon_resource20013_179",
+                "icon_resource20014_182",
+                "icon_resource20015_185",
+                "icon_resource20017_189",
+                "icon_resource20018_192",
+                "icon_resource20019_195",
+                "icon_resource20020_197",
+                "icon_resource20021_217",
+                "icon_resource20022_218",
+                "icon_resource20023_223",
+                "icon_resource20024_239",
+                "icon_resource20024_251",
+                "icon_resource20025_245",
+                "icon_resource20027_251",
+                "icon_resource20028_254",
+                "icon_resource20029_255",
+                "icon_resource20030_256",
+                "icon_resource20031_269",
+                "icon_resource20032_285",
+                "icon_resource20035_312",
+                "icon_resource20036_320",
+                "icon_resource20037_327",
+                "icon_resource20038_332",
+                "icon_resource20039_335",
+                "icon_resource20040_358",
+                "icon_resource20041_363",
+                "icon_resource20042_370",
+                "icon_resource20043_372",
+                "icon_resource20045_383",
+                "icon_resource20046_387",
+                "icon_resource20047_403",
+                "icon_resource20048_416",
+                "icon_resource20049_422",
+                "icon_resource20050_425",
+                "icon_resource20052_433",
+                "icon_resource201_27",
+                "icon_resource202_28",
+                "icon_resource203_29",
+                "icon_resource204_30",
+                "icon_resource205_31",
+                "icon_resource211_32",
+                "icon_resource212_33",
+                "icon_resource213_34",
+                "icon_resource214_35",
+                "icon_resource221_36",
+                "icon_resource222_37",
+                "icon_resource223_38",
+                "icon_resource224_62",
+                "icon_resource301_39",
+                "icon_resource311_40",
+                "icon_resource321_41",
+                "icon_resource40002_79",
+                "icon_resource40003_105",
+                "icon_resource40003_125",
+                "icon_resource40004_106",
+                "icon_resource40004_126",
+                "icon_resource40005_107",
+                "icon_resource40005_127",
+                "icon_resource40006_128",
+                "icon_resource40007_129",
+                "icon_resource40008_130",
+                "icon_resource40015_168",
+                "icon_resource40017_207",
+                "icon_resource40018_238",
+                "icon_resource40019_240",
+                "icon_resource40020_265",
+                "icon_resource40021_267",
+                "icon_resource40022_286",
+                "icon_resource40022_414",
+                "icon_resource40023_313",
+                "icon_resource40027_339",
+                "icon_resource40028_352",
+                "icon_resource40029_413",
+                "icon_resource40031_423",
+                "icon_resource401_42",
+                "icon_resource411_43",
+                "icon_resource421_44",
+                "icon_resource501_45",
+                "icon_resource511_46",
+                "icon_resource521_63",
+                "icon_resource601_47",
+                "icon_resource602_48",
+                "icon_resource603_76",
+                "icon_resource701_219",
+                "icon_resource702_220",
+                "icon_resource703_221",
+                "icon_resource704_222",
+                "icon_resource7777_57",
+                "icon_resource7780_58",
+                "icon_resource7781_65",
+                "icon_resource7782_66",
+                "icon_resource7783_67",
+                "icon_resource80001_116",
+                "icon_resource90001_117",
+                "icon_resource90002_119",
+                "icon_resource90003_135",
+                "icon_resource90004_137",
+                "icon_resource90005_140",
+                "icon_resource90006_149",
+                "icon_resource90007_150",
+                "icon_resource90008_152",
+                "icon_resource90009_154",
+                "icon_resource90010_165",
+                "icon_resource90011_167",
+                "icon_resource90012_174",
+                "icon_resource90013_178",
+                "icon_resource90015_183",
+                "icon_resource90016_188",
+                "icon_resource90017_191",
+                "icon_resource90018_194",
+                "icon_resource9001_59",
+                "icon_resource90020_202",
+                "icon_resource90020_203",
+                "icon_resource90021_208",
+                "icon_resource90022_209",
+                "icon_resource90024_215",
+                "icon_resource90025_216",
+                "icon_resource90026_226",
+                "icon_resource90027_232",
+                "icon_resource90027_303",
+                "icon_resource90028_234",
+                "icon_resource90029_236",
+                "icon_resource9002_60",
+                "icon_resource90030_241",
+                "icon_resource90031_243",
+                "icon_resource90032_309",
+                "icon_resource90033_247",
+                "icon_resource90033_310",
+                "icon_resource90034_252",
+                "icon_resource90035_257",
+                "icon_resource90036_259",
+                "icon_resource90037_261",
+                "icon_resource90038_263",
+                "icon_resource90039_266",
+                "icon_resource9003_61",
+                "icon_resource90040_268",
+                "icon_resource90041_271",
+                "icon_resource90042_273",
+                "icon_resource90043_275",
+                "icon_resource90044_287",
+                "icon_resource90045_289",
+                "icon_resource90046_293",
+                "icon_resource90048_298",
+                "icon_resource90049_299",
+                "icon_resource90050_300",
+                "icon_resource90055_310",
+                "icon_resource90056_314",
+                "icon_resource90057_316",
+                "icon_resource90058_319",
+                "icon_resource90061_328",
+                "icon_resource90062_330",
+                "icon_resource90063_336",
+                "icon_resource90065_342",
+                "icon_resource90066_343",
+                "icon_resource90067_344",
+                "icon_resource90068_353",
+                "icon_resource90069_355",
+                "icon_resource90071_359",
+                "icon_resource90072_361",
+                "icon_resource90073_364",
+                "icon_resource90075_368",
+                "icon_resource90076_373",
+                "icon_resource90077_374",
+                "icon_resource90078_376",
+                "icon_resource90079_379",
+                "icon_resource90081_386",
+                "icon_resource90082_388",
+                "icon_resource90083_390",
+                "icon_resource90084_392",
+                "icon_resource90085_393",
+                "icon_resource90086_394",
+                "icon_resource90087_402",
+                "icon_resource90090_406",
+                "icon_resource90091_408",
+                "icon_resource90092_412",
+                "icon_resource90093_417",
+                "icon_resource90094_419",
+                "icon_resource90095_421",
+                "icon_resource90096_424",
+                "icon_resource90097_426",
+                "icon_resource90098_428",
+                "icon_resource90099_430",
+                "icon_resource901_49",
+                "icon_resource906_50",
+                "icon_resource907_51",
+                "icon_resource910_54"
+            ]
+        }
+    },
     "items": [
         {
             "cn": "兽肉",
             "tw": "獸肉",
             "alias": [],
             "profile": "ingredients",
-            "kind": "食材"
+            "kind": "食材",
+            "icon": "icon_food1001_1"
         },
         {
             "cn": "三文鱼",
             "tw": "鮭魚",
             "alias": [],
             "profile": "ingredients",
-            "kind": "食材"
+            "kind": "食材",
+            "icon": "icon_food1002_2"
         },
         {
             "cn": "虾",
             "tw": "淡水蝦",
             "alias": [],
             "profile": "ingredients",
-            "kind": "食材"
+            "kind": "食材",
+            "icon": "icon_food1003_3"
         },
         {
             "cn": "小麦",
             "tw": "小麥",
             "alias": [],
             "profile": "ingredients",
-            "kind": "食材"
+            "kind": "食材",
+            "icon": "icon_food1004_4"
         },
         {
             "cn": "香草",
             "tw": "草藥",
             "alias": [],
             "profile": "ingredients",
-            "kind": "食材"
+            "kind": "食材",
+            "icon": "icon_food1005_5"
         },
         {
             "cn": "玉米",
             "tw": "玉米",
             "alias": [],
             "profile": "ingredients",
-            "kind": "食材"
+            "kind": "食材",
+            "icon": "icon_food1006_6"
         },
         {
             "cn": "豆子",
             "tw": "豆子",
             "alias": [],
             "profile": "ingredients",
-            "kind": "食材"
+            "kind": "食材",
+            "icon": "icon_food1007_7"
         },
         {
             "cn": "大麦",
             "tw": "大麥",
             "alias": [],
             "profile": "ingredients",
-            "kind": "食材"
+            "kind": "食材",
+            "icon": "icon_food1008_8"
         },
         {
             "cn": "啤酒花",
             "tw": "啤酒花",
             "alias": [],
             "profile": "ingredients",
-            "kind": "食材"
+            "kind": "食材",
+            "icon": "icon_food1009_9"
         },
         {
             "cn": "米",
             "tw": "米",
             "alias": [],
             "profile": "ingredients",
-            "kind": "食材"
+            "kind": "食材",
+            "icon": "icon_food1010_10"
         },
         {
             "cn": "苹果",
             "tw": "蘋果",
             "alias": [],
             "profile": "ingredients",
-            "kind": "食材"
+            "kind": "食材",
+            "icon": "icon_food1011_11"
         },
         {
             "cn": "葡萄",
             "tw": "葡萄",
             "alias": [],
             "profile": "ingredients",
-            "kind": "食材"
+            "kind": "食材",
+            "icon": "icon_food1012_12"
         },
         {
             "cn": "蘑菇",
             "tw": "蘑菇",
             "alias": [],
             "profile": "ingredients",
-            "kind": "食材"
+            "kind": "食材",
+            "icon": "icon_food1013_13"
         },
         {
             "cn": "胡萝卜",
             "tw": "紅蘿蔔",
             "alias": [],
             "profile": "ingredients",
-            "kind": "食材"
+            "kind": "食材",
+            "icon": "icon_food1014_14"
         },
         {
             "cn": "土豆",
             "tw": "馬鈴薯",
             "alias": [],
             "profile": "ingredients",
-            "kind": "食材"
+            "kind": "食材",
+            "icon": "icon_food1015_15"
         },
         {
             "cn": "洋葱",
             "tw": "洋蔥",
             "alias": [],
             "profile": "ingredients",
-            "kind": "食材"
+            "kind": "食材",
+            "icon": "icon_food1016_16"
         },
         {
             "cn": "甜椒",
             "tw": "甜椒",
             "alias": [],
             "profile": "ingredients",
-            "kind": "食材"
+            "kind": "食材",
+            "icon": "icon_food1017_17"
         },
         {
             "cn": "萝卜缨",
             "tw": "蘿蔔嬰",
             "alias": [],
             "profile": "ingredients",
-            "kind": "食材"
+            "kind": "食材",
+            "icon": "icon_food1018_18"
         },
         {
             "cn": "西蓝花",
             "tw": "花椰菜",
             "alias": [],
             "profile": "ingredients",
-            "kind": "食材"
+            "kind": "食材",
+            "icon": "icon_food1019_19"
         },
         {
             "cn": "番茄",
             "tw": "番茄",
             "alias": [],
             "profile": "ingredients",
-            "kind": "食材"
+            "kind": "食材",
+            "icon": "icon_food1020_20"
         },
         {
             "cn": "西葫芦",
             "tw": "櫛瓜",
             "alias": [],
             "profile": "ingredients",
-            "kind": "食材"
+            "kind": "食材",
+            "icon": "icon_food1021_21"
         },
         {
             "cn": "咖啡豆",
             "tw": "咖啡豆",
             "alias": [],
             "profile": "ingredients",
-            "kind": "食材"
+            "kind": "食材",
+            "icon": "icon_food1022_22"
         },
         {
             "cn": "白糖",
             "tw": "糖",
             "alias": [],
             "profile": "ingredients",
-            "kind": "食材"
+            "kind": "食材",
+            "icon": "icon_food1023_23"
         },
         {
             "cn": "奶酪",
             "tw": "起司",
             "alias": [],
             "profile": "ingredients",
-            "kind": "食材"
+            "kind": "食材",
+            "icon": "icon_food1024_24"
         },
         {
             "cn": "鸡蛋",
             "tw": "雞蛋",
             "alias": [],
             "profile": "ingredients",
-            "kind": "食材"
+            "kind": "食材",
+            "icon": "icon_food1025_25"
         },
         {
             "cn": "黄油",
             "tw": "奶油",
             "alias": [],
             "profile": "ingredients",
-            "kind": "食材"
+            "kind": "食材",
+            "icon": "icon_food1026_26"
         },
         {
             "cn": "牛奶",
             "tw": "牛奶",
             "alias": [],
             "profile": "ingredients",
-            "kind": "食材"
+            "kind": "食材",
+            "icon": "icon_food1027_27"
         },
         {
             "cn": "金枪鱼罐头",
             "tw": "鮪魚罐頭",
             "alias": [],
             "profile": "ingredients",
-            "kind": "食材"
+            "kind": "食材",
+            "icon": "icon_food1028_28"
         },
         {
             "cn": "袋装鸡胸肉",
             "tw": "雞胸肉袋",
             "alias": [],
             "profile": "ingredients",
-            "kind": "食材"
+            "kind": "食材",
+            "icon": "icon_food1029_29"
         },
         {
             "cn": "巧克力",
             "tw": "巧克力",
             "alias": [],
             "profile": "ingredients",
-            "kind": "食材"
+            "kind": "食材",
+            "icon": "icon_food1030_30"
         },
         {
             "cn": "吐司",
             "tw": "吐司",
             "alias": [],
             "profile": "ingredients",
-            "kind": "食材"
+            "kind": "食材",
+            "icon": "icon_food1031_31"
         },
         {
             "cn": "橄榄油",
             "tw": "橄欖油",
             "alias": [],
             "profile": "ingredients",
-            "kind": "食材"
+            "kind": "食材",
+            "icon": "icon_food1032_32"
         },
         {
             "cn": "甜辣酱",
             "tw": "辣醬",
             "alias": [],
             "profile": "ingredients",
-            "kind": "食材"
+            "kind": "食材",
+            "icon": "icon_food1033_33"
         },
         {
             "cn": "蜂蜜",
             "tw": "蜂蜜",
             "alias": [],
             "profile": "ingredients",
-            "kind": "食材"
+            "kind": "食材",
+            "icon": "icon_food1034_34"
         },
         {
             "cn": "盐",
             "tw": "鹽",
             "alias": [],
             "profile": "ingredients",
-            "kind": "食材"
+            "kind": "食材",
+            "icon": "icon_food1035_35"
         },
         {
             "cn": "哈密瓜",
             "tw": "哈密瓜",
             "alias": [],
             "profile": "ingredients",
-            "kind": "食材"
+            "kind": "食材",
+            "icon": "icon_food1036_36"
         },
         {
             "cn": "辣椒",
             "tw": "辣椒",
             "alias": [],
             "profile": "ingredients",
-            "kind": "食材"
+            "kind": "食材",
+            "icon": "icon_food1037_37"
         },
         {
             "cn": "藏红花",
             "tw": "番紅花",
             "alias": [],
             "profile": "ingredients",
-            "kind": "食材"
+            "kind": "食材",
+            "icon": "icon_food1038_38"
         },
         {
             "cn": "杏仁",
             "tw": "杏仁",
             "alias": [],
             "profile": "ingredients",
-            "kind": "食材"
+            "kind": "食材",
+            "icon": "icon_food1039_39"
         },
         {
             "cn": "水果罐头",
             "tw": "水果罐頭",
             "alias": [],
             "profile": "ingredients",
-            "kind": "食材"
+            "kind": "食材",
+            "icon": "icon_food1040_40"
         },
         {
             "cn": "鱼子酱罐头",
             "tw": "魚子醬罐頭",
             "alias": [],
             "profile": "ingredients",
-            "kind": "食材"
+            "kind": "食材",
+            "icon": "icon_food1041_41"
         },
         {
             "cn": "调味海苔",
             "tw": "包裝好的海苔",
             "alias": [],
             "profile": "ingredients",
-            "kind": "食材"
+            "kind": "食材",
+            "icon": "icon_food1042_42"
         },
         {
             "cn": "凯洛药材",
             "tw": "凱洛藥材",
             "alias": [],
             "profile": "ingredients",
-            "kind": "食材"
+            "kind": "食材",
+            "icon": "icon_food1043_43"
         },
         {
             "cn": "姜黄",
             "tw": "薑黃",
             "alias": [],
             "profile": "ingredients",
-            "kind": "食材"
+            "kind": "食材",
+            "icon": "icon_food1044_44"
         },
         {
             "cn": "永恒之爱",
             "tw": "永恆龍舌蘭酒",
             "alias": [],
             "profile": "ingredients",
-            "kind": "食材"
+            "kind": "食材",
+            "icon": "icon_food1045_45"
         },
         {
             "cn": "芥末",
             "tw": "芥末",
             "alias": [],
             "profile": "ingredients",
-            "kind": "食材"
+            "kind": "食材",
+            "icon": "icon_food1046_46"
         },
         {
             "cn": "料酒",
             "tw": "料酒",
             "alias": [],
             "profile": "ingredients",
-            "kind": "食材"
+            "kind": "食材",
+            "icon": "icon_food1047_47"
         },
         {
             "cn": "雷瓦汀火腿",
             "tw": "雷瓦汀火腿",
             "alias": [],
             "profile": "ingredients",
-            "kind": "食材"
+            "kind": "食材",
+            "icon": "icon_food1048_48"
         },
         {
             "cn": "番茄酱",
             "tw": "番茄醬",
             "alias": [],
             "profile": "ingredients",
-            "kind": "食材"
+            "kind": "食材",
+            "icon": "icon_food1049_49"
         },
         {
             "cn": "辣椒素",
             "tw": "辣椒素",
             "alias": [],
             "profile": "ingredients",
-            "kind": "食材"
+            "kind": "食材",
+            "icon": "icon_food1050_50"
         },
         {
             "cn": "松露油",
             "tw": "松露油",
             "alias": [],
             "profile": "ingredients",
-            "kind": "食材"
+            "kind": "食材",
+            "icon": "icon_food1051_51"
         },
         {
             "cn": "蛋黄酱",
             "tw": "美乃滋",
             "alias": [],
             "profile": "ingredients",
-            "kind": "食材"
+            "kind": "食材",
+            "icon": "icon_food1052_52"
         },
         {
             "cn": "卢戈山参",
             "tw": "盧戈山蔘",
             "alias": [],
             "profile": "ingredients",
-            "kind": "食材"
+            "kind": "食材",
+            "icon": "icon_food1053_53"
         },
         {
             "cn": "生命木炭",
             "tw": "生命的木炭",
             "alias": [],
             "profile": "ingredients",
-            "kind": "食材"
+            "kind": "食材",
+            "icon": "icon_food1054_54"
         },
         {
             "cn": "闪光粉末",
             "tw": "閃爍的粉末",
             "alias": [],
             "profile": "ingredients",
-            "kind": "食材"
+            "kind": "食材",
+            "icon": "icon_food1055_55"
         },
         {
             "cn": "透明蘑菇",
             "tw": "透明的蘑菇",
             "alias": [],
             "profile": "ingredients",
-            "kind": "食材"
+            "kind": "食材",
+            "icon": "icon_food1056_56"
         },
         {
             "cn": "穿山甲鳞片",
             "tw": "穿山甲的鱗片",
             "alias": [],
             "profile": "ingredients",
-            "kind": "食材"
+            "kind": "食材",
+            "icon": "icon_food1057_57"
         },
         {
             "cn": "能量蘑菇",
             "tw": "能量蘑菇",
             "alias": [],
             "profile": "ingredients",
-            "kind": "食材"
+            "kind": "食材",
+            "icon": "icon_food1058_58"
         },
         {
             "cn": "秃鹫羽毛",
             "tw": "禿鷲的羽毛",
             "alias": [],
             "profile": "ingredients",
-            "kind": "食材"
+            "kind": "食材",
+            "icon": "icon_food1059_59"
         },
         {
             "cn": "魅惑粉末",
             "tw": "魅惑粉末",
             "alias": [],
             "profile": "ingredients",
-            "kind": "食材"
+            "kind": "食材",
+            "icon": "icon_food1060_60"
         },
         {
             "cn": "黄金罗勒",
             "tw": "黃金羅勒",
             "alias": [],
             "profile": "ingredients",
-            "kind": "食材"
+            "kind": "食材",
+            "icon": "icon_food1061_61"
         },
         {
             "cn": "能量药水",
             "tw": "能量藥水",
             "alias": [],
             "profile": "ingredients",
-            "kind": "食材"
+            "kind": "食材",
+            "icon": "icon_food1062_62"
         },
         {
             "cn": "灵魂鲜奶油",
             "tw": "靈魂鮮奶油",
             "alias": [],
             "profile": "ingredients",
-            "kind": "食材"
+            "kind": "食材",
+            "icon": "icon_food1063_63"
         },
         {
             "cn": "维生素B浓缩液",
             "tw": "維生素B濃縮溶液",
             "alias": [],
             "profile": "ingredients",
-            "kind": "食材"
+            "kind": "食材",
+            "icon": "icon_food1064_64"
         },
         {
             "cn": "能量粉末",
             "tw": "能量粉末",
             "alias": [],
             "profile": "ingredients",
-            "kind": "食材"
+            "kind": "食材",
+            "icon": "icon_food1065_65"
         },
         {
             "cn": "地狱火辣酱",
             "tw": "地獄火醬汁",
             "alias": [],
             "profile": "ingredients",
-            "kind": "食材"
+            "kind": "食材",
+            "icon": "icon_food1066_66"
         },
         {
             "cn": "卢戈狂想曲",
             "tw": "盧戈狂想曲",
             "alias": [],
             "profile": "ingredients",
-            "kind": "食材"
+            "kind": "食材",
+            "icon": "icon_food1067_67"
         },
         {
             "cn": "生蚝",
             "tw": "生蠔",
             "alias": [],
             "profile": "ingredients",
-            "kind": "食材"
+            "kind": "食材",
+            "icon": "icon_food1068_133"
         },
         {
             "cn": "大蒜",
             "tw": "大蒜",
             "alias": [],
             "profile": "ingredients",
-            "kind": "食材"
+            "kind": "食材",
+            "icon": "icon_food1069_134"
         },
         {
             "cn": "樱桃",
             "tw": "櫻桃",
             "alias": [],
             "profile": "ingredients",
-            "kind": "食材"
+            "kind": "食材",
+            "icon": "icon_food1070_135"
         },
         {
             "cn": "胡椒",
             "tw": "胡椒",
             "alias": [],
             "profile": "ingredients",
-            "kind": "食材"
+            "kind": "食材",
+            "icon": "icon_food1071_136"
         },
         {
             "cn": "肉桂",
             "tw": "肉桂",
             "alias": [],
             "profile": "ingredients",
-            "kind": "食材"
+            "kind": "食材",
+            "icon": "icon_food1072_137"
         },
         {
             "cn": "不明料理",
             "tw": "不明料理",
             "alias": [],
             "profile": "dishes",
-            "kind": "料理"
+            "kind": "料理",
+            "icon": "icon_food2001_1"
         },
         {
             "cn": "蘑菇汤",
             "tw": "蘑菇湯",
             "alias": [],
             "profile": "dishes",
-            "kind": "料理"
+            "kind": "料理",
+            "icon": "icon_food2002_2"
         },
         {
             "cn": "炒蘑菇",
             "tw": "炒蘑菇",
             "alias": [],
             "profile": "dishes",
-            "kind": "料理"
+            "kind": "料理",
+            "icon": "icon_food2003_3"
         },
         {
             "cn": "烤菇串",
             "tw": "烤菇串",
             "alias": [],
             "profile": "dishes",
-            "kind": "料理"
+            "kind": "料理",
+            "icon": "icon_food2004_4"
         },
         {
             "cn": "蘑菇烤肉火锅",
             "tw": "蘑菇烤牛肉火鍋",
             "alias": [],
             "profile": "dishes",
-            "kind": "料理"
+            "kind": "料理",
+            "icon": "icon_food2005_5"
         },
         {
             "cn": "土豆汤",
             "tw": "馬鈴薯湯",
             "alias": [],
             "profile": "dishes",
-            "kind": "料理"
+            "kind": "料理",
+            "icon": "icon_food2006_6"
         },
         {
             "cn": "达雷普黑啤酒",
             "tw": "達雷普黑啤酒",
             "alias": [],
             "profile": "dishes",
-            "kind": "料理"
+            "kind": "料理",
+            "icon": "icon_food2007_7"
         },
         {
             "cn": "黑啤酒炖锅",
             "tw": "黑啤酒燉鍋",
             "alias": [],
             "profile": "dishes",
-            "kind": "料理"
+            "kind": "料理",
+            "icon": "icon_food2008_8"
         },
         {
             "cn": "烤蜂蜜苹果",
             "tw": "烤蜂蜜蘋果",
             "alias": [],
             "profile": "dishes",
-            "kind": "料理"
+            "kind": "料理",
+            "icon": "icon_food2009_9"
         },
         {
             "cn": "桑格利亚酒",
             "tw": "桑格利亞酒",
             "alias": [],
             "profile": "dishes",
-            "kind": "料理"
+            "kind": "料理",
+            "icon": "icon_food2010_10"
         },
         {
             "cn": "流浪美食家烤肉",
             "tw": "流浪美食家的烤肉",
             "alias": [],
             "profile": "dishes",
-            "kind": "料理"
+            "kind": "料理",
+            "icon": "icon_food2011_11"
         },
         {
             "cn": "喵拿铁",
             "tw": "喵拿鐵",
             "alias": [],
             "profile": "dishes",
-            "kind": "料理"
+            "kind": "料理",
+            "icon": "icon_food2012_12"
         },
         {
             "cn": "炸三文鱼便当",
             "tw": "炸鮭魚便當",
             "alias": [],
             "profile": "dishes",
-            "kind": "料理"
+            "kind": "料理",
+            "icon": "icon_food2013_13"
         },
         {
             "cn": "草药三明治",
             "tw": "草藥三明治",
             "alias": [],
             "profile": "dishes",
-            "kind": "料理"
+            "kind": "料理",
+            "icon": "icon_food2014_14"
         },
         {
             "cn": "哈密瓜雪酪",
             "tw": "哈密瓜雪酪",
             "alias": [],
             "profile": "dishes",
-            "kind": "料理"
+            "kind": "料理",
+            "icon": "icon_food2015_15"
         },
         {
             "cn": "藏红花甜茶",
             "tw": "番紅花甜茶",
             "alias": [],
             "profile": "dishes",
-            "kind": "料理"
+            "kind": "料理",
+            "icon": "icon_food2016_16"
         },
         {
             "cn": "甜椒意式烘蛋",
             "tw": "甜椒義式烘蛋",
             "alias": [],
             "profile": "dishes",
-            "kind": "料理"
+            "kind": "料理",
+            "icon": "icon_food2017_17"
         },
         {
             "cn": "三分熟鲜血布丁",
             "tw": "鮮血布丁",
             "alias": [],
             "profile": "dishes",
-            "kind": "料理"
+            "kind": "料理",
+            "icon": "icon_food2018_18"
         },
         {
             "cn": "蔬菜三明治",
             "tw": "蔬菜三明治",
             "alias": [],
             "profile": "dishes",
-            "kind": "料理"
+            "kind": "料理",
+            "icon": "icon_food2019_19"
         },
         {
             "cn": "三文鱼芥末寿司",
             "tw": "鮭魚芥末壽司",
             "alias": [],
             "profile": "dishes",
-            "kind": "料理"
+            "kind": "料理",
+            "icon": "icon_food2020_20"
         },
         {
             "cn": "玉米奶酪",
             "tw": "玉米起司",
             "alias": [],
             "profile": "dishes",
-            "kind": "料理"
+            "kind": "料理",
+            "icon": "icon_food2021_21"
         },
         {
             "cn": "豆奶酱意大利面",
             "tw": "豆奶醬義大利麵",
             "alias": [],
             "profile": "dishes",
-            "kind": "料理"
+            "kind": "料理",
+            "icon": "icon_food2022_22"
         },
         {
             "cn": "炒土豆",
             "tw": "炒馬鈴薯",
             "alias": [],
             "profile": "dishes",
-            "kind": "料理"
+            "kind": "料理",
+            "icon": "icon_food2023_23"
         },
         {
             "cn": "酱炒牛排",
             "tw": "醬炒牛排",
             "alias": [],
             "profile": "dishes",
-            "kind": "料理"
+            "kind": "料理",
+            "icon": "icon_food2024_24"
         },
         {
             "cn": "甜辣鲜虾",
             "tw": "甜辣鮮蝦",
             "alias": [],
             "profile": "dishes",
-            "kind": "料理"
+            "kind": "料理",
+            "icon": "icon_food2025_25"
         },
         {
             "cn": "蜂蜜黄油杏仁",
             "tw": "蜂蜜奶油杏仁",
             "alias": [],
             "profile": "dishes",
-            "kind": "料理"
+            "kind": "料理",
+            "icon": "icon_food2026_26"
         },
         {
             "cn": "凯洛养身汤",
             "tw": "凱洛養身湯",
             "alias": [],
             "profile": "dishes",
-            "kind": "料理"
+            "kind": "料理",
+            "icon": "icon_food2027_27"
         },
         {
             "cn": "巧克力面包",
             "tw": "巧克力麵包",
             "alias": [],
             "profile": "dishes",
-            "kind": "料理"
+            "kind": "料理",
+            "icon": "icon_food2028_28"
         },
         {
             "cn": "金枪鱼鸡胸肉三明治",
             "tw": "鮪魚雞胸肉三明治",
             "alias": [],
             "profile": "dishes",
-            "kind": "料理"
+            "kind": "料理",
+            "icon": "icon_food2029_29"
         },
         {
             "cn": "水果冰沙",
             "tw": "水果冰沙",
             "alias": [],
             "profile": "dishes",
-            "kind": "料理"
+            "kind": "料理",
+            "icon": "icon_food2030_30"
         },
         {
             "cn": "火烤鱼板棒",
             "tw": "火烤魚板棒",
             "alias": [],
             "profile": "dishes",
-            "kind": "料理"
+            "kind": "料理",
+            "icon": "icon_food2031_31"
         },
         {
             "cn": "巧克力鸡尾酒",
             "tw": "巧克力雞尾酒",
             "alias": [],
             "profile": "dishes",
-            "kind": "料理"
+            "kind": "料理",
+            "icon": "icon_food2032_32"
         },
         {
             "cn": "鱼子酱蛋包饭",
             "tw": "魚子醬蛋包飯",
             "alias": [],
             "profile": "dishes",
-            "kind": "料理"
+            "kind": "料理",
+            "icon": "icon_food2033_33"
         },
         {
             "cn": "三角美乃滋饭团",
             "tw": "三角美乃滋飯糰",
             "alias": [],
             "profile": "dishes",
-            "kind": "料理"
+            "kind": "料理",
+            "icon": "icon_food2034_34"
         },
         {
             "cn": "鸡肉卷",
             "tw": "雞肉捲",
             "alias": [],
             "profile": "dishes",
-            "kind": "料理"
+            "kind": "料理",
+            "icon": "icon_food2035_35"
         },
         {
             "cn": "卢戈镇晚餐",
             "tw": "盧戈村莊晚餐",
             "alias": [],
             "profile": "dishes",
-            "kind": "料理"
+            "kind": "料理",
+            "icon": "icon_food2036_36"
         },
         {
             "cn": "土豆沙拉",
             "tw": "馬鈴薯沙拉",
             "alias": [],
             "profile": "dishes",
-            "kind": "料理"
+            "kind": "料理",
+            "icon": "icon_food2037_37"
         },
         {
             "cn": "雨血",
             "tw": "雨血",
             "alias": [],
             "profile": "dishes",
-            "kind": "料理"
+            "kind": "料理",
+            "icon": "icon_food2038_38"
         },
         {
             "cn": "卢戈山参烤串",
             "tw": "盧戈烤山蔘串",
             "alias": [],
             "profile": "dishes",
-            "kind": "料理"
+            "kind": "料理",
+            "icon": "icon_food3001_1"
         },
         {
             "cn": "煤炭饼干",
             "tw": "煤炭餅乾",
             "alias": [],
             "profile": "dishes",
-            "kind": "料理"
+            "kind": "料理",
+            "icon": "icon_food3002_2"
         },
         {
             "cn": "闪闪铁板虾",
             "tw": "閃耀西班牙蒜味蝦",
             "alias": [],
             "profile": "dishes",
-            "kind": "料理"
+            "kind": "料理",
+            "icon": "icon_food3003_3"
         },
         {
             "cn": "透明沙拉",
             "tw": "透明化沙拉",
             "alias": [],
             "profile": "dishes",
-            "kind": "料理"
+            "kind": "料理",
+            "icon": "icon_food3004_4"
         },
         {
             "cn": "亚拉里克咖喱",
             "tw": "亞拉里克咖哩",
             "alias": [],
             "profile": "dishes",
-            "kind": "料理"
+            "kind": "料理",
+            "icon": "icon_food3005_5"
         },
         {
             "cn": "能量藏红花烩饭",
             "tw": "能量番紅花燉飯",
             "alias": [],
             "profile": "dishes",
-            "kind": "料理"
+            "kind": "料理",
+            "icon": "icon_food3006_6"
         },
         {
             "cn": "提神醒脑炖锅",
             "tw": "為之一振燉鍋",
             "alias": [],
             "profile": "dishes",
-            "kind": "料理"
+            "kind": "料理",
+            "icon": "icon_food3007_7"
         },
         {
             "cn": "魅惑三文鱼蔬菜卷",
             "tw": "魅惑鮭魚蔬菜捲",
             "alias": [],
             "profile": "dishes",
-            "kind": "料理"
+            "kind": "料理",
+            "icon": "icon_food3008_8"
         },
         {
             "cn": "幸运黄金披萨",
             "tw": "幸運的黃金披薩",
             "alias": [],
             "profile": "dishes",
-            "kind": "料理"
+            "kind": "料理",
+            "icon": "icon_food3009_9"
         },
         {
             "cn": "能量葡萄汁",
             "tw": "能量葡萄汁",
             "alias": [],
             "profile": "dishes",
-            "kind": "料理"
+            "kind": "料理",
+            "icon": "icon_food3010_10"
         },
         {
             "cn": "鲜奶油巧克力蛋糕",
             "tw": "鮮奶油巧克力蛋糕",
             "alias": [],
             "profile": "dishes",
-            "kind": "料理"
+            "kind": "料理",
+            "icon": "icon_food3011_11"
         },
         {
             "cn": "维生素B炸弹芭菲",
             "tw": "維生素B炸彈百匯",
             "alias": [],
             "profile": "dishes",
-            "kind": "料理"
+            "kind": "料理",
+            "icon": "icon_food3012_12"
         },
         {
             "cn": "能量松露薯条",
             "tw": "能量松露薯條",
             "alias": [],
             "profile": "dishes",
-            "kind": "料理"
+            "kind": "料理",
+            "icon": "icon_food3013_13"
         },
         {
             "cn": "地狱火紫菜包饭",
             "tw": "地獄火海苔飯捲",
             "alias": [],
             "profile": "dishes",
-            "kind": "料理"
+            "kind": "料理",
+            "icon": "icon_food3014_14"
         },
         {
             "cn": "洛克菲勒生蚝",
             "tw": "洛克菲勒生蠔",
             "alias": [],
             "profile": "dishes",
-            "kind": "料理"
+            "kind": "料理",
+            "icon": "icon_food2038_122"
         },
         {
             "cn": "泰瑞丝派",
             "tw": "泰瑞絲派",
             "alias": [],
             "profile": "dishes",
-            "kind": "料理"
+            "kind": "料理",
+            "icon": "icon_food2039_123"
         },
         {
             "cn": "三明治便当",
             "tw": "三明治便當",
             "alias": [],
             "profile": "dishes",
-            "kind": "料理"
+            "kind": "料理",
+            "icon": "icon_food2040_124"
         },
         {
             "cn": "手工蛋糕",
             "tw": "手作蛋糕",
             "alias": [],
             "profile": "dishes",
-            "kind": "料理"
+            "kind": "料理",
+            "icon": "icon_food2041_125"
         },
         {
             "cn": "香甜马卡龙",
             "tw": "甜蜜馬卡龍",
             "alias": [],
             "profile": "dishes",
-            "kind": "料理"
+            "kind": "料理",
+            "icon": "icon_food2042_126"
         },
         {
             "cn": "街头烤鸡肉串",
             "tw": "街頭烤雞串",
             "alias": [],
             "profile": "dishes",
-            "kind": "料理"
+            "kind": "料理",
+            "icon": "icon_food2043_127"
         },
         {
             "cn": "香草牛排",
             "tw": "香草牛排",
             "alias": [],
             "profile": "dishes",
-            "kind": "料理"
+            "kind": "料理",
+            "icon": "icon_food2044_128"
         },
         {
             "cn": "冰镇甜点",
             "tw": "冰品甜點",
             "alias": [],
             "profile": "dishes",
-            "kind": "料理"
+            "kind": "料理",
+            "icon": "icon_food2045_129"
         },
         {
             "cn": "炸猪排盖饭",
             "tw": "豬排蓋飯",
             "alias": [],
             "profile": "dishes",
-            "kind": "料理"
+            "kind": "料理",
+            "icon": "icon_food2046_130"
         },
         {
             "cn": "橄榄油意面",
             "tw": "橄欖油義大利麵",
             "alias": [],
             "profile": "dishes",
-            "kind": "料理"
+            "kind": "料理",
+            "icon": "icon_food2047_131"
         },
         {
             "cn": "汉堡排便当",
             "tw": "漢堡肉便當",
             "alias": [],
             "profile": "dishes",
-            "kind": "料理"
+            "kind": "料理",
+            "icon": "icon_food2048_132"
+        },
+        {
+            "cn": "万能钥匙",
+            "tw": "萬能鑰匙",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource1_1"
+        },
+        {
+            "cn": "斗魂奖牌碎片",
+            "tw": "鬥志的獎牌碎片",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource7777_57"
         },
         {
             "cn": "初级天赋技能书",
             "tw": "新手天賦技能書",
             "alias": [],
             "profile": "growth",
-            "kind": "技能书"
+            "kind": "技能书",
+            "icon": "icon_resource901_49"
         },
         {
             "cn": "进阶天赋技能书",
             "tw": "進階天賦技能書",
             "alias": [],
             "profile": "growth",
-            "kind": "技能书"
+            "kind": "技能书",
+            "icon": "icon_resource906_50"
         },
         {
             "cn": "高手天赋技能书",
             "tw": "高手天賦技能書",
             "alias": [],
             "profile": "growth",
-            "kind": "技能书"
+            "kind": "技能书",
+            "icon": "icon_resource907_51"
         },
         {
             "cn": "达人天赋技能书",
             "tw": "達人天賦技能書",
             "alias": [],
             "profile": "growth",
-            "kind": "技能书"
+            "kind": "技能书",
+            "icon": "icon_resource910_54"
         },
         {
             "cn": "黄色史莱姆",
             "tw": "黃色史萊姆",
             "alias": [],
             "profile": "growth",
-            "kind": "史莱姆"
+            "kind": "史莱姆",
+            "icon": "icon_resource9001_59"
         },
         {
             "cn": "蓝色史莱姆",
             "tw": "藍色史萊姆",
             "alias": [],
             "profile": "growth",
-            "kind": "史莱姆"
+            "kind": "史莱姆",
+            "icon": "icon_resource9002_60"
         },
         {
             "cn": "红色史莱姆",
             "tw": "紅色史萊姆",
             "alias": [],
             "profile": "growth",
-            "kind": "史莱姆"
+            "kind": "史莱姆",
+            "icon": "icon_resource9003_61"
         },
         {
             "cn": "精炼粉末",
             "tw": "強化粉末",
             "alias": [],
             "profile": "growth",
-            "kind": "精炼"
+            "kind": "精炼",
+            "icon": "icon_resource80001_116"
         },
         {
             "cn": "1★升星之星",
             "tw": "★1升星之星",
             "alias": [],
             "profile": "growth",
-            "kind": "升星"
+            "kind": "升星",
+            "icon": "icon_resource7780_58"
         },
         {
             "cn": "2★升星之星",
             "tw": "★2升星之星",
             "alias": [],
             "profile": "growth",
-            "kind": "升星"
+            "kind": "升星",
+            "icon": "icon_resource7781_65"
         },
         {
             "cn": "3★升星之星",
             "tw": "★3升星之星",
             "alias": [],
             "profile": "growth",
-            "kind": "升星"
+            "kind": "升星",
+            "icon": "icon_resource7782_66"
         },
         {
             "cn": "4★升星之星",
             "tw": "★4升星之星",
             "alias": [],
             "profile": "growth",
-            "kind": "升星"
+            "kind": "升星",
+            "icon": "icon_resource7783_67"
         },
         {
             "cn": "5★升星之星",
             "tw": "★5升星之星",
             "alias": [],
             "profile": "growth",
-            "kind": "升星"
+            "kind": "升星",
+            "icon": "icon_resource7780_58"
         },
         {
             "cn": "精炼石",
             "tw": "煉製石",
             "alias": [],
             "profile": "growth",
-            "kind": "精炼"
+            "kind": "精炼",
+            "icon": "icon_resource106_14"
         },
         {
             "cn": "精炼水晶",
             "tw": "煉製水晶",
             "alias": [],
             "profile": "growth",
-            "kind": "精炼"
+            "kind": "精炼",
+            "icon": "icon_resource126_26"
         },
         {
             "cn": "火魔石",
             "tw": "火魔石",
             "alias": [],
             "profile": "growth",
-            "kind": "突破材料"
+            "kind": "突破材料",
+            "icon": "icon_resource101_9"
         },
         {
             "cn": "水魔石",
             "tw": "水魔石",
             "alias": [],
             "profile": "growth",
-            "kind": "突破材料"
+            "kind": "突破材料",
+            "icon": "icon_resource102_10"
         },
         {
             "cn": "风魔石",
             "tw": "風魔石",
             "alias": [],
             "profile": "growth",
-            "kind": "突破材料"
+            "kind": "突破材料",
+            "icon": "icon_resource103_11"
         },
         {
             "cn": "光魔石",
             "tw": "光魔石",
             "alias": [],
             "profile": "growth",
-            "kind": "突破材料"
+            "kind": "突破材料",
+            "icon": "icon_resource104_12"
         },
         {
             "cn": "暗魔石",
             "tw": "暗魔石",
             "alias": [],
             "profile": "growth",
-            "kind": "突破材料"
+            "kind": "突破材料",
+            "icon": "icon_resource105_13"
         },
         {
             "cn": "五色魔石",
             "tw": "五色魔石",
             "alias": [],
             "profile": "growth",
-            "kind": "突破材料"
+            "kind": "突破材料",
+            "icon": "icon_resource106_14"
         },
         {
             "cn": "火圣石",
             "tw": "火的聖石",
             "alias": [],
             "profile": "growth",
-            "kind": "突破材料"
+            "kind": "突破材料",
+            "icon": "icon_resource111_15",
+            "color": {
+                "lower": [
+                    0,
+                    120,
+                    150
+                ],
+                "upper": [
+                    18,
+                    255,
+                    255
+                ],
+                "ratio": 0.3
+            }
         },
         {
             "cn": "水圣石",
             "tw": "水的聖石",
             "alias": [],
             "profile": "growth",
-            "kind": "突破材料"
+            "kind": "突破材料",
+            "icon": "icon_resource112_16",
+            "color": {
+                "lower": [
+                    95,
+                    70,
+                    150
+                ],
+                "upper": [
+                    118,
+                    255,
+                    255
+                ],
+                "ratio": 0.18
+            }
         },
         {
             "cn": "风圣石",
             "tw": "風的聖石",
             "alias": [],
             "profile": "growth",
-            "kind": "突破材料"
+            "kind": "突破材料",
+            "icon": "icon_resource113_17",
+            "color": {
+                "lower": [
+                    40,
+                    80,
+                    80
+                ],
+                "upper": [
+                    75,
+                    255,
+                    255
+                ],
+                "ratio": 0.3
+            }
         },
         {
             "cn": "光明圣石",
@@ -1122,7 +2076,21 @@
                 "光圣石"
             ],
             "profile": "growth",
-            "kind": "突破材料"
+            "kind": "突破材料",
+            "icon": "icon_resource114_18",
+            "color": {
+                "lower": [
+                    0,
+                    0,
+                    170
+                ],
+                "upper": [
+                    180,
+                    40,
+                    255
+                ],
+                "ratio": 0.35
+            }
         },
         {
             "cn": "黑暗圣石",
@@ -1131,560 +2099,1865 @@
                 "暗圣石"
             ],
             "profile": "growth",
-            "kind": "突破材料"
+            "kind": "突破材料",
+            "icon": "icon_resource115_19",
+            "color": {
+                "lower": [
+                    115,
+                    60,
+                    30
+                ],
+                "upper": [
+                    140,
+                    255,
+                    160
+                ],
+                "ratio": 0.4
+            }
         },
         {
             "cn": "和谐魔石",
             "tw": "調和魔石",
             "alias": [],
             "profile": "growth",
-            "kind": "突破材料"
+            "kind": "突破材料",
+            "icon": "icon_resource116_20"
         },
         {
             "cn": "烈焰魔石",
             "tw": "烈焰魔石",
             "alias": [],
             "profile": "growth",
-            "kind": "突破材料"
+            "kind": "突破材料",
+            "icon": "icon_resource121_21"
         },
         {
             "cn": "冰河魔石",
             "tw": "冰河魔石",
             "alias": [],
             "profile": "growth",
-            "kind": "突破材料"
+            "kind": "突破材料",
+            "icon": "icon_resource122_22"
         },
         {
             "cn": "暴风魔石",
             "tw": "暴風魔石",
             "alias": [],
             "profile": "growth",
-            "kind": "突破材料"
+            "kind": "突破材料",
+            "icon": "icon_resource123_23"
         },
         {
             "cn": "闪光魔石",
             "tw": "閃光魔石",
             "alias": [],
             "profile": "growth",
-            "kind": "突破材料"
+            "kind": "突破材料",
+            "icon": "icon_resource124_24"
         },
         {
             "cn": "深渊魔石",
             "tw": "深淵魔石",
             "alias": [],
             "profile": "growth",
-            "kind": "突破材料"
+            "kind": "突破材料",
+            "icon": "icon_resource125_25"
         },
         {
             "cn": "星星魔石",
             "tw": "星星魔石",
             "alias": [],
             "profile": "growth",
-            "kind": "突破材料"
+            "kind": "突破材料",
+            "icon": "icon_resource126_26"
         },
         {
             "cn": "女神之泪",
             "tw": "女神的眼淚",
             "alias": [],
             "profile": "growth",
-            "kind": "突破材料"
+            "kind": "突破材料",
+            "icon": "icon_resource20005_156"
         },
         {
             "cn": "铁矿石",
             "tw": "鐵礦石",
             "alias": [],
             "profile": "craft",
-            "kind": "制作材料"
+            "kind": "制作材料",
+            "icon": "icon_resource201_27",
+            "color": {
+                "lower": [
+                    0,
+                    0,
+                    50
+                ],
+                "upper": [
+                    180,
+                    45,
+                    220
+                ],
+                "ratio": 0.4
+            }
         },
         {
             "cn": "铜矿石",
             "tw": "銅礦石",
             "alias": [],
             "profile": "craft",
-            "kind": "制作材料"
+            "kind": "制作材料",
+            "icon": "icon_resource202_28",
+            "color": {
+                "lower": [
+                    3,
+                    100,
+                    100
+                ],
+                "upper": [
+                    12,
+                    255,
+                    255
+                ],
+                "ratio": 0.25
+            }
         },
         {
             "cn": "金矿石",
             "tw": "金礦石",
             "alias": [],
             "profile": "craft",
-            "kind": "制作材料"
+            "kind": "制作材料",
+            "icon": "icon_resource203_29",
+            "color": {
+                "lower": [
+                    15,
+                    140,
+                    140
+                ],
+                "upper": [
+                    26,
+                    255,
+                    255
+                ],
+                "ratio": 0.25
+            }
         },
         {
             "cn": "泥炭",
             "tw": "泥炭",
             "alias": [],
             "profile": "craft",
-            "kind": "制作材料"
+            "kind": "制作材料",
+            "icon": "icon_resource204_30"
         },
         {
             "cn": "魔珍珠",
             "tw": "魔珍珠",
             "alias": [],
             "profile": "craft",
-            "kind": "制作材料"
+            "kind": "制作材料",
+            "icon": "icon_resource205_31"
         },
         {
             "cn": "铁块",
             "tw": "鐵塊",
             "alias": [],
             "profile": "craft",
-            "kind": "制作材料"
+            "kind": "制作材料",
+            "icon": "icon_resource211_32",
+            "color": {
+                "lower": [
+                    0,
+                    0,
+                    30
+                ],
+                "upper": [
+                    180,
+                    50,
+                    140
+                ],
+                "ratio": 0.8
+            }
         },
         {
             "cn": "铜块",
             "tw": "銅塊",
             "alias": [],
             "profile": "craft",
-            "kind": "制作材料"
+            "kind": "制作材料",
+            "icon": "icon_resource212_33",
+            "color": {
+                "lower": [
+                    3,
+                    100,
+                    80
+                ],
+                "upper": [
+                    11,
+                    255,
+                    255
+                ],
+                "ratio": 0.35
+            }
         },
         {
             "cn": "金块",
             "tw": "金塊",
             "alias": [],
             "profile": "craft",
-            "kind": "制作材料"
+            "kind": "制作材料",
+            "icon": "icon_resource213_34",
+            "color": {
+                "lower": [
+                    16,
+                    140,
+                    150
+                ],
+                "upper": [
+                    26,
+                    255,
+                    255
+                ],
+                "ratio": 0.08
+            }
         },
         {
             "cn": "煤炭",
             "tw": "煤",
             "alias": [],
             "profile": "craft",
-            "kind": "制作材料"
+            "kind": "制作材料",
+            "icon": "icon_resource214_35"
         },
         {
             "cn": "钢铁块",
             "tw": "鋼鐵塊",
             "alias": [],
             "profile": "craft",
-            "kind": "制作材料"
+            "kind": "制作材料",
+            "icon": "icon_resource221_36",
+            "color": {
+                "lower": [
+                    95,
+                    30,
+                    40
+                ],
+                "upper": [
+                    130,
+                    140,
+                    200
+                ],
+                "ratio": 0.6
+            }
         },
         {
             "cn": "黄铜块",
             "tw": "黃銅塊",
             "alias": [],
             "profile": "craft",
-            "kind": "制作材料"
+            "kind": "制作材料",
+            "icon": "icon_resource222_37",
+            "color": {
+                "lower": [
+                    11,
+                    90,
+                    90
+                ],
+                "upper": [
+                    17,
+                    255,
+                    255
+                ],
+                "ratio": 0.3
+            }
         },
         {
             "cn": "白金块",
             "tw": "白金塊",
             "alias": [],
             "profile": "craft",
-            "kind": "制作材料"
+            "kind": "制作材料",
+            "icon": "icon_resource223_38",
+            "color": {
+                "lower": [
+                    0,
+                    0,
+                    120
+                ],
+                "upper": [
+                    180,
+                    45,
+                    255
+                ],
+                "ratio": 0.3
+            }
         },
         {
             "cn": "无烟煤",
             "tw": "無煙煤",
             "alias": [],
             "profile": "craft",
-            "kind": "制作材料"
+            "kind": "制作材料",
+            "icon": "icon_resource224_62"
         },
         {
             "cn": "普通皮革",
             "tw": "一般皮革",
             "alias": [],
             "profile": "craft",
-            "kind": "制作材料"
+            "kind": "制作材料",
+            "icon": "icon_resource301_39"
         },
         {
             "cn": "高级皮革",
             "tw": "高級皮革",
             "alias": [],
             "profile": "craft",
-            "kind": "制作材料"
+            "kind": "制作材料",
+            "icon": "icon_resource311_40"
         },
         {
             "cn": "顶级皮革",
             "tw": "頂級皮革",
             "alias": [],
             "profile": "craft",
-            "kind": "制作材料"
+            "kind": "制作材料",
+            "icon": "icon_resource321_41"
         },
         {
             "cn": "普通布料",
             "tw": "一般布料",
             "alias": [],
             "profile": "craft",
-            "kind": "制作材料"
+            "kind": "制作材料",
+            "icon": "icon_resource401_42"
         },
         {
             "cn": "高级布料",
             "tw": "高級布料",
             "alias": [],
             "profile": "craft",
-            "kind": "制作材料"
+            "kind": "制作材料",
+            "icon": "icon_resource411_43"
         },
         {
             "cn": "顶级布料",
             "tw": "頂級布料",
             "alias": [],
             "profile": "craft",
-            "kind": "制作材料"
+            "kind": "制作材料",
+            "icon": "icon_resource421_44"
         },
         {
             "cn": "原木",
             "tw": "原木",
             "alias": [],
             "profile": "craft",
-            "kind": "制作材料"
+            "kind": "制作材料",
+            "icon": "icon_resource501_45"
         },
         {
             "cn": "胶合板",
             "tw": "夾板",
             "alias": [],
             "profile": "craft",
-            "kind": "制作材料"
+            "kind": "制作材料",
+            "icon": "icon_resource511_46"
         },
         {
             "cn": "强化胶合板",
             "tw": "強化夾板",
             "alias": [],
             "profile": "craft",
-            "kind": "制作材料"
+            "kind": "制作材料",
+            "icon": "icon_resource521_63"
+        },
+        {
+            "cn": "蒸馏水",
+            "tw": "蒸餾水",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource601_47"
+        },
+        {
+            "cn": "删除",
+            "tw": "賢者材料",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource602_48"
         },
         {
             "cn": "远古水晶",
             "tw": "古代水晶",
             "alias": [],
             "profile": "growth",
-            "kind": "远古水晶"
+            "kind": "远古水晶",
+            "icon": "icon_resource603_76"
         },
         {
             "cn": "刻印咒语书",
             "tw": "刻印咒語書",
             "alias": [],
             "profile": "growth",
-            "kind": "突破材料"
+            "kind": "突破材料",
+            "icon": "icon_resource701_219"
         },
         {
             "cn": "生命精髓",
             "tw": "生命精隨",
             "alias": [],
             "profile": "growth",
-            "kind": "突破材料"
+            "kind": "突破材料",
+            "icon": "icon_resource702_220"
         },
         {
             "cn": "力量精髓",
             "tw": "力量精髓",
             "alias": [],
             "profile": "growth",
-            "kind": "突破材料"
+            "kind": "突破材料",
+            "icon": "icon_resource703_221"
         },
         {
             "cn": "忍耐精髓",
             "tw": "忍耐精髓",
             "alias": [],
             "profile": "growth",
-            "kind": "突破材料"
+            "kind": "突破材料",
+            "icon": "icon_resource704_222"
         },
         {
             "cn": "觉醒灵药",
             "tw": "覺醒靈藥",
             "alias": [],
             "profile": "growth",
-            "kind": "突破材料"
+            "kind": "突破材料",
+            "icon": "icon_resource20023_223"
         },
         {
             "cn": "狂暴火种",
             "tw": "暴走火種",
             "alias": [],
             "profile": "growth",
-            "kind": "突破材料"
+            "kind": "突破材料",
+            "icon": "icon_resource20045_383"
         },
         {
             "cn": "异界火种",
             "tw": "異界火種",
             "alias": [],
             "profile": "growth",
-            "kind": "突破材料"
+            "kind": "突破材料",
+            "icon": "icon_resource20052_433"
         },
         {
             "cn": "抽抽乐券",
             "tw": "抽抽樂券",
             "alias": [],
             "profile": "growth",
-            "kind": "票券"
+            "kind": "票券",
+            "icon": "icon_resource40002_79"
         },
         {
             "cn": "普通招募契约书",
             "tw": "一般契約書",
             "alias": [],
             "profile": "growth",
-            "kind": "契约书"
+            "kind": "契约书",
+            "icon": "icon_resource40003_105",
+            "color": {
+                "lower": [
+                    0,
+                    0,
+                    120
+                ],
+                "upper": [
+                    40,
+                    90,
+                    255
+                ],
+                "ratio": 0.3
+            }
         },
         {
             "cn": "高级招募契约书",
             "tw": "高級契約書",
             "alias": [],
             "profile": "growth",
-            "kind": "契约书"
+            "kind": "契约书",
+            "icon": "icon_resource40004_106",
+            "color": {
+                "lower": [
+                    15,
+                    120,
+                    150
+                ],
+                "upper": [
+                    30,
+                    255,
+                    255
+                ],
+                "ratio": 0.3
+            }
         },
         {
             "cn": "顶级招募契约书",
             "tw": "最高級契約書",
             "alias": [],
             "profile": "growth",
-            "kind": "契约书"
+            "kind": "契约书",
+            "icon": "icon_resource40005_107",
+            "color": {
+                "lower": [
+                    115,
+                    40,
+                    120
+                ],
+                "upper": [
+                    150,
+                    255,
+                    255
+                ],
+                "ratio": 0.15
+            }
         },
         {
             "cn": "23年8月5★服装必得抽抽乐兑换券",
             "tw": "23年 8月 ★5 服裝抽抽樂保證交換券",
             "alias": [],
             "profile": "growth",
-            "kind": "票券"
+            "kind": "票券",
+            "icon": "icon_resource40003_125"
         },
         {
             "cn": "23年8月4★服装必得抽抽乐兑换券",
             "tw": "23年 8月 ★4 服裝抽抽樂保證交換券",
             "alias": [],
             "profile": "growth",
-            "kind": "票券"
+            "kind": "票券",
+            "icon": "icon_resource40004_126"
         },
         {
             "cn": "23年8月UR专用装备必得抽抽乐兑换券",
             "tw": "23年 8月 UR專用裝備抽抽樂保證交換券",
             "alias": [],
             "profile": "growth",
-            "kind": "票券"
+            "kind": "票券",
+            "icon": "icon_resource40005_127"
         },
         {
             "cn": "23年8月SR专用装备必得抽抽乐兑换券",
             "tw": "23年 8月 SR專用裝備抽抽樂保證交換券",
             "alias": [],
             "profile": "growth",
-            "kind": "票券"
+            "kind": "票券",
+            "icon": "icon_resource40006_128"
         },
         {
             "cn": "UR专用装备必得抽抽乐兑换券",
             "tw": "UR 專用裝備保證抽抽樂交換券",
             "alias": [],
             "profile": "growth",
-            "kind": "票券"
+            "kind": "票券",
+            "icon": "icon_resource40007_129"
         },
         {
             "cn": "SR专用装备必得抽抽乐兑换券",
             "tw": "SR 專用裝備保證抽抽樂交換券",
             "alias": [],
             "profile": "growth",
-            "kind": "票券"
+            "kind": "票券",
+            "icon": "icon_resource40008_130"
         },
         {
             "cn": "属性甄选抽抽乐兑换券",
             "tw": "屬性篩選抽抽樂交換券",
             "alias": [],
             "profile": "growth",
-            "kind": "票券"
+            "kind": "票券",
+            "icon": "icon_resource40015_168"
         },
         {
             "cn": "24年12月5★服装必得抽抽乐兑换券",
             "tw": "24年 12月 ★5 服裝抽抽樂保證交換券",
             "alias": [],
             "profile": "growth",
-            "kind": "票券"
+            "kind": "票券",
+            "icon": "icon_resource40018_238"
         },
         {
             "cn": "甄选专用抽抽乐券",
             "tw": "篩選專用抽抽樂券",
             "alias": [],
             "profile": "growth",
-            "kind": "票券"
+            "kind": "票券",
+            "icon": "icon_resource40021_267"
         },
         {
             "cn": "25年6月5★服装必得抽抽乐兑换券",
             "tw": "25年 6月 ★5 服裝抽抽樂保證交換券",
             "alias": [],
             "profile": "growth",
-            "kind": "票券"
+            "kind": "票券",
+            "icon": "icon_resource40022_286"
         },
         {
             "cn": "25年12月5★服装必得抽抽乐兑换券",
             "tw": "25年 12月 ★5 服裝抽抽樂保證交換券",
             "alias": [],
             "profile": "growth",
-            "kind": "票券"
+            "kind": "票券",
+            "icon": "icon_resource40027_339"
         },
         {
             "cn": "3周年5★服装抽抽乐券",
             "tw": "3週年★5服裝抽抽樂券",
             "alias": [],
             "profile": "growth",
-            "kind": "票券"
+            "kind": "票券",
+            "icon": "icon_resource40029_413"
         },
         {
             "cn": "初学者用5★服装选择券",
             "tw": "新手用★5服裝選擇券",
             "alias": [],
             "profile": "growth",
-            "kind": "服装券"
+            "kind": "服装券",
+            "icon": "icon_resource40015_168"
         },
         {
             "cn": "1周年服装选择券",
             "tw": "1週年服裝選擇券",
             "alias": [],
             "profile": "growth",
-            "kind": "服装券"
+            "kind": "服装券",
+            "icon": "icon_resource40017_207"
         },
         {
             "cn": "1.5周年服装选择券",
             "tw": "1.5週年服裝選擇券",
             "alias": [],
             "profile": "growth",
-            "kind": "服装券"
+            "kind": "服装券",
+            "icon": "icon_resource40019_240"
         },
         {
             "cn": "推荐5★服装选择券",
             "tw": "推薦用★5服裝選擇券",
             "alias": [],
             "profile": "growth",
-            "kind": "服装券"
+            "kind": "服装券",
+            "icon": "icon_resource40020_265"
         },
         {
             "cn": "2周年服装选择券",
             "tw": "2週年服裝選擇券",
             "alias": [],
             "profile": "growth",
-            "kind": "服装券"
+            "kind": "服装券",
+            "icon": "icon_resource40022_286"
         },
         {
             "cn": "Summer Splash服装选择券",
             "tw": "Summer Splash 服裝選擇券",
             "alias": [],
             "profile": "growth",
-            "kind": "服装券"
+            "kind": "服装券",
+            "icon": "icon_resource40023_313"
         },
         {
             "cn": "新年服装选择券",
             "tw": "新年服裝選擇券",
             "alias": [],
             "profile": "growth",
-            "kind": "服装券"
+            "kind": "服装券",
+            "icon": "icon_resource40028_352"
         },
         {
             "cn": "3周年服装选择券",
             "tw": "3週年服裝選擇券",
             "alias": [],
             "profile": "growth",
-            "kind": "服装券"
+            "kind": "服装券",
+            "icon": "icon_resource40022_414"
         },
         {
             "cn": "Farewell Summer！服装选择券",
             "tw": "Farewell Summer！服裝選擇券",
             "alias": [],
             "profile": "growth",
-            "kind": "服装券"
+            "kind": "服装券",
+            "icon": "icon_resource40031_423"
         },
         {
             "cn": "Happy Halloween！服装选择券",
             "tw": "Happy Halloween！服裝選擇券",
             "alias": [],
             "profile": "growth",
-            "kind": "服装券"
+            "kind": "服装券",
+            "icon": null
+        },
+        {
+            "cn": "A.twist第一张专辑",
+            "tw": "A.twist第一張專輯",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource90001_117"
+        },
+        {
+            "cn": "泳池派对招待券",
+            "tw": "泳池派對邀請券",
+            "alias": [],
+            "profile": "other",
+            "kind": "其他券",
+            "icon": "icon_resource90002_119"
+        },
+        {
+            "cn": "百日感谢信",
+            "tw": "100日紀念感謝信",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource90003_135"
+        },
+        {
+            "cn": "魅惑鳞片",
+            "tw": "魅惑的鱗片",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource90004_137"
+        },
+        {
+            "cn": "妖怪骰子",
+            "tw": "妖怪的骰子",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource90005_140"
+        },
+        {
+            "cn": "宾果游戏筹码",
+            "tw": "賓果遊戲籌碼",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource90006_149"
+        },
+        {
+            "cn": "梦想币",
+            "tw": "夢想幣",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource90007_150"
+        },
+        {
+            "cn": "作战成功报告书",
+            "tw": "作戰成功報告書",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource90009_154"
+        },
+        {
+            "cn": "未知瓶盖",
+            "tw": "未知瓶蓋",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource90008_152"
+        },
+        {
+            "cn": "幸运樱花瓣",
+            "tw": "幸運櫻花瓣",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource90010_165"
+        },
+        {
+            "cn": "MOE收藏卡",
+            "tw": "MOE收藏卡",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource90011_167"
+        },
+        {
+            "cn": "幸运骰子",
+            "tw": "幸運骰子",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource90020_202"
+        },
+        {
+            "cn": "蓝色请帖",
+            "tw": "藍色喜帖",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource90012_174"
+        },
+        {
+            "cn": "密密麻麻寫滿字的便條紙",
+            "tw": "密密麻麻寫滿字的便條紙",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource90013_178"
+        },
+        {
+            "cn": "宾果游戏筹码",
+            "tw": "賓果遊戲籌碼",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource90020_203"
+        },
+        {
+            "cn": "断裂的树枝",
+            "tw": "斷裂的樹枝",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource90014_181"
+        },
+        {
+            "cn": "用剩的抽奖券",
+            "tw": "剩餘的抽獎券",
+            "alias": [],
+            "profile": "other",
+            "kind": "其他券",
+            "icon": "icon_resource90015_183"
+        },
+        {
+            "cn": "葛洛堤代币",
+            "tw": "葛洛堤代幣",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource90022_209"
+        },
+        {
+            "cn": "运动记录笔记",
+            "tw": "運動紀錄筆記",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource90016_188"
+        },
+        {
+            "cn": "储存卡A",
+            "tw": "記憶卡A",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource90017_191"
+        },
+        {
+            "cn": "拼图用触控笔",
+            "tw": "拼圖專用觸控筆",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource90026_226"
+        },
+        {
+            "cn": "忍兔娃娃",
+            "tw": "忍兔娃娃",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource90024_215"
+        },
+        {
+            "cn": "贝贝娃娃",
+            "tw": "貝貝娃娃",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource90025_216"
+        },
+        {
+            "cn": "速效止痛药",
+            "tw": "速效止痛藥",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource90018_194"
+        },
+        {
+            "cn": "烟花棒",
+            "tw": "仙女棒",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource90029_305"
+        },
+        {
+            "cn": "潘多拉信用币",
+            "tw": "潘朵拉信用幣",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource90027_303"
+        },
+        {
+            "cn": "不法之徒的信物",
+            "tw": "不法之徒的信物",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource90029_236"
+        },
+        {
+            "cn": "决心毛巾",
+            "tw": "決心毛巾",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource90027_232"
+        },
+        {
+            "cn": "新年骰子",
+            "tw": "新年骰子",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource90005_140"
+        },
+        {
+            "cn": "特制温泉蛋",
+            "tw": "特製溫泉蛋",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource90028_234"
+        },
+        {
+            "cn": "西尔弗斯坦骑士",
+            "tw": "西爾弗斯坦騎士",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource90030_241"
+        },
+        {
+            "cn": "蛇怪表皮",
+            "tw": "蛇怪表皮",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource90031_243"
+        },
+        {
+            "cn": "硬邦邦的面包",
+            "tw": "硬邦邦的麵包",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource90033_247"
+        },
+        {
+            "cn": "超豪华三明治",
+            "tw": "豪華無比的三明治",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource90034_252"
+        },
+        {
+            "cn": "索尼娅的蜡烛",
+            "tw": "索妮亞的蠟燭",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource90035_257"
+        },
+        {
+            "cn": "鲁的毛球",
+            "tw": "魯的毛球",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource90036_259"
+        },
+        {
+            "cn": "污渍旗帜",
+            "tw": "污漬旗幟",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource90037_261"
+        },
+        {
+            "cn": "原始祖母绿",
+            "tw": "原始祖母綠",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource90038_263"
+        },
+        {
+            "cn": "转盘币",
+            "tw": "轉盤幣",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource90039_266"
+        },
+        {
+            "cn": "抽抽乐扭蛋",
+            "tw": "抽抽樂扭蛋",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource90041_271"
+        },
+        {
+            "cn": "火烈鸟糖",
+            "tw": "紅鶴糖",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource90042_273"
+        },
+        {
+            "cn": "出征角笛",
+            "tw": "出征號角",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource90044_287"
+        },
+        {
+            "cn": "雪花饼干",
+            "tw": "雪花餅乾",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource90045_289"
+        },
+        {
+            "cn": "美黑油",
+            "tw": "助曬油",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource90046_293"
+        },
+        {
+            "cn": "大赛投票券",
+            "tw": "選美大賽投票券",
+            "alias": [],
+            "profile": "other",
+            "kind": "其他券",
+            "icon": null
+        },
+        {
+            "cn": "黑夜祝酒",
+            "tw": "夜之祝酒",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource90050_300"
+        },
+        {
+            "cn": "白色星尘",
+            "tw": "白色星塵",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource90055_310"
+        },
+        {
+            "cn": "共赏皓月转盘币",
+            "tw": "迎接滿月轉盤幣",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource90058_319"
+        },
+        {
+            "cn": "魔法叶片",
+            "tw": "魔法葉片",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource90056_314"
+        },
+        {
+            "cn": "魔法之花",
+            "tw": "魔法之花",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource90057_316"
+        },
+        {
+            "cn": "史贝伦联邦玉玺",
+            "tw": "史貝倫聯邦玉璽",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": null
+        },
+        {
+            "cn": "火柴盒",
+            "tw": "火柴盒",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource90063_336"
+        },
+        {
+            "cn": "英雄奖杯",
+            "tw": "英雄獎盃",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource90061_328"
+        },
+        {
+            "cn": "岩浆酱",
+            "tw": "熔岩醬",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource90062_330"
+        },
+        {
+            "cn": "牛奶",
+            "tw": "純白牛奶",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource90068_353"
+        },
+        {
+            "cn": "幼鸟羽毛",
+            "tw": "幼鳥羽毛",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource90069_355"
+        },
+        {
+            "cn": "新鲜的草莓",
+            "tw": "新鮮的草莓",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource90071_359"
+        },
+        {
+            "cn": "魔法少女魔杖",
+            "tw": "魔法魔杖",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource90072_361"
+        },
+        {
+            "cn": "巧克力转盘币",
+            "tw": "巧克力轉盤幣",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource90073_364"
+        },
+        {
+            "cn": "帕莱特的画笔",
+            "tw": "帕萊特的畫筆",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource90074_366"
+        },
+        {
+            "cn": "马莫尼勒的战略书",
+            "tw": "馬莫尼勒的戰略書",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource90075_368"
+        },
+        {
+            "cn": "可疑的骰子",
+            "tw": "可疑的骰子",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource90076_373"
+        },
+        {
+            "cn": "转盘币",
+            "tw": "轉盤幣",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource90081_386"
+        },
+        {
+            "cn": "新鲜出炉的拍立得",
+            "tw": "熱騰騰的拍立得",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource90077_374"
+        },
+        {
+            "cn": "魔法少女分析资料",
+            "tw": "魔法少女分析資料",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource90078_376"
+        },
+        {
+            "cn": "赌场筹码",
+            "tw": "賭場籌碼",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource90082_388"
+        },
+        {
+            "cn": "芦笛娜的项圈",
+            "tw": "露迪娜的項圈",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource90083_390"
+        },
+        {
+            "cn": "爱丽洁的口红",
+            "tw": "愛麗潔的口紅",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource90090_406"
+        },
+        {
+            "cn": "达非的灵狐珠",
+            "tw": "達非的狐狸玉珠",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource90091_408"
+        },
+        {
+            "cn": "冰龙鳞",
+            "tw": "冰龍鱗",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource90093_417"
+        },
+        {
+            "cn": "幸福包子",
+            "tw": "幸福包子",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource90094_419"
+        },
+        {
+            "cn": "战魂勋章",
+            "tw": "貝拉托爾勳章",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource90099_430"
+        },
+        {
+            "cn": "魔防队旗帜",
+            "tw": "魔防隊的旗幟",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource90097_426"
+        },
+        {
+            "cn": "宁的应援道具",
+            "tw": "寧的應援道具",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource90098_428"
+        },
+        {
+            "cn": "万圣节饼干",
+            "tw": "萬聖節餅乾",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": null
+        },
+        {
+            "cn": "幽灵糖果",
+            "tw": "幽靈糖果",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": null
+        },
+        {
+            "cn": "超合金褐煤",
+            "tw": "超合金褐炭",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource20006_157"
+        },
+        {
+            "cn": "腐骨",
+            "tw": "腐蝕的骨頭",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource20007_158"
+        },
+        {
+            "cn": "春日精髓",
+            "tw": "春天的精髓",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource20008_169"
+        },
+        {
+            "cn": "恶鬼皮革",
+            "tw": "惡鬼皮革",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource20009_170"
+        },
+        {
+            "cn": "炎虎体毛",
+            "tw": "炎虎體毛",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource20010_172"
+        },
+        {
+            "cn": "蓝胡子之根",
+            "tw": "藍鬍子的樹根",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource20011_175"
+        },
+        {
+            "cn": "缝补千次的布",
+            "tw": "縫過千遍的布",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource20013_177"
+        },
+        {
+            "cn": "塔罗斯碎片",
+            "tw": "塔羅斯的碎片",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource20013_179"
+        },
+        {
+            "cn": "巴萨卡的脚爪",
+            "tw": "巴薩卡的腳爪",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource20014_182"
+        },
+        {
+            "cn": "变异灵狐珠",
+            "tw": "變異狐狸玉珠",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource20015_185"
+        },
+        {
+            "cn": "巨型毛球",
+            "tw": "巨型毛球",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource20017_189"
+        },
+        {
+            "cn": "坚硬蟹壳",
+            "tw": "堅硬蟹殼",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource20018_192"
+        },
+        {
+            "cn": "赤珠",
+            "tw": "赤珠",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource20021_217"
+        },
+        {
+            "cn": "大蛇面甲",
+            "tw": "大蛇面甲",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource20022_218"
+        },
+        {
+            "cn": "神秘汽缸",
+            "tw": "神祕汽缸",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource20019_195"
+        },
+        {
+            "cn": "墨海兹军装",
+            "tw": "墨海茲軍裝",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource20020_197"
+        },
+        {
+            "cn": "改造用晶片TYPE-B01",
+            "tw": "改造用晶片TYPE－B01",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource20024_251"
+        },
+        {
+            "cn": "巨大猴子之牙",
+            "tw": "巨大猴子的牙齒",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource20024_239"
+        },
+        {
+            "cn": "剧毒的獠牙",
+            "tw": "劇毒犬齒",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource20025_245"
+        },
+        {
+            "cn": "暗光羽毛",
+            "tw": "黯光羽毛",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource20027_251"
+        },
+        {
+            "cn": "黑暗新月",
+            "tw": "黑暗新月",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource20028_254"
+        },
+        {
+            "cn": "野兽的毛皮",
+            "tw": "野獸的毛皮",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource20029_255"
+        },
+        {
+            "cn": "魔物骨片",
+            "tw": "魔物骨片",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource20030_256"
+        },
+        {
+            "cn": "火烈鸟补丁",
+            "tw": "紅鶴補丁",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource20031_269"
+        },
+        {
+            "cn": "怨恨血泪",
+            "tw": "怨痛的血淚",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource20032_285"
+        },
+        {
+            "cn": "绳索碎片",
+            "tw": "纜繩碎片",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": null
+        },
+        {
+            "cn": "打磨辉石",
+            "tw": "研磨輝石",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource20035_312"
+        },
+        {
+            "cn": "蝙蝠糖",
+            "tw": "蝙蝠糖果",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource20036_320"
+        },
+        {
+            "cn": "火焰结晶",
+            "tw": "火焰結晶",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource20037_327"
+        },
+        {
+            "cn": "霜之碎片",
+            "tw": "冰霜碎片",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource20038_332"
+        },
+        {
+            "cn": "光芒环绕的利爪",
+            "tw": "籠罩著光芒的利爪",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource20039_335"
+        },
+        {
+            "cn": "润滑油",
+            "tw": "潤滑油",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource20040_358"
+        },
+        {
+            "cn": "心魔的残骸",
+            "tw": "心魔的殘骸",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource20041_363"
+        },
+        {
+            "cn": "妖气碎片",
+            "tw": "妖氣碎片",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource20042_370"
+        },
+        {
+            "cn": "被妖气侵染的砂金",
+            "tw": "被妖氣侵染的砂金",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource20043_372"
+        },
+        {
+            "cn": "黑针",
+            "tw": "漆黑之針",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource20044_380"
+        },
+        {
+            "cn": "洁白珍珠",
+            "tw": "白珍珠",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource20046_387"
+        },
+        {
+            "cn": "奥克托女王的血",
+            "tw": "章魚女王的血",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource20047_403"
+        },
+        {
+            "cn": "驱邪符",
+            "tw": "驅邪護符",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource20048_416"
+        },
+        {
+            "cn": "提灯燃料",
+            "tw": "提燈燃料",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource20049_422"
+        },
+        {
+            "cn": "塔纳托莱特",
+            "tw": "塔納托萊特",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource20050_425"
+        },
+        {
+            "cn": "魔法之丝",
+            "tw": "魔法絲線",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": null
         },
         {
             "cn": "幸运抽抽乐券",
             "tw": "幸運抽抽樂券",
             "alias": [],
             "profile": "growth",
-            "kind": "票券"
+            "kind": "票券",
+            "icon": "icon_resource90021_208"
         },
         {
             "cn": "限定！名人兔女郎罗安幸运抽抽乐券",
             "tw": "限定！名人兔女郎羅安幸運抽抽樂券",
             "alias": [],
             "profile": "growth",
-            "kind": "票券"
+            "kind": "票券",
+            "icon": "icon_resource90032_309"
         },
         {
             "cn": "2025年新年幸运抽抽乐券",
             "tw": "2025年新年幸運抽抽樂券",
             "alias": [],
             "profile": "growth",
-            "kind": "票券"
+            "kind": "票券",
+            "icon": "icon_resource90033_310"
         },
         {
             "cn": "悠丝缇亚至臻皮肤幸运抽抽乐券",
             "tw": "悠絲緹亞尊爵不凡造型幸運抽抽樂券",
             "alias": [],
             "profile": "growth",
-            "kind": "票券"
+            "kind": "票券",
+            "icon": "icon_resource90040_268"
         },
         {
             "cn": "2周年纪念幸运抽抽乐券",
             "tw": "2週年紀念幸運抽抽樂券",
             "alias": [],
             "profile": "growth",
-            "kind": "票券"
+            "kind": "票券",
+            "icon": "icon_resource90043_275"
         },
         {
             "cn": "Summer Splash！幸运抽抽乐券",
             "tw": "Summer Splash! 幸運抽抽樂券",
             "alias": [],
             "profile": "growth",
-            "kind": "票券"
+            "kind": "票券",
+            "icon": "icon_resource90048_298"
         },
         {
             "cn": "泰瑞丝至臻皮肤幸运抽抽乐券",
             "tw": "泰瑞絲尊爵不凡造型幸運抽抽樂券",
             "alias": [],
             "profile": "growth",
-            "kind": "票券"
+            "kind": "票券",
+            "icon": "icon_resource90049_299"
         },
         {
             "cn": "2.5周年！幸运抽抽乐券",
             "tw": "2.5週年！幸運抽抽樂券",
             "alias": [],
             "profile": "growth",
-            "kind": "票券"
+            "kind": "票券",
+            "icon": "icon_resource90066_343"
         },
         {
             "cn": "杰尼斯至臻皮肤幸运抽抽乐券",
             "tw": "傑尼斯尊爵不凡造型幸運抽抽樂券",
             "alias": [],
             "profile": "growth",
-            "kind": "票券"
+            "kind": "票券",
+            "icon": "icon_resource90067_344"
         },
         {
             "cn": "2026年新年幸运抽抽乐券",
             "tw": "2026年新年幸運抽抽樂券",
             "alias": [],
             "profile": "growth",
-            "kind": "票券"
+            "kind": "票券",
+            "icon": "icon_resource90033_310"
         },
         {
             "cn": "莎赫拉查德至臻皮肤幸运抽抽乐券",
             "tw": "莎赫拉查德尊爵不凡造型幸運抽抽樂券",
             "alias": [],
             "profile": "growth",
-            "kind": "票券"
+            "kind": "票券",
+            "icon": "icon_resource90087_402"
         },
         {
             "cn": "3周年纪念幸运抽抽乐券",
             "tw": "3週年紀念幸運抽抽樂券",
             "alias": [],
             "profile": "growth",
-            "kind": "票券"
+            "kind": "票券",
+            "icon": "icon_resource90092_412"
         },
         {
             "cn": "尤里至臻皮肤幸运抽抽乐券",
             "tw": "尤里尊爵不凡造型幸運抽抽樂票券",
             "alias": [],
             "profile": "growth",
-            "kind": "票券"
+            "kind": "票券",
+            "icon": "icon_resource90095_421"
         },
         {
             "cn": "Farewell Summer！幸运抽抽乐券",
             "tw": "Farewell Summer！幸運抽抽樂券",
             "alias": [],
             "profile": "growth",
-            "kind": "票券"
+            "kind": "票券",
+            "icon": "icon_resource90096_424"
         },
         {
             "cn": "Happy Halloween！幸运抽抽乐券",
             "tw": "Happy Halloween！幸運抽抽樂券",
             "alias": [],
             "profile": "growth",
-            "kind": "票券"
+            "kind": "票券",
+            "icon": null
+        },
+        {
+            "cn": "2.5周年前夜祭纪念兑换所硬币",
+            "tw": "2.5週年前夜祭紀念交換所硬幣",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource90065_342"
+        },
+        {
+            "cn": "1000天纪念兑换所硬币",
+            "tw": "1000日紀念交換所硬幣",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource90079_379"
+        },
+        {
+            "cn": "3周年前夜祭纪念兑换所硬币",
+            "tw": "3週年前夜祭紀念交換所硬幣",
+            "alias": [],
+            "profile": "other",
+            "kind": "活动道具",
+            "icon": "icon_resource90084_392"
+        },
+        {
+            "cn": "3周年普通投票券",
+            "tw": "3週年一般投票券",
+            "alias": [],
+            "profile": "other",
+            "kind": "其他券",
+            "icon": "icon_resource90085_393"
+        },
+        {
+            "cn": "3周年特别投票券",
+            "tw": "3週年特別投票券",
+            "alias": [],
+            "profile": "other",
+            "kind": "其他券",
+            "icon": "icon_resource90086_394"
+        },
+        {
+            "cn": "口感丝滑细腻的牛奶",
+            "tw": "香醇牛奶",
+            "alias": [],
+            "profile": "other",
+            "kind": "饮品",
+            "icon": "icon_resource190001_395"
+        },
+        {
+            "cn": "冰啤酒",
+            "tw": "沁涼啤酒",
+            "alias": [],
+            "profile": "other",
+            "kind": "饮品",
+            "icon": "icon_resource190002_396"
+        },
+        {
+            "cn": "醇香葡萄酒",
+            "tw": "醇厚紅酒",
+            "alias": [],
+            "profile": "other",
+            "kind": "饮品",
+            "icon": "icon_resource190003_397"
+        },
+        {
+            "cn": "馥郁威士忌",
+            "tw": "醇香威士忌",
+            "alias": [],
+            "profile": "other",
+            "kind": "饮品",
+            "icon": "icon_resource190004_398"
+        },
+        {
+            "cn": "暖心红茶",
+            "tw": "溫熱紅茶",
+            "alias": [],
+            "profile": "other",
+            "kind": "饮品",
+            "icon": "icon_resource190005_399"
+        },
+        {
+            "cn": "甜蜜苏打",
+            "tw": "香甜汽水",
+            "alias": [],
+            "profile": "other",
+            "kind": "饮品",
+            "icon": "icon_resource190006_400"
+        },
+        {
+            "cn": "特调饮料",
+            "tw": "特調飲品",
+            "alias": [],
+            "profile": "other",
+            "kind": "饮品",
+            "icon": "icon_resource190007_401"
         }
     ]
 }
