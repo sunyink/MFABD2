@@ -21,6 +21,7 @@ from utils.account_sync import sync_from_context
 from utils.bag_scan_engine import BagScanEngine, Reading
 from utils.inventory_store import save_scan_record, set_inventory_quantities, utc_now
 from utils.name_i18n import canon
+from utils.ocr_item_name import clean, item_aliases
 from utils.ocr_read import read_texts
 
 
@@ -34,16 +35,42 @@ PAGE, MOVED, BOTTOM = "BagScan_Page_Next", "BagScan_Page_Moved", "BagScan_Page_B
 SWIPE = "Agt_BagScan_Page_Swipe"
 RESET, RESET_EXIT = "BagScan_TabReset", "BagScan_TabReset_Egress"
 NAME_OCR, QUANTITY_OCR = "Rec_BagScan_Name_Ocr", "Rec_BagScan_Quantity_Ocr"
-PROFILES = {"ingredients": "Agt_BagScan_Profile_Ingredients"}
+# 档案键 → 档案节点。ingredients + dishes 是存货，growth 是货币票券与养成材料，craft 是装备制作材料（设计 §14）。
+PROFILES = {"ingredients": "Agt_BagScan_Profile_Ingredients", "dishes": "Agt_BagScan_Profile_Dishes",
+            "growth": "Agt_BagScan_Profile_Growth", "craft": "Agt_BagScan_Profile_Craft"}
+# 末端（技能书、史莱姆）之前的那一段：末端标志点开读出来是这些档案的物品，就不算到了末端。
+SECTION_PROFILES = ("ingredients", "dishes")
 
 _SCANS = OrderedDict()
 
 
 @lru_cache(maxsize=1)
-def _ingredient_names():
-    path = Path(__file__).resolve().parents[1] / "data" / "bd2_item_names_i18n.json"
-    return frozenset(item["cn"] for item in json.loads(path.read_text(encoding="utf-8"))
-                     if item.get("category") == "Ingredients")
+def _bag_items():
+    """tools/gen_bag_templates.py 按物品表生成的目录物品名：[{cn, tw, alias, profile, kind}]。"""
+    path = Path(__file__).resolve().parents[1] / "data" / "bag_item_names.json"
+    return tuple(json.loads(path.read_text(encoding="utf-8"))["items"])
+
+
+def _profile_names(profile):
+    return frozenset(item["cn"] for item in _bag_items() if item["profile"] == profile)
+
+
+@lru_cache(maxsize=1)
+def _aliases():
+    """读名用的名录：共用名录（食材等，含简繁异名）加上背包目录物品的简繁名。
+
+    共用名录也服务商店 OCR，不往里加东西；这里另起一份，只给背包仓检用。同一个写法指向两个物品的不收。
+    """
+    aliases = dict(item_aliases())
+    seen = {}
+    for item in _bag_items():
+        # alias：游戏物品表里与项目规范名不同的简体原名（如「光圣石」→ 规范名「光明圣石」）
+        for text in {item["cn"], item.get("tw") or "", *item.get("alias", [])} - {""}:
+            seen.setdefault(clean(text), set()).add(item["cn"])
+    for text, names in seen.items():
+        if len(names) == 1 and aliases.get(text, next(iter(names))) == next(iter(names)):
+            aliases[text] = next(iter(names))
+    return aliases
 
 
 def get_scan(scan_id):
@@ -95,8 +122,10 @@ class MaaBagDevice:
     def __init__(self, context: Context, profile: dict):
         self.context = context
         self.item_node = profile["item_node"]
+        self.color_node = profile.get("color_node")
+        self.color_sub = profile.get("color_sub")
         self.ready_node = profile["ready_node"]
-        self.end_node = profile["end_node"]
+        self.end_node = profile.get("end_node") or None
 
     def stopping(self):
         return bool(self.context.tasker.stopping)
@@ -116,14 +145,38 @@ class MaaBagDevice:
     def list_ready(self, image):
         return bool(self._recognize(self.ready_node, image).hit)
 
-    def match(self, template, image):
-        result = self._recognize(self.item_node, image, {self.item_node: {"template": [template]}})
+    def match(self, entry, image):
+        """目录项（模板路径，或 {template, green_mask, threshold, color}）在本页命中的全部格子 [(框, 分数)]。
+
+        生成的模板透明处涂成纯绿，条目里带 green_mask: true；手工截图是路径字符串，沿用节点自己的设置。
+        """
+        spec: dict = {"template": entry} if isinstance(entry, str) else dict(entry)
+        item: dict = {"template": [spec["template"]], "green_mask": bool(spec.get("green_mask", False))}
+        if spec.get("threshold") is not None:
+            item["threshold"] = spec["threshold"]
+        color: dict = spec.get("color") or {}
+        if not color:
+            result = self._recognize(self.item_node, image, {self.item_node: item})
+            if not result.hit:
+                return []
+            matches = getattr(result, "filtered_results", None) or []
+            return [(_box(match.box), float(match.score)) for match in matches] or [(_box(result.box), 1.0)]
+        if not (self.color_node and self.color_sub):
+            raise RuntimeError("目录项带颜色核，但档案没配 color_node / color_sub")
+        result = self._recognize(self.color_node, image, {
+            self.item_node: item,
+            self.color_sub: {"lower": color["lower"], "upper": color["upper"], "count": color["count"]}})
         if not result.hit:
             return []
-        matches = getattr(result, "filtered_results", None) or []
-        return [(_box(item.box), float(item.score)) for item in matches] or [(_box(result.box), 1.0)]
+        # And 对外只留一个框；通过颜色核的全部格子在颜色子识别的 filtered 里（设计 §14.4），一个都不能漏。
+        best = getattr(result, "best_result", None)
+        subs = {getattr(sub, "name", ""): sub for sub in getattr(best, "sub_results", None) or []}
+        passed = getattr(subs.get(self.color_sub), "filtered_results", None) or []
+        return [(_box(match.box), 1.0) for match in passed] or [(_box(result.box), 1.0)]
 
     def end_markers(self, image):
+        if not self.end_node:
+            return []
         result = self._recognize(self.end_node, image)
         if not result.hit:
             return []
@@ -171,6 +224,38 @@ def _targets(raw, catalog, names):
     if not isinstance(raw, list) or not all(isinstance(name, str) for name in raw):
         raise ValueError("targets 只能是 all 或名称列表")
     return list(dict.fromkeys(canon(name.strip()) for name in raw if name.strip()))
+
+
+def _profile_nodes(raw):
+    """BagScan_Run 的 profile 参数（一个档案节点名，或一组）→ 去重后的节点名列表。"""
+    nodes = [raw] if isinstance(raw, str) else list(raw or [])
+    nodes = list(dict.fromkeys(nodes))
+    known = set(PROFILES.values())
+    if not nodes or not all(isinstance(node, str) and node in known for node in nodes):
+        raise ValueError(f"未知仓检档案: {raw}")
+    return nodes
+
+
+def _merge_profiles(context, nodes):
+    """几个档案一起扫：目录与名单取并集；识别节点、复核参数取第一个；页数与时限取最大。
+
+    只有全部档案都在同一个末端之前（都配了同一个 end_node）才允许到末端提前收尾，
+    否则一直扫到列表底，判 0 的证据记 list_bottom（设计 §14.2）。
+    """
+    keys = {node: key for key, node in PROFILES.items()}
+    profiles = [context.get_node_object(node).attach for node in nodes]
+    catalog, names = {}, set()
+    for node, profile in zip(nodes, profiles):
+        catalog.update(context.get_node_object(profile["catalog_node"]).attach["templates"])
+        names |= _profile_names(keys[node])
+    end_nodes = {profile.get("end_node") or "" for profile in profiles}
+    section_end = len(end_nodes) == 1 and "" not in end_nodes
+    merged = dict(profiles[0])
+    merged.update(end_node=next(iter(end_nodes)) if section_end else "",
+                  zero_evidence=profiles[0]["zero_evidence"] if section_end else "list_bottom",
+                  max_pages=max(profile["max_pages"] for profile in profiles),
+                  timeout_seconds=max(profile["timeout_seconds"] for profile in profiles))
+    return merged, catalog, names, section_end, [keys[node] for node in nodes]
 
 
 def _label(raw):
@@ -222,7 +307,7 @@ class BagScanRun(CustomAction):
         params = raw if isinstance(raw, dict) else json.loads(str(raw or "{}"))
         record = {"scan_id": params.get("scan_id") or uuid4().hex, "label": str(params.get("label") or "未指定"),
                   "note": params.get("note"), "started_at": utc_now(), "job_id": None,
-                  "profile": params.get("profile"), "target_count": 0, "complete": False,
+                  "profile": params.get("profile"), "scope": [], "target_count": 0, "complete": False,
                   "termination": "error", "continuity": "broken", "pages": 0,
                   "quantities": {}, "absent": [], "unknown": {}, "timing_ms": {}}
         if not sync_from_context(context, where="BagScanRun"):
@@ -230,9 +315,9 @@ class BagScanRun(CustomAction):
         try:
             record["job_id"] = context.get_task_job().job_id
             record["label"] = _label(record["label"])
-            profile = context.get_node_object(params["profile"]).attach
-            catalog = context.get_node_object(profile["catalog_node"]).attach["templates"]
-            targets = _targets(params.get("targets"), catalog, _ingredient_names())
+            profile, catalog, names, section_end, record["scope"] = _merge_profiles(
+                context, _profile_nodes(params.get("profile")))
+            targets = _targets(params.get("targets"), catalog, names)
             record["target_count"] = len(targets)
             item = context.get_node_object(profile["item_node"])
             reference = {"scan_id": record["scan_id"], "label": record["label"]}
@@ -245,7 +330,8 @@ class BagScanRun(CustomAction):
                 MaaBagDevice(context, profile), catalog, targets,
                 grid_roi=item.recognition.param.roi, row_height=item.attach["row_height"],
                 footer_rows=item.attach.get("footer_rows", 0),
-                ingredient_names=_ingredient_names(),
+                section_names=frozenset().union(*(_profile_names(key) for key in SECTION_PROFILES)),
+                section_end=section_end, aliases=_aliases(),
                 max_pages=profile["max_pages"], timeout_seconds=profile["timeout_seconds"],
                 confirm_frames=profile["confirm_frames"], box_tolerance=profile["box_tolerance"],
                 continuity_threshold=profile["continuity_threshold"],
@@ -281,19 +367,23 @@ class BagScanRun(CustomAction):
 
 
 def run_bag_scan(context: Context, *, label: str | None, targets: str | list[str] = "all",
-                 profile: str = "ingredients", note: str | None = None) -> dict:
+                 profile: str | list[str] = "ingredients", note: str | None = None) -> dict:
     """同步执行一次仓检（开包 → 按页扫描 → 原路返回），返回扫描记录副本。
 
+    profile：档案键（ingredients / dishes / growth / craft），或一组键——一趟扫完它们的并集，
+    记录里的 scope 写明扫了哪些。含 growth、craft 时扫到列表底才判 0。
     executed=False 表示没走到扫描核心（账号未确认、配置无效或进包失败），此时没有任何读数；
     returned=False 表示子任务没正常结束，页面位置未知，调用方须自行恢复。
     """
     if not sync_from_context(context, where="BagScan"):
         return {"executed": False, "returned": False, "error": "account"}
-    if profile not in PROFILES:
+    keys = [profile] if isinstance(profile, str) else list(profile)
+    if not keys or any(key not in PROFILES for key in keys):
         raise ValueError(f"未知仓检档案: {profile}")
     scan_id = uuid4().hex
+    nodes = [PROFILES[key] for key in dict.fromkeys(keys)]
     param = {"scan_id": scan_id, "label": _label(label), "targets": targets,
-             "profile": PROFILES[profile], "note": note}
+             "profile": nodes[0] if len(nodes) == 1 else nodes, "note": note}
     local = context.clone()
     detail = local.run_task(ENTRY, {RUN: {"custom_action_param": param}})
     record = get_scan(scan_id)
@@ -306,7 +396,10 @@ def run_bag_scan(context: Context, *, label: str | None, targets: str | list[str
 
 @AgentServer.custom_action("BagScan")
 class BagScan(CustomAction):
-    """启动器：放进任何流程，参数 {label, targets?, profile?, note?}；跑完开包、扫描、返回这个节点才结束。"""
+    """启动器：放进任何流程，参数 {label, targets?, profile?, note?}；跑完开包、扫描、返回这个节点才结束。
+
+    profile 可写一个档案键或一组（如 ["growth", "craft"]），默认 ingredients。
+    """
 
     def run(self, context: Context, argv: CustomAction.RunArg) -> bool:
         try:

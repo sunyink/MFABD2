@@ -1,0 +1,1690 @@
+{
+    "source": "2026-10-29",
+    "note": "tools/gen_bag_templates.py 生成，别手改。背包仓检目录物品的规范简体名与繁体名（PC 客户端）。",
+    "items": [
+        {
+            "cn": "兽肉",
+            "tw": "獸肉",
+            "alias": [],
+            "profile": "ingredients",
+            "kind": "食材"
+        },
+        {
+            "cn": "三文鱼",
+            "tw": "鮭魚",
+            "alias": [],
+            "profile": "ingredients",
+            "kind": "食材"
+        },
+        {
+            "cn": "虾",
+            "tw": "淡水蝦",
+            "alias": [],
+            "profile": "ingredients",
+            "kind": "食材"
+        },
+        {
+            "cn": "小麦",
+            "tw": "小麥",
+            "alias": [],
+            "profile": "ingredients",
+            "kind": "食材"
+        },
+        {
+            "cn": "香草",
+            "tw": "草藥",
+            "alias": [],
+            "profile": "ingredients",
+            "kind": "食材"
+        },
+        {
+            "cn": "玉米",
+            "tw": "玉米",
+            "alias": [],
+            "profile": "ingredients",
+            "kind": "食材"
+        },
+        {
+            "cn": "豆子",
+            "tw": "豆子",
+            "alias": [],
+            "profile": "ingredients",
+            "kind": "食材"
+        },
+        {
+            "cn": "大麦",
+            "tw": "大麥",
+            "alias": [],
+            "profile": "ingredients",
+            "kind": "食材"
+        },
+        {
+            "cn": "啤酒花",
+            "tw": "啤酒花",
+            "alias": [],
+            "profile": "ingredients",
+            "kind": "食材"
+        },
+        {
+            "cn": "米",
+            "tw": "米",
+            "alias": [],
+            "profile": "ingredients",
+            "kind": "食材"
+        },
+        {
+            "cn": "苹果",
+            "tw": "蘋果",
+            "alias": [],
+            "profile": "ingredients",
+            "kind": "食材"
+        },
+        {
+            "cn": "葡萄",
+            "tw": "葡萄",
+            "alias": [],
+            "profile": "ingredients",
+            "kind": "食材"
+        },
+        {
+            "cn": "蘑菇",
+            "tw": "蘑菇",
+            "alias": [],
+            "profile": "ingredients",
+            "kind": "食材"
+        },
+        {
+            "cn": "胡萝卜",
+            "tw": "紅蘿蔔",
+            "alias": [],
+            "profile": "ingredients",
+            "kind": "食材"
+        },
+        {
+            "cn": "土豆",
+            "tw": "馬鈴薯",
+            "alias": [],
+            "profile": "ingredients",
+            "kind": "食材"
+        },
+        {
+            "cn": "洋葱",
+            "tw": "洋蔥",
+            "alias": [],
+            "profile": "ingredients",
+            "kind": "食材"
+        },
+        {
+            "cn": "甜椒",
+            "tw": "甜椒",
+            "alias": [],
+            "profile": "ingredients",
+            "kind": "食材"
+        },
+        {
+            "cn": "萝卜缨",
+            "tw": "蘿蔔嬰",
+            "alias": [],
+            "profile": "ingredients",
+            "kind": "食材"
+        },
+        {
+            "cn": "西蓝花",
+            "tw": "花椰菜",
+            "alias": [],
+            "profile": "ingredients",
+            "kind": "食材"
+        },
+        {
+            "cn": "番茄",
+            "tw": "番茄",
+            "alias": [],
+            "profile": "ingredients",
+            "kind": "食材"
+        },
+        {
+            "cn": "西葫芦",
+            "tw": "櫛瓜",
+            "alias": [],
+            "profile": "ingredients",
+            "kind": "食材"
+        },
+        {
+            "cn": "咖啡豆",
+            "tw": "咖啡豆",
+            "alias": [],
+            "profile": "ingredients",
+            "kind": "食材"
+        },
+        {
+            "cn": "白糖",
+            "tw": "糖",
+            "alias": [],
+            "profile": "ingredients",
+            "kind": "食材"
+        },
+        {
+            "cn": "奶酪",
+            "tw": "起司",
+            "alias": [],
+            "profile": "ingredients",
+            "kind": "食材"
+        },
+        {
+            "cn": "鸡蛋",
+            "tw": "雞蛋",
+            "alias": [],
+            "profile": "ingredients",
+            "kind": "食材"
+        },
+        {
+            "cn": "黄油",
+            "tw": "奶油",
+            "alias": [],
+            "profile": "ingredients",
+            "kind": "食材"
+        },
+        {
+            "cn": "牛奶",
+            "tw": "牛奶",
+            "alias": [],
+            "profile": "ingredients",
+            "kind": "食材"
+        },
+        {
+            "cn": "金枪鱼罐头",
+            "tw": "鮪魚罐頭",
+            "alias": [],
+            "profile": "ingredients",
+            "kind": "食材"
+        },
+        {
+            "cn": "袋装鸡胸肉",
+            "tw": "雞胸肉袋",
+            "alias": [],
+            "profile": "ingredients",
+            "kind": "食材"
+        },
+        {
+            "cn": "巧克力",
+            "tw": "巧克力",
+            "alias": [],
+            "profile": "ingredients",
+            "kind": "食材"
+        },
+        {
+            "cn": "吐司",
+            "tw": "吐司",
+            "alias": [],
+            "profile": "ingredients",
+            "kind": "食材"
+        },
+        {
+            "cn": "橄榄油",
+            "tw": "橄欖油",
+            "alias": [],
+            "profile": "ingredients",
+            "kind": "食材"
+        },
+        {
+            "cn": "甜辣酱",
+            "tw": "辣醬",
+            "alias": [],
+            "profile": "ingredients",
+            "kind": "食材"
+        },
+        {
+            "cn": "蜂蜜",
+            "tw": "蜂蜜",
+            "alias": [],
+            "profile": "ingredients",
+            "kind": "食材"
+        },
+        {
+            "cn": "盐",
+            "tw": "鹽",
+            "alias": [],
+            "profile": "ingredients",
+            "kind": "食材"
+        },
+        {
+            "cn": "哈密瓜",
+            "tw": "哈密瓜",
+            "alias": [],
+            "profile": "ingredients",
+            "kind": "食材"
+        },
+        {
+            "cn": "辣椒",
+            "tw": "辣椒",
+            "alias": [],
+            "profile": "ingredients",
+            "kind": "食材"
+        },
+        {
+            "cn": "藏红花",
+            "tw": "番紅花",
+            "alias": [],
+            "profile": "ingredients",
+            "kind": "食材"
+        },
+        {
+            "cn": "杏仁",
+            "tw": "杏仁",
+            "alias": [],
+            "profile": "ingredients",
+            "kind": "食材"
+        },
+        {
+            "cn": "水果罐头",
+            "tw": "水果罐頭",
+            "alias": [],
+            "profile": "ingredients",
+            "kind": "食材"
+        },
+        {
+            "cn": "鱼子酱罐头",
+            "tw": "魚子醬罐頭",
+            "alias": [],
+            "profile": "ingredients",
+            "kind": "食材"
+        },
+        {
+            "cn": "调味海苔",
+            "tw": "包裝好的海苔",
+            "alias": [],
+            "profile": "ingredients",
+            "kind": "食材"
+        },
+        {
+            "cn": "凯洛药材",
+            "tw": "凱洛藥材",
+            "alias": [],
+            "profile": "ingredients",
+            "kind": "食材"
+        },
+        {
+            "cn": "姜黄",
+            "tw": "薑黃",
+            "alias": [],
+            "profile": "ingredients",
+            "kind": "食材"
+        },
+        {
+            "cn": "永恒之爱",
+            "tw": "永恆龍舌蘭酒",
+            "alias": [],
+            "profile": "ingredients",
+            "kind": "食材"
+        },
+        {
+            "cn": "芥末",
+            "tw": "芥末",
+            "alias": [],
+            "profile": "ingredients",
+            "kind": "食材"
+        },
+        {
+            "cn": "料酒",
+            "tw": "料酒",
+            "alias": [],
+            "profile": "ingredients",
+            "kind": "食材"
+        },
+        {
+            "cn": "雷瓦汀火腿",
+            "tw": "雷瓦汀火腿",
+            "alias": [],
+            "profile": "ingredients",
+            "kind": "食材"
+        },
+        {
+            "cn": "番茄酱",
+            "tw": "番茄醬",
+            "alias": [],
+            "profile": "ingredients",
+            "kind": "食材"
+        },
+        {
+            "cn": "辣椒素",
+            "tw": "辣椒素",
+            "alias": [],
+            "profile": "ingredients",
+            "kind": "食材"
+        },
+        {
+            "cn": "松露油",
+            "tw": "松露油",
+            "alias": [],
+            "profile": "ingredients",
+            "kind": "食材"
+        },
+        {
+            "cn": "蛋黄酱",
+            "tw": "美乃滋",
+            "alias": [],
+            "profile": "ingredients",
+            "kind": "食材"
+        },
+        {
+            "cn": "卢戈山参",
+            "tw": "盧戈山蔘",
+            "alias": [],
+            "profile": "ingredients",
+            "kind": "食材"
+        },
+        {
+            "cn": "生命木炭",
+            "tw": "生命的木炭",
+            "alias": [],
+            "profile": "ingredients",
+            "kind": "食材"
+        },
+        {
+            "cn": "闪光粉末",
+            "tw": "閃爍的粉末",
+            "alias": [],
+            "profile": "ingredients",
+            "kind": "食材"
+        },
+        {
+            "cn": "透明蘑菇",
+            "tw": "透明的蘑菇",
+            "alias": [],
+            "profile": "ingredients",
+            "kind": "食材"
+        },
+        {
+            "cn": "穿山甲鳞片",
+            "tw": "穿山甲的鱗片",
+            "alias": [],
+            "profile": "ingredients",
+            "kind": "食材"
+        },
+        {
+            "cn": "能量蘑菇",
+            "tw": "能量蘑菇",
+            "alias": [],
+            "profile": "ingredients",
+            "kind": "食材"
+        },
+        {
+            "cn": "秃鹫羽毛",
+            "tw": "禿鷲的羽毛",
+            "alias": [],
+            "profile": "ingredients",
+            "kind": "食材"
+        },
+        {
+            "cn": "魅惑粉末",
+            "tw": "魅惑粉末",
+            "alias": [],
+            "profile": "ingredients",
+            "kind": "食材"
+        },
+        {
+            "cn": "黄金罗勒",
+            "tw": "黃金羅勒",
+            "alias": [],
+            "profile": "ingredients",
+            "kind": "食材"
+        },
+        {
+            "cn": "能量药水",
+            "tw": "能量藥水",
+            "alias": [],
+            "profile": "ingredients",
+            "kind": "食材"
+        },
+        {
+            "cn": "灵魂鲜奶油",
+            "tw": "靈魂鮮奶油",
+            "alias": [],
+            "profile": "ingredients",
+            "kind": "食材"
+        },
+        {
+            "cn": "维生素B浓缩液",
+            "tw": "維生素B濃縮溶液",
+            "alias": [],
+            "profile": "ingredients",
+            "kind": "食材"
+        },
+        {
+            "cn": "能量粉末",
+            "tw": "能量粉末",
+            "alias": [],
+            "profile": "ingredients",
+            "kind": "食材"
+        },
+        {
+            "cn": "地狱火辣酱",
+            "tw": "地獄火醬汁",
+            "alias": [],
+            "profile": "ingredients",
+            "kind": "食材"
+        },
+        {
+            "cn": "卢戈狂想曲",
+            "tw": "盧戈狂想曲",
+            "alias": [],
+            "profile": "ingredients",
+            "kind": "食材"
+        },
+        {
+            "cn": "生蚝",
+            "tw": "生蠔",
+            "alias": [],
+            "profile": "ingredients",
+            "kind": "食材"
+        },
+        {
+            "cn": "大蒜",
+            "tw": "大蒜",
+            "alias": [],
+            "profile": "ingredients",
+            "kind": "食材"
+        },
+        {
+            "cn": "樱桃",
+            "tw": "櫻桃",
+            "alias": [],
+            "profile": "ingredients",
+            "kind": "食材"
+        },
+        {
+            "cn": "胡椒",
+            "tw": "胡椒",
+            "alias": [],
+            "profile": "ingredients",
+            "kind": "食材"
+        },
+        {
+            "cn": "肉桂",
+            "tw": "肉桂",
+            "alias": [],
+            "profile": "ingredients",
+            "kind": "食材"
+        },
+        {
+            "cn": "不明料理",
+            "tw": "不明料理",
+            "alias": [],
+            "profile": "dishes",
+            "kind": "料理"
+        },
+        {
+            "cn": "蘑菇汤",
+            "tw": "蘑菇湯",
+            "alias": [],
+            "profile": "dishes",
+            "kind": "料理"
+        },
+        {
+            "cn": "炒蘑菇",
+            "tw": "炒蘑菇",
+            "alias": [],
+            "profile": "dishes",
+            "kind": "料理"
+        },
+        {
+            "cn": "烤菇串",
+            "tw": "烤菇串",
+            "alias": [],
+            "profile": "dishes",
+            "kind": "料理"
+        },
+        {
+            "cn": "蘑菇烤肉火锅",
+            "tw": "蘑菇烤牛肉火鍋",
+            "alias": [],
+            "profile": "dishes",
+            "kind": "料理"
+        },
+        {
+            "cn": "土豆汤",
+            "tw": "馬鈴薯湯",
+            "alias": [],
+            "profile": "dishes",
+            "kind": "料理"
+        },
+        {
+            "cn": "达雷普黑啤酒",
+            "tw": "達雷普黑啤酒",
+            "alias": [],
+            "profile": "dishes",
+            "kind": "料理"
+        },
+        {
+            "cn": "黑啤酒炖锅",
+            "tw": "黑啤酒燉鍋",
+            "alias": [],
+            "profile": "dishes",
+            "kind": "料理"
+        },
+        {
+            "cn": "烤蜂蜜苹果",
+            "tw": "烤蜂蜜蘋果",
+            "alias": [],
+            "profile": "dishes",
+            "kind": "料理"
+        },
+        {
+            "cn": "桑格利亚酒",
+            "tw": "桑格利亞酒",
+            "alias": [],
+            "profile": "dishes",
+            "kind": "料理"
+        },
+        {
+            "cn": "流浪美食家烤肉",
+            "tw": "流浪美食家的烤肉",
+            "alias": [],
+            "profile": "dishes",
+            "kind": "料理"
+        },
+        {
+            "cn": "喵拿铁",
+            "tw": "喵拿鐵",
+            "alias": [],
+            "profile": "dishes",
+            "kind": "料理"
+        },
+        {
+            "cn": "炸三文鱼便当",
+            "tw": "炸鮭魚便當",
+            "alias": [],
+            "profile": "dishes",
+            "kind": "料理"
+        },
+        {
+            "cn": "草药三明治",
+            "tw": "草藥三明治",
+            "alias": [],
+            "profile": "dishes",
+            "kind": "料理"
+        },
+        {
+            "cn": "哈密瓜雪酪",
+            "tw": "哈密瓜雪酪",
+            "alias": [],
+            "profile": "dishes",
+            "kind": "料理"
+        },
+        {
+            "cn": "藏红花甜茶",
+            "tw": "番紅花甜茶",
+            "alias": [],
+            "profile": "dishes",
+            "kind": "料理"
+        },
+        {
+            "cn": "甜椒意式烘蛋",
+            "tw": "甜椒義式烘蛋",
+            "alias": [],
+            "profile": "dishes",
+            "kind": "料理"
+        },
+        {
+            "cn": "三分熟鲜血布丁",
+            "tw": "鮮血布丁",
+            "alias": [],
+            "profile": "dishes",
+            "kind": "料理"
+        },
+        {
+            "cn": "蔬菜三明治",
+            "tw": "蔬菜三明治",
+            "alias": [],
+            "profile": "dishes",
+            "kind": "料理"
+        },
+        {
+            "cn": "三文鱼芥末寿司",
+            "tw": "鮭魚芥末壽司",
+            "alias": [],
+            "profile": "dishes",
+            "kind": "料理"
+        },
+        {
+            "cn": "玉米奶酪",
+            "tw": "玉米起司",
+            "alias": [],
+            "profile": "dishes",
+            "kind": "料理"
+        },
+        {
+            "cn": "豆奶酱意大利面",
+            "tw": "豆奶醬義大利麵",
+            "alias": [],
+            "profile": "dishes",
+            "kind": "料理"
+        },
+        {
+            "cn": "炒土豆",
+            "tw": "炒馬鈴薯",
+            "alias": [],
+            "profile": "dishes",
+            "kind": "料理"
+        },
+        {
+            "cn": "酱炒牛排",
+            "tw": "醬炒牛排",
+            "alias": [],
+            "profile": "dishes",
+            "kind": "料理"
+        },
+        {
+            "cn": "甜辣鲜虾",
+            "tw": "甜辣鮮蝦",
+            "alias": [],
+            "profile": "dishes",
+            "kind": "料理"
+        },
+        {
+            "cn": "蜂蜜黄油杏仁",
+            "tw": "蜂蜜奶油杏仁",
+            "alias": [],
+            "profile": "dishes",
+            "kind": "料理"
+        },
+        {
+            "cn": "凯洛养身汤",
+            "tw": "凱洛養身湯",
+            "alias": [],
+            "profile": "dishes",
+            "kind": "料理"
+        },
+        {
+            "cn": "巧克力面包",
+            "tw": "巧克力麵包",
+            "alias": [],
+            "profile": "dishes",
+            "kind": "料理"
+        },
+        {
+            "cn": "金枪鱼鸡胸肉三明治",
+            "tw": "鮪魚雞胸肉三明治",
+            "alias": [],
+            "profile": "dishes",
+            "kind": "料理"
+        },
+        {
+            "cn": "水果冰沙",
+            "tw": "水果冰沙",
+            "alias": [],
+            "profile": "dishes",
+            "kind": "料理"
+        },
+        {
+            "cn": "火烤鱼板棒",
+            "tw": "火烤魚板棒",
+            "alias": [],
+            "profile": "dishes",
+            "kind": "料理"
+        },
+        {
+            "cn": "巧克力鸡尾酒",
+            "tw": "巧克力雞尾酒",
+            "alias": [],
+            "profile": "dishes",
+            "kind": "料理"
+        },
+        {
+            "cn": "鱼子酱蛋包饭",
+            "tw": "魚子醬蛋包飯",
+            "alias": [],
+            "profile": "dishes",
+            "kind": "料理"
+        },
+        {
+            "cn": "三角美乃滋饭团",
+            "tw": "三角美乃滋飯糰",
+            "alias": [],
+            "profile": "dishes",
+            "kind": "料理"
+        },
+        {
+            "cn": "鸡肉卷",
+            "tw": "雞肉捲",
+            "alias": [],
+            "profile": "dishes",
+            "kind": "料理"
+        },
+        {
+            "cn": "卢戈镇晚餐",
+            "tw": "盧戈村莊晚餐",
+            "alias": [],
+            "profile": "dishes",
+            "kind": "料理"
+        },
+        {
+            "cn": "土豆沙拉",
+            "tw": "馬鈴薯沙拉",
+            "alias": [],
+            "profile": "dishes",
+            "kind": "料理"
+        },
+        {
+            "cn": "雨血",
+            "tw": "雨血",
+            "alias": [],
+            "profile": "dishes",
+            "kind": "料理"
+        },
+        {
+            "cn": "卢戈山参烤串",
+            "tw": "盧戈烤山蔘串",
+            "alias": [],
+            "profile": "dishes",
+            "kind": "料理"
+        },
+        {
+            "cn": "煤炭饼干",
+            "tw": "煤炭餅乾",
+            "alias": [],
+            "profile": "dishes",
+            "kind": "料理"
+        },
+        {
+            "cn": "闪闪铁板虾",
+            "tw": "閃耀西班牙蒜味蝦",
+            "alias": [],
+            "profile": "dishes",
+            "kind": "料理"
+        },
+        {
+            "cn": "透明沙拉",
+            "tw": "透明化沙拉",
+            "alias": [],
+            "profile": "dishes",
+            "kind": "料理"
+        },
+        {
+            "cn": "亚拉里克咖喱",
+            "tw": "亞拉里克咖哩",
+            "alias": [],
+            "profile": "dishes",
+            "kind": "料理"
+        },
+        {
+            "cn": "能量藏红花烩饭",
+            "tw": "能量番紅花燉飯",
+            "alias": [],
+            "profile": "dishes",
+            "kind": "料理"
+        },
+        {
+            "cn": "提神醒脑炖锅",
+            "tw": "為之一振燉鍋",
+            "alias": [],
+            "profile": "dishes",
+            "kind": "料理"
+        },
+        {
+            "cn": "魅惑三文鱼蔬菜卷",
+            "tw": "魅惑鮭魚蔬菜捲",
+            "alias": [],
+            "profile": "dishes",
+            "kind": "料理"
+        },
+        {
+            "cn": "幸运黄金披萨",
+            "tw": "幸運的黃金披薩",
+            "alias": [],
+            "profile": "dishes",
+            "kind": "料理"
+        },
+        {
+            "cn": "能量葡萄汁",
+            "tw": "能量葡萄汁",
+            "alias": [],
+            "profile": "dishes",
+            "kind": "料理"
+        },
+        {
+            "cn": "鲜奶油巧克力蛋糕",
+            "tw": "鮮奶油巧克力蛋糕",
+            "alias": [],
+            "profile": "dishes",
+            "kind": "料理"
+        },
+        {
+            "cn": "维生素B炸弹芭菲",
+            "tw": "維生素B炸彈百匯",
+            "alias": [],
+            "profile": "dishes",
+            "kind": "料理"
+        },
+        {
+            "cn": "能量松露薯条",
+            "tw": "能量松露薯條",
+            "alias": [],
+            "profile": "dishes",
+            "kind": "料理"
+        },
+        {
+            "cn": "地狱火紫菜包饭",
+            "tw": "地獄火海苔飯捲",
+            "alias": [],
+            "profile": "dishes",
+            "kind": "料理"
+        },
+        {
+            "cn": "洛克菲勒生蚝",
+            "tw": "洛克菲勒生蠔",
+            "alias": [],
+            "profile": "dishes",
+            "kind": "料理"
+        },
+        {
+            "cn": "泰瑞丝派",
+            "tw": "泰瑞絲派",
+            "alias": [],
+            "profile": "dishes",
+            "kind": "料理"
+        },
+        {
+            "cn": "三明治便当",
+            "tw": "三明治便當",
+            "alias": [],
+            "profile": "dishes",
+            "kind": "料理"
+        },
+        {
+            "cn": "手工蛋糕",
+            "tw": "手作蛋糕",
+            "alias": [],
+            "profile": "dishes",
+            "kind": "料理"
+        },
+        {
+            "cn": "香甜马卡龙",
+            "tw": "甜蜜馬卡龍",
+            "alias": [],
+            "profile": "dishes",
+            "kind": "料理"
+        },
+        {
+            "cn": "街头烤鸡肉串",
+            "tw": "街頭烤雞串",
+            "alias": [],
+            "profile": "dishes",
+            "kind": "料理"
+        },
+        {
+            "cn": "香草牛排",
+            "tw": "香草牛排",
+            "alias": [],
+            "profile": "dishes",
+            "kind": "料理"
+        },
+        {
+            "cn": "冰镇甜点",
+            "tw": "冰品甜點",
+            "alias": [],
+            "profile": "dishes",
+            "kind": "料理"
+        },
+        {
+            "cn": "炸猪排盖饭",
+            "tw": "豬排蓋飯",
+            "alias": [],
+            "profile": "dishes",
+            "kind": "料理"
+        },
+        {
+            "cn": "橄榄油意面",
+            "tw": "橄欖油義大利麵",
+            "alias": [],
+            "profile": "dishes",
+            "kind": "料理"
+        },
+        {
+            "cn": "汉堡排便当",
+            "tw": "漢堡肉便當",
+            "alias": [],
+            "profile": "dishes",
+            "kind": "料理"
+        },
+        {
+            "cn": "初级天赋技能书",
+            "tw": "新手天賦技能書",
+            "alias": [],
+            "profile": "growth",
+            "kind": "技能书"
+        },
+        {
+            "cn": "进阶天赋技能书",
+            "tw": "進階天賦技能書",
+            "alias": [],
+            "profile": "growth",
+            "kind": "技能书"
+        },
+        {
+            "cn": "高手天赋技能书",
+            "tw": "高手天賦技能書",
+            "alias": [],
+            "profile": "growth",
+            "kind": "技能书"
+        },
+        {
+            "cn": "达人天赋技能书",
+            "tw": "達人天賦技能書",
+            "alias": [],
+            "profile": "growth",
+            "kind": "技能书"
+        },
+        {
+            "cn": "黄色史莱姆",
+            "tw": "黃色史萊姆",
+            "alias": [],
+            "profile": "growth",
+            "kind": "史莱姆"
+        },
+        {
+            "cn": "蓝色史莱姆",
+            "tw": "藍色史萊姆",
+            "alias": [],
+            "profile": "growth",
+            "kind": "史莱姆"
+        },
+        {
+            "cn": "红色史莱姆",
+            "tw": "紅色史萊姆",
+            "alias": [],
+            "profile": "growth",
+            "kind": "史莱姆"
+        },
+        {
+            "cn": "精炼粉末",
+            "tw": "強化粉末",
+            "alias": [],
+            "profile": "growth",
+            "kind": "精炼"
+        },
+        {
+            "cn": "1★升星之星",
+            "tw": "★1升星之星",
+            "alias": [],
+            "profile": "growth",
+            "kind": "升星"
+        },
+        {
+            "cn": "2★升星之星",
+            "tw": "★2升星之星",
+            "alias": [],
+            "profile": "growth",
+            "kind": "升星"
+        },
+        {
+            "cn": "3★升星之星",
+            "tw": "★3升星之星",
+            "alias": [],
+            "profile": "growth",
+            "kind": "升星"
+        },
+        {
+            "cn": "4★升星之星",
+            "tw": "★4升星之星",
+            "alias": [],
+            "profile": "growth",
+            "kind": "升星"
+        },
+        {
+            "cn": "5★升星之星",
+            "tw": "★5升星之星",
+            "alias": [],
+            "profile": "growth",
+            "kind": "升星"
+        },
+        {
+            "cn": "精炼石",
+            "tw": "煉製石",
+            "alias": [],
+            "profile": "growth",
+            "kind": "精炼"
+        },
+        {
+            "cn": "精炼水晶",
+            "tw": "煉製水晶",
+            "alias": [],
+            "profile": "growth",
+            "kind": "精炼"
+        },
+        {
+            "cn": "火魔石",
+            "tw": "火魔石",
+            "alias": [],
+            "profile": "growth",
+            "kind": "突破材料"
+        },
+        {
+            "cn": "水魔石",
+            "tw": "水魔石",
+            "alias": [],
+            "profile": "growth",
+            "kind": "突破材料"
+        },
+        {
+            "cn": "风魔石",
+            "tw": "風魔石",
+            "alias": [],
+            "profile": "growth",
+            "kind": "突破材料"
+        },
+        {
+            "cn": "光魔石",
+            "tw": "光魔石",
+            "alias": [],
+            "profile": "growth",
+            "kind": "突破材料"
+        },
+        {
+            "cn": "暗魔石",
+            "tw": "暗魔石",
+            "alias": [],
+            "profile": "growth",
+            "kind": "突破材料"
+        },
+        {
+            "cn": "五色魔石",
+            "tw": "五色魔石",
+            "alias": [],
+            "profile": "growth",
+            "kind": "突破材料"
+        },
+        {
+            "cn": "火圣石",
+            "tw": "火的聖石",
+            "alias": [],
+            "profile": "growth",
+            "kind": "突破材料"
+        },
+        {
+            "cn": "水圣石",
+            "tw": "水的聖石",
+            "alias": [],
+            "profile": "growth",
+            "kind": "突破材料"
+        },
+        {
+            "cn": "风圣石",
+            "tw": "風的聖石",
+            "alias": [],
+            "profile": "growth",
+            "kind": "突破材料"
+        },
+        {
+            "cn": "光明圣石",
+            "tw": "光的聖石",
+            "alias": [
+                "光圣石"
+            ],
+            "profile": "growth",
+            "kind": "突破材料"
+        },
+        {
+            "cn": "黑暗圣石",
+            "tw": "暗的聖石",
+            "alias": [
+                "暗圣石"
+            ],
+            "profile": "growth",
+            "kind": "突破材料"
+        },
+        {
+            "cn": "和谐魔石",
+            "tw": "調和魔石",
+            "alias": [],
+            "profile": "growth",
+            "kind": "突破材料"
+        },
+        {
+            "cn": "烈焰魔石",
+            "tw": "烈焰魔石",
+            "alias": [],
+            "profile": "growth",
+            "kind": "突破材料"
+        },
+        {
+            "cn": "冰河魔石",
+            "tw": "冰河魔石",
+            "alias": [],
+            "profile": "growth",
+            "kind": "突破材料"
+        },
+        {
+            "cn": "暴风魔石",
+            "tw": "暴風魔石",
+            "alias": [],
+            "profile": "growth",
+            "kind": "突破材料"
+        },
+        {
+            "cn": "闪光魔石",
+            "tw": "閃光魔石",
+            "alias": [],
+            "profile": "growth",
+            "kind": "突破材料"
+        },
+        {
+            "cn": "深渊魔石",
+            "tw": "深淵魔石",
+            "alias": [],
+            "profile": "growth",
+            "kind": "突破材料"
+        },
+        {
+            "cn": "星星魔石",
+            "tw": "星星魔石",
+            "alias": [],
+            "profile": "growth",
+            "kind": "突破材料"
+        },
+        {
+            "cn": "女神之泪",
+            "tw": "女神的眼淚",
+            "alias": [],
+            "profile": "growth",
+            "kind": "突破材料"
+        },
+        {
+            "cn": "铁矿石",
+            "tw": "鐵礦石",
+            "alias": [],
+            "profile": "craft",
+            "kind": "制作材料"
+        },
+        {
+            "cn": "铜矿石",
+            "tw": "銅礦石",
+            "alias": [],
+            "profile": "craft",
+            "kind": "制作材料"
+        },
+        {
+            "cn": "金矿石",
+            "tw": "金礦石",
+            "alias": [],
+            "profile": "craft",
+            "kind": "制作材料"
+        },
+        {
+            "cn": "泥炭",
+            "tw": "泥炭",
+            "alias": [],
+            "profile": "craft",
+            "kind": "制作材料"
+        },
+        {
+            "cn": "魔珍珠",
+            "tw": "魔珍珠",
+            "alias": [],
+            "profile": "craft",
+            "kind": "制作材料"
+        },
+        {
+            "cn": "铁块",
+            "tw": "鐵塊",
+            "alias": [],
+            "profile": "craft",
+            "kind": "制作材料"
+        },
+        {
+            "cn": "铜块",
+            "tw": "銅塊",
+            "alias": [],
+            "profile": "craft",
+            "kind": "制作材料"
+        },
+        {
+            "cn": "金块",
+            "tw": "金塊",
+            "alias": [],
+            "profile": "craft",
+            "kind": "制作材料"
+        },
+        {
+            "cn": "煤炭",
+            "tw": "煤",
+            "alias": [],
+            "profile": "craft",
+            "kind": "制作材料"
+        },
+        {
+            "cn": "钢铁块",
+            "tw": "鋼鐵塊",
+            "alias": [],
+            "profile": "craft",
+            "kind": "制作材料"
+        },
+        {
+            "cn": "黄铜块",
+            "tw": "黃銅塊",
+            "alias": [],
+            "profile": "craft",
+            "kind": "制作材料"
+        },
+        {
+            "cn": "白金块",
+            "tw": "白金塊",
+            "alias": [],
+            "profile": "craft",
+            "kind": "制作材料"
+        },
+        {
+            "cn": "无烟煤",
+            "tw": "無煙煤",
+            "alias": [],
+            "profile": "craft",
+            "kind": "制作材料"
+        },
+        {
+            "cn": "普通皮革",
+            "tw": "一般皮革",
+            "alias": [],
+            "profile": "craft",
+            "kind": "制作材料"
+        },
+        {
+            "cn": "高级皮革",
+            "tw": "高級皮革",
+            "alias": [],
+            "profile": "craft",
+            "kind": "制作材料"
+        },
+        {
+            "cn": "顶级皮革",
+            "tw": "頂級皮革",
+            "alias": [],
+            "profile": "craft",
+            "kind": "制作材料"
+        },
+        {
+            "cn": "普通布料",
+            "tw": "一般布料",
+            "alias": [],
+            "profile": "craft",
+            "kind": "制作材料"
+        },
+        {
+            "cn": "高级布料",
+            "tw": "高級布料",
+            "alias": [],
+            "profile": "craft",
+            "kind": "制作材料"
+        },
+        {
+            "cn": "顶级布料",
+            "tw": "頂級布料",
+            "alias": [],
+            "profile": "craft",
+            "kind": "制作材料"
+        },
+        {
+            "cn": "原木",
+            "tw": "原木",
+            "alias": [],
+            "profile": "craft",
+            "kind": "制作材料"
+        },
+        {
+            "cn": "胶合板",
+            "tw": "夾板",
+            "alias": [],
+            "profile": "craft",
+            "kind": "制作材料"
+        },
+        {
+            "cn": "强化胶合板",
+            "tw": "強化夾板",
+            "alias": [],
+            "profile": "craft",
+            "kind": "制作材料"
+        },
+        {
+            "cn": "远古水晶",
+            "tw": "古代水晶",
+            "alias": [],
+            "profile": "growth",
+            "kind": "远古水晶"
+        },
+        {
+            "cn": "刻印咒语书",
+            "tw": "刻印咒語書",
+            "alias": [],
+            "profile": "growth",
+            "kind": "突破材料"
+        },
+        {
+            "cn": "生命精髓",
+            "tw": "生命精隨",
+            "alias": [],
+            "profile": "growth",
+            "kind": "突破材料"
+        },
+        {
+            "cn": "力量精髓",
+            "tw": "力量精髓",
+            "alias": [],
+            "profile": "growth",
+            "kind": "突破材料"
+        },
+        {
+            "cn": "忍耐精髓",
+            "tw": "忍耐精髓",
+            "alias": [],
+            "profile": "growth",
+            "kind": "突破材料"
+        },
+        {
+            "cn": "觉醒灵药",
+            "tw": "覺醒靈藥",
+            "alias": [],
+            "profile": "growth",
+            "kind": "突破材料"
+        },
+        {
+            "cn": "狂暴火种",
+            "tw": "暴走火種",
+            "alias": [],
+            "profile": "growth",
+            "kind": "突破材料"
+        },
+        {
+            "cn": "异界火种",
+            "tw": "異界火種",
+            "alias": [],
+            "profile": "growth",
+            "kind": "突破材料"
+        },
+        {
+            "cn": "抽抽乐券",
+            "tw": "抽抽樂券",
+            "alias": [],
+            "profile": "growth",
+            "kind": "票券"
+        },
+        {
+            "cn": "普通招募契约书",
+            "tw": "一般契約書",
+            "alias": [],
+            "profile": "growth",
+            "kind": "契约书"
+        },
+        {
+            "cn": "高级招募契约书",
+            "tw": "高級契約書",
+            "alias": [],
+            "profile": "growth",
+            "kind": "契约书"
+        },
+        {
+            "cn": "顶级招募契约书",
+            "tw": "最高級契約書",
+            "alias": [],
+            "profile": "growth",
+            "kind": "契约书"
+        },
+        {
+            "cn": "23年8月5★服装必得抽抽乐兑换券",
+            "tw": "23年 8月 ★5 服裝抽抽樂保證交換券",
+            "alias": [],
+            "profile": "growth",
+            "kind": "票券"
+        },
+        {
+            "cn": "23年8月4★服装必得抽抽乐兑换券",
+            "tw": "23年 8月 ★4 服裝抽抽樂保證交換券",
+            "alias": [],
+            "profile": "growth",
+            "kind": "票券"
+        },
+        {
+            "cn": "23年8月UR专用装备必得抽抽乐兑换券",
+            "tw": "23年 8月 UR專用裝備抽抽樂保證交換券",
+            "alias": [],
+            "profile": "growth",
+            "kind": "票券"
+        },
+        {
+            "cn": "23年8月SR专用装备必得抽抽乐兑换券",
+            "tw": "23年 8月 SR專用裝備抽抽樂保證交換券",
+            "alias": [],
+            "profile": "growth",
+            "kind": "票券"
+        },
+        {
+            "cn": "UR专用装备必得抽抽乐兑换券",
+            "tw": "UR 專用裝備保證抽抽樂交換券",
+            "alias": [],
+            "profile": "growth",
+            "kind": "票券"
+        },
+        {
+            "cn": "SR专用装备必得抽抽乐兑换券",
+            "tw": "SR 專用裝備保證抽抽樂交換券",
+            "alias": [],
+            "profile": "growth",
+            "kind": "票券"
+        },
+        {
+            "cn": "属性甄选抽抽乐兑换券",
+            "tw": "屬性篩選抽抽樂交換券",
+            "alias": [],
+            "profile": "growth",
+            "kind": "票券"
+        },
+        {
+            "cn": "24年12月5★服装必得抽抽乐兑换券",
+            "tw": "24年 12月 ★5 服裝抽抽樂保證交換券",
+            "alias": [],
+            "profile": "growth",
+            "kind": "票券"
+        },
+        {
+            "cn": "甄选专用抽抽乐券",
+            "tw": "篩選專用抽抽樂券",
+            "alias": [],
+            "profile": "growth",
+            "kind": "票券"
+        },
+        {
+            "cn": "25年6月5★服装必得抽抽乐兑换券",
+            "tw": "25年 6月 ★5 服裝抽抽樂保證交換券",
+            "alias": [],
+            "profile": "growth",
+            "kind": "票券"
+        },
+        {
+            "cn": "25年12月5★服装必得抽抽乐兑换券",
+            "tw": "25年 12月 ★5 服裝抽抽樂保證交換券",
+            "alias": [],
+            "profile": "growth",
+            "kind": "票券"
+        },
+        {
+            "cn": "3周年5★服装抽抽乐券",
+            "tw": "3週年★5服裝抽抽樂券",
+            "alias": [],
+            "profile": "growth",
+            "kind": "票券"
+        },
+        {
+            "cn": "初学者用5★服装选择券",
+            "tw": "新手用★5服裝選擇券",
+            "alias": [],
+            "profile": "growth",
+            "kind": "服装券"
+        },
+        {
+            "cn": "1周年服装选择券",
+            "tw": "1週年服裝選擇券",
+            "alias": [],
+            "profile": "growth",
+            "kind": "服装券"
+        },
+        {
+            "cn": "1.5周年服装选择券",
+            "tw": "1.5週年服裝選擇券",
+            "alias": [],
+            "profile": "growth",
+            "kind": "服装券"
+        },
+        {
+            "cn": "推荐5★服装选择券",
+            "tw": "推薦用★5服裝選擇券",
+            "alias": [],
+            "profile": "growth",
+            "kind": "服装券"
+        },
+        {
+            "cn": "2周年服装选择券",
+            "tw": "2週年服裝選擇券",
+            "alias": [],
+            "profile": "growth",
+            "kind": "服装券"
+        },
+        {
+            "cn": "Summer Splash服装选择券",
+            "tw": "Summer Splash 服裝選擇券",
+            "alias": [],
+            "profile": "growth",
+            "kind": "服装券"
+        },
+        {
+            "cn": "新年服装选择券",
+            "tw": "新年服裝選擇券",
+            "alias": [],
+            "profile": "growth",
+            "kind": "服装券"
+        },
+        {
+            "cn": "3周年服装选择券",
+            "tw": "3週年服裝選擇券",
+            "alias": [],
+            "profile": "growth",
+            "kind": "服装券"
+        },
+        {
+            "cn": "Farewell Summer！服装选择券",
+            "tw": "Farewell Summer！服裝選擇券",
+            "alias": [],
+            "profile": "growth",
+            "kind": "服装券"
+        },
+        {
+            "cn": "Happy Halloween！服装选择券",
+            "tw": "Happy Halloween！服裝選擇券",
+            "alias": [],
+            "profile": "growth",
+            "kind": "服装券"
+        },
+        {
+            "cn": "幸运抽抽乐券",
+            "tw": "幸運抽抽樂券",
+            "alias": [],
+            "profile": "growth",
+            "kind": "票券"
+        },
+        {
+            "cn": "限定！名人兔女郎罗安幸运抽抽乐券",
+            "tw": "限定！名人兔女郎羅安幸運抽抽樂券",
+            "alias": [],
+            "profile": "growth",
+            "kind": "票券"
+        },
+        {
+            "cn": "2025年新年幸运抽抽乐券",
+            "tw": "2025年新年幸運抽抽樂券",
+            "alias": [],
+            "profile": "growth",
+            "kind": "票券"
+        },
+        {
+            "cn": "悠丝缇亚至臻皮肤幸运抽抽乐券",
+            "tw": "悠絲緹亞尊爵不凡造型幸運抽抽樂券",
+            "alias": [],
+            "profile": "growth",
+            "kind": "票券"
+        },
+        {
+            "cn": "2周年纪念幸运抽抽乐券",
+            "tw": "2週年紀念幸運抽抽樂券",
+            "alias": [],
+            "profile": "growth",
+            "kind": "票券"
+        },
+        {
+            "cn": "Summer Splash！幸运抽抽乐券",
+            "tw": "Summer Splash! 幸運抽抽樂券",
+            "alias": [],
+            "profile": "growth",
+            "kind": "票券"
+        },
+        {
+            "cn": "泰瑞丝至臻皮肤幸运抽抽乐券",
+            "tw": "泰瑞絲尊爵不凡造型幸運抽抽樂券",
+            "alias": [],
+            "profile": "growth",
+            "kind": "票券"
+        },
+        {
+            "cn": "2.5周年！幸运抽抽乐券",
+            "tw": "2.5週年！幸運抽抽樂券",
+            "alias": [],
+            "profile": "growth",
+            "kind": "票券"
+        },
+        {
+            "cn": "杰尼斯至臻皮肤幸运抽抽乐券",
+            "tw": "傑尼斯尊爵不凡造型幸運抽抽樂券",
+            "alias": [],
+            "profile": "growth",
+            "kind": "票券"
+        },
+        {
+            "cn": "2026年新年幸运抽抽乐券",
+            "tw": "2026年新年幸運抽抽樂券",
+            "alias": [],
+            "profile": "growth",
+            "kind": "票券"
+        },
+        {
+            "cn": "莎赫拉查德至臻皮肤幸运抽抽乐券",
+            "tw": "莎赫拉查德尊爵不凡造型幸運抽抽樂券",
+            "alias": [],
+            "profile": "growth",
+            "kind": "票券"
+        },
+        {
+            "cn": "3周年纪念幸运抽抽乐券",
+            "tw": "3週年紀念幸運抽抽樂券",
+            "alias": [],
+            "profile": "growth",
+            "kind": "票券"
+        },
+        {
+            "cn": "尤里至臻皮肤幸运抽抽乐券",
+            "tw": "尤里尊爵不凡造型幸運抽抽樂票券",
+            "alias": [],
+            "profile": "growth",
+            "kind": "票券"
+        },
+        {
+            "cn": "Farewell Summer！幸运抽抽乐券",
+            "tw": "Farewell Summer！幸運抽抽樂券",
+            "alias": [],
+            "profile": "growth",
+            "kind": "票券"
+        },
+        {
+            "cn": "Happy Halloween！幸运抽抽乐券",
+            "tw": "Happy Halloween！幸運抽抽樂券",
+            "alias": [],
+            "profile": "growth",
+            "kind": "票券"
+        }
+    ]
+}

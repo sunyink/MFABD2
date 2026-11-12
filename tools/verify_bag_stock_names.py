@@ -43,7 +43,7 @@ class BagNameTests(unittest.TestCase):
     def read(self, observations, quantity="持有81,861個".replace(",", "")):
         first, *rereads = observations
         device = Device(rereads, quantity)
-        engine = BagScanEngine(device, {}, [], grid_roi=[0, 0, 10, 10], row_height=100, ingredient_names=())
+        engine = BagScanEngine(device, {}, [], grid_roi=[0, 0, 10, 10], row_height=100, section_names=())
         # 复核帧的名称为空时，要靠首帧原文对上；这里让复核帧带上首帧原文。
         device.read_detail = lambda: Reading(names=list(first),
                                             quantities=[(quantity, .99, list(BOX))])

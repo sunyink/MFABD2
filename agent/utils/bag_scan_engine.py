@@ -6,6 +6,9 @@ doc/agent/bag/背包仓检_设计.md §4。
 
 判 0 的三个前提缺一不可：到了列表结束处（末端核过名，或确认滑到底）；从第一页起
 每次翻页都接得上；该目标本轮没有「模板命中了却没核实」。读到的数不受这三条约束。
+
+身份以点开读到的名字为准，图像只负责找候选格（用户 11-11）：模板命中的格子读出来清楚是
+另一个物品，只说明这格不是它，不算没核实。
 """
 
 from dataclasses import dataclass, field
@@ -90,16 +93,24 @@ def estimate_shift(previous, current, band, threshold):
 
 
 class BagScanEngine:
-    def __init__(self, device, catalog, targets, *, grid_roi, row_height, ingredient_names, footer_rows=0,
+    def __init__(self, device, catalog, targets, *, grid_roi, row_height, section_names, footer_rows=0,
                  max_pages=30, timeout_seconds=900, confirm_frames=4, box_tolerance=3,
-                 continuity_threshold=12.0, zero_evidence="ingredient_boundary",
+                 continuity_threshold=12.0, zero_evidence="ingredient_boundary", section_end=True, aliases=None,
                  on_page=None, log=None, clock=time.monotonic):
+        """catalog：名称 → 模板（字符串或 {template, threshold, color}），原样交给 device.match。
+
+        section_names：末端之前那一段的物品（食材、料理）。末端标志点开读出来是它们之一，就不算末端。
+        section_end=False：请求里有末端之后的物品（养成、制作材料），到末端不停，扫到列表底才判 0。
+        aliases：OCR 名 → 规范名；None 用共用名录。
+        """
         self.device = device
         self.catalog = dict(catalog)
         self.grid_roi = list(grid_roi)
         self.row_height = int(row_height)
         self.footer_rows = int(footer_rows)
-        self.ingredients = set(ingredient_names)
+        self.ingredients = set(section_names)
+        self.section_end = bool(section_end)
+        self.aliases = aliases
         self.max_pages = int(max_pages)
         self.confirm_frames = max(2, int(confirm_frames))
         self.box_tolerance = int(box_tolerance)
@@ -188,7 +199,7 @@ class BagScanEngine:
                 if not self.pending:
                     self.termination = "all_found"
                     return
-                if self._end_confirmed(image):
+                if self.section_end and self._end_confirmed(image):
                     self._conclude(self.end_evidence, "section_end")
                     return
                 if self.pages >= self.max_pages:
@@ -228,8 +239,16 @@ class BagScanEngine:
                 self.pending.discard(name)
                 self.quantities[name] = quantity
                 self._page_reads[name] = quantity
-            # 模板命中的格子读出来是别的物品、或没核实：这些目标本轮不许判 0。
-            self.suspect.update(target for target in cell["names"] if target in self.pending)
+            # 没读出名字：这格是谁不知道，命中它的目标本轮都不许判 0。读出了名字却没读成数量：只有这个名字没核实
+            # （它不一定在命中名单里——别的目标的模板也可能先命中它的格子）。
+            # 读出来清楚是另一个物品：这格不是它们，不拦判 0（近亲、共用图标的物品靠这条才能判 0）。
+            if name is None:
+                unverified = cell["names"]
+            elif quantity is None:
+                unverified = {name}
+            else:
+                unverified = set()
+            self.suspect.update(target for target in unverified if target in self.pending)
             if not closed:
                 self._ensure_list()
 
@@ -307,17 +326,17 @@ class BagScanEngine:
         texts = [(text, score) for text, score in names if clean(text)]
         if not texts:
             return None
-        resolved = [resolve_ocr_name(text, score, reread) for text, score in texts]
+        resolved = [resolve_ocr_name(text, score, reread, aliases=self.aliases) for text, score in texts]
         found = {item["name"] for item in resolved}
         if any(not item["confirmed"] for item in resolved) or len(found) != 1:
             return None
         return found.pop()
 
-    @staticmethod
-    def _same_name(names, expected, first_texts):
+    def _same_name(self, names, expected, first_texts):
         for text, score in names:
             value = clean(text)
-            if value and (value in first_texts or resolve_ocr_name(text, score)["name"] == expected):
+            if value and (value in first_texts
+                          or resolve_ocr_name(text, score, aliases=self.aliases)["name"] == expected):
                 return True
         return False
 
@@ -366,9 +385,9 @@ class BagScanEngine:
             if not texts or texts[0][1] < _END_NAME_SCORE or len(clean(texts[0][0])) < 2:
                 self.log("warning", "末端标志处的名称没读清，不算末端")
                 continue
-            candidates, _ = name_candidates(texts[0][0])
+            candidates, _ = name_candidates(texts[0][0], self.aliases)
             if candidates & self.ingredients:
-                self.log("warning", f"末端标志落在食材「{texts[0][0]}」上，不算末端")
+                self.log("warning", f"末端标志落在食材或料理「{texts[0][0]}」上，不算末端")
                 continue
             return True
         return False

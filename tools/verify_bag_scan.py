@@ -94,9 +94,11 @@ class Bag:
 
 class Device:
     def __init__(self, bag, quantities, *, decoys=None, end_decoys=(), frames=None, list_faults=0,
-                 stop_after_opens=None, open_failures=None, close_failures=0, false_bottoms=0, swipe_failures=0):
+                 stop_after_opens=None, open_failures=None, close_failures=0, false_bottoms=0, swipe_failures=0,
+                 blank_names=()):
         self.bag = bag
         self.quantities = quantities
+        self.blank_names = set(blank_names)  # 点开后名字读不出来的物品
         self.decoys = decoys or {}          # 目标名 → 会被它的模板误命中的其他物品
         self.end_decoys = set(end_decoys)   # 被误当成末端标志的物品
         self.frames = frames or {}          # 物品 → 依次出现的数量帧 [(文字, 框)]
@@ -130,7 +132,8 @@ class Device:
         return self.current is None
 
     def match(self, template, image):
-        name = template.removeprefix("tpl/")
+        # 目录项可以是路径，也可以是 {template, threshold, color}；颜色核由真实设备在识别里做，这里只认模板。
+        name = (template["template"] if isinstance(template, dict) else template).removeprefix("tpl/")
         found = [(box, .99) for item, box in self.bag.cells() if item == name]
         found += [(box, .95) for item, box in self.bag.cells() if item in self.decoys.get(name, ())]
         return found
@@ -139,6 +142,9 @@ class Device:
         return [box for item, box in self.bag.cells() if item == END or item in self.end_decoys]
 
     def _frame(self, item):
+        if item in self.blank_names:
+            return Reading(names=[("", .2)],
+                           quantities=[(f"拥有{self.quantities.get(item, 0)}个", .99, list(QUANTITY_BOX))])
         if self.frame_iter is not None:
             self.last = next(self.frame_iter, self.last)
             text, box = self.last
@@ -162,6 +168,8 @@ class Device:
         return self._frame(self.current) if self.current else None
 
     def read_names(self):
+        if self.current in self.blank_names:
+            return [("", .2)]
         return [(self.current, .99)] if self.current else []
 
     def read_quantity_scaled(self):
@@ -204,7 +212,7 @@ def run(device, targets, **options):
     catalog = {name: f"tpl/{name}" for name in INGREDIENTS}
     options.setdefault("on_page", lambda page, reads: device.persisted.append((page, reads)))
     engine = BagScanEngine(device, catalog, targets, grid_roi=GRID, row_height=ROW,
-                           ingredient_names=INGREDIENTS, **options)
+                           section_names=INGREDIENTS, **options)
     return engine.run()
 
 
@@ -313,13 +321,70 @@ class EngineTests(unittest.TestCase):
         result = scan(footer_rows=64)
         self.assertEqual((result["continuity"], result["absent"]), ("verified", ["盐"]))
 
-    def test_template_hit_on_another_item_blocks_zero(self):
+    def test_template_hit_on_a_clearly_named_other_item_does_not_block_zero(self):
+        # 用户 11-11：身份以点开读名为准。盐的模板命中米的格子，点开清楚是米：这格不是盐，盐照常可以判 0。
         bag = Bag(layout("米", *fillers(30)))
         device = Device(bag, {"米": 9}, decoys={"盐": ("米",)})
         result = run(device, ["盐", "米"])
         self.assertEqual(result["quantities"], {"米": 9})
-        self.assertEqual(result["unknown"], {"盐": "detail_unreadable"})
+        self.assertEqual(result["absent"], ["盐"])
+        self.assertEqual(result["unknown"], {})
+
+    def test_twin_icons_both_resolve_and_the_missing_one_is_zeroed(self):
+        # 共用同一张图标的一对（如忍耐精髓 / 冰河魔石）：只有一个在包里，另一个也要能判 0。
+        bag = Bag(layout("米", *fillers(30)))
+        device = Device(bag, {"米": 9}, decoys={"盐": ("米",), "米": ()})
+        result = run(device, ["米", "盐"])
+        self.assertEqual((result["quantities"], result["absent"]), ({"米": 9}, ["盐"]))
+        self.assertEqual(device.opens.count("米"), 1)
+
+    def test_template_hit_with_unreadable_name_blocks_zero(self):
+        # 点开了却读不出名字：这格是谁不知道，命中它的目标都不许判 0。
+        bag = Bag(layout("米", *fillers(30)))
+        device = Device(bag, {"米": 9}, decoys={"盐": ("米",)}, blank_names={"米"})
+        result = run(device, ["盐", "米"])
+        self.assertEqual(result["quantities"], {})
+        self.assertEqual(result["unknown"], {"盐": "detail_unreadable", "米": "detail_unreadable"})
         self.assertEqual(result["absent"], [])
+
+    def test_name_read_without_quantity_stays_unverified_even_off_the_hit_list(self):
+        # 盐的模板命中了米的格子（米自己的模板没命中），名字读出是米、数量没读成：米不能因为没被找到而判 0。
+        flicker = [("拥有12个", [270, 263, 90, 24]), ("拥有18个", [270, 263, 90, 24])] * 3
+        bag = Bag(layout("米", *fillers(30)))
+        device = Device(bag, {}, decoys={"盐": ("米",)}, frames={"米": flicker})
+        original = device.match
+        device.match = lambda entry, image: [] if entry == "tpl/米" else original(entry, image)
+        result = run(device, ["盐", "米"])
+        self.assertEqual(result["unknown"], {"米": "detail_unreadable"})
+        self.assertEqual(result["absent"], ["盐"])
+
+    def test_without_section_end_items_after_the_end_are_read_and_zeroes_wait_for_bottom(self):
+        # 养成、制作材料排在末端之后：请求里有它们时到末端不停，一直扫到列表底才判 0。
+        bag = Bag(layout("兽肉", *fillers(20), END, "精炼石", *fillers(20, 20), "女神之泪", end=False))
+        catalog = {name: f"tpl/{name}" for name in ("兽肉", "盐", "精炼石", "女神之泪", "火圣石")}
+        device = Device(bag, amounts("兽肉", "精炼石", "女神之泪"))
+        engine = BagScanEngine(device, catalog, list(catalog), grid_roi=GRID, row_height=ROW,
+                               section_names=INGREDIENTS, section_end=False, zero_evidence="list_bottom",
+                               aliases={name: name for name in [*catalog, END, *fillers(60)]},
+                               on_page=lambda page, reads: device.persisted.append((page, reads)))
+        result = engine.run()
+        self.assertEqual((result["termination"], result["zero_evidence"]), ("list_bottom", "list_bottom"))
+        self.assertEqual(result["quantities"], amounts("兽肉", "精炼石", "女神之泪"))
+        self.assertEqual(result["absent"], ["火圣石", "盐"])
+        self.assertNotIn(END, device.opens)
+
+    def test_catalog_entries_with_threshold_and_color_reach_the_device(self):
+        names = ["兽肉", "米"]
+        device = Device(Bag(layout(*names, *fillers(30))), amounts(*names))
+        seen = []
+        original = device.match
+        device.match = lambda entry, image: seen.append(entry) or original(entry, image)
+        catalog = {"兽肉": "tpl/兽肉",
+                   "米": {"template": "tpl/米", "threshold": 0.85,
+                          "color": {"lower": [0, 0, 0], "upper": [180, 40, 255], "count": 300}}}
+        engine = BagScanEngine(device, catalog, names, grid_roi=GRID, row_height=ROW, section_names=INGREDIENTS)
+        self.assertEqual(engine.run()["quantities"], amounts(*names))
+        self.assertIn(catalog["米"], seen)
 
     def test_skipped_rows_never_produce_zero(self):
         # 第 7 行在两页之间被整行跳过：盐其实在背包里，绝不能判 0。
@@ -425,19 +490,92 @@ class ShiftTests(unittest.TestCase):
 class CatalogTests(unittest.TestCase):
     """目录项必须有对应资源包自带的模板图：PC 目录只能引用 PC 包里的图，退回 base 的图尺寸不对，会把有的物品扫成 0。"""
 
+    CATALOGS = {"ingredients": "Agt_BagScan_Ingredients_Catalog", "dishes": "Agt_BagScan_Dishes_Catalog",
+                "growth": "Agt_BagScan_Growth_Catalog", "craft": "Agt_BagScan_Craft_Catalog"}
+
     def test_every_catalog_template_exists_in_its_own_pack(self):
         import json
+        from PIL import Image
         from utils.name_i18n import canon
-        items = json.loads((ROOT / "agent/data/bd2_item_names_i18n.json").read_text(encoding="utf-8"))
-        ingredients = {item["cn"] for item in items if item.get("category") == "Ingredients"}
+        items = json.loads((ROOT / "agent/data/bag_item_names.json").read_text(encoding="utf-8"))["items"]
+        profile_of = {item["cn"]: item["profile"] for item in items}
         for pack in ("base", "pc"):
             pipeline = json.loads((ROOT / f"assets/resource/{pack}/pipeline/BagScan.json").read_text(encoding="utf-8"))
-            catalog = pipeline["Agt_BagScan_Ingredients_Catalog"]["attach"]["templates"]
-            for name, path in catalog.items():
-                with self.subTest(pack=pack, name=name):
-                    self.assertTrue((ROOT / f"assets/resource/{pack}/image" / path).is_file(), path)
-                    self.assertEqual(canon(name), name)
-                    self.assertIn(name, ingredients)
+            cell = {"base": (94, 94), "pc": (79, 78)}[pack]
+            for profile, node in self.CATALOGS.items():
+                catalog = pipeline[node]["attach"]["templates"]
+                self.assertTrue(catalog, f"{pack} {node} 是空的")
+                for name, entry in catalog.items():
+                    with self.subTest(pack=pack, name=name):
+                        path = entry if isinstance(entry, str) else entry["template"]
+                        image = ROOT / f"assets/resource/{pack}/image" / path
+                        self.assertTrue(image.is_file(), path)
+                        self.assertEqual(canon(name), name)
+                        self.assertEqual(profile_of.get(name), profile)
+                        if isinstance(entry, dict):
+                            self.assertTrue(0.8 <= entry["threshold"] <= 0.95)
+                            with Image.open(image) as tile:
+                                # 生成图是格子的一部分：比格子大就是倍率用错了包
+                                self.assertTrue(tile.size[0] <= cell[0] and tile.size[1] <= cell[1], tile.size)
+                            color = entry.get("color")
+                            if color:
+                                self.assertEqual((len(color["lower"]), len(color["upper"])), (3, 3))
+                                self.assertGreater(color["count"], 0)
+
+
+class ProfileTests(unittest.TestCase):
+    """几个档案一起扫的合并规则，以及背包读名用的名录。"""
+
+    class Node:
+        def __init__(self, attach):
+            self.attach = attach
+
+    class Context:
+        def __init__(self, nodes):
+            self.nodes = nodes
+
+        def get_node_object(self, name):
+            return ProfileTests.Node(self.nodes[name])
+
+    def context(self):
+        import json
+        pipeline = json.loads((ROOT / "assets/resource/base/pipeline/BagScan.json").read_text(encoding="utf-8"))
+        return self.Context({name: node.get("attach") for name, node in pipeline.items()})
+
+    def test_food_profiles_keep_the_section_end(self):
+        bag_scan = import_bag_scan(self)
+        nodes = bag_scan._profile_nodes([bag_scan.PROFILES["ingredients"], bag_scan.PROFILES["dishes"]])
+        profile, catalog, names, section_end, scope = bag_scan._merge_profiles(self.context(), nodes)
+        self.assertTrue(section_end)
+        self.assertEqual((scope, profile["zero_evidence"]), (["ingredients", "dishes"], "ingredient_boundary"))
+        self.assertIn("香草牛排", catalog)
+        self.assertIn("香草牛排", names)
+
+    def test_growth_or_craft_turns_the_section_end_off(self):
+        bag_scan = import_bag_scan(self)
+        nodes = bag_scan._profile_nodes([bag_scan.PROFILES[key] for key in ("ingredients", "growth", "craft")])
+        profile, catalog, names, section_end, scope = bag_scan._merge_profiles(self.context(), nodes)
+        self.assertFalse(section_end)
+        self.assertEqual((profile["end_node"], profile["zero_evidence"]), ("", "list_bottom"))
+        self.assertEqual(profile["max_pages"], 40)
+        for name in ("兽肉", "女神之泪", "狂暴火种", "异界火种", "精炼石", "精炼水晶", "铁矿石"):
+            self.assertIn(name, names)
+
+    def test_unknown_profile_is_rejected(self):
+        bag_scan = import_bag_scan(self)
+        with self.assertRaises(ValueError):
+            bag_scan._profile_nodes(["Agt_BagScan_Profile_Nope"])
+
+    def test_bag_aliases_cover_traditional_names_without_touching_the_shared_table(self):
+        bag_scan = import_bag_scan(self)
+        from utils.ocr_item_name import item_aliases, resolve_ocr_name
+        aliases = bag_scan._aliases()
+        # 「光圣石」是游戏物品表的简体原名，项目规范名是「光明圣石」：读到原名也要归到规范名，否则目录永远对不上、被误判 0。
+        for text, name in (("煉製水晶", "精炼水晶"), ("暴走火種", "狂暴火种"), ("女神的眼淚", "女神之泪"),
+                           ("鮭魚", "三文鱼"), ("精炼石", "精炼石"), ("光圣石", "光明圣石"), ("暗的聖石", "黑暗圣石")):
+            with self.subTest(text=text):
+                self.assertEqual(resolve_ocr_name(text, .99, aliases=aliases)["name"], name)
+        self.assertNotIn("精炼水晶", set(item_aliases().values()))
 
 
 def import_bag_scan(test):
@@ -464,7 +602,7 @@ class ActionTests(unittest.TestCase):
         catalog = {"兽肉": "tpl/兽肉", "米": "tpl/米"}
         targets = bag_scan._targets("all", catalog, {"兽肉", "米", "灵魂鲜奶油", "能量蘑菇"})
         self.assertEqual(targets, ["兽肉", "米", "灵魂鲜奶油", "能量蘑菇"])
-        engine = BagScanEngine(None, catalog, targets, grid_roi=GRID, row_height=ROW, ingredient_names=())
+        engine = BagScanEngine(None, catalog, targets, grid_roi=GRID, row_height=ROW, section_names=())
         self.assertEqual(engine.unknown, {"灵魂鲜奶油": "template_missing", "能量蘑菇": "template_missing"})
 
     def test_unwritten_zeroes_become_unknown(self):
