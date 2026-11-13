@@ -93,6 +93,8 @@ def estimate_shift(previous, current, band, threshold):
     列表区上下边缘可能压着不随列表滚动的界面（10-28 实机：模拟器列表区最下 64 行是固定底栏），
     这些行在两帧里完全相同。先把贴着上下边缘的这类行剔掉，只在真正滚动的区域里找；否则底栏会
     让「没动」在差值上占便宜，真动了反而对不上。误剔掉的只会让可视高度变小、判定更严，不会放宽。
+
+    一行高的条带碰上同款物品连成的几行会有两个一样好的位置，这时加高到两行再比一次（见函数内注释）。
     """
     a = np.asarray(previous, dtype=np.float32)
     b = np.asarray(current, dtype=np.float32)
@@ -112,17 +114,51 @@ def estimate_shift(previous, current, band, threshold):
     info = {"viewport": height, "trimmed": [top, full - bottom]}
     if height < band * 2:
         return None, "broken", info
-    strip = a[height - band:]
-    scores = np.array([np.mean(np.abs(b[height - band - s:height - s] - strip))
-                       for s in range(height - band + 1)])
-    shift = int(np.argmin(scores))
-    best = float(scores[shift])
-    others = np.concatenate([scores[:max(0, shift - band // 2)], scores[shift + band // 2 + 1:]])
-    second = float(others.min()) if others.size else float("inf")
+    scores = _scores(a, b, band)
+    shift, best, second = _pick(scores, band)
     info.update(best=round(best, 2), second=round(second, 2))
+    if best <= threshold and second - best < _CONTINUITY_MARGIN:
+        widened, info["widened"] = _widen(a, b, band, scores, threshold)
+        if widened is not None:
+            shift, best, second = widened
     if best > threshold or second - best < _CONTINUITY_MARGIN:
         return shift, "broken", info
     return shift, "same" if shift <= 2 else "moved", info
+
+
+def _scores(a, b, band):
+    """上一页底部高 band 的条带放在新页每个位移处的平均差。"""
+    height = a.shape[0]
+    strip = a[height - band:]
+    return np.array([np.mean(np.abs(b[height - band - s:height - s] - strip)) for s in range(height - band + 1)])
+
+
+def _pick(scores, row):
+    """(最佳位移, 最佳得分, 次佳得分)：次佳取离最佳超过半行的地方，差不到半行的算同一处。"""
+    shift = int(np.argmin(scores))
+    others = np.concatenate([scores[:max(0, shift - row // 2)], scores[shift + row // 2 + 1:]])
+    return shift, float(scores[shift]), float(others.min()) if others.size else float("inf")
+
+
+def _widen(a, b, band, narrow, threshold):
+    """一行高的条带分不开时加高再比。条带落在同款物品连成的几行上（11-13 PC 实机：一整行 99,999 的同一种矿，
+    新页里连着两行一样）会有两个差一行、一样好的位置；往上加高，带上上面那行不一样的内容就能分开。
+
+    位移错一行，后面每页的格子都会对错号（可能把没见过的格子当成处理过、误判 0），所以只认画面证据、不猜拖动距离：
+    ① 加高后能搜的位移变少，条带只加到所有近优位置都还搜得到为止（最多两行），否则真位置可能根本没被比过；
+    ② 加高后最佳要分得开，且落在近优位置上；③ 在那个位置，加高的条带要和一行高时对得一样好（多出来的那截也对上）。
+    返回 ((位移, 最佳, 次佳) 或 None, 日志说明)。"""
+    height = a.shape[0]
+    near = np.flatnonzero(narrow <= narrow.min() + _CONTINUITY_MARGIN)
+    tall = min(band * 2, height - int(near.max()))
+    if tall < band + band // 4:
+        return None, {"tall": tall}
+    shift, best, second = _pick(_scores(a, b, tall), band)
+    note = {"tall": tall, "shift": shift, "best": round(best, 2), "second": round(second, 2)}
+    if (best <= threshold and second - best >= _CONTINUITY_MARGIN and int(np.abs(near - shift).min()) <= 2
+            and best - float(narrow[shift]) <= _CONTINUITY_MARGIN / 2):
+        return (shift, best, second), note
+    return None, note
 
 
 def _within(a, b, limit):

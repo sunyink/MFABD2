@@ -803,6 +803,33 @@ class ShiftTests(unittest.TestCase):
         self.bag.offset = 40
         self.assertEqual(estimate_shift(before, self.grid(), ROW, 12.0)[:2], (40, "moved"))
 
+    def test_identical_rows_resolved_by_taller_strip(self):
+        # 11-13 PC 实机：上一页底部是一整行同款物品，新页里这样的行连着两行，一行高的条带在 440 与 340 两处一样好。
+        # 加高到两行带上上面那行不同的内容，就只剩真位置。
+        self.bag = Bag(layout(*fillers(30), *["同款"] * 18, *fillers(30, 30)))
+        before = self.grid()
+        self.bag.offset = 440
+        shift, state, info = estimate_shift(before, self.grid(), ROW, 12.0)
+        self.assertEqual((shift, state), (440, "moved"))
+        self.assertLess(info["second"] - info["best"], 4.0)     # 一行高时确实分不开
+        self.assertIn("widened", info)
+
+    def test_identical_rows_beyond_two_rows_stay_broken(self):
+        # 加高到两行仍全是同款：画面给不出证据，照旧判接不上，不猜。
+        self.bag = Bag(layout(*fillers(18), *["同款"] * 36, *fillers(30, 18)))
+        before = self.grid()
+        self.bag.offset = 440
+        self.assertEqual(estimate_shift(before, self.grid(), ROW, 12.0)[1], "broken")
+
+    def test_identical_rows_near_search_limit_stay_broken(self):
+        # 滚得太远，加高后的条带够不着真位置（520）：不能退而采信够得着的那个假位置（420），照旧判接不上。
+        self.bag = Bag(layout(*fillers(30), *["同款"] * 18, *fillers(30, 30)))
+        before = self.grid()
+        self.bag.offset = 520
+        shift, state, info = estimate_shift(before, self.grid(), ROW, 12.0)
+        self.assertEqual(state, "broken")
+        self.assertLess(info["widened"]["tall"], ROW + ROW // 4)
+
 
 def pipeline(pack):
     return json.loads((ROOT / f"assets/resource/{pack}/pipeline/BagScan.json").read_text(encoding="utf-8"))
