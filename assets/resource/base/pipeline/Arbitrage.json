@@ -5861,6 +5861,8 @@
         "any_of": [
             "Arbitrage_Cooking_SubMenu"
         ],
+        "action": "Custom",
+        "custom_action": "CookingMadeConfirm",
         "next": [
             "Arbitrage_Cooking_ExMax",
             "Arbitrage_Cooking_MaterialInsufficient",
@@ -8325,6 +8327,16 @@
         "expected": [
             "天赋技能",
             "天賦技能"
+        ]
+    },
+    "Agt_Cooking_Owned_Ocr": {
+        "desc": "py 独占，勿挂进管路。详情页左上「持有 N 个食物」，成品持有数；制作前后各读一次得出这次做了几个。roi 与页面判据 Arbitrage_Cooking_SubMenu 相同。",
+        "recognition": "OCR",
+        "roi": [
+            173,
+            107,
+            183,
+            80
         ]
     }
 }

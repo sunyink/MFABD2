@@ -456,5 +456,78 @@
     },
     "Rec_「Global_WaitingForLoading」_05": {
         "desc": "[识别]转场等待03,大色块-黑"
+    },
+    "Agt_Currency_Diamond_Icon_Tpl": {
+        "template": [
+            "Currency/Diamond_PC.png"
+        ]
+    },
+    "Agt_Currency_Gold_Icon_Tpl": {
+        "template": [
+            "Currency/Gold_PC.png"
+        ]
+    },
+    "Agt_Currency_Tonic_Icon_Tpl": {
+        "template": [
+            "Currency/Tonic_PC.png"
+        ]
+    },
+    "Agt_Currency_Number_Ocr": {
+        "attach": {
+            "tail_width": 100,
+            "max_lead": 20,
+            "half_height": 14
+        }
+    },
+    "Agt_Currency_Diamond_Popup_Ocr": {
+        "roi": [
+            318,
+            212,
+            90,
+            46
+        ]
+    },
+    "Agt_Currency_Diamond_Expand_Tpl": {
+        "roi": [
+            380,
+            256,
+            200,
+            32
+        ],
+        "template": [
+            "Currency/Expand_PC.png"
+        ]
+    },
+    "Agt_Currency_Diamond_Detail_Ocr": {
+        "roi": [
+            334,
+            280,
+            100,
+            34
+        ]
+    },
+    "Agt_Currency_Diamond_Free_Ocr": {
+        "roi": [
+            440,
+            314,
+            150,
+            22
+        ]
+    },
+    "Agt_Currency_Diamond_Paid_Ocr": {
+        "roi": [
+            440,
+            335,
+            150,
+            24
+        ]
+    },
+    "Agt_Currency_Diamond_Close": {
+        "target": [
+            933,
+            203,
+            25,
+            25
+        ]
     }
 }

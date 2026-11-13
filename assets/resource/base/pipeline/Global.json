@@ -1626,5 +1626,145 @@
         "expected": [
             "格鲁菲餐厅"
         ]
+    },
+    "Agt_Currency_Diamond_Icon_Tpl": {
+        "desc": "py 独占，勿挂进管路。顶栏钻石图标；主界面与箱庭通用。顶栏随数字位数整排挪动，读数与点开弹窗都以认出的图标为准。",
+        "recognition": "TemplateMatch",
+        "roi": [
+            400,
+            8,
+            620,
+            64
+        ],
+        "template": [
+            "Currency/Diamond.png"
+        ],
+        "threshold": 0.9
+    },
+    "Agt_Currency_Gold_Icon_Tpl": {
+        "desc": "py 独占，勿挂进管路。顶栏金币图标；主界面与箱庭通用。",
+        "recognition": "TemplateMatch",
+        "roi": [
+            400,
+            8,
+            620,
+            64
+        ],
+        "template": [
+            "Currency/Gold.png"
+        ],
+        "threshold": 0.9
+    },
+    "Agt_Currency_Tonic_Icon_Tpl": {
+        "desc": "py 独占，勿挂进管路。顶栏天赋神药图标；主界面与箱庭通用。",
+        "recognition": "TemplateMatch",
+        "roi": [
+            400,
+            8,
+            620,
+            64
+        ],
+        "template": [
+            "Currency/Tonic.png"
+        ],
+        "threshold": 0.9
+    },
+    "Agt_Currency_Number_Ocr": {
+        "desc": "py 独占，勿挂进管路。顶栏图标右侧的数字；roi 由 py 按认出的图标现算（这里的只是占位），attach 给数字区的宽度与起点容差。",
+        "recognition": "OCR",
+        "roi": [
+            400,
+            8,
+            620,
+            64
+        ],
+        "attach": {
+            "tail_width": 110,
+            "max_lead": 20,
+            "half_height": 16
+        }
+    },
+    "Agt_Currency_Diamond_Click": {
+        "desc": "py 独占，勿挂进管路。点认出的钻石图标打开钻石弹窗；py 传入图标框。",
+        "pre_delay": 0,
+        "action": "Click",
+        "target": true,
+        "post_delay": 0
+    },
+    "Agt_Currency_Diamond_Popup_Ocr": {
+        "desc": "py 独占，勿挂进管路。钻石弹窗标题，弹窗已打开的判据；主界面与箱庭弹出的是同一个弹窗。",
+        "recognition": "OCR",
+        "roi": [
+            255,
+            182,
+            110,
+            52
+        ],
+        "expected": [
+            "^[钻鑽]石$"
+        ]
+    },
+    "Agt_Currency_Diamond_Expand_Tpl": {
+        "desc": "py 独占，勿挂进管路。弹窗「拥有 N 个」右边的 ⊕，点开出免费 / 付费；位置随数字位数左右移，roi 罩住整行。",
+        "recognition": "TemplateMatch",
+        "roi": [
+            330,
+            234,
+            200,
+            36
+        ],
+        "template": [
+            "Currency/Expand.png"
+        ],
+        "threshold": 0.9,
+        "pre_delay": 0,
+        "action": "Click",
+        "target": true,
+        "post_delay": 0
+    },
+    "Agt_Currency_Diamond_Detail_Ocr": {
+        "desc": "py 独占，勿挂进管路。「详细拥有量」小框标题，免费 / 付费已展开的判据。",
+        "recognition": "OCR",
+        "roi": [
+            272,
+            262,
+            120,
+            40
+        ],
+        "expected": [
+            "[详詳][细細]"
+        ]
+    },
+    "Agt_Currency_Diamond_Free_Ocr": {
+        "desc": "py 独占，勿挂进管路。免费钻石一行的「拥有 N 个」，右对齐，位数多了往左长。",
+        "recognition": "OCR",
+        "roi": [
+            400,
+            302,
+            170,
+            30
+        ]
+    },
+    "Agt_Currency_Diamond_Paid_Ocr": {
+        "desc": "py 独占，勿挂进管路。付费钻石一行的「拥有 N 个」，右对齐。",
+        "recognition": "OCR",
+        "roi": [
+            400,
+            330,
+            170,
+            30
+        ]
+    },
+    "Agt_Currency_Diamond_Close": {
+        "desc": "py 独占，勿挂进管路。钻石弹窗右上角 X。弹窗里还有「前往商店」，别点。",
+        "pre_delay": 0,
+        "action": "Click",
+        "target": [
+            995,
+            175,
+            25,
+            25
+        ],
+        "post_delay": 0
     }
 }

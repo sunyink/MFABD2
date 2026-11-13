@@ -67,3 +67,25 @@ def get_latest_scan(label: str) -> dict | None:
         latest = _base._inventory(_base.PersistentStore.load())["latest"]
         summary = latest.get("scans", {}).get(label) if isinstance(latest.get("scans"), dict) else None
         return copy.deepcopy(summary) if isinstance(summary, dict) else None
+
+
+_CURRENCY_FIELDS = (
+    "label", "observed_at", "gold", "diamond", "tonic", "diamond_free", "diamond_paid", "diamond_paid_source",
+    "icons_found", "detail_error", "detail_closed",
+)
+
+
+def save_currency_reading(record: dict) -> bool:
+    """保存一次顶栏货币读数（钻石、金币、天赋神药，及钻石免费 / 付费）：事件进冷档，热档 latest.currency 留最近一次。
+
+    读不到的项为 None，原样记下，不补零。货币不是背包物品，不写进 items。
+    """
+    event = {key: copy.deepcopy(record.get(key)) for key in _CURRENCY_FIELDS}
+    event["kind"] = "currency_reading"
+    event["observed_at"] = event["observed_at"] or _base.utc_now()
+    with _base._LOCK:
+        data = _base.PersistentStore.load()
+        inventory = _base._inventory(data)
+        inventory["latest"]["currency"] = {key: value for key, value in event.items() if key != "kind"}
+        inventory["events"].append(event)
+        return bool(_base._save_inventory(data))
