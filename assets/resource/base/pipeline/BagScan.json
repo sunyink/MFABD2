@@ -406,7 +406,7 @@
         "post_delay": 0
     },
     "Agt_BagScan_Detail": {
-        "desc": "py独占，勿挂进管路。物品详情弹窗的截帧判定与按颜色定字，资源包整节点覆盖（agent/utils/bag_detail.py）。name名称行、name_lit名称行里不与列表重叠的左段、quantity数量行（往下多留一行：宝箱多一行锁定开关，数量行下移约33像素）；lit/lit_count：名称左段至少有lit_count个三个通道都不低于lit的像素，才算淡入走到头（途中最亮约240出头）；steady：名称左段与上一帧的平均差低于它算静止（走完后0.00–0.01，途中2.8–37）；open_timeout点击后等遮罩出现的上限，timeout等走完的上限（毫秒），interval两次截帧的最小间隔。名称是白字、数量是浅蓝字，颜色阈值用模块默认值。",
+        "desc": "py独占，勿挂进管路。物品详情弹窗的截帧判定与按颜色定字，资源包整节点覆盖（agent/utils/bag_detail.py）。name名称行、name_lit名称行里不与列表和右侧闪烁粒子重叠的左段、quantity数量行（往下多留一行：宝箱多一行锁定开关，数量行下移约33像素）、close_icon关闭按钮「×」终态所在的一块；弹窗出现是上滑加淡入，走完的判据是「×」与本趟第一次读完时记下的样子一致（平均差≤anchor_diff，实测终态0–2、差一步≥4）且名称与数量两处与上一帧一样（平均差<still）；open_timeout点击后等遮罩出现的上限，timeout等走完的上限（毫秒），interval两次截帧的最小间隔。名称白字、数量浅蓝字，颜色阈值用模块默认值。",
         "enabled": false,
         "attach": {
             "name": [
@@ -418,7 +418,7 @@
             "name_lit": [
                 262,
                 183,
-                316,
+                290,
                 51
             ],
             "quantity": [
@@ -427,9 +427,14 @@
                 280,
                 90
             ],
-            "lit": 250,
-            "lit_count": 3,
-            "steady": 1.0,
+            "close_icon": [
+                992,
+                172,
+                32,
+                32
+            ],
+            "still": 1.0,
+            "anchor_diff": 2.5,
             "open_timeout": 2000,
             "timeout": 5000,
             "interval": 30

@@ -137,12 +137,13 @@ def load_items(text_dir):
         items.append({"profile": found[0], "kind": found[1], "cn": cn, "tw": row["names"].get("zh-Hant") or "",
                       "alias": [raw] if raw != cn else [], "icon": icons[0]})
     # 宝箱表里也有「只装一样东西、直接借那样东西的图标和名字」的条目（如名为初级天赋技能书的奖励），收进来会给目标物品的
-    # 图标挂上一个同名的目录外别名。所以图标已被物品表用过的、名字与已有物品相同的都不收：真箱子都有自己的图标。
+    # 图标挂上一个同名的目录外别名；还有开箱奖励（付费钻石、金币、米饭）与活动礼包。所以图标已被物品表用过的、名字与已有
+    # 物品相同的、名字不带「箱」的都不收（用户 11-12：箱子多半以「箱」结尾）。没收的礼包万一在背包里，只是点开一次读名。
     used_icons = {item["icon"] for item in items}
     used_names = {item["cn"] for item in items}
     for cn, tw, icon in load_boxes(db):
         cn = canon(cn)
-        if icon in used_icons or cn in used_names or (cn, icon) in other_seen:
+        if icon in used_icons or cn in used_names or "箱" not in cn or (cn, icon) in other_seen:
             continue
         other_seen.add((cn, icon))
         items.append({"profile": "other", "kind": "宝箱", "cn": cn, "tw": tw, "alias": [], "icon": icon})

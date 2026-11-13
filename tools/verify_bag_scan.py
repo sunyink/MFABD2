@@ -19,7 +19,7 @@ sys.path.insert(0, str(ROOT / "agent"))
 from utils import arbitrage_store as store
 from utils import inventory_store
 from utils.bag_cells import Cell, Grid, Icon, Page, color_count, hsv, icon_pack, item_table, read_page
-from utils.bag_detail import DetailLayout, bright, split_quantity, steady, stitch, text_box
+from utils.bag_detail import DetailLayout, FadeWatch, anchor_of, split_quantity, stitch, text_box
 from utils.bag_scan_engine import BagScanEngine, Reading, Section, estimate_shift
 from utils.ocr_item_name import item_aliases
 
@@ -587,15 +587,18 @@ POPUP = (60, 47, 40)        # 弹窗底色（BGR）
 BLUE = (253, 206, 161)      # 数量行的浅蓝字（BGR，实测 RGB 161,206,253）
 
 
-def popup(name_value=255, name_width=120, quantity_rows=(264,), description_blue=None):
-    """合成一帧详情弹窗：名称白字一块、数量浅蓝字一行（rows 给行上沿），可再加一行带蓝字的说明。"""
+def popup(name_value=255, name_width=120, quantity_rows=(264,), description_blue=None, slide=0):
+    """合成一帧详情弹窗：名称白字一块、数量浅蓝字一行（rows 给行上沿）、右上角一个「×」；slide：整块还差几像素没滑到终点。"""
     image = np.zeros((720, 1280, 3), np.uint8)
     image[:] = POPUP
-    image[198:222, 268:268 + name_width] = name_value
+    image[198 + slide:222 + slide, 268:268 + name_width] = name_value
     for top in quantity_rows:
-        image[top:top + 22, 270:360] = BLUE
+        image[top + slide:top + slide + 22, 270:360] = BLUE
     if description_blue is not None:
-        image[description_blue:description_blue + 20, 300:400] = BLUE
+        image[description_blue + slide:description_blue + slide + 20, 300:400] = BLUE
+    for k in range(16):                                       # 「×」：两条对角线
+        image[180 + slide + k, 1000 + k] = 249
+        image[180 + slide + k, 1015 - k] = 249
     return image
 
 
@@ -610,13 +613,19 @@ class DetailTests(unittest.TestCase):
                 lx, ly, lw, lh = bands.name_lit
                 self.assertTrue(nx == lx and ny == ly and lw < nw and lh == nh)    # 左段在名称行里
                 self.assertGreater(bands.quantity[1], ny)
+                self.assertGreater(bands.close_icon[0], nx + nw)                   # 「×」在名称行右边
 
-    def test_fade_end_needs_nearly_white_text_and_a_still_frame(self):
+    def test_without_an_anchor_the_fade_ends_after_three_still_frames(self):
+        watch = FadeWatch(detail_layout())
+        frames = (popup(slide=6, name_value=200), popup(slide=2), popup(), popup(), popup())
+        self.assertEqual([watch.feed(f) for f in frames], [False, False, False, False, True])
+
+    def test_with_an_anchor_the_close_icon_must_be_back_in_place(self):
         bands = detail_layout()
-        self.assertFalse(bright(popup(name_value=243), bands))      # 淡入途中最亮只到 240 出头
-        self.assertTrue(bright(popup(), bands))
-        self.assertTrue(steady(popup(), popup(), bands))
-        self.assertFalse(steady(popup(name_value=200), popup(), bands))
+        watch = FadeWatch(bands, anchor_of(popup(), bands))
+        # 越过终点 2 像素时文字也可能两帧一样（截图重复给同一帧），「×」不在原位就不算走完
+        frames = (popup(slide=-2), popup(slide=-2), popup(), popup())
+        self.assertEqual([watch.feed(f) for f in frames], [False, False, False, True])
 
     def test_text_boxes_follow_the_colour(self):
         bands = detail_layout()
@@ -652,11 +661,11 @@ class FakeResult:
 
 
 class FakeContext:
-    """仿 maa Context：按脚本逐帧给截图（用完停在最后一帧）；页签亮不亮看 (0,0) 像素；只识别节点按顺序吐文字。"""
+    """仿 maa Context：按脚本逐帧给截图（用完停在最后一帧；cycle 时循环）；页签亮不亮看 (0,0) 像素；只识别节点按顺序吐文字。"""
 
-    def __init__(self, frames, texts=(), ready=False):
-        self.frames, self.texts, self.ready = list(frames), list(texts), ready
-        self.canvases, self.tasks, self.nodes = [], [], []
+    def __init__(self, frames, texts=(), ready=False, cycle=False):
+        self.frames, self.texts, self.ready, self.cycle = list(frames), list(texts), ready, cycle
+        self.canvases, self.tasks, self.nodes, self.shots = [], [], [], 0
         owner = self
 
         class Job:
@@ -671,7 +680,12 @@ class FakeContext:
 
         class Controller:
             def post_screencap(self):
-                return Job(owner.frames.pop(0) if len(owner.frames) > 1 else owner.frames[0])
+                owner.shots += 1
+                if owner.cycle:
+                    image = owner.frames[(owner.shots - 1) % len(owner.frames)]
+                else:
+                    image = owner.frames.pop(0) if len(owner.frames) > 1 else owner.frames[0]
+                return Job(image)
 
         class Tasker:
             stopping = False
@@ -702,43 +716,58 @@ def listed():
 
 
 class DeviceTests(unittest.TestCase):
-    """MaaBagDevice 的点开与读：等弹窗走完、按颜色定字、拼读一次；不成就退回原节点。"""
+    """MaaBagDevice 的点开与读：等出现动画走完、按颜色定字、拼读一次、读完核对；不成就退回原节点。"""
 
-    ATTACH = {"name": [262, 183, 370, 51], "name_lit": [262, 183, 316, 51], "quantity": [265, 250, 280, 90],
-              "open_timeout": 200, "timeout": 300, "interval": 0}
+    ATTACH = {"name": [262, 183, 370, 51], "name_lit": [262, 183, 290, 51], "quantity": [265, 250, 280, 90],
+              "close_icon": [992, 172, 32, 32], "open_timeout": 200, "timeout": 300, "interval": 0}
 
-    def test_waits_for_the_fade_and_reads_name_and_quantity_in_one_go(self):
-        bag_scan = import_bag_scan(self)
-        frames = [listed(), popup(name_value=180), popup(name_value=243), popup(), popup()]
+    def device(self, context):
+        return import_bag_scan(self).MaaBagDevice(context, "ready", self.ATTACH)
+
+    def test_first_open_waits_for_three_still_frames_then_keeps_the_close_icon(self):
+        frames = [listed(), popup(slide=8, name_value=180), popup(slide=-2), popup(), popup(), popup(), popup()]
         context = FakeContext(frames, texts=["黄色史莱姆拥有2,876个"])
-        reading = bag_scan.MaaBagDevice(context, "ready", self.ATTACH).open_detail([678, 455, 94, 94])
+        device = self.device(context)
+        reading = device.open_detail([678, 455, 94, 94])
         self.assertEqual((reading.names[0][0], reading.quantities[0][0], reading.settled),
                          ("黄色史莱姆", "拥有2876个", True))
         self.assertEqual(context.tasks[0], ("BagScan_Detail_Open", {"BagScan_Detail_Open": {"target": [678, 455, 94, 94]}}))
         self.assertEqual(len(context.canvases), 1)             # 名称与数量拼成一行，只识别一次
+        self.assertIsNotNone(device.anchor)                    # 核对通过，记下终态的「×」
+
+    def test_later_opens_settle_one_frame_after_the_close_icon_is_back(self):
+        context = FakeContext([popup(), popup(), popup(), popup()], texts=["甲拥有1个", "乙拥有2个"])
+        device = self.device(context)
+        device.open_detail([577, 152, 94, 94])
+        context.frames, context.shots = [listed(), popup(slide=-2), popup(), popup(), popup()], 0
+        reading = device.open_detail([678, 152, 94, 94])
+        self.assertEqual(reading.names[0][0], "乙")
+        self.assertEqual(context.shots, 5)       # 列表、越过终点、到终点、再一帧确认静止、读完核对
 
     def test_name_only_reads_one_crop(self):
-        bag_scan = import_bag_scan(self)
-        context = FakeContext([popup(), popup()], texts=["毒蛇之手制作材料箱"])
-        reading = bag_scan.MaaBagDevice(context, "ready", self.ATTACH).peek_detail([577, 152, 94, 94])
+        context = FakeContext([popup()] * 4, texts=["毒蛇之手制作材料箱"])
+        reading = self.device(context).peek_detail([577, 152, 94, 94])
         self.assertEqual((reading.names, reading.quantities, reading.settled), ([("毒蛇之手制作材料箱", .99)], [], True))
 
+    def test_text_that_changes_after_reading_is_read_again(self):
+        frames = [popup(), popup(), popup(), popup(name_value=230), popup(name_value=230)]
+        context = FakeContext(frames, texts=["甲拥有1个", "甲拥有12个"])
+        reading = self.device(context).open_detail([577, 152, 94, 94])
+        self.assertEqual((reading.quantities[0][0], len(context.canvases)), ("拥有12个", 2))
+
     def test_popup_that_never_shows_is_not_opened(self):
-        bag_scan = import_bag_scan(self)
         context = FakeContext([listed()])
-        self.assertIsNone(bag_scan.MaaBagDevice(context, "ready", self.ATTACH).open_detail([577, 152, 94, 94]))
+        self.assertIsNone(self.device(context).open_detail([577, 152, 94, 94]))
 
     def test_fade_that_never_ends_falls_back_to_the_old_nodes(self):
-        bag_scan = import_bag_scan(self)
-        context = FakeContext([popup(name_value=243)])
-        reading = bag_scan.MaaBagDevice(context, "ready", self.ATTACH).open_detail([577, 152, 94, 94])
+        context = FakeContext([popup(slide=2), popup()], cycle=True)
+        reading = self.device(context).open_detail([577, 152, 94, 94])
         self.assertFalse(reading.settled)
         self.assertIn("BagScan_Detail_Ready", context.nodes)
         self.assertNotIn("Rec_BagScan_Text_Rec", context.nodes)
 
     def test_reading_again_while_the_popup_is_gone_gives_nothing(self):
-        bag_scan = import_bag_scan(self)
-        device = bag_scan.MaaBagDevice(FakeContext([listed()]), "ready", self.ATTACH)
+        device = self.device(FakeContext([listed()]))
         self.assertIsNone(device.read_detail())
         self.assertEqual(device.read_names(), [])
 

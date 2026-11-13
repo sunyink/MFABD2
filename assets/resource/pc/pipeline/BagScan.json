@@ -200,9 +200,14 @@
                 281,
                 80
             ],
-            "lit": 250,
-            "lit_count": 3,
-            "steady": 1.0,
+            "close_icon": [
+                932,
+                202,
+                30,
+                30
+            ],
+            "still": 1.0,
+            "anchor_diff": 2.5,
             "open_timeout": 2000,
             "timeout": 5000,
             "interval": 30

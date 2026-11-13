@@ -1,8 +1,11 @@
-"""背包物品详情弹窗：判「淡入走完」、用颜色定出文字范围、把几段文字拼成一行。只用 numpy。
+"""背包物品详情弹窗：判「出现动画走完」、用颜色定出文字范围、把几段文字拼成一行。只用 numpy。
 
-弹窗是原地淡入（11-12 模拟器与 PC 实测）：点击后约 0.4 秒遮罩一帧压暗，弹窗不移动、不缩放，透明度约 0.3 秒涨到 1。
-淡入途中名称白字最亮只到 240 出头，走完才有接近纯白（≥250）的像素；走完后相邻两帧几乎一样（平均差 0.00–0.01，
-淡入途中 2.8–37）。截图偶尔连续两次返回同一帧，所以「和上一帧一样」不能单独当走完的信号，要和白字的亮度一起看。
+弹窗出现是「上滑约 20–25 像素 + 淡入」，末尾还会越过终点 1–2 像素再回落（11-12 模拟器与 PC 逐帧实测）：点击后约 0.4 秒
+画面不动，之后约 0.3 秒走完。走完的明确标志是**弹窗回到终态**：右上角关闭按钮「×」对每个物品都一样，终态时它在固定位置、
+样子逐像素相同；还差一步时位置差 1–2 像素、亮度也不到顶（与终态平均差 ≥4，终态 0–2，粒子闪过时约 2）。
+所以每趟第一次读完时把「×」那块记下来当参照（现场记，窗口缩放变了也对得上），之后判走完要三条同时成立：
+遮罩在、「×」与参照一致、名称与数量两处与上一帧一致。还没有参照时退而要求连续三帧不变。
+「画面静止多久」单独不能当信号：点击后 0.4 秒画面本来就不动，截图还会连着两次给同一帧。
 
 读字用框架 OCR 的「只识别」（only_rec，跳过找字框那一步）：先按颜色找出文字的外接框——名称是白字，数量
 「拥有…个」是浅蓝字——只把这块送去识别。名称与数量两段裁下来横向拼成一行，识别一次读出两样：本机识别模型每次调用
@@ -19,15 +22,15 @@ import numpy as np
 class DetailLayout:
     """详情弹窗的识别带（1280×720，按资源包覆盖，见 Agt_BagScan_Detail）与阈值。
 
-    name：名称行；name_lit：名称行里不与列表重叠的左段（判淡入走完）；quantity：数量行，往下多留一行
-    （宝箱的详情多一行锁定开关，数量行下移约 33 像素）。
+    name：名称行；name_lit：名称行里不与列表、不与右侧闪烁粒子重叠的左段；quantity：数量行，往下多留一行
+    （宝箱的详情多一行锁定开关，数量行下移约 33 像素）；close_icon：关闭按钮「×」终态所在的一块。
     """
     name: tuple
     name_lit: tuple
     quantity: tuple
-    lit: int = 250              # 名称白字走完时有这么亮的像素（三个通道都不低于它）
-    lit_count: int = 3          # 至少这么多个
-    steady: float = 1.0         # 名称左段与上一帧的平均差低于它算静止
+    close_icon: tuple
+    still: float = 1.0          # 两帧在文字处的平均差低于它算没变（走完后 0.00–0.01，途中 2.8–37）
+    anchor_diff: float = 2.5    # 「×」与参照的平均差不超过它算回到终态（终态 0–2，差一步 ≥4）
     white_min: int = 150        # 白字：三个通道都不低于它、且彼此相差不超过 white_spread
     white_spread: int = 40
     blue_min: int = 150         # 浅蓝字：蓝通道不低于它、且比红通道高出 blue_over_red
@@ -39,7 +42,7 @@ class DetailLayout:
     @classmethod
     def from_attach(cls, attach: dict) -> "DetailLayout":
         values = {key: attach[key] for key in cls.__dataclass_fields__ if key in attach}
-        for key in ("name", "name_lit", "quantity"):
+        for key in ("name", "name_lit", "quantity", "close_icon"):
             values[key] = tuple(int(v) for v in values[key])
         return cls(**values)
 
@@ -49,17 +52,47 @@ def _crop(image, box):
     return image[y:y + h, x:x + w]
 
 
-def bright(image, layout: DetailLayout) -> bool:
-    """名称左段里有接近纯白的字：弹窗淡入已到（或几乎到）终点。"""
-    band = _crop(image, layout.name_lit)
-    return int((band.min(axis=2) >= layout.lit).sum()) >= layout.lit_count
+def _diff(a, b, box):
+    return float(np.abs(_crop(a, box).astype(np.int16) - _crop(b, box).astype(np.int16)).mean())
 
 
-def steady(previous, image, layout: DetailLayout) -> bool:
-    """名称左段与上一帧几乎一样。"""
-    a = _crop(previous, layout.name_lit).astype(np.int16)
-    b = _crop(image, layout.name_lit).astype(np.int16)
-    return float(np.abs(a - b).mean()) < layout.steady
+def text_still(previous, image, layout: DetailLayout) -> bool:
+    """名称左段与数量行都与上一帧几乎一样。"""
+    return all(_diff(previous, image, box) < layout.still for box in (layout.name_lit, layout.quantity))
+
+
+def anchor_of(image, layout: DetailLayout):
+    """记下这一帧的「×」那块，当本趟的终态参照。"""
+    return np.array(_crop(image, layout.close_icon), copy=True)
+
+
+def at_anchor(image, anchor, layout: DetailLayout) -> bool:
+    """「×」回到终态：与参照的平均差不超过 anchor_diff。"""
+    return anchor is not None and float(
+        np.abs(_crop(image, layout.close_icon).astype(np.int16) - anchor.astype(np.int16)).mean()) <= layout.anchor_diff
+
+
+class FadeWatch:
+    """一次点开的逐帧判定：喂进遮罩已在的帧，返回是否走完。有参照时：「×」到终态且文字与上一帧一样；
+    没有参照时：文字与「×」连续三帧不变。遮罩不在的帧由调用方先挡掉并 reset。"""
+
+    def __init__(self, layout: DetailLayout, anchor=None):
+        self.layout, self.anchor = layout, anchor
+        self.previous, self.run = None, 0
+
+    def reset(self):
+        self.previous, self.run = None, 0
+
+    def feed(self, image) -> bool:
+        layout = self.layout
+        still = self.previous is not None and text_still(self.previous, image, layout)
+        if self.anchor is None:
+            still = still and _diff(self.previous, image, layout.close_icon) < layout.still
+        self.run = self.run + 1 if still else 0
+        self.previous = image
+        if self.anchor is not None:
+            return still and at_anchor(image, self.anchor, layout)
+        return self.run >= 2
 
 
 def _white(band, layout):
@@ -99,12 +132,17 @@ def text_box(image, band_box, color: str, layout: DetailLayout, top_line=False):
     elif int(mask.sum()) < layout.line_pixels:
         return None
     ys, xs = np.nonzero(mask)
-    x, y, w, h = band_box
+    x, y = band_box[0], band_box[1]
     left = max(0, x + int(xs.min()) - layout.pad_x)
     top = max(0, y + int(ys.min()) - layout.pad_y)
     right = min(image.shape[1], x + int(xs.max()) + 1 + layout.pad_x)
     bottom = min(image.shape[0], y + int(ys.max()) + 1 + layout.pad_y)
     return left, top, right - left, bottom - top
+
+
+def same_text(a, b, boxes, layout: DetailLayout) -> bool:
+    """读的那一帧与后来的一帧在这几块文字上几乎一样（读完关闭前的核对）。"""
+    return all(_diff(a, b, box) < layout.still for box in boxes if box)
 
 
 def stitch(image, boxes, gap=24):

@@ -20,7 +20,8 @@ from maa.custom_action import CustomAction
 from utils import mfaalog
 from utils.account_sync import sync_from_context
 from utils.bag_cells import Grid, icon_pack, item_table, read_page
-from utils.bag_detail import DetailLayout, bright, crop, plain_quantity, split_quantity, steady, stitch, text_box
+from utils.bag_detail import (DetailLayout, FadeWatch, anchor_of, at_anchor, crop, plain_quantity, same_text,
+                              split_quantity, stitch, text_box)
 from utils.bag_scan_engine import BagScanEngine, Reading, Section
 from utils.inventory_store import save_scan_record, set_inventory_quantities, utc_now
 from utils.name_i18n import canon
@@ -131,9 +132,10 @@ def _ran(detail, node):
 class MaaBagDevice:
     """把扫描核心要用的动作落到 BagScan.json 的节点上；坐标与轮询参数都在节点里，可按资源包覆盖。
 
-    点开详情（设计 §17）：节点只管点击；py 截帧等弹窗淡入走完——遮罩在（消耗品页签不亮）、名称白字接近纯白、
-    且与上一帧几乎一样——再在那一帧上按颜色定出名称、数量的范围，拼成一行只识别一次。等的是画面状态，不是钟点。
-    哪一步不成（版式没见过、颜色没找到字、拼读拆不开）就退回原来的检测+识别节点，扫描核心照旧两帧复核。
+    点开详情（设计 §17）：节点只管点击；py 截帧等弹窗出现动画走完——遮罩在（消耗品页签不亮）、右上角「×」回到终态
+    （与本趟记下的参照一致）、名称与数量两处与上一帧一样——再在那一帧上按颜色定出名称、数量的范围，拼成一行只识别一次；
+    读完关闭前再截一帧核对文字没变，才交出读数。等的是画面状态，不是钟点。
+    哪一步不成（版式没见过、颜色没找到字、拼读拆不开、一直等不到走完）就退回原来的检测+识别节点，扫描核心照旧两帧复核。
     """
 
     def __init__(self, context: Context, ready_node: str, detail: dict):
@@ -143,6 +145,7 @@ class MaaBagDevice:
         self.open_timeout = detail.get("open_timeout", 2000) / 1000
         self.settle_timeout = detail.get("timeout", 5000) / 1000
         self.interval = detail.get("interval", 30) / 1000
+        self.anchor = None      # 本趟记下的终态「×」：第一次读完核对通过时记，窗口缩放变了会在核对时换掉
 
     def stopping(self):
         return bool(self.context.tasker.stopping)
@@ -165,28 +168,27 @@ class MaaBagDevice:
     def _settle(self, opening):
         """截帧等详情弹窗淡入走完。返回 (结论, 截图)：
 
-        settled：遮罩在、名称左段有接近纯白的字、且与上一帧几乎一样（截图偶尔连着两次给同一帧，所以要和亮度一起看）；
-        opened：遮罩在，但到上限也没等到走完；None：弹窗不在——opening 为真时（刚点过）等 open_timeout 让它出来，
-        否则（弹窗本该开着）一帧就下结论。
+        settled：遮罩在、「×」回到终态（有参照时）、文字与上一帧一样；还没有参照时要文字与「×」连续三帧不变
+        （截图偶尔连着两次给同一帧，单看「和上一帧一样」不够）；
+        opened：遮罩在，但到上限也没等到走完（参照可能已不对，丢掉，下一格重新记）；None：弹窗不在——opening 为真时
+        （刚点过）等 open_timeout 让它出来，否则（弹窗本该开着）一帧就下结论。
         """
-        started, previous, masked, image = time.monotonic(), None, False, None
+        watch = FadeWatch(self.layout, self.anchor)
+        started, masked, image = time.monotonic(), False, None
         while not self.stopping():
             tick = time.monotonic()
             image = self.capture()
             if not self._recognize(TAB_LIT, image).hit:
                 masked = True
-                if bright(image, self.layout):
-                    if previous is not None and steady(previous, image, self.layout):
-                        return "settled", image
-                    previous = image
-                else:
-                    previous = None
+                if watch.feed(image):
+                    return "settled", image
             elif masked or not opening:
                 return None, image
             elapsed = time.monotonic() - started
             if not masked and elapsed > self.open_timeout:
                 return None, image
             if elapsed > self.settle_timeout:
+                self.anchor = None
                 return "opened", image
             time.sleep(max(0.0, self.interval - (time.monotonic() - tick)))
         return None, image
@@ -209,20 +211,38 @@ class MaaBagDevice:
         return Reading(names=self._node_names(image))
 
     def _read_frame(self, image, quantity):
-        """在走完的那一帧上读：按颜色定出名称（与数量）的范围；要数量时两段拼成一行只识别一次，拆不开再分开读。"""
+        """在走完的那一帧上读：按颜色定出名称（与数量）的范围；要数量时两段拼成一行只识别一次，拆不开再分开读。
+        返回 (读数, 文字框)；颜色没找到字时退回原节点，文字框为空。"""
         name_box = text_box(image, self.layout.name, "white", self.layout)
         quantity_box = text_box(image, self.layout.quantity, "blue", self.layout, top_line=True) if quantity else None
         if name_box is None or (quantity and quantity_box is None):
-            return self._read_nodes(image, quantity)
+            return self._read_nodes(image, quantity), ()
+        boxes = (name_box, quantity_box)
         if not quantity:
-            return Reading(names=self._rec(crop(image, name_box)), settled=True)
+            return Reading(names=self._rec(crop(image, name_box)), settled=True), boxes
         texts = self._rec(stitch(image, [name_box, quantity_box]))
         parts = split_quantity("".join(text for text, _ in texts))
         if parts is not None:
             score = min(score for _, score in texts)
-            return Reading(names=[(parts[0], score)], quantities=[(parts[1], score, list(quantity_box))], settled=True)
+            return Reading(names=[(parts[0], score)], quantities=[(parts[1], score, list(quantity_box))],
+                           settled=True), boxes
         quantities = [(plain_quantity(text), score, list(quantity_box)) for text, score in self._rec(crop(image, quantity_box))]
-        return Reading(names=self._rec(crop(image, name_box)), quantities=quantities, settled=True)
+        return Reading(names=self._rec(crop(image, name_box)), quantities=quantities, settled=True), boxes
+
+    def _read_settled(self, image, quantity):
+        """读判定走完的那一帧，读完关闭前再截一帧核对：文字处与读的那帧一样（这时离判定已过了一次识别的时间）才交出读数，
+        并把这一帧的「×」记成本趟参照；不一样说明读的那帧还没走完，换这一帧再读（最多两次），仍不行退回原节点。"""
+        for _ in range(2):
+            reading, boxes = self._read_frame(image, quantity)
+            if not reading.settled:
+                return reading
+            later = self.capture()
+            if not self._recognize(TAB_LIT, later).hit and same_text(image, later, boxes, self.layout):
+                if not at_anchor(later, self.anchor, self.layout):
+                    self.anchor = anchor_of(later, self.layout)
+                return reading
+            image = later
+        return self._read_nodes(image, quantity)
 
     def open_detail(self, box, quantity=True):
         """点开一格并读。None = 弹窗没出来（是否再点由扫描核心先看列表还在不在再定）。"""
@@ -230,7 +250,7 @@ class MaaBagDevice:
         state, image = self._settle(opening=True)
         if state is None:
             return None
-        return self._read_frame(image, quantity) if state == "settled" else self._read_nodes(image, quantity)
+        return self._read_settled(image, quantity) if state == "settled" else self._read_nodes(image, quantity)
 
     def peek_detail(self, box):
         """点开一格，只读名称：认不出的格子多半不是要找的，用不着数量；是待查物品时扫描核心再要数量。"""
@@ -241,13 +261,13 @@ class MaaBagDevice:
         state, image = self._settle(opening=False)
         if state is None:
             return None
-        return self._read_frame(image, True) if state == "settled" else self._read_nodes(image, True)
+        return self._read_settled(image, True) if state == "settled" else self._read_nodes(image, True)
 
     def read_names(self):
         state, image = self._settle(opening=False)
         if state is None:
             return []
-        return (self._read_frame(image, False) if state == "settled" else self._read_nodes(image, False)).names
+        return (self._read_settled(image, False) if state == "settled" else self._read_nodes(image, False)).names
 
     def read_quantity_scaled(self):
         texts, _, _ = read_texts(self.context, QUANTITY_OCR, self.capture(), retry=True)
