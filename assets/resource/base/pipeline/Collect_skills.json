@@ -284,7 +284,7 @@
         "focus": "CSB.[WRN]周围没有可吸取的拾取物,跳过吸取"
     },
     "Collect_Skill3_2_Depleted": {
-        "desc": "当类似3/3左边与右边相同时,必定用完次数.直接结束流程,此条件作为整个吸取的出口.(已移除灰色色核,认为不必要)",
+        "desc": "当类似3/3左边与右边相同时,必定用完次数.结束流程,此条件作为整个吸取的出口.(已移除灰色色核,认为不必要) | 认到后先到库存记账的吸取正常结束位置（本任务留过吸取的始标记才留正常结束标记；有还没盘掉的活动就当场盘），再由 Collect_Skill3_2_Depleted_Stop 停任务。任务开头就次数已满时本任务没有始标记，只替前面的任务收尾。",
         "recognition": "OCR",
         "roi": [
             946,
@@ -296,8 +296,17 @@
             "(\\d+)\\s*[/:：|\\-~]\\s*\\1(?!\\d)"
         ],
         "only_rec": true,
-        "action": "StopTask",
+        "next": [
+            "[JumpBack]Ledger_End_Collect",
+            "Collect_Skill3_2_Depleted_Stop"
+        ],
         "focus": "CSB.技能'吸取'施放次数已满,结束流程."
+    },
+    "Collect_Skill3_2_Depleted_Stop": {
+        "desc": "吸取次数用完，采集任务到此结束。跟在 Collect_Skill3_2_Depleted 的记账收尾后面，保证盘完任务必停。",
+        "pre_delay": 0,
+        "action": "StopTask",
+        "post_delay": 0
     },
     "Collect_Skill3_3_Start": {
         "desc": "[分流]栏位3-3'召集'：按列表顺序认状态，认出就走对应节点；一帧都认不出时等 timeout 后经 on_error 下移。施放节点点完回到这里重新判，次数由施放节点的 max_hit 限住。",

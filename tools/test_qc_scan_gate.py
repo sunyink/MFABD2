@@ -230,11 +230,60 @@ class StaticWiringTests(unittest.TestCase):
         ])
 
     def test_exit_node_shape(self):
-        """出口无 next、不设 max_hit:调度器在卡带链内被重入时，每一层都要能靠它退栈。"""
+        """出口不设 max_hit；先到库存记账的吸取正常结束位置，再停任务。
+
+        盘完必须停：盘完还在吸的那部分变化没有记账标记，会被算进下一个任务。
+        """
         node = self.d["Collect_QC_All_Done"]
         self.assertEqual(node.get("recognition"), "DirectHit")
-        self.assertNotIn("next", node)
         self.assertNotIn("max_hit", node)
+        self.assertEqual(node.get("next"), ["[JumpBack]Ledger_End_Collect", "Collect_QC_All_Done_Stop"])
+        self.assertEqual(self.d["Collect_QC_All_Done_Stop"].get("action"), "StopTask")
+        self.assertNotIn("next", self.d["Collect_QC_All_Done_Stop"])
+
+    def test_dispatcher_is_entered_once_from_the_top(self):
+        """出口后面接停任务的前提：调度器不会在卡带链内部被重入。
+
+        从调度器出发沿 next / on_error 走遍 base 的全部节点（锚点按 JSON 里登记过的目标展开），回不到它；
+        除目标选择器外没有别的管路边进调度器。以后若改成可重入，这条会先红，出口就得跟着改。
+        """
+        nodes = {}
+        for path in (ROOT / "assets/resource/base/pipeline").glob("*.json"):
+            for name, node in json.loads(path.read_text(encoding="utf-8")).items():
+                if isinstance(node, dict):
+                    nodes[name] = node
+        anchors = {}
+        for name, node in nodes.items():
+            value = node.get("anchor")
+            if isinstance(value, dict):
+                for key, target in value.items():
+                    if target:
+                        anchors.setdefault(key, set()).add(target)
+            elif isinstance(value, (str, list)):
+                for key in ([value] if isinstance(value, str) else value):
+                    anchors.setdefault(key, set()).add(name)
+
+        def targets(name):
+            out = []
+            for field in ("next", "on_error"):
+                value = nodes[name].get(field) or []
+                for item in ([value] if isinstance(value, str) else value):
+                    bare = re.sub(r"^(\[[A-Za-z]+\])+", "", item)
+                    out.extend(sorted(anchors.get(bare, ())) if "[Anchor]" in item else [bare])
+            return out
+
+        dispatcher = "Collect_QuickCart_Menu"
+        callers = sorted(name for name in nodes if dispatcher in targets(name))
+        self.assertEqual(callers, ["Collect_PackType_Select"])
+        seen, stack = set(), targets(dispatcher)
+        while stack:
+            name = stack.pop()
+            self.assertNotEqual(name, dispatcher, "调度器能从自己的下游回到自己")
+            if name in seen or name not in nodes:
+                continue
+            seen.add(name)
+            stack.extend(targets(name))
+        self.assertGreater(len(seen), 500)
 
     def test_list_chain_wiring(self):
         """Sandplay → 调试(默认关) 或 屏蔽 → 指定，两条路都汇到目标选择器，再进调度器。"""

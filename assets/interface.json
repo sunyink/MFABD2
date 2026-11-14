@@ -142,6 +142,7 @@
         },
         {
             "name": "[执行]快速狩猎扫荡",
+            "label": "[日常]快速狩猎扫荡",
             "entry": "QuickHunt_Start",
             "controller": [
                 "Adb",
@@ -168,7 +169,7 @@
                 "PlayCover"
             ],
             "default_check": true,
-            "description": "<地图采集[完整]>的单卡带模式，满足日常任务所需即停止。",
+            "description": "<地图采集[完整]>的单卡带模式，满足日常任务所需即停止。<br>游戏更新后已不需要每天进一张卡带来解锁每日奖励，一般不必再勾选；两个日常预设里已不包含它。",
             "option": [
                 "采集卡带指定",
                 "采集卡带屏蔽",
@@ -178,6 +179,7 @@
         },
         {
             "name": "[执行]装备制作&炼制日常",
+            "label": "[日常]装备制作&炼制",
             "entry": "Equip_HomePage",
             "controller": [
                 "Adb",
@@ -197,6 +199,7 @@
         },
         {
             "name": "[执行]白嫖抽卡",
+            "label": "[日常]白嫖抽卡",
             "entry": "GachaADV_Start",
             "controller": [
                 "Adb",
@@ -213,6 +216,7 @@
         },
         {
             "name": "[执行]竞技场",
+            "label": "[日常]竞技场",
             "entry": "PVP_TaskStart",
             "controller": [
                 "Adb",
@@ -228,6 +232,7 @@
         },
         {
             "name": "[执行]赛季活动快速战斗",
+            "label": "[日常]赛季活动快速战斗",
             "entry": "Event_HomePage",
             "controller": [
                 "Adb",
@@ -243,6 +248,7 @@
         },
         {
             "name": "[执行]肉鸽塔每日快速战斗",
+            "label": "[日常]肉鸽塔每日快速战斗",
             "entry": "Redemption_HomePage",
             "controller": [
                 "Adb",
@@ -255,6 +261,7 @@
         },
         {
             "name": "[执行]周常任务",
+            "label": "[日常]周常任务",
             "entry": "Weekly_Start",
             "controller": [
                 "Adb",
@@ -342,6 +349,7 @@
         },
         {
             "name": "[执行]地图采集[完整]",
+            "label": "[执行]①地图采集[完整]",
             "entry": "Collect_StartGame_HomePage",
             "default_check": true,
             "controller": [
@@ -350,7 +358,7 @@
                 "PC客户端(Cursor)",
                 "PlayCover"
             ],
-            "description": "进入卡带，对含传送阵的地图依次执行探查、吸取、召集。<br><span style=\"background-color:rgba(255,160,0,0.2)\"><b>前提：</b>传送阵须已激活，且周围箱庭迷雾已探明，使区域地图能完整显示传送阵图标。</span><br><b>选卡：</b>按剧情→角色→活动推进。某类允许采集的卡带本周均有完成记录时，跳过整类；进入类别后，普通模式只采集徽章彩色亮起且能识别身份的卡带，未知或未识别卡带跳过。成功采集后记录进度并在本轮跳过该卡；扫描结束不代表整类已采完。",
+            "description": "进入卡带，对含传送阵的地图依次执行探查、吸取、召集。<br>建议排在各日常任务之后、商店套利之前：先拿到材料再做料理；开着库存记账时，这个顺序盘点次数也最少。<br><span style=\"background-color:rgba(255,160,0,0.2)\"><b>前提：</b>传送阵须已激活，且周围箱庭迷雾已探明，使区域地图能完整显示传送阵图标。</span><br><b>选卡：</b>按剧情→角色→活动推进。某类允许采集的卡带本周均有完成记录时，跳过整类；进入类别后，普通模式只采集徽章彩色亮起且能识别身份的卡带，未知或未识别卡带跳过。成功采集后记录进度并在本轮跳过该卡；扫描结束不代表整类已采完。",
             "option": [
                 "采集卡带指定",
                 "采集卡带屏蔽",
@@ -360,7 +368,7 @@
         },
         {
             "name": "[执行]商店套利",
-            "label": "✨商店套利 Opus",
+            "label": "[执行]②商店套利",
             "entry": "Arbitrage_Start",
             "controller": [
                 "Adb",
@@ -8188,10 +8196,6 @@
                     "enabled": true
                 },
                 {
-                    "name": "[执行]地图采集[单章]",
-                    "enabled": true
-                },
-                {
                     "name": "[执行]竞技场",
                     "enabled": true
                 },
@@ -8284,10 +8288,6 @@
                         "一键速抽": "No",
                         "5星必出保留": "Yes"
                     }
-                },
-                {
-                    "name": "[执行]地图采集[单章]",
-                    "enabled": true
                 },
                 {
                     "name": "[执行]竞技场",
