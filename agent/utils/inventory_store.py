@@ -62,6 +62,12 @@ def save_scan_record(record: dict) -> dict | None:
         return copy.deepcopy(event)
 
 
+def get_events() -> list:
+    """热档里的事件副本。出报表时与冷档合起来就是该账号的全部凭证。"""
+    with _base._LOCK:
+        return copy.deepcopy(_base._inventory(_base.PersistentStore.load())["events"])
+
+
 def get_latest_scan(label: str) -> dict | None:
     """读取某个标签最近一次扫描的摘要副本；没有则返回 None。"""
     with _base._LOCK:

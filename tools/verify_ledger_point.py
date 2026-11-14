@@ -34,6 +34,7 @@ from utils import ledger_config, task_journal  # noqa: E402
 from utils.ledger_rules import ALL_SCOPES  # noqa: E402
 
 T0 = 1_763_208_000.0   # 2025-11-15 12:00 UTC
+REAL_REPORT = point._report
 
 
 class MemoryAccountStore:
@@ -67,7 +68,7 @@ class LedgerPointTests(unittest.TestCase):
         task_journal.reset()
         point._STATES.clear()
         point._CURSORS.clear()
-        self.scans, self.clock = [], [T0]
+        self.scans, self.clock, self.reports = [], [T0], []
         self.scan_result = {"executed": True, "returned": True}
         ledger_config.remember_injected({})
         for target, attribute, value in (
@@ -77,6 +78,7 @@ class LedgerPointTests(unittest.TestCase):
                 (point, "sync_from_context", lambda context, where="", stop=True: True),
                 (point, "run_bag_scan", self.fake_scan),
                 (point, "read_currency", self.fake_currency),
+                (point, "_report", lambda label: self.reports.append(label)),
                 (point.time, "time", lambda: self.clock[0])):
             patcher = patch.object(target, attribute, value)
             patcher.start()
@@ -181,6 +183,29 @@ class LedgerPointTests(unittest.TestCase):
         self.run_point("queue_end", None, 102, "Close_HomePage")                  # 规则说不盘：仍不盘
         self.assertEqual([scan["scope"] for scan in self.scans], [list(ALL_SCOPES), list(ALL_SCOPES)])
 
+
+    def test_report_follows_every_scan_that_ran_unless_switched_off(self):
+        self.task("Mail_HomePage", 101)
+        self.run_point("begin", "daily", 101, "Mail_HomePage")                    # 盘了 → 出报表
+        self.task("Pass_HomePage", 102)
+        self.run_point("begin", "daily", 102, "Pass_HomePage")                    # 同类型接着做，不盘 → 不出
+        self.assertEqual(self.reports, ["记账·日常开头"])
+        self.scan_result = {"executed": False, "returned": False}
+        self.task("Arbitrage_Start", 103)
+        self.run_point("begin", "shop", 103, "Arbitrage_Start")                   # 该盘但没执行 → 不出
+        self.assertEqual(len(self.reports), 1)
+        ledger_config.remember_injected({"report": "No"})
+        self.scan_result = {"executed": True, "returned": True}
+        self.run_point("end", "shop", 103, "Arbitrage_Start")                     # 报表开关关着 → 照盘、不出
+        self.assertEqual((len(self.scans), len(self.reports)), (3, 1))
+
+    def test_report_failure_is_only_logged(self):
+        with patch.object(point, "_report", REAL_REPORT), \
+                patch.object(MemoryAccountStore, "CONFIG_DIR", "Z:/不存在", create=True), \
+                patch.object(point.inventory_report_output, "generate_reports", side_effect=OSError("磁盘满")):
+            self.task("Mail_HomePage", 101)
+            self.assertTrue(self.run_point("begin", "daily", 101, "Mail_HomePage"))
+        self.assertEqual(len(self.scans), 1)
 
     def test_scan_that_did_not_run_or_return(self):
         self.task("Mail_HomePage", 101)

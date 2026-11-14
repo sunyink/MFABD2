@@ -10,6 +10,7 @@ begin 是任务开始动库存的地方，end 是只有做成才走得到的正�
 
 from datetime import datetime, timezone
 import json
+from pathlib import Path
 import threading
 import time
 
@@ -17,9 +18,9 @@ from maa.agent.agent_server import AgentServer
 from maa.context import Context
 from maa.custom_action import CustomAction
 
-from utils import ledger_config, ledger_rules, mfaalog, task_journal
+from utils import inventory_report_output, ledger_config, ledger_rules, mfaalog, task_journal
 from utils.account_sync import current_session, sync_from_context
-from utils.inventory_store import save_currency_reading, save_ledger_mark, utc_now
+from utils.inventory_store import get_events, save_currency_reading, save_ledger_mark, utc_now
 from utils.persistent_store import PersistentStore
 
 from .bag_scan import run_bag_scan
@@ -27,10 +28,7 @@ from .currency_read import read_currency
 
 
 CONFIG = "Agt_Ledger_Config"
-# 没留标记也不算活动的任务入口：不动库存的，以及接了标记、没走到始标记就等于没干活的。
-# 以 Agt_Ledger_Config.attach.quiet 为准，读不到时用这份。名单外的任务夹在中间一律当作动过库存。
-QUIET = ("Env_MultiSave_Config", "StartGame_Start", "Env_Ledger_Config", "Collect_StartGame_HomePage",
-         "Collect_StartGame_HomePage_OnlyOnce", "Arbitrage_Start", "Close_HomePage", "Ledger_Settle_Manual")
+QUIET = ledger_rules.QUIET   # 没留标记也不算活动的任务入口；Agt_Ledger_Config.attach.quiet 读不到时用这份
 KIND_NAMES = {"daily": "日常", "collect": "吸取", "shop": "商店"}
 
 _LOCK = threading.Lock()
@@ -75,6 +73,22 @@ def _read_currency(context, label: str, scan_id: str) -> None:
                      f"天赋神药 {_shown(record['tonic'])}" + ("" if saved else "（⚠️ 存档未写入）"))
     except Exception as exc:
         mfaalog.warning(f"[Ledger] ⚠️ {label}：货币没读成：{exc}")
+
+
+def _report(label: str) -> None:
+    """盘完出报表：从凭证现算，重写还没结账的游戏日。出什么错都只记日志，不影响所在流程。"""
+    try:
+        folder = getattr(PersistentStore, "CONFIG_DIR", None)
+        if folder is None:
+            return
+        started = time.perf_counter()
+        result = inventory_report_output.generate_reports(
+            folder, PersistentStore._current_account_id, agent_dir=Path(__file__).resolve().parents[1], hot=get_events())
+        if result["summary"]:
+            mfaalog.info(f"[Ledger] 库存日报：{result['summary']}")
+            mfaalog.info(f"[Ledger] 报表在 {result['latest']}（{round((time.perf_counter() - started) * 1000)} 毫秒）")
+    except Exception as exc:
+        mfaalog.warning(f"[Ledger] ⚠️ {label}：报表没出成（不影响任务）：{exc}")
 
 
 def _run(context: Context, argv: CustomAction.RunArg) -> None:
@@ -135,6 +149,8 @@ def _run(context: Context, argv: CustomAction.RunArg) -> None:
         mfaalog.debug(f"[Ledger] {label}：不盘——{decision['reason']}")
     with _LOCK:
         ledger_rules.settle(state, mark=mark, kind=kind, task_id=task_id, entry=entry, now=time.time(), scan=scan)
+    if scan is not None and options["report"]:
+        _report(label)
 
 
 @AgentServer.custom_action("LedgerConfig")

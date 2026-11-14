@@ -13,6 +13,10 @@ MARKS = ("begin", "end", "queue_end", "manual")
 NEEDS = {"daily": ("B", "C"), "collect": ("A",), "shop": ("A",)}
 ALL_SCOPES = ("A", "B", "C")
 GAP_SECONDS = 60.0
+# 没留标记也不算活动的任务入口：不动库存的，以及接了标记、没走到始标记就等于没干活的。
+# 运行时以 Agt_Ledger_Config.attach.quiet 为准，读不到时用这份；做账用同一份。名单外的任务夹在中间一律当作动过库存。
+QUIET = ("Env_MultiSave_Config", "StartGame_Start", "Env_Ledger_Config", "Collect_StartGame_HomePage",
+         "Collect_StartGame_HomePage_OnlyOnce", "Arbitrage_Start", "Close_HomePage", "Ledger_Settle_Manual")
 
 
 @dataclass
