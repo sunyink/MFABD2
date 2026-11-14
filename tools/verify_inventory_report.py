@@ -431,6 +431,13 @@ class OutputTests(unittest.TestCase):
             again = output.generate_reports(store, "42", agent_dir=ROOT / "agent", as_of=iso(story.now + 60))
             self.assertEqual(again["days"], ["2026-11-15"])
             self.assertEqual((folder_out / "2026-11-14.json").stat().st_mtime_ns, stamp)
+            # 更早的日子快照被删掉了也不凭残缺的凭证重做：那天的冷档这一回没读
+            (cold / "2026-11-13.events.jsonl").write_text(json.dumps(
+                {**story.events[1], "event_id": "old", "scan_id": "old", "finished_at": "2026-11-13T05:00:00+00:00",
+                 "started_at": "2026-11-13T04:58:00+00:00"}, ensure_ascii=False) + "\n", encoding="utf-8")
+            self.assertEqual(output.generate_reports(store, "42", agent_dir=ROOT / "agent")["days"], ["2026-11-15"])
+            everything = output.generate_reports(store, "42", agent_dir=ROOT / "agent", force=True)["days"]
+            self.assertEqual(everything, ["2026-11-13", "2026-11-14", "2026-11-15"])
 
 
 if __name__ == "__main__":

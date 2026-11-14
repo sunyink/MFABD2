@@ -180,7 +180,9 @@ def generate_reports(store_dir, account, *, agent_dir, as_of: str | None = None,
         prices = None   # 一样有价的存货都没有，就只出数量
     labels = load_labels(agent_dir)
     present = sorted({scan["day"] for scan in ledger["scans"]})
-    wanted = [day for day in present if (day in days if days else force or day not in settled)]
+    # 只读了近期凭证时，最后一个定稿日之前的日子凭证不全（只剩热档里那几条），不碰。
+    wanted = [day for day in present if (day in days if days else force or day not in settled)
+              and not (partial and day <= settled[-1])]
     written = []
     for day in wanted:
         model = build_report(ledger, game_day=day, as_of=as_of, prices=prices, cookbook=cookbook, labels=labels,
