@@ -20,6 +20,7 @@ from maa.custom_action import CustomAction
 
 from utils import inventory_report_output, ledger_config, ledger_rules, mfaalog, task_journal
 from utils.account_sync import current_session, sync_from_context
+from utils.inventory_ledger import CARD_PREFIXES
 from utils.inventory_store import get_events, save_currency_reading, save_ledger_mark, utc_now
 from utils.persistent_store import PersistentStore
 
@@ -75,6 +76,16 @@ def _read_currency(context, label: str, scan_id: str) -> None:
         mfaalog.warning(f"[Ledger] ⚠️ {label}：货币没读成：{exc}")
 
 
+def _cycle_marks():
+    """账号存档里采集卡带的周期完成记录 {"卡带名@周期": 完成时刻}。吸取的始末标记各带一份，做账时取前后差就是这一段吸完的卡。"""
+    try:
+        marks = PersistentStore.load().get("cycles")
+        return {str(key): str(value) for key, value in marks.items()
+                if str(key).startswith(CARD_PREFIXES)} if isinstance(marks, dict) else {}
+    except Exception:
+        return None
+
+
 def _report(label: str) -> None:
     """盘完出报表：从凭证现算，重写还没结账的游戏日。出什么错都只记日志，不影响所在流程。"""
     try:
@@ -123,7 +134,7 @@ def _run(context: Context, argv: CustomAction.RunArg) -> None:
     if mark != "end" or decision["end_mark"]:
         saved = save_ledger_mark({
             "mark": mark, "type": kind, "at": utc_now(), "session": task_journal.SESSION, "task": task,
-            "node": argv.node_name,
+            "node": argv.node_name, **({"cards": _cycle_marks()} if kind == "collect" else {}),
             "tasks": [{"entry": row["entry"], "task_id": row["task_id"], "start": _iso(row["start"]),
                        "end": _iso(row["end"]), "status": row["status"]}
                       for row in rows if row["end"] is None or row["end"] >= since]})   # 上一条标记之后还在跑过的

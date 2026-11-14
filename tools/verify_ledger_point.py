@@ -140,6 +140,17 @@ class LedgerPointTests(unittest.TestCase):
         self.assertEqual([row["task_id"] for row in marks[1]["tasks"]], [101, 102])   # 上一条标记以来的任务起止
         self.assertIsNotNone(marks[1]["tasks"][0]["end"])
 
+    def test_k21_collect_marks_carry_the_cycle_records(self):
+        MemoryAccountStore.data = {"cycles": {"Story_01_血骑士@g_weekly": "2025-11-15 20:00:00",
+                                              "Daily_Mail@daily": "2025-11-15 20:01:00"}}   # 日常的完成记录不带
+        self.task("Collect_StartGame_HomePage", 101)
+        self.run_point("begin", "collect", 101, "Collect_StartGame_HomePage")
+        self.task("Mail_HomePage", 102)
+        self.run_point("begin", "daily", 102, "Mail_HomePage")
+        collect, daily = self.events("ledger_mark")
+        self.assertEqual(collect["cards"], {"Story_01_血骑士@g_weekly": "2025-11-15 20:00:00"})
+        self.assertNotIn("cards", daily)
+
     def test_normal_end_mark_needs_a_begin_in_the_same_task(self):
         self.task("Mail_HomePage", 101)
         self.run_point("begin", "daily", 101, "Mail_HomePage")

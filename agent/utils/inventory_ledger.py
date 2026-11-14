@@ -19,6 +19,8 @@ RULE_VERSION = 2
 CURRENCY = (("金币", "gold"), ("钻石", "diamond"), ("钻石（免费）", "diamond_free"),
             ("钻石（付费）", "diamond_paid"), ("天赋神药", "tonic"))
 CURRENCY_SCOPE = "$"
+# 周期完成记录里属于采集卡带的键名前缀（剧情、活动、角色卡带）；别的是日常任务之类的完成记录。
+CARD_PREFIXES = ("Story_", "Event_", "Character_")
 _SALE, _BUY, _UNSURE = "sale_confirmed", "replenish_purchase", "sale_unconfirmed"
 
 
@@ -291,13 +293,15 @@ def _orphan_pages(events, scans) -> list:
 
 
 def _cards(marks, kind):
-    """吸取区间吸过的卡带：区间里最后一份快照减去第一份。没有快照（尚未施工或没走到）返回 None。"""
+    """吸取区间吸完的卡带：区间里最后一份周期记录快照对第一份的差。没走到正常结束点就只有一份，返回 None。"""
     if kind != "collect":
         return None
-    snapshots = [mark["cards"] for mark in marks if mark["type"] == "collect" and isinstance(mark["cards"], list)]
+    snapshots = [mark["cards"] for mark in marks if mark["type"] == "collect" and isinstance(mark["cards"], dict)]
     if len(snapshots) < 2:
         return None
-    return [card for card in snapshots[-1] if card not in snapshots[0]]
+    first, last = snapshots[0], snapshots[-1]   # {"卡带名@周期": 完成时刻}：时刻变了的就是这一段里吸完的
+    return sorted(key.split("@")[0] for key, stamp in last.items()
+                  if first.get(key) != stamp and key.startswith(CARD_PREFIXES))
 
 
 def _chains(scans, catalog) -> dict:

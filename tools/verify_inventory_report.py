@@ -46,6 +46,7 @@ class Story:
         self.stock = {"兽肉": 1000, "米": 500, "包饭": 10, "精炼石": 30, "抽抽乐券": 2, "素材": 5}
         self.money = {"gold": 1_000_000, "diamond": 500, "diamond_free": 500, "diamond_paid": 0, "tonic": 9000}
         self.unknown = ()
+        self.cycles = {"Story_01_血骑士@g_weekly": "2026-11-07 12:00:00", "Daily_Mail@daily": "2026-11-13 12:00:00"}
 
     def restart(self, wait):
         """Agent 进程重启：新的会话号，任务起止从头记。"""
@@ -80,6 +81,7 @@ class Story:
         task = {"entry": row["entry"], "task_id": row["task_id"]}
         if mark != "end" or end_mark:
             self.events.append({"kind": "ledger_mark", "mark": mark, "type": kind, "at": iso(self.now),
+                                **({"cards": dict(self.cycles)} if kind == "collect" else {}),
                                 "observed_at": iso(self.now), "session": self.session, "task": task, "node": node,
                                 "tasks": [{"entry": item["entry"], "task_id": item["task_id"], "start": iso(item["start"]),
                                            "end": None if item["end"] is None else iso(item["end"]),
@@ -182,6 +184,16 @@ class LedgerTests(unittest.TestCase):
         self.assertEqual(pieces[1]["reason"], "out_of_scope")
         self.assertEqual([piece["delta"] for piece in ledger["items"]["兽肉"]["pieces"]], [0, 400, -20, 0])
 
+    def test_collect_interval_names_the_cards_finished_in_it(self):
+        story = Story()
+        story.task("Collect_StartGame_HomePage").at("begin", "collect", FULL).work(300, 兽肉=100)
+        story.cycles["Story_01_血骑士@g_weekly"] = "2026-11-14 12:10:00"      # 上周吸过，这一段又吸完一次
+        story.cycles["Story_02_苍蓝魔女@g_weekly"] = "2026-11-14 12:20:00"    # 第一次吸完
+        story.at("end", "collect", ("A",))
+        interval, = story.end().ledger()["intervals"]
+        self.assertEqual(interval["cards"], ["Story_01_血骑士", "Story_02_苍蓝魔女"])
+        self.assertEqual(story.report()["collect"]["cards"], ["Story_01_血骑士", "Story_02_苍蓝魔女"])
+
     def test_collect_without_end_mark_is_abnormal_but_settled(self):
         story = Story()
         story.task("Collect_StartGame_HomePage").at("begin", "collect", FULL).work(300, 兽肉=100)
@@ -189,6 +201,7 @@ class LedgerTests(unittest.TestCase):
         story.at("end", "shop", ("A",))
         first, second = story.end().ledger()["intervals"]
         self.assertEqual((first["kind"], first["flags"]), ("collect", ["abnormal_end"]))
+        self.assertIsNone(first["cards"])   # 没走到正常结束点，只有开头那一份快照，卡带不记名
         self.assertEqual((second["kind"], second["flags"]), ("shop", []))
 
     def test_scan_that_did_not_run_leaves_a_mixed_interval(self):
