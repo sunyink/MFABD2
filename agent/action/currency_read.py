@@ -40,7 +40,7 @@ CLOSE_NODE = "Agt_Currency_Diamond_Close"
 # 不收不带分隔符的长数字：图标被并进数字时会读成「6137227」这类，宁可读不到也不读错。
 _GROUPED = r"(0|[1-9][0-9]{0,2}(?:[,.][0-9]{3})*)"
 _OWNED = r"(?:[拥擁]有|持有)" + _GROUPED + r"[个個]"
-_WAIT_SECONDS = 3.0
+_WAIT_SECONDS = 6.0   # 模拟器默认截图一帧要一秒左右；等到了就提前返回
 _POLL_SECONDS = 0.15
 
 _PAID_LOCK = threading.Lock()
@@ -153,22 +153,57 @@ def _read_owned(context, image, node):
     return values.pop() if len(values) == 1 else None
 
 
+def _popup_visible(context) -> bool:
+    result = context.run_recognition(POPUP_NODE, _screencap(context))
+    return result is not None and result.hit
+
+
+def _settled_expand(context, image):
+    """弹窗有出现动画，没停稳时点 ⊕ 会穿透到底下的页面（11-13 模拟器实测点开了「街机游戏」）。
+    要连续两帧在同一位置认到 ⊕ 才算停稳；返回 ⊕ 的框，等不到返回 None。"""
+    deadline = time.monotonic() + _WAIT_SECONDS
+    previous = None
+    while True:
+        result = context.run_recognition(EXPAND_NODE, image)
+        box = _rect(result.box) if result is not None and result.hit else None
+        if box is not None and box == previous:
+            return box
+        previous = box
+        if time.monotonic() >= deadline or context.tasker.stopping:
+            return None
+        time.sleep(_POLL_SECONDS)
+        image = _screencap(context)
+
+
 def read_diamond_detail(context, icon_box: list) -> dict:
-    """点钻石图标 → 等弹窗 → 点 ⊕ → 等「详细拥有量」→ 读免费 / 付费 → 点 X 关掉并确认已关。"""
+    """点钻石图标 → 等弹窗 → 等 ⊕ 停稳再点 → 等「详细拥有量」→ 读免费 / 付费 → 弹窗还在才点 X，并确认已关。
+
+    弹窗已经开着就不再点图标（点了会把它关掉）；点了图标没出弹窗，弹窗仍不在时补点一次。
+    结束前不论成败再看一眼：有晚出现的弹窗也关掉，免得留在画面上挡住后续流程。
+    """
     detail: dict = {"free": None, "paid": None, "error": None, "closed": None}
-    opened = False
+    clicked = False
     try:
-        context.run_action(CLICK_NODE, box=icon_box)
-        image, popup = _wait(context, POPUP_NODE)
+        image = _screencap(context)
+        popup = context.run_recognition(POPUP_NODE, image)
+        if popup is None or not popup.hit:
+            for _ in range(2):
+                context.run_action(CLICK_NODE, box=icon_box)
+                clicked = True
+                image, popup = _wait(context, POPUP_NODE)
+                if popup is not None or _popup_visible(context):
+                    break
         if popup is None:
-            detail["error"] = "popup_not_open"
-            return detail
-        opened = True
-        expand = context.run_recognition(EXPAND_NODE, image)
-        if expand is None or not expand.hit:
+            image = _screencap(context)
+            popup = context.run_recognition(POPUP_NODE, image)
+            if popup is None or not popup.hit:
+                detail["error"] = "popup_not_open"
+                return detail
+        expand = _settled_expand(context, image)
+        if expand is None:
             detail["error"] = "expand_not_found"
             return detail
-        context.run_action(EXPAND_NODE, box=_rect(expand.box))
+        context.run_action(EXPAND_NODE, box=expand)
         image, shown = _wait(context, DETAIL_NODE)
         if shown is None:
             detail["error"] = "detail_not_shown"
@@ -182,11 +217,14 @@ def read_diamond_detail(context, icon_box: list) -> dict:
         detail["error"] = f"exception: {exc}"
         return detail
     finally:
-        if opened:
+        if clicked or detail["error"] != "popup_not_open":
             try:
-                context.run_action(CLOSE_NODE)
-                _, still = _wait(context, POPUP_NODE, present=False)
-                detail["closed"] = still is not None
+                if _popup_visible(context):
+                    context.run_action(CLOSE_NODE)
+                    _, gone = _wait(context, POPUP_NODE, present=False)
+                    detail["closed"] = gone is not None
+                elif detail["closed"] is None and not (detail["error"] == "popup_not_open"):
+                    detail["closed"] = True
             except Exception as exc:
                 detail["closed"] = False
                 mfaalog.warning(f"[Currency] ⚠️ 关闭钻石弹窗异常：{exc}")
