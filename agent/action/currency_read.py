@@ -1,15 +1,15 @@
 """顶栏货币读数：钻石、金币、天赋神药；钻石的免费 / 付费从钻石弹窗读。
 
 背包里没有货币栏，这三样只能在主界面或箱庭的顶栏读。顶栏随数字位数整排挪动（箱庭居中排），
-所以先用模板认出三个图标，再读各自右边的数字；钻石弹窗也是点认出的钻石图标打开的。
-付费钻石只有玩家花钱才会变：流程开头读一次免费 / 付费，之后只读总数，免费 = 总数 − 付费。
-节点在 Global.json 的 Agt_Currency_*；实测与截图在 priv doc/agent/ledger/verify/2026-11-13-施工前核对/货币栏/。
+所以先用模板认出三个图标，再读各自右边的数字。
+钻石的免费 / 付费由 pipeline 链 Global_DiamondDetail_* 点开（有限次数重试、限定区域的 freezes 等弹窗停稳），
+py 只清命中计数、调起链、读数、再调关闭。付费钻石只有玩家花钱才会变：流程开头读一次，之后只读总数，免费 = 总数 − 付费。
+节点在 Global.json；实测与截图在 priv doc/agent/ledger/verify/2026-11-13-施工前核对/货币栏/。
 """
 
 import json
 import re
 import threading
-import time
 
 from maa.agent.agent_server import AgentServer
 from maa.context import Context
@@ -22,26 +22,26 @@ from utils.ocr_read import clean
 from utils.persistent_store import PersistentStore
 
 
+DETAIL_ENTRY = "Global_DiamondDetail_Entry"
+OPEN_NODE = "Global_DiamondDetail_Open"          # 点钻石图标；读顶栏时也借它认钻石图标
+EXPAND_NODE = "Global_DiamondDetail_Expand"
+SHOWN_NODE = "Global_DiamondDetail_Shown"
+CLOSE_NODE = "Global_DiamondDetail_Close"
+TITLE_NODE = "Rec_DiamondPopup_Title_Ocr"
+CHAIN_NODES = (DETAIL_ENTRY, OPEN_NODE, EXPAND_NODE, SHOWN_NODE, CLOSE_NODE)
 ICON_NODES = (
-    ("diamond", "Agt_Currency_Diamond_Icon_Tpl"),
+    ("diamond", OPEN_NODE),
     ("gold", "Agt_Currency_Gold_Icon_Tpl"),
     ("tonic", "Agt_Currency_Tonic_Icon_Tpl"),
 )
 NUMBER_NODE = "Agt_Currency_Number_Ocr"
-CLICK_NODE = "Agt_Currency_Diamond_Click"
-POPUP_NODE = "Agt_Currency_Diamond_Popup_Ocr"
-EXPAND_NODE = "Agt_Currency_Diamond_Expand_Tpl"
-DETAIL_NODE = "Agt_Currency_Diamond_Detail_Ocr"
 FREE_NODE = "Agt_Currency_Diamond_Free_Ocr"
 PAID_NODE = "Agt_Currency_Diamond_Paid_Ocr"
-CLOSE_NODE = "Agt_Currency_Diamond_Close"
 
 # 千分位只认三位一组；分隔符收逗号与点（模拟器主界面的逗号常被认成点）。
 # 不收不带分隔符的长数字：图标被并进数字时会读成「6137227」这类，宁可读不到也不读错。
 _GROUPED = r"(0|[1-9][0-9]{0,2}(?:[,.][0-9]{3})*)"
 _OWNED = r"(?:[拥擁]有|持有)" + _GROUPED + r"[个個]"
-_WAIT_SECONDS = 6.0   # 模拟器默认截图一帧要一秒左右；等到了就提前返回
-_POLL_SECONDS = 0.15
 
 _PAID_LOCK = threading.Lock()
 _PAID_BY_ACCOUNT: dict = {}
@@ -133,81 +133,42 @@ def read_bar(context, image) -> dict:
     return {"values": values, "icons": icons}
 
 
-def _wait(context, node, *, present: bool = True):
-    """轮询截图直到节点命中（present）或不再命中；返回（截图, 识别结果）或（截图, None）。"""
-    deadline = time.monotonic() + _WAIT_SECONDS
-    while True:
-        image = _screencap(context)
-        result = context.run_recognition(node, image)
-        hit = result is not None and result.hit
-        if hit == present:
-            return image, result
-        if time.monotonic() >= deadline or context.tasker.stopping:
-            return image, None
-        time.sleep(_POLL_SECONDS)
-
-
 def _read_owned(context, image, node):
     values = {parse_owned(text) for text, _ in _ocr_items(context.run_recognition(node, image))}
     values.discard(None)
     return values.pop() if len(values) == 1 else None
 
 
+def _clear_chain(context) -> None:
+    """链里的 max_hit 是整个任务共享的计数，同一任务里读第二次前要清掉。"""
+    for node in CHAIN_NODES:
+        if not context.clear_hit_count(node):
+            raise RuntimeError(f"无法清零命中计数：{node}")
+
+
+def _reached(detail, node) -> bool:
+    return detail is not None and any(item.name == node and item.completed for item in detail.nodes)
+
+
 def _popup_visible(context) -> bool:
-    result = context.run_recognition(POPUP_NODE, _screencap(context))
+    result = context.run_recognition(TITLE_NODE, _screencap(context))
     return result is not None and result.hit
 
 
-def _settled_expand(context, image):
-    """弹窗有出现动画，没停稳时点 ⊕ 会穿透到底下的页面（11-13 模拟器实测点开了「街机游戏」）。
-    要连续两帧在同一位置认到 ⊕ 才算停稳；返回 ⊕ 的框，等不到返回 None。"""
-    deadline = time.monotonic() + _WAIT_SECONDS
-    previous = None
-    while True:
-        result = context.run_recognition(EXPAND_NODE, image)
-        box = _rect(result.box) if result is not None and result.hit else None
-        if box is not None and box == previous:
-            return box
-        previous = box
-        if time.monotonic() >= deadline or context.tasker.stopping:
-            return None
-        time.sleep(_POLL_SECONDS)
-        image = _screencap(context)
+def read_diamond_detail(context) -> dict:
+    """调 Global_DiamondDetail_Entry 链点开弹窗并展开免费 / 付费，读完再调 Global_DiamondDetail_Close 关掉。
 
-
-def read_diamond_detail(context, icon_box: list) -> dict:
-    """点钻石图标 → 等弹窗 → 等 ⊕ 停稳再点 → 等「详细拥有量」→ 读免费 / 付费 → 弹窗还在才点 X，并确认已关。
-
-    弹窗已经开着就不再点图标（点了会把它关掉）；点了图标没出弹窗，弹窗仍不在时补点一次。
-    结束前不论成败再看一眼：有晚出现的弹窗也关掉，免得留在画面上挡住后续流程。
+    点击、重试、等弹窗停稳都在链里；链没走到「详细拥有量」时按走到哪一步记 error。
+    关闭不论成败都调一次：弹窗不在时 Close 认不到、超时退出，什么都不点。
     """
     detail: dict = {"free": None, "paid": None, "error": None, "closed": None}
-    clicked = False
     try:
+        _clear_chain(context)
+        run = context.run_task(DETAIL_ENTRY)
+        if not _reached(run, SHOWN_NODE):
+            detail["error"] = "detail_not_shown" if _reached(run, EXPAND_NODE) else "popup_not_open"
+            return detail
         image = _screencap(context)
-        popup = context.run_recognition(POPUP_NODE, image)
-        if popup is None or not popup.hit:
-            for _ in range(2):
-                context.run_action(CLICK_NODE, box=icon_box)
-                clicked = True
-                image, popup = _wait(context, POPUP_NODE)
-                if popup is not None or _popup_visible(context):
-                    break
-        if popup is None:
-            image = _screencap(context)
-            popup = context.run_recognition(POPUP_NODE, image)
-            if popup is None or not popup.hit:
-                detail["error"] = "popup_not_open"
-                return detail
-        expand = _settled_expand(context, image)
-        if expand is None:
-            detail["error"] = "expand_not_found"
-            return detail
-        context.run_action(EXPAND_NODE, box=expand)
-        image, shown = _wait(context, DETAIL_NODE)
-        if shown is None:
-            detail["error"] = "detail_not_shown"
-            return detail
         detail["free"] = _read_owned(context, image, FREE_NODE)
         detail["paid"] = _read_owned(context, image, PAID_NODE)
         if detail["free"] is None or detail["paid"] is None:
@@ -217,17 +178,13 @@ def read_diamond_detail(context, icon_box: list) -> dict:
         detail["error"] = f"exception: {exc}"
         return detail
     finally:
-        if clicked or detail["error"] != "popup_not_open":
-            try:
-                if _popup_visible(context):
-                    context.run_action(CLOSE_NODE)
-                    _, gone = _wait(context, POPUP_NODE, present=False)
-                    detail["closed"] = gone is not None
-                elif detail["closed"] is None and not (detail["error"] == "popup_not_open"):
-                    detail["closed"] = True
-            except Exception as exc:
-                detail["closed"] = False
-                mfaalog.warning(f"[Currency] ⚠️ 关闭钻石弹窗异常：{exc}")
+        try:
+            context.clear_hit_count(CLOSE_NODE)
+            context.run_task(CLOSE_NODE)
+            detail["closed"] = not _popup_visible(context)
+        except Exception as exc:
+            detail["closed"] = False
+            mfaalog.warning(f"[Currency] ⚠️ 关闭钻石弹窗异常：{exc}")
 
 
 def read_currency(context, *, diamond_detail=None) -> dict:
@@ -237,6 +194,8 @@ def read_currency(context, *, diamond_detail=None) -> dict:
     读不到的项为 None，不抛异常（截图失败除外，由调用方接住）。付费钻石沿用时 diamond_paid_source="carried"。
     """
     account = PersistentStore._current_account_id
+    for node in CHAIN_NODES:   # 认钻石图标借的是 Global_DiamondDetail_Open，先清掉同一任务里用过的命中计数
+        context.clear_hit_count(node)
     image = _screencap(context)
     bar = read_bar(context, image)
     values = bar["values"]
@@ -256,7 +215,7 @@ def read_currency(context, *, diamond_detail=None) -> dict:
         carried = _PAID_BY_ACCOUNT.get(account)
     want = diamond_detail is True or (diamond_detail is None and carried is None)
     if want and bar["icons"].get("diamond"):
-        detail = read_diamond_detail(context, bar["icons"]["diamond"])
+        detail = read_diamond_detail(context)
         record["detail_error"] = detail["error"]
         record["detail_closed"] = detail["closed"]
         free, paid = detail["free"], detail["paid"]

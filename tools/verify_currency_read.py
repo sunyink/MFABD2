@@ -39,37 +39,57 @@ def ocr(*pairs):
 
 
 class FakeScreen:
-    """一个会被点击改变的假画面：bar（只有顶栏）→ popup（钻石弹窗）→ detail（展开免费 / 付费）。"""
+    """假画面：bar（只有顶栏）/ popup（钻石弹窗）/ detail（展开免费 / 付费）。
 
-    def __init__(self, *, numbers=None, free="拥有137,227个", paid="拥有0个", popup_opens=True, expand=True,
-                 state="bar", lost_clicks=0, open_after=0):
+    点击、重试、等弹窗停稳都在 pipeline 链里，这里只按 chain 模拟链跑完后停在哪：
+    shown 走到「详细拥有量」；no_popup 点了图标没出弹窗；no_detail 弹窗开了但没展开。
+    """
+
+    def __init__(self, *, numbers=None, free="拥有137,227个", paid="拥有0个", chain="shown", state="bar"):
         self.state = state
-        self.lost_clicks = lost_clicks      # 前几下点图标没反应
-        self.open_after = open_after        # 点中后再过几次截图弹窗才出现
-        self.pending = None
         self.numbers = numbers if numbers is not None else {
             "diamond": [("137,227", [480, 32, 81, 26])],
             "gold": [("42,522,214", [600, 34, 106, 23])],
             "tonic": [("471,245", [745, 34, 79, 24])],
         }
-        self.free, self.paid = free, paid
-        self.popup_opens, self.expand = popup_opens, expand
-        self.actions = []
+        self.free, self.paid, self.chain = free, paid, chain
+        self.tasks, self.cleared = [], []
         self.tasker = SimpleNamespace(
             stopping=False,
-            controller=SimpleNamespace(post_screencap=self._capture),
+            controller=SimpleNamespace(post_screencap=lambda: SimpleNamespace(
+                wait=lambda: SimpleNamespace(get=lambda: np.zeros((720, 1280, 3), dtype=np.uint8)))),
         )
-
-    def _capture(self):
-        if self.pending is not None:
-            self.pending -= 1
-            if self.pending <= 0:
-                self.state, self.pending = "popup", None
-        return SimpleNamespace(wait=lambda: SimpleNamespace(get=lambda: np.zeros((720, 1280, 3), dtype=np.uint8)))
 
     def get_node_object(self, name):
         assert name == currency.NUMBER_NODE
         return SimpleNamespace(attach=ATTACH)
+
+    def clear_hit_count(self, node):
+        self.cleared.append(node)
+        return True
+
+    def run_task(self, entry, override=None):
+        self.tasks.append(entry)
+        names = []
+        if entry == currency.DETAIL_ENTRY:
+            names = [currency.DETAIL_ENTRY]
+            if self.state == "bar":
+                names.append(currency.OPEN_NODE)
+                if self.chain == "no_popup":
+                    names.append(currency.OPEN_NODE)
+                else:
+                    self.state = "popup"
+            if self.state == "popup":
+                names.append(currency.EXPAND_NODE)
+                if self.chain == "no_detail":
+                    names.append(currency.EXPAND_NODE)
+                else:
+                    self.state = "detail"
+                    names.append(currency.SHOWN_NODE)
+        elif entry == currency.CLOSE_NODE and self.state in ("popup", "detail"):
+            self.state = "bar"
+            names = [currency.CLOSE_NODE]
+        return SimpleNamespace(nodes=[SimpleNamespace(name=name, completed=True) for name in names])
 
     def run_recognition(self, node, image, override=None):
         if node in ICON_NODE:
@@ -79,44 +99,17 @@ class FakeScreen:
             roi = override[node]["roi"]
             name = min(ICONS, key=lambda key: abs(ICONS[key][0] + ICONS[key][2] + 1 - roi[0]))
             return ocr(*self.numbers.get(name, []))
-        popup = self.state in ("popup", "detail")
-        if node == currency.POPUP_NODE:
-            return SimpleNamespace(hit=popup, box=[266, 193, 52, 32])
-        if node == currency.EXPAND_NODE:
-            return SimpleNamespace(hit=popup and self.expand, box=[408, 248, 16, 14])
-        if node == currency.DETAIL_NODE:
-            return SimpleNamespace(hit=self.state == "detail", box=[279, 270, 102, 26])
+        if node == currency.TITLE_NODE:
+            return SimpleNamespace(hit=self.state in ("popup", "detail"), box=[266, 193, 52, 32])
         if node == currency.FREE_NODE:
             return ocr((self.free, [438, 309, 121, 22])) if self.state == "detail" else ocr()
         if node == currency.PAID_NODE:
             return ocr((self.paid, [493, 331, 68, 26])) if self.state == "detail" else ocr()
         raise AssertionError(node)
 
-    def run_action(self, node, box=(0, 0, 0, 0), **_):
-        self.actions.append(node)
-        if node == currency.CLICK_NODE and self.state in ("popup", "detail"):
-            self.state = "bar"   # 弹窗开着时点图标会把它关掉
-        elif node == currency.CLICK_NODE and self.lost_clicks:
-            self.lost_clicks -= 1
-        elif node == currency.CLICK_NODE and self.popup_opens:
-            if self.open_after:
-                if self.pending is None:     # 第二下补点不重置第一下已经在路上的弹窗
-                    self.pending = self.open_after
-            else:
-                self.state = "popup"
-        elif node == currency.EXPAND_NODE and self.state == "popup":
-            self.state = "detail"
-        elif node == currency.CLOSE_NODE:
-            self.state = "bar"
-        return SimpleNamespace(success=True)
-
 
 class Fast(unittest.TestCase):
     def setUp(self):
-        for name, value in (("_WAIT_SECONDS", 0.05), ("_POLL_SECONDS", 0)):
-            patcher = patch.object(currency, name, value)
-            patcher.start()
-            self.addCleanup(patcher.stop)
         currency._PAID_BY_ACCOUNT.clear()
         patcher = patch.object(currency.PersistentStore, "_current_account_id", "7")
         patcher.start()
@@ -166,73 +159,59 @@ class BarTests(Fast):
 
 
 class DiamondTests(Fast):
-    def test_detail_read_opens_expands_reads_and_closes(self):
+    def test_detail_read_runs_chain_reads_and_closes(self):
         screen = FakeScreen()
         record = currency.read_currency(screen, diamond_detail=True)
         self.assertEqual((record["diamond"], record["diamond_free"], record["diamond_paid"], record["diamond_paid_source"]),
                          (137227, 137227, 0, "read"))
-        self.assertEqual(screen.actions, [currency.CLICK_NODE, currency.EXPAND_NODE, currency.CLOSE_NODE])
+        self.assertEqual(screen.tasks, [currency.DETAIL_ENTRY, currency.CLOSE_NODE])
         self.assertEqual((screen.state, record["detail_closed"], record["detail_error"]), ("bar", True, None))
+
+    def test_chain_hit_counts_are_cleared_before_reading_and_before_the_chain(self):
+        screen = FakeScreen()
+        currency.read_currency(screen, diamond_detail=True)
+        self.assertEqual(screen.cleared[:len(currency.CHAIN_NODES)], list(currency.CHAIN_NODES))
+        self.assertGreaterEqual(screen.cleared.count(currency.OPEN_NODE), 2)
+        self.assertEqual(screen.cleared[-1], currency.CLOSE_NODE)
 
     def test_later_reads_carry_paid_and_subtract(self):
         currency.read_currency(FakeScreen(free="拥有133,097个", paid="拥有4,130个"), diamond_detail=True)
         screen = FakeScreen(numbers={"diamond": [("140,000", [480, 32, 81, 26])]})
         record = currency.read_currency(screen)
-        self.assertEqual(screen.actions, [])
+        self.assertEqual(screen.tasks, [])
         self.assertEqual((record["diamond_free"], record["diamond_paid"], record["diamond_paid_source"]),
                          (135870, 4130, "carried"))
 
     def test_auto_reads_detail_once_per_account(self):
         first = FakeScreen()
         currency.read_currency(first)
-        self.assertIn(currency.CLICK_NODE, first.actions)
+        self.assertIn(currency.DETAIL_ENTRY, first.tasks)
         with patch.object(currency.PersistentStore, "_current_account_id", "8"):
             other = FakeScreen()
             currency.read_currency(other)
-            self.assertIn(currency.CLICK_NODE, other.actions)
+            self.assertIn(currency.DETAIL_ENTRY, other.tasks)
 
     def test_sum_mismatch_is_not_trusted_or_cached(self):
         record = currency.read_currency(FakeScreen(free="拥有100个", paid="拥有5个"), diamond_detail=True)
         self.assertEqual((record["diamond_paid"], record["detail_error"]), (None, "detail_sum_mismatch"))
         self.assertEqual(currency._PAID_BY_ACCOUNT, {})
 
-    def test_popup_not_opening_retries_once_and_clicks_nothing_else(self):
-        screen = FakeScreen(popup_opens=False)
+    def test_popup_not_opening_reads_nothing_and_close_finds_nothing(self):
+        screen = FakeScreen(chain="no_popup")
         record = currency.read_currency(screen, diamond_detail=True)
-        self.assertEqual(screen.actions, [currency.CLICK_NODE, currency.CLICK_NODE])
-        self.assertEqual((record["detail_error"], record["detail_closed"], record["diamond"]),
-                         ("popup_not_open", None, 137227))
+        self.assertEqual((record["detail_error"], record["detail_closed"], record["diamond"], screen.state),
+                         ("popup_not_open", True, 137227, "bar"))
 
-    def test_missing_expand_still_closes_the_popup(self):
-        screen = FakeScreen(expand=False)
+    def test_popup_without_detail_is_closed(self):
+        screen = FakeScreen(chain="no_detail")
         record = currency.read_currency(screen, diamond_detail=True)
-        self.assertEqual(screen.actions, [currency.CLICK_NODE, currency.CLOSE_NODE])
-        self.assertEqual((record["detail_error"], screen.state), ("expand_not_found", "bar"))
-
-    def test_popup_already_open_is_not_clicked_shut(self):
-        screen = FakeScreen(state="popup")
-        record = currency.read_currency(screen, diamond_detail=True)
-        self.assertEqual(screen.actions, [currency.EXPAND_NODE, currency.CLOSE_NODE])
-        self.assertEqual(record["diamond_paid"], 0)
-
-    def test_lost_first_click_is_retried(self):
-        screen = FakeScreen(lost_clicks=1)
-        record = currency.read_currency(screen, diamond_detail=True)
-        self.assertEqual(screen.actions, [currency.CLICK_NODE, currency.CLICK_NODE, currency.EXPAND_NODE,
-                                          currency.CLOSE_NODE])
-        self.assertEqual(record["diamond_paid_source"], "read")
-
-    def test_late_popup_is_closed_before_leaving(self):
-        with patch.object(currency, "_WAIT_SECONDS", 0):
-            screen = FakeScreen(open_after=6)
-            currency.read_diamond_detail(screen, ICONS["diamond"])
-        self.assertEqual(screen.state, "bar")
-        self.assertEqual(screen.actions[-1], currency.CLOSE_NODE)
+        self.assertEqual((record["detail_error"], record["detail_closed"], screen.state),
+                         ("detail_not_shown", True, "bar"))
 
     def test_no_detail_when_disabled(self):
         screen = FakeScreen()
         record = currency.read_currency(screen, diamond_detail=False)
-        self.assertEqual((screen.actions, record["diamond_paid"]), ([], None))
+        self.assertEqual((screen.tasks, record["diamond_paid"]), ([], None))
 
 
 class MemoryAccountStore:
@@ -288,7 +267,7 @@ class ActionTests(Fast):
                 self.assertTrue(currency.CurrencyRead().run(
                     screen, SimpleNamespace(custom_action_param={"label": "x"})))
         save.assert_not_called()
-        self.assertEqual(screen.actions, [])
+        self.assertEqual(screen.tasks, [])
 
 
 if __name__ == "__main__":
