@@ -30,7 +30,7 @@ with patch.object(AgentServer, "custom_action", _keep), patch.object(AgentServer
         patch.object(AgentServer, "_set_api_properties", lambda *args, **kwargs: None):
     from action import ledger_point as point  # noqa: E402
 from utils import arbitrage_store as store  # noqa: E402
-from utils import task_journal  # noqa: E402
+from utils import ledger_config, task_journal  # noqa: E402
 from utils.ledger_rules import ALL_SCOPES  # noqa: E402
 
 T0 = 1_763_208_000.0   # 2025-11-15 12:00 UTC
@@ -69,10 +69,12 @@ class LedgerPointTests(unittest.TestCase):
         point._CURSORS.clear()
         self.scans, self.clock = [], [T0]
         self.scan_result = {"executed": True, "returned": True}
+        ledger_config.remember_injected({})
         for target, attribute, value in (
                 (store, "PersistentStore", MemoryAccountStore),
                 (point, "PersistentStore", MemoryAccountStore),
-                (point, "sync_from_context", lambda context, where="": True),
+                (point, "current_session", lambda: SimpleNamespace(source="injected")),
+                (point, "sync_from_context", lambda context, where="", stop=True: True),
                 (point, "run_bag_scan", self.fake_scan),
                 (point, "read_currency", self.fake_currency),
                 (point.time, "time", lambda: self.clock[0])):
@@ -151,9 +153,34 @@ class LedgerPointTests(unittest.TestCase):
 
     def test_unconfirmed_account_writes_nothing(self):
         self.task("Mail_HomePage", 101)
-        with patch.object(point, "sync_from_context", lambda context, where="": False):
+        asked = []
+
+        def unconfirmed(context, where="", stop=True):
+            asked.append(stop)
+            return False
+
+        with patch.object(point, "sync_from_context", unconfirmed):
             self.assertTrue(self.run_point("begin", "daily", 101, "Mail_HomePage"))
         self.assertEqual((self.events("ledger_mark"), self.scans), ([], []))
+        self.assertEqual(asked, [False])                   # 只问一声，不替所在流程停任务
+
+    def test_k16_switch_off_does_nothing_at_all(self):
+        self.task("Mail_HomePage", 101)
+        ledger_config.remember_injected({"scan": "No"})
+        with patch.object(point, "sync_from_context", side_effect=AssertionError("关着时不该碰账号")):
+            self.assertTrue(self.run_point("begin", "daily", 101, "Mail_HomePage"))
+        self.assertEqual((self.events("ledger_mark"), self.scans), ([], []))
+        self.assertEqual(point._STATES, {})
+
+    def test_full_range_option_scans_everything_but_only_when_the_rule_says_scan(self):
+        ledger_config.remember_injected({"full": "每次全盘"})
+        self.task("Arbitrage_Start", 101)
+        self.run_point("begin", "shop", 101, "Arbitrage_Start")
+        self.run_point("end", "shop", 101, "Arbitrage_Start")                     # 规则只要 A，选项改成全盘
+        self.task("Close_HomePage", 102)
+        self.run_point("queue_end", None, 102, "Close_HomePage")                  # 规则说不盘：仍不盘
+        self.assertEqual([scan["scope"] for scan in self.scans], [list(ALL_SCOPES), list(ALL_SCOPES)])
+
 
     def test_scan_that_did_not_run_or_return(self):
         self.task("Mail_HomePage", 101)
@@ -182,6 +209,57 @@ class LedgerPointTests(unittest.TestCase):
         with patch.object(MemoryAccountStore, "_current_account_id", "8"):
             self.run_point("begin", "daily", 102, "Pass_HomePage")
         self.assertEqual([scan["scope"] for scan in self.scans], [list(ALL_SCOPES), list(ALL_SCOPES)])
+
+
+class LedgerConfigTests(unittest.TestCase):
+    INTERFACE = {"option": {
+        "记账盘点": {"type": "switch", "default_case": "Yes", "cases": [{"name": "Yes"}, {"name": "No"}]},
+        "记账盘点范围": {"type": "select", "cases": [{"name": "按规则"}, {"name": "每次全盘"}]},
+        "记账报表": {"type": "switch", "default_case": "Yes", "cases": [{"name": "Yes"}, {"name": "No"}]}}}
+
+    def task(self, *options):
+        return {"TaskItems": [{"entry": "Daily_HomePage", "option": [{"name": "记账盘点", "selected_case": "No"}]},
+                              {"entry": ledger_config.TASK_ENTRY, "option": list(options)}]}
+
+    def test_k20_instance_file_choices_and_defaults(self):
+        parse = ledger_config.parse_instance
+        self.assertEqual(parse(self.task(), self.INTERFACE), {"scan": True, "full": False, "report": True})
+        self.assertEqual(parse(self.task({"name": "记账盘点", "selected_case": "No"}), self.INTERFACE)["scan"], False)
+        self.assertEqual(parse(self.task({"name": "记账盘点", "index": 1}), self.INTERFACE)["scan"], False)   # 旧客户端存序号
+        self.assertEqual(parse(self.task({"name": "记账盘点范围", "selected_case": "每次全盘"},
+                                         {"name": "记账报表", "selected_case": "No"}), self.INTERFACE),
+                         {"scan": True, "full": True, "report": False})
+        # 没有这个任务、读不到 interface、选项里是已经不存在的 case：都跟默认
+        self.assertEqual(parse({"TaskItems": []}, self.INTERFACE), ledger_config.DEFAULTS)
+        self.assertEqual(parse(self.task({"name": "记账盘点", "selected_case": "No"}), None)["scan"], True)
+        self.assertEqual(parse(self.task({"name": "记账盘点", "selected_case": "也许"}), self.INTERFACE)["scan"], True)
+        self.assertEqual(parse(None, None), ledger_config.DEFAULTS)
+
+    def test_k20_other_clients_follow_the_config_task_or_defaults(self):
+        ledger_config.remember_injected({})
+        session = SimpleNamespace(source="injected")
+        self.assertEqual(ledger_config.ledger_options(session), ledger_config.DEFAULTS)     # 没跑过配置任务
+        ledger_config.remember_injected({"scan": "No", "full": "", "report": "Yes"})
+        self.assertEqual(ledger_config.ledger_options(session), {"scan": False, "full": False, "report": True})
+        ledger_config.remember_injected({})
+
+    def test_unreadable_instance_file_keeps_last_good_then_defaults(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            (root / "config" / "instances").mkdir(parents=True)
+            (root / "interface.json").write_text(json.dumps(self.INTERFACE, ensure_ascii=False), encoding="utf-8")
+            path = root / "config" / "instances" / "one.json"
+            session = SimpleNamespace(source="mfaa", project_root=root, instance_id="one")
+            with patch.object(ledger_config.time, "sleep", lambda seconds: None):
+                self.assertEqual(ledger_config.ledger_options(session), ledger_config.DEFAULTS)   # 文件还不存在
+                path.write_text(json.dumps(self.task({"name": "记账盘点", "selected_case": "No"}), ensure_ascii=False),
+                                encoding="utf-8")
+                self.assertEqual(ledger_config.ledger_options(session)["scan"], False)
+                path.write_text("{ 半截", encoding="utf-8")
+                self.assertEqual(ledger_config.ledger_options(session)["scan"], False)            # 沿用上一次读成的
+                bad = SimpleNamespace(source="mfaa", project_root=root, instance_id="../one")
+                self.assertEqual(ledger_config.ledger_options(bad), ledger_config.DEFAULTS)
 
 
 if __name__ == "__main__":

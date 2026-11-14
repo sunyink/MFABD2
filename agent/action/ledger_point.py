@@ -17,8 +17,8 @@ from maa.agent.agent_server import AgentServer
 from maa.context import Context
 from maa.custom_action import CustomAction
 
-from utils import ledger_rules, mfaalog, task_journal
-from utils.account_sync import sync_from_context
+from utils import ledger_config, ledger_rules, mfaalog, task_journal
+from utils.account_sync import current_session, sync_from_context
 from utils.inventory_store import save_currency_reading, save_ledger_mark, utc_now
 from utils.persistent_store import PersistentStore
 
@@ -83,7 +83,11 @@ def _run(context: Context, argv: CustomAction.RunArg) -> None:
     mark, kind = str(params.get("mark") or ""), params.get("type")
     if mark not in ledger_rules.MARKS:
         raise ValueError(f"参数 mark 不对：{mark!r}")
-    if not sync_from_context(context, where="LedgerPoint"):
+    options = ledger_config.ledger_options(current_session())
+    if not options["scan"]:
+        return
+    # stop=False：账号未确认时只是不记账，不替所在流程停任务。
+    if not sync_from_context(context, where="LedgerPoint", stop=False):
         mfaalog.warning("[Ledger] ⚠️ 账号未确认，这个位置不留标记、不盘")
         return
     account = PersistentStore._current_account_id
@@ -98,6 +102,8 @@ def _run(context: Context, argv: CustomAction.RunArg) -> None:
         since = _CURSORS.get(account, 0.0)
     decision = ledger_rules.decide(mark, kind, state, task_id=task_id, rows=rows, now=now,
                                    quiet=settings["quiet"], gap=settings["gap"])
+    if decision["scan"] and options["full"]:
+        decision["scopes"] = list(ledger_rules.ALL_SCOPES)   # 选项「每次全盘」：盘不盘照规则，范围一律全盘
 
     task = {"entry": entry, "task_id": task_id}
     if mark != "end" or decision["end_mark"]:
@@ -129,6 +135,28 @@ def _run(context: Context, argv: CustomAction.RunArg) -> None:
         mfaalog.debug(f"[Ledger] {label}：不盘——{decision['reason']}")
     with _LOCK:
         ledger_rules.settle(state, mark=mark, kind=kind, task_id=task_id, entry=entry, now=time.time(), scan=scan)
+
+
+@AgentServer.custom_action("LedgerConfig")
+class LedgerConfig(CustomAction):
+    """任务「⚙️ 库存记账」的动作：非 MFAA 客户端在这里把本任务下发的选项记进内存，并报出当前生效的设置。
+
+    MFAA 不靠它——那边每个位置直接读本实例配置，这个任务勾不勾、跑没跑都一样。
+    """
+
+    def run(self, context: Context, argv: CustomAction.RunArg) -> bool:
+        try:
+            session = current_session()
+            if getattr(session, "source", None) != "mfaa":
+                node = context.get_node_object(ledger_config.INJECT_NODE)
+                ledger_config.remember_injected(getattr(node, "attach", None))
+            options = ledger_config.ledger_options(session)
+            mfaalog.info(f"[Ledger] 库存记账：{'开' if options['scan'] else '关'}；"
+                         f"盘点范围：{'每次全盘' if options['full'] else '按规则'}；"
+                         f"报表：{'出' if options['report'] else '不出'}")
+        except Exception as exc:
+            mfaalog.error(f"[Ledger] ❌ 记账设置读取异常，按默认处理：{exc}")
+        return True
 
 
 @AgentServer.custom_action("LedgerPoint")

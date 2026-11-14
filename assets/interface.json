@@ -109,6 +109,18 @@
             "description": "账号选择只看下方「启用多存档」开关，与左侧任务勾选、全选/全不选无关；本任务无需先执行。<br>关闭使用默认档；开启使用填写的号码。修改从下一任务生效，建议停止队列后修改。<br><b>升级或应用预设后默认为 0，多账号用户请重新确认号码。</b>"
         },
         {
+            "name": "库存记账",
+            "label": "⚙️ 库存记账",
+            "entry": "Env_Ledger_Config",
+            "default_check": true,
+            "option": [
+                "记账盘点",
+                "记账盘点范围",
+                "记账报表"
+            ],
+            "description": "开启后，脚本在各任务之间自动盘点背包与货币，记下每天的收支。<br>使用 MFA 时只看下方选项，与左侧任务勾选无关，本任务无需先执行；其他客户端请保持勾选并排在前面。<br>按预设顺序跑一轮会盘 4 次，每次几分钟。<b>不想多花这些时间，把「库存盘点与记账」关掉即可。</b>"
+        },
+        {
             "name": "[全局]启动脚本(置顶)",
             "entry": "StartGame_Start",
             "default_check": true,
@@ -377,6 +389,12 @@
                 "目标次数"
             ],
             "description": "自动导航至指定钓鱼点，持续钓鱼至目标条数后结束。<br>注意：受鱼类判定复杂度影响，成功率因鱼种而异。适合挂机刷普通鱼类经验与兑换币。<br><span style=\"color:Crimson;font-size:12px\">钓鱼模块重构进行中，当前为先行版，行为与参数可能随后续版本调整。</span>"
+        },
+        {
+            "name": "[全局]库存结账",
+            "entry": "Ledger_Settle_Manual",
+            "default_check": false,
+            "description": "不关游戏的结账：上一次盘点之后还有没盘掉的任务就盘一次（几分钟），刚盘过就不盘。<br>队列末尾没排「结束游戏」时把它排在最后，或想看账时单独跑。需要先开启「⚙️ 库存记账」。"
         },
         {
             "name": "[全局]结束游戏",
@@ -8023,6 +8041,90 @@
                 }
             ]
         },
+        "记账盘点": {
+            "type": "switch",
+            "label": "库存盘点与记账",
+            "default_case": "Yes",
+            "description": "开启后在各任务之间自动盘点并记账；关闭后不盘点、不记账，也不出报表。",
+            "cases": [
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "Agt_Ledger_Inject": {
+                            "attach": {
+                                "scan": "Yes"
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "No",
+                    "pipeline_override": {
+                        "Agt_Ledger_Inject": {
+                            "attach": {
+                                "scan": "No"
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        "记账盘点范围": {
+            "type": "select",
+            "label": "盘点范围",
+            "default_case": "按规则",
+            "description": "按规则：每次运行第一次全盘，之后只盘前后两类任务用得到的类别，省时间。<br>每次全盘：每次都把存货、票券与养成材料、装备制作材料盘一遍，更慢。",
+            "cases": [
+                {
+                    "name": "按规则",
+                    "pipeline_override": {
+                        "Agt_Ledger_Inject": {
+                            "attach": {
+                                "full": "按规则"
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "每次全盘",
+                    "pipeline_override": {
+                        "Agt_Ledger_Inject": {
+                            "attach": {
+                                "full": "每次全盘"
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        "记账报表": {
+            "type": "switch",
+            "label": "生成报表",
+            "default_case": "Yes",
+            "description": "关闭后只记录盘点结果，不生成报表。",
+            "cases": [
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "Agt_Ledger_Inject": {
+                            "attach": {
+                                "report": "Yes"
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "No",
+                    "pipeline_override": {
+                        "Agt_Ledger_Inject": {
+                            "attach": {
+                                "report": "No"
+                            }
+                        }
+                    }
+                }
+            ]
+        },
         "启用多存档": {
             "type": "switch",
             "label": "启用多存档",
@@ -8055,6 +8157,10 @@
             "task": [
                 {
                     "name": "多存档",
+                    "enabled": true
+                },
+                {
+                    "name": "库存记账",
                     "enabled": true
                 },
                 {
@@ -8145,6 +8251,10 @@
             "task": [
                 {
                     "name": "多存档",
+                    "enabled": true
+                },
+                {
+                    "name": "库存记账",
                     "enabled": true
                 },
                 {
@@ -8248,6 +8358,10 @@
                     "enabled": true
                 },
                 {
+                    "name": "库存记账",
+                    "enabled": true
+                },
+                {
                     "name": "[半自动]自动钓鱼",
                     "enabled": false
                 },
@@ -8257,6 +8371,10 @@
                 },
                 {
                     "name": "[手动]生活技能刷级",
+                    "enabled": false
+                },
+                {
+                    "name": "[全局]库存结账",
                     "enabled": false
                 }
             ]
