@@ -18,6 +18,7 @@ from .arbitrage_store import (  # noqa: F401  通用读写原样转出
 _RECORD_FIELDS = (
     "scan_id", "label", "note", "started_at", "finished_at", "job_id", "profile", "scope", "target_count",
     "complete", "termination", "continuity", "pages", "quantities", "absent", "unknown", "cells", "timing_ms",
+    "origin",
 )
 
 
@@ -71,7 +72,7 @@ def get_latest_scan(label: str) -> dict | None:
 
 _CURRENCY_FIELDS = (
     "label", "observed_at", "gold", "diamond", "tonic", "diamond_free", "diamond_paid", "diamond_paid_source",
-    "icons_found", "detail_error", "detail_closed",
+    "icons_found", "detail_error", "detail_closed", "scan_id",
 )
 
 
@@ -88,4 +89,22 @@ def save_currency_reading(record: dict) -> bool:
         inventory = _base._inventory(data)
         inventory["latest"]["currency"] = {key: value for key, value in event.items() if key != "kind"}
         inventory["events"].append(event)
+        return bool(_base._save_inventory(data))
+
+
+_MARK_FIELDS = ("mark", "type", "at", "session", "task", "node", "tasks", "cards")
+
+
+def save_ledger_mark(record: dict) -> bool:
+    """保存一条记账标记（流程走到了某个位置）：只进事件流，不动 items 与 latest。
+
+    标记只记事实——哪个节点、哪个任务、什么类型、什么时刻，以及上一条标记以来框架报过的任务起止；
+    盘没盘、算谁的都不在这里（盘点记录自己带 origin 指回触发它的位置）。
+    """
+    event = {key: copy.deepcopy(record[key]) for key in _MARK_FIELDS if key in record}
+    event["kind"] = "ledger_mark"
+    event["observed_at"] = event.get("at") or _base.utc_now()
+    with _base._LOCK:
+        data = _base.PersistentStore.load()
+        _base._inventory(data)["events"].append(event)
         return bool(_base._save_inventory(data))

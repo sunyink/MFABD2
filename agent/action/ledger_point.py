@@ -1,0 +1,143 @@
+"""库存记账的位置动作：流程走到一个位置，留标记，按规则决定盘不盘。
+
+节点在 Ledger.json，参数只说明这是哪里：
+    {"mark": "begin" | "end" | "queue_end" | "manual", "type": "daily" | "collect" | "shop"}
+begin 是任务开始动库存的地方，end 是只有做成才走得到的正常结束点；queue_end、manual 不带类型。
+盘不盘的规则在 utils/ledger_rules.py。这里只留凭证（标记、盘点读数、货币读数）；
+段怎么划、算谁的，是出报表时从凭证现算的事。
+永远返回 True：记账出什么错都不打断所在的业务。
+"""
+
+from datetime import datetime, timezone
+import json
+import threading
+import time
+
+from maa.agent.agent_server import AgentServer
+from maa.context import Context
+from maa.custom_action import CustomAction
+
+from utils import ledger_rules, mfaalog, task_journal
+from utils.account_sync import sync_from_context
+from utils.inventory_store import save_currency_reading, save_ledger_mark, utc_now
+from utils.persistent_store import PersistentStore
+
+from .bag_scan import run_bag_scan
+from .currency_read import read_currency
+
+
+CONFIG = "Agt_Ledger_Config"
+# 没留标记也不算活动的任务入口：不动库存的，以及接了标记、没走到始标记就等于没干活的。
+# 以 Agt_Ledger_Config.attach.quiet 为准，读不到时用这份。名单外的任务夹在中间一律当作动过库存。
+QUIET = ("Env_MultiSave_Config", "StartGame_Start", "Env_Ledger_Config", "Collect_StartGame_HomePage",
+         "Collect_StartGame_HomePage_OnlyOnce", "Arbitrage_Start", "Close_HomePage", "Ledger_Settle_Manual")
+KIND_NAMES = {"daily": "日常", "collect": "吸取", "shop": "商店"}
+
+_LOCK = threading.Lock()
+_STATES: dict = {}    # 账号 → LedgerState。键是账号编号，不是对象地址。
+_CURSORS: dict = {}   # 账号 → 上一条标记的时刻（秒）
+
+
+def _label(mark: str, kind) -> str:
+    if mark == "begin":
+        return f"记账·{KIND_NAMES[kind]}开头"
+    if mark == "end":
+        return f"记账·{KIND_NAMES[kind]}结束"
+    return "记账·结束游戏" if mark == "queue_end" else "记账·手动结账"
+
+
+def _iso(seconds):
+    return None if seconds is None else datetime.fromtimestamp(seconds, timezone.utc).isoformat(timespec="seconds")
+
+
+def _settings(context) -> dict:
+    try:
+        attach = dict(context.get_node_object(CONFIG).attach or {})
+    except Exception:
+        attach = {}
+    quiet = attach.get("quiet")
+    gap = attach.get("gap_seconds")
+    return {"quiet": tuple(quiet) if isinstance(quiet, list) and quiet else QUIET,
+            "gap": float(gap) if isinstance(gap, (int, float)) and gap > 0 else ledger_rules.GAP_SECONDS}
+
+
+def _shown(value) -> str:
+    return "?" if value is None else f"{value:,}"
+
+
+def _read_currency(context, label: str, scan_id: str) -> None:
+    """盘点返回后画面在主页或箱庭，顶栏有货币；读不到的项记空，读数异常只记日志。"""
+    try:
+        record = read_currency(context)
+        record.update(label=label, scan_id=scan_id)
+        saved = save_currency_reading(record)
+        mfaalog.info(f"[Ledger] {label}：钻石 {_shown(record['diamond'])}、金币 {_shown(record['gold'])}、"
+                     f"天赋神药 {_shown(record['tonic'])}" + ("" if saved else "（⚠️ 存档未写入）"))
+    except Exception as exc:
+        mfaalog.warning(f"[Ledger] ⚠️ {label}：货币没读成：{exc}")
+
+
+def _run(context: Context, argv: CustomAction.RunArg) -> None:
+    raw = argv.custom_action_param
+    params = raw if isinstance(raw, dict) else json.loads(str(raw or "{}"))
+    mark, kind = str(params.get("mark") or ""), params.get("type")
+    if mark not in ledger_rules.MARKS:
+        raise ValueError(f"参数 mark 不对：{mark!r}")
+    if not sync_from_context(context, where="LedgerPoint"):
+        mfaalog.warning("[Ledger] ⚠️ 账号未确认，这个位置不留标记、不盘")
+        return
+    account = PersistentStore._current_account_id
+    task_id = argv.task_detail.task_id
+    rows = task_journal.rows()
+    entry = getattr(argv.task_detail, "entry", None) or next(
+        (row["entry"] for row in rows if row["task_id"] == task_id), "")
+    settings = _settings(context)
+    label, now = _label(mark, kind), time.time()
+    with _LOCK:
+        state = _STATES.setdefault(account, ledger_rules.LedgerState())
+        since = _CURSORS.get(account, 0.0)
+    decision = ledger_rules.decide(mark, kind, state, task_id=task_id, rows=rows, now=now,
+                                   quiet=settings["quiet"], gap=settings["gap"])
+
+    task = {"entry": entry, "task_id": task_id}
+    if mark != "end" or decision["end_mark"]:
+        saved = save_ledger_mark({
+            "mark": mark, "type": kind, "at": utc_now(), "session": task_journal.SESSION, "task": task,
+            "node": argv.node_name,
+            "tasks": [{"entry": row["entry"], "task_id": row["task_id"], "start": _iso(row["start"]),
+                       "end": _iso(row["end"]), "status": row["status"]}
+                      for row in rows if row["end"] is None or row["end"] >= since]})   # 上一条标记之后还在跑过的
+        if not saved:
+            mfaalog.warning(f"[Ledger] ⚠️ {label}：标记没写进存档")
+        with _LOCK:
+            _CURSORS[account] = now
+
+    scan = None
+    if decision["scan"]:
+        mfaalog.info(f"[Ledger] {label}：盘点（{'+'.join(decision['scopes'])}）——{decision['reason']}")
+        record = run_bag_scan(context, label=label, scope=decision["scopes"], origin={
+            "mark": mark, "type": kind, "node": argv.node_name, "task": task, "session": task_journal.SESSION})
+        if not record.get("executed"):
+            mfaalog.warning(f"[Ledger] ⚠️ {label}：盘点没执行（{record.get('error')}），留给下一个位置")
+        else:
+            scan = {"scan_id": record["scan_id"], "scopes": record.get("scope") or decision["scopes"]}
+            if record.get("returned"):
+                _read_currency(context, label, record["scan_id"])
+            else:
+                mfaalog.warning(f"[Ledger] ⚠️ {label}：盘点后没能回到原位，货币没读，页面由所在流程自行恢复")
+    else:
+        mfaalog.debug(f"[Ledger] {label}：不盘——{decision['reason']}")
+    with _LOCK:
+        ledger_rules.settle(state, mark=mark, kind=kind, task_id=task_id, entry=entry, now=time.time(), scan=scan)
+
+
+@AgentServer.custom_action("LedgerPoint")
+class LedgerPoint(CustomAction):
+    """库存记账的位置：留标记，按「上一次盘点之后有没有还没盘掉的活动」决定盘不盘。参数 {mark, type?}。"""
+
+    def run(self, context: Context, argv: CustomAction.RunArg) -> bool:
+        try:
+            _run(context, argv)
+        except Exception as exc:
+            mfaalog.error(f"[Ledger] ❌ 记账位置处理异常（不影响所在流程）：{exc}")
+        return True

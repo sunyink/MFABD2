@@ -388,6 +388,8 @@ class BagScanRun(CustomAction):
                   "scope": [], "target_count": 0, "complete": False,
                   "termination": "error", "continuity": "broken", "pages": 0,
                   "quantities": {}, "absent": [], "unknown": {}, "cells": {}, "timing_ms": {}}
+        if isinstance(params.get("origin"), dict):
+            record["origin"] = params["origin"]   # 库存记账的位置触发的盘点：哪个节点、哪个任务、什么类型
         if not sync_from_context(context, where="BagScanRun"):
             return False
         try:
@@ -455,7 +457,7 @@ class BagScanRun(CustomAction):
 
 
 def run_bag_scan(context: Context, *, label: str | None, targets: str | list[str] = "all",
-                 scope: str | list[str] = "A", note: str | None = None) -> dict:
+                 scope: str | list[str] = "A", note: str | None = None, origin: dict | None = None) -> dict:
     """同步执行一次仓检（开包 → 按页扫描 → 原路返回），返回扫描记录副本。
 
     scope：扫描类型，Agt_BagScan_Config 里定义的键，可给一个或一组——A 存货（食材、料理）、
@@ -463,6 +465,7 @@ def run_bag_scan(context: Context, *, label: str | None, targets: str | list[str
     A、C 各自连成一段，走完那一段就结清；带 B 时扫到列表底。
     executed=False 表示没走到扫描核心（账号未确认、配置无效或进包失败），此时没有任何读数；
     returned=False 表示子任务没正常结束，页面位置未知，调用方须自行恢复。
+    origin：谁在什么位置触发的这次盘点，原样写进扫描记录；库存记账靠它认出自己的盘点。
     """
     if not sync_from_context(context, where="BagScan"):
         return {"executed": False, "returned": False, "error": "account"}
@@ -470,6 +473,8 @@ def run_bag_scan(context: Context, *, label: str | None, targets: str | list[str
         raise ValueError(f"未知扫描类型: {scope}")
     scan_id = uuid4().hex
     param = {"scan_id": scan_id, "label": _label(label), "targets": targets, "scope": scope, "note": note}
+    if origin is not None:
+        param["origin"] = origin
     local = context.clone()
     detail = local.run_task(ENTRY, {RUN: {"custom_action_param": param}})
     record = get_scan(scan_id)
