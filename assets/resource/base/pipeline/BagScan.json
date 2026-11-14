@@ -9,7 +9,16 @@
             "BagScan_Open_Home",
             "BagScan_Open_Sand",
             "[JumpBack]Arbitrage_ShopOut",
-            "[JumpBack]Global_ToHomePage"
+            "[JumpBack]BagScan_Entry_ToHome"
+        ]
+    },
+    "BagScan_Entry_ToHome": {
+        "desc": "当前页面进不了背包时先回主页，一次仓检最多两回 | 回主页的通用复位每次都会清自己的计数，游戏不响应时它照样「正常」退栈回来，入口会无限重来（11-14 模拟器游戏卡死时实跑空转十多分钟）。两回用完后入口再无候选，超时退栈，仓检按「没执行」收场，由调用方的流程自己处理卡死。计数在进包成功后由 BagScan_Prepare 清掉。",
+        "max_hit": 2,
+        "pre_delay": 0,
+        "post_delay": 0,
+        "next": [
+            "Global_ToHomePage"
         ]
     },
     "BagScan_Open_Home": {
@@ -114,6 +123,7 @@
         "custom_action": "ClearNodeHitCount",
         "custom_action_param": {
             "node_name": [
+                "BagScan_Entry_ToHome",
                 "BagScan_TabReset_Once",
                 "BagScan_Sort",
                 "BagScan_Sort_Open",
