@@ -19,7 +19,8 @@
                 "Collect_WayPoint_Open_Tpl",
                 "Collect_WayPoint_Csm",
                 "Collect_WayPoint_Board",
-                "Collect_WayPoint_Arrived"
+                "Collect_WayPoint_Arrived",
+                "Collect_WayPoint_Arrived_OnFoot"
             ]
         },
         "anchor": {
