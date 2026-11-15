@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 
 from .ledger_rules import GAP_SECONDS, _connected, game_day
 
-RULE_VERSION = 3   # 3：吸取分卡产出
+RULE_VERSION = 4   # 3：吸取分卡产出；4：存货没盘全时退出重扫，重扫的读数并进原来那次盘点
 # 顶栏货币在账里的名字 → 货币读数里的字段。
 CURRENCY = (("金币", "gold"), ("钻石", "diamond"), ("钻石（免费）", "diamond_free"),
             ("钻石（付费）", "diamond_paid"), ("天赋神药", "tonic"))
@@ -71,15 +71,46 @@ def dedupe(vouchers) -> list:
     return result
 
 
+def _counted(event) -> dict:
+    """一条盘点记录读到的数（判 0 的记 0）。"""
+    readings = {name: quantity for name, quantity in (event.get("quantities") or {}).items()
+                if type(quantity) is int and quantity >= 0}
+    readings.update(dict.fromkeys(event.get("absent") or (), 0))
+    return readings
+
+
+def _duration(event) -> float:
+    at, started = ts(event.get("finished_at")), ts(event.get("started_at"))
+    return 0.0 if at is None or started is None else max(at - started, 0.0)
+
+
 def _scan_rows(events, currencies) -> list:
+    """记账盘点，按时刻排。存货没盘全时同一位置会退出背包重扫（origin.retry_of 指回原来那次）：
+    重扫补上的读数并进原来那次，它不另算一次盘点——两次之间什么也没干，分成两个边界只会让补上的东西跨进一个空区间。"""
+    scans = [event for event in events if event.get("kind") == "inventory_scan" and isinstance(event.get("origin"), dict)
+             and ts(event.get("finished_at")) is not None]
+    parents = {event.get("scan_id") for event in scans if not event["origin"].get("retry_of")}
+    retries = {}
+    for event in scans:
+        if event["origin"].get("retry_of") in parents:
+            retries.setdefault(event["origin"]["retry_of"], []).append(event)
     rows = []
-    for event in events:
-        at = ts(event.get("finished_at"))
-        if event.get("kind") != "inventory_scan" or not isinstance(event.get("origin"), dict) or at is None:
+    for event in scans:
+        if event["origin"].get("retry_of") in parents:
             continue
-        readings = {name: quantity for name, quantity in (event.get("quantities") or {}).items()
-                    if type(quantity) is int and quantity >= 0}
-        readings.update(dict.fromkeys(event.get("absent") or (), 0))
+        at = ts(event.get("finished_at")) or 0.0   # 上面已滤掉没有时刻的
+        readings, unknown = _counted(event), set(event.get("unknown") or ())
+        read, absent = len(event.get("quantities") or {}), len(event.get("absent") or ())
+        pages, extra = event.get("pages") or 0, 0.0
+        again = sorted(retries.get(event.get("scan_id"), ()), key=lambda retry: ts(retry["finished_at"]) or 0.0)
+        for retry in again:
+            filled = {name: quantity for name, quantity in _counted(retry).items() if name not in readings}
+            readings.update(filled)
+            unknown -= set(filled)
+            read += sum(quantity > 0 for quantity in filled.values())
+            absent += sum(quantity == 0 for quantity in filled.values())
+            pages += retry.get("pages") or 0
+            extra += _duration(retry)
         currency = currencies.get(event.get("scan_id")) or {}
         for name, field in CURRENCY:
             if type(currency.get(field)) is int:
@@ -88,11 +119,11 @@ def _scan_rows(events, currencies) -> list:
         rows.append({
             "scan_id": event.get("scan_id"), "seq": event.get("seq"), "at": at, "started": min(started, at),
             "day": game_day(at), "label": event.get("label"), "origin": event["origin"],
-            "scope": list(event.get("scope") or ()), "complete": bool(event.get("complete")),
-            "termination": event.get("termination"), "pages": event.get("pages") or 0,
-            "seconds": round(at - min(started, at)), "read": len(event.get("quantities") or {}),
-            "absent": len(event.get("absent") or ()), "unknown": sorted(event.get("unknown") or ()),
-            "currency_read": bool(currency), "readings": readings})
+            "scope": list(event.get("scope") or ()),
+            "complete": bool(event.get("complete")) or (bool(again) and not unknown),
+            "termination": event.get("termination"), "pages": pages,
+            "seconds": round(at - min(started, at) + extra), "read": read, "absent": absent,
+            "unknown": sorted(unknown), "retried": len(again), "currency_read": bool(currency), "readings": readings})
     rows.sort(key=lambda row: (row["at"], row["seq"] or 0))
     for number, row in enumerate(rows, 1):
         row["id"] = f"S{number}"

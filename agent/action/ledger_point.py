@@ -24,13 +24,17 @@ from utils.inventory_ledger import CARD_PREFIXES
 from utils.inventory_store import get_events, save_currency_reading, save_ledger_mark, utc_now
 from utils.persistent_store import PersistentStore
 
-from .bag_scan import run_bag_scan
+from .bag_scan import run_bag_scan, scope_names
 from .currency_read import read_currency
 
 
 CONFIG = "Agt_Ledger_Config"
 QUIET = ledger_rules.QUIET   # 没留标记也不算活动的任务入口；Agt_Ledger_Config.attach.quiet 读不到时用这份
 KIND_NAMES = {"daily": "日常", "collect": "吸取", "shop": "商店"}
+# 只有存货（商店套利的食材与料理）没盘全才退出背包、再进来重扫一次（U61）；票券、养成、装备材料没盘全照旧跨过去。
+RETRY_SCOPE = "A"
+# 重扫也好不了的：物品表里没有它、任务被停了。
+_NO_RETRY = frozenset({"template_missing", "stopped"})
 
 _LOCK = threading.Lock()
 _STATES: dict = {}    # 账号 → LedgerState。键是账号编号，不是对象地址。
@@ -97,18 +101,60 @@ def _hand_over_loot(mark: str, kind, task_id, account) -> None:
         mfaalog.warning(f"[Ledger] ⚠️ 吸取掉落没能落盘（不影响记账）：{exc}")
 
 
-def _report(label: str) -> None:
-    """盘完出报表：从凭证现算，重写还没结账的游戏日。出什么错都只记日志，不影响所在流程。"""
+def _retry_stock(context, label: str, record: dict, origin: dict) -> bool:
+    """存货有没盘准的：退出背包（盘点本来就原路返回了）再进来，只找那几样重扫一次，记录带 retry_of 指回原来那次；
+    做账时补上的读数并进原来那次盘点。只重扫一次，还不全就照旧跨过去。返回最后一趟有没有回到原位（决定读不读货币）。"""
+    returned = bool(record.get("returned"))
+    if RETRY_SCOPE not in (record.get("scope") or ()):
+        return returned
+    stock = scope_names(context, RETRY_SCOPE)
+    missing = [name for name, reason in (record.get("unknown") or {}).items() if name in stock and reason not in _NO_RETRY]
+    if not missing:
+        return returned
+    mfaalog.info(f"[Ledger] {label}：存货有 {len(missing)} 项没盘准，退出背包再进来重扫一次")
+    again = run_bag_scan(context, label=f"{label}·重扫", targets=missing, scope=[RETRY_SCOPE],
+                         origin={**origin, "retry_of": record["scan_id"]})
+    if not again.get("executed"):
+        mfaalog.warning(f"[Ledger] ⚠️ {label}：重扫没执行（{again.get('error')}），没盘准的跨过去")
+        return returned
+    left = [name for name in missing if name in (again.get("unknown") or {})]
+    if left:
+        mfaalog.warning(f"[Ledger] ⚠️ {label}：重扫后仍有 {len(left)} 项没盘准，跨过去")
+    else:
+        mfaalog.info(f"[Ledger] {label}：重扫补齐了 {len(missing)} 项")
+    return bool(again.get("returned"))
+
+
+def _open(path) -> None:
+    """用系统默认浏览器打开报表。只在手动结账后调：那时人就在电脑前，别处弹窗会抢游戏的前台。"""
+    try:
+        import webbrowser
+        if not webbrowser.open(Path(path).resolve().as_uri()):
+            mfaalog.info(f"[Ledger] 没能自动打开报表，请手动打开：{path}")
+    except Exception as exc:
+        mfaalog.info(f"[Ledger] 没能自动打开报表（{exc}），请手动打开：{path}")
+
+
+def _report(label: str, *, show: bool = False) -> None:
+    """盘完出报表：从凭证现算，重写还没结账的游戏日。show：出完用浏览器打开（桌面才开）。
+    出什么错都只记日志，不影响所在流程。"""
     try:
         folder = getattr(PersistentStore, "CONFIG_DIR", None)
         if folder is None:
             return
         started = time.perf_counter()
+        # 入口页放安装目录（桌面才有；安卓与宿主指定存档目录时没有这个位置）。
+        root = getattr(getattr(PersistentStore, "_storage_policy", None), "portable_root", None)
         result = inventory_report_output.generate_reports(
-            folder, PersistentStore._current_account_id, agent_dir=Path(__file__).resolve().parents[1], hot=get_events())
+            folder, PersistentStore._current_account_id, agent_dir=Path(__file__).resolve().parents[1], hot=get_events(),
+            entry_dir=root)
         if result["summary"]:
             mfaalog.info(f"[Ledger] 库存日报：{result['summary']}")
-            mfaalog.info(f"[Ledger] 报表在 {result['latest']}（{round((time.perf_counter() - started) * 1000)} 毫秒）")
+            where = f"安装目录的「{result['entry'].name}」可直接打开；原件在 {result['latest']}" if result.get("entry") \
+                else f"报表在 {result['latest']}"
+            mfaalog.info(f"[Ledger] {where}（{round((time.perf_counter() - started) * 1000)} 毫秒）")
+        if show and root is not None and result["latest"]:
+            _open(result["latest"])
     except Exception as exc:
         mfaalog.warning(f"[Ledger] ⚠️ {label}：报表没出成（不影响任务）：{exc}")
 
@@ -158,12 +204,13 @@ def _run(context: Context, argv: CustomAction.RunArg) -> None:
     scan = None
     if decision["scan"]:
         mfaalog.info(f"[Ledger] {label}：盘点（{'+'.join(decision['scopes'])}）——{decision['reason']}")
-        record = run_bag_scan(context, label=label, scope=decision["scopes"], origin={
-            "mark": mark, "type": kind, "node": argv.node_name, "task": task, "session": task_journal.SESSION})
+        origin = {"mark": mark, "type": kind, "node": argv.node_name, "task": task, "session": task_journal.SESSION}
+        record = run_bag_scan(context, label=label, scope=decision["scopes"], origin=origin)
         if not record.get("executed"):
             mfaalog.warning(f"[Ledger] ⚠️ {label}：盘点没执行（{record.get('error')}），留给下一个位置")
         else:
             scan = {"scan_id": record["scan_id"], "scopes": record.get("scope") or decision["scopes"]}
+            record["returned"] = _retry_stock(context, label, record, origin)
             if record.get("returned"):
                 _read_currency(context, label, record["scan_id"])
             else:
@@ -173,8 +220,9 @@ def _run(context: Context, argv: CustomAction.RunArg) -> None:
     with _LOCK:
         ledger_rules.settle(state, mark=mark, kind=kind, task_id=task_id, entry=entry, now=time.time(), scan=scan)
     # 盘了就出报表；结束游戏与手动结账即使规则说不用盘也出一次：收个尾，把最后几个任务的起止补进去。
+    # 只有手动结账出完自己打开（U61）。
     if options["report"] and (scan is not None or mark in ("queue_end", "manual")):
-        _report(label)
+        _report(label, show=mark == "manual")
 
 
 @AgentServer.custom_action("LedgerConfig")

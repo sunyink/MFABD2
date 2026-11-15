@@ -69,8 +69,8 @@ class LedgerPointTests(unittest.TestCase):
         point._STATES.clear()
         point._CURSORS.clear()
         point.loot_cards.reset()
-        self.scans, self.clock, self.reports = [], [T0], []
-        self.scan_result = {"executed": True, "returned": True}
+        self.scans, self.clock, self.reports, self.shown = [], [T0], [], []
+        self.scan_result, self.queued = {"executed": True, "returned": True}, []
         ledger_config.remember_injected({})
         for target, attribute, value in (
                 (store, "PersistentStore", MemoryAccountStore),
@@ -79,18 +79,23 @@ class LedgerPointTests(unittest.TestCase):
                 (point, "sync_from_context", lambda context, where="", stop=True: True),
                 (point, "run_bag_scan", self.fake_scan),
                 (point, "read_currency", self.fake_currency),
-                (point, "_report", lambda label: self.reports.append(label)),
+                (point, "_report", self.fake_report),
                 (point.time, "time", lambda: self.clock[0])):
             patcher = patch.object(target, attribute, value)
             patcher.start()
             self.addCleanup(patcher.stop)
 
-    def fake_scan(self, context, *, label, scope, origin):
-        self.scans.append({"label": label, "scope": list(scope), "origin": origin})
+    def fake_scan(self, context, *, label, scope, origin, targets="all"):
+        self.scans.append({"label": label, "scope": list(scope), "origin": origin, "targets": targets})
         self.clock[0] += 100
-        if not self.scan_result["executed"]:
+        result = self.queued.pop(0) if self.queued else self.scan_result
+        if not result["executed"]:
             return {"executed": False, "returned": False, "error": "scan_not_reached"}
-        return {**self.scan_result, "scan_id": f"scan{len(self.scans)}", "scope": list(scope)}
+        return {**result, "scan_id": f"scan{len(self.scans)}", "scope": list(scope)}
+
+    def fake_report(self, label, show=False):
+        self.reports.append(label)
+        self.shown.append(show)
 
     def fake_currency(self, context):
         return {"observed_at": "2025-11-15T12:02:00+00:00", "gold": 12345, "diamond": 678, "tonic": 9,
@@ -244,6 +249,54 @@ class LedgerPointTests(unittest.TestCase):
         self.task("Ledger_Settle_Manual", 102)
         self.run_point("manual", None, 102, "Ledger_Settle_Manual")               # 没有没盘掉的活动：不盘，但出一次报表
         self.assertEqual((len(self.scans), self.reports[-1], len(self.reports)), (2, "记账·手动结账", 3))
+        self.task("Close_HomePage", 103)
+        self.run_point("queue_end", None, 103, "Close_HomePage")
+        self.assertEqual(self.shown, [False, False, True, False])               # 只有手动结账出完自己打开（U61）
+
+    def test_manual_settle_opens_the_report_on_desktop_only(self):
+        opened = []
+        result = {"days": ["2026-11-15"], "latest": Path("Z:/报表/latest.html"), "summary": "摘要", "entry": None}
+        with patch.object(point, "_report", REAL_REPORT), patch.object(point, "_open", opened.append), \
+                patch.object(MemoryAccountStore, "CONFIG_DIR", "Z:/存档", create=True), \
+                patch.object(point.inventory_report_output, "generate_reports", return_value=result) as generate:
+            with patch.object(MemoryAccountStore, "_storage_policy", SimpleNamespace(portable_root=Path("Z:/装")),
+                              create=True):
+                point._report("记账·商店结束")
+                point._report("记账·手动结账", show=True)
+                self.assertEqual(generate.call_args.kwargs["entry_dir"], Path("Z:/装"))
+            with patch.object(MemoryAccountStore, "_storage_policy", SimpleNamespace(portable_root=None), create=True):
+                point._report("记账·手动结账", show=True)                          # 安卓、指定存档目录：不开
+        self.assertEqual(opened, [Path("Z:/报表/latest.html")])
+
+    def test_stock_not_fully_read_is_rescanned_once(self):
+        self.queued = [{"executed": True, "returned": True,
+                        "unknown": {"兽肉": "state_lost", "精炼石": "state_lost", "鸡蛋": "template_missing"}},
+                       {"executed": True, "returned": True, "unknown": {}}]
+        with patch.object(point, "scope_names", lambda context, scope: {"兽肉", "米", "鸡蛋"}):
+            self.task("Mail_HomePage", 101)
+            self.run_point("begin", "daily", 101, "Mail_HomePage")
+        first, again = self.scans
+        self.assertEqual((again["label"], again["scope"], again["targets"]), ("记账·日常开头·重扫", ["A"], ["兽肉"]))
+        self.assertEqual(again["origin"], {**first["origin"], "retry_of": "scan1"})
+        currency, = self.events("currency_reading")                              # 货币只读一次，记在原来那次名下
+        self.assertEqual(currency["scan_id"], "scan1")
+        self.assertEqual(point._STATES["7"].last_scan["scan_id"], "scan1")
+
+    def test_rescan_only_for_stock_and_only_once(self):
+        with patch.object(point, "scope_names", lambda context, scope: {"兽肉", "米"}):
+            self.queued = [{"executed": True, "returned": True, "unknown": {"精炼石": "state_lost"}}]   # 只有养成材料没读准
+            self.task("Mail_HomePage", 101)
+            self.run_point("begin", "daily", 101, "Mail_HomePage")
+            self.assertEqual(len(self.scans), 1)
+            self.queued = [{"executed": True, "returned": True, "unknown": {"兽肉": "stopped"}}]       # 任务被停：不重扫
+            self.task("Arbitrage_Start", 102)
+            self.run_point("begin", "shop", 102, "Arbitrage_Start")
+            self.assertEqual(len(self.scans), 2)
+            self.queued = [{"executed": True, "returned": True, "unknown": {"兽肉": "state_lost"}},
+                           {"executed": True, "returned": False, "unknown": {"兽肉": "state_lost"}}]
+            self.run_point("end", "shop", 102, "Arbitrage_Start")
+        self.assertEqual(len(self.scans), 4)                                       # 重扫还不全也只扫一次
+        self.assertEqual(len(self.events("currency_reading")), 2)                  # 重扫没回到原位：这一次不读货币
 
     def test_report_failure_is_only_logged(self):
         with patch.object(point, "_report", REAL_REPORT), \

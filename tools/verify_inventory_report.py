@@ -11,6 +11,7 @@ from pathlib import Path
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "agent"))
@@ -98,7 +99,8 @@ class Story:
             self.events.append({
                 "kind": "inventory_scan", "scan_id": scan_id, "seq": self.scans, "label": f"记账·{mark}",
                 "started_at": iso(started), "finished_at": iso(self.now), "observed_at": iso(self.now),
-                "scope": list(scopes), "complete": True, "termination": "list_bottom", "pages": 7,
+                "scope": list(scopes), "complete": not any(SCOPE[name] in scopes for name in self.unknown),
+                "termination": "list_bottom", "pages": 7,
                 "quantities": {name: quantity for name, quantity in seen.items()
                                if quantity > 0 and name not in self.lost},
                 "absent": [name for name, quantity in seen.items() if quantity == 0 or name in self.lost],
@@ -108,6 +110,23 @@ class Story:
             self.events.append({"kind": "currency_reading", "scan_id": scan_id, "observed_at": iso(self.now),
                                 "label": f"记账·{mark}", **self.money})
             self.unknown = self.lost = ()
+        return self
+
+    def retry(self, *names):
+        """存货没盘全，同一位置退出背包重扫：只找这几样，origin 带 retry_of 指回刚才那次盘点。"""
+        parent = next(event for event in reversed(self.events)
+                      if event["kind"] == "inventory_scan" and not event["origin"].get("retry_of"))
+        self.scans += 1
+        started = self.now + 2
+        self.now += 40
+        seen = {name: self.stock[name] for name in names}
+        self.events.append({
+            "kind": "inventory_scan", "scan_id": f"scan{self.scans}", "seq": self.scans, "label": f"{parent['label']}·重扫",
+            "started_at": iso(started), "finished_at": iso(self.now), "observed_at": iso(self.now),
+            "scope": ["A"], "complete": True, "termination": "list_bottom", "pages": 2,
+            "quantities": {name: quantity for name, quantity in seen.items() if quantity > 0},
+            "absent": [name for name, quantity in seen.items() if quantity == 0], "unknown": {},
+            "origin": {**parent["origin"], "retry_of": parent["scan_id"]}})
         return self
 
     def sell(self, name, quantity, gold):
@@ -413,7 +432,7 @@ def collect_run(story, *cards, finished=None, **changes):
 
 
 def split(model):
-    """分卡产出 → {卡带: {物品: 数量}}，未分到卡带记在 None 下。"""
+    """分卡产出 → {卡带: {物品: 数量}}，卡带未知记在 None 下。"""
     by_card = model["collect"]["by_card"]
     result = {row["card"]: {item["name"]: item["quantity"] for item in row["items"]} for row in by_card["rows"]}
     result[None] = {item["name"]: item["quantity"] for item in by_card["unallocated"]["items"]}
@@ -424,23 +443,19 @@ class CardSplitTests(unittest.TestCase):
     A, B, C = "Story_01_血骑士", "Story_02_苍蓝魔女", "Story_03_迷雾神射手"
 
     def test_totals_are_split_by_what_each_card_read(self):
+        # 吸完的卡都有记录也不放大：盘点比读到的多出来的说不清是哪张卡的（走路碰到的），归「卡带未知」（U60）
         story = collect_run(Story(), (self.A, "complete", {"兽肉": 60, "金币": 2000}),
-                            (self.B, "complete", {"兽肉": 40, "金币": 2000}), 兽肉=400, gold=5000)
+                            (self.B, "complete", {"兽肉": 40, "金币": 2000}), 兽肉=100, gold=5000)
         model = story.end().report()
-        self.assertEqual(split(model), {self.A: {"兽肉": 240, "金币": 2500}, self.B: {"兽肉": 160, "金币": 2500}, None: {}})
+        self.assertEqual(split(model), {self.A: {"兽肉": 60, "金币": 2000}, self.B: {"兽肉": 40, "金币": 2000},
+                                        None: {"金币": 1000}})
         by_card = model["collect"]["by_card"]
         self.assertEqual((by_card["runs"], by_card["recorded"], by_card["covered"]), (1, 1, 1))
         self.assertTrue(all(check["ok"] for check in model["checks"]), model["checks"])
-        self.assertIn("C8 各卡分得 + 未分到卡带 = 吸取列（逐物品）", [check["name"] for check in model["checks"]])
-
-    def test_odd_split_still_adds_up(self):
-        story = collect_run(Story(), (self.A, "complete", {"兽肉": 1}), (self.B, "complete", {"兽肉": 1}),
-                            (self.C, "complete", {"兽肉": 1}), 兽肉=100)
-        parts = split(story.end().report())
-        self.assertEqual(sorted(parts[card]["兽肉"] for card in (self.A, self.B, self.C)), [33, 33, 34])
+        self.assertIn("C8 各卡读到 + 卡带未知 = 吸取列（逐物品）", [check["name"] for check in model["checks"]])
 
     def test_unrecorded_finished_card_keeps_reads_and_leaves_the_rest(self):
-        # C 吸完了却没有掉落记录：不放大，照读到的数列，差额归「未分到卡带」，C 灰着列出来
+        # C 吸完了却没有掉落记录：不放大，照读到的数列，差额归「卡带未知」，C 灰着列出来
         story = collect_run(Story(), (self.A, "complete", {"兽肉": 60, "金币": 2000}),
                             (self.B, "complete", {"兽肉": 40, "金币": 2000}),
                             finished=[self.A, self.B, self.C], 兽肉=400, gold=5000)
@@ -452,11 +467,14 @@ class CardSplitTests(unittest.TestCase):
         self.assertEqual(model["collect"]["by_card"]["covered"], 0)
         self.assertTrue(all(check["ok"] for check in model["checks"]), model["checks"])
 
-    def test_reading_more_than_counted_is_scaled_down(self):
+    def test_reading_more_than_counted_is_not_scaled(self):
+        # 读到的比盘点多也不缩小：各卡照读数列，差额在「卡带未知」里记负数（U60）
         story = collect_run(Story(), (self.A, "complete", {"兽肉": 300}), (self.B, "complete", {"兽肉": 200}),
                             finished=[self.A, self.B, self.C], 兽肉=400)
-        self.assertEqual(split(story.end().report()), {self.A: {"兽肉": 240}, self.B: {"兽肉": 160}, self.C: {},
-                                                       None: {}})
+        model = story.end().report()
+        self.assertEqual(split(model), {self.A: {"兽肉": 300}, self.B: {"兽肉": 200}, self.C: {}, None: {"兽肉": -100}})
+        self.assertTrue(all(check["ok"] for check in model["checks"]), model["checks"])
+        self.assertIn('卡带未知</td><td></td><td class="note">兽肉 <span class="neg">(100)</span>', render_day_html(model))
 
     def test_same_card_twice_in_a_day_is_one_row(self):
         story = collect_run(Story(), (self.A, "task_end", {"兽肉": 50}), 兽肉=100)   # 次数用完，卡没吸完
@@ -464,15 +482,16 @@ class CardSplitTests(unittest.TestCase):
         collect_run(story.end().restart(3600), (self.A, "complete", {"兽肉": 30}), 兽肉=60)
         model = story.end().report()
         row, = [row for row in model["collect"]["by_card"]["rows"] if row["card"] == self.A]
-        self.assertEqual((row["visits"], row["complete"], row["items"]), (2, 1, [{"name": "兽肉", "quantity": 160,
+        self.assertEqual((row["visits"], row["complete"], row["items"]), (2, 1, [{"name": "兽肉", "quantity": 80,
                                                                                    "value": None}]))
+        self.assertEqual(split(model)[None], {"兽肉": 80})
         self.assertEqual(model["collect"]["by_card"]["runs"], 2)
         self.assertTrue(all(check["ok"] for check in model["checks"]), model["checks"])
 
     def test_items_the_scan_skips_are_only_listed_as_reads(self):
         story = collect_run(Story(), (self.A, "complete", {"兽肉": 10, "精炼石": 4}), 兽肉=20, 精炼石=4)
         row = next(row for row in story.end().report()["collect"]["by_card"]["rows"] if row["card"] == self.A)
-        self.assertEqual(row["items"], [{"name": "兽肉", "quantity": 20, "value": None}])
+        self.assertEqual(row["items"], [{"name": "兽肉", "quantity": 10, "value": None}])
         self.assertEqual(row["read_only"], [{"name": "精炼石", "quantity": 4}])
 
     def test_unknown_card_and_values(self):
@@ -482,11 +501,31 @@ class CardSplitTests(unittest.TestCase):
         prices = {scan["scan_id"]: {"兽肉": {"unit": 8}} for scan in ledger["scans"]}
         model = build_report(ledger, game_day="2026-11-14", as_of=iso(story.now), prices=prices, cookbook=COOKBOOK)
         rows = {row["card"]: row for row in model["collect"]["by_card"]["rows"]}
-        self.assertEqual((rows[self.A]["items"][0]["quantity"], rows[self.A]["value"]), (60, 60 * 8))
-        self.assertEqual(rows[None]["items"][0]["quantity"], 20)   # 卡名读不到的那次进卡照样分，列作「未识别卡带」
-        self.assertEqual(model["collect"]["by_card"]["unallocated"]["items"], [{"name": "金币", "quantity": 1000,
-                                                                                "value": 1000}])
+        self.assertEqual((rows[self.A]["items"][0]["quantity"], rows[self.A]["value"]), (30, 30 * 8))
+        self.assertEqual(rows[None]["items"][0]["quantity"], 10)   # 卡名读不到的那次进卡照样分，列作「未识别卡带」
+        self.assertEqual(model["collect"]["by_card"]["unallocated"]["items"],
+                         [{"name": "金币", "quantity": 1000, "value": 1000}, {"name": "兽肉", "quantity": 40, "value": 40 * 8}])
         self.assertIn("未识别卡带", render_day_html(model))
+
+    def test_stock_rescan_merges_into_the_same_scan(self):
+        # 吸取结束那次盘点兽肉没读准，同一位置退出重扫补上：账上还是一次盘点，兽肉照常算吸取、不跨区间（U61）
+        story = Story()
+        story.task("Collect_StartGame_HomePage").at("begin", "collect", FULL).work(300, 兽肉=400, 米=50)
+        story.unknown = ("兽肉",)
+        story.at("end", "collect", ("A",)).retry("兽肉")
+        ledger = story.end().ledger()
+        self.assertEqual(len(ledger["scans"]), 2)
+        closing = ledger["scans"][-1]
+        self.assertEqual((closing["retried"], closing["unknown"], closing["complete"], closing["readings"]["兽肉"]),
+                         (1, [], True, 1400))
+        model = story.report()
+        beef = next(item for item in model["items"] if item["name"] == "兽肉")
+        self.assertEqual((beef["deltas"].get("collect"), beef["spans"]), (400, []))
+        self.assertTrue(all(check["ok"] for check in model["checks"]), model["checks"])
+        self.assertIn("存货退出重扫过", render_day_html(model))
+        # 重扫指回的那次盘点找不到：照一次普通盘点记，不丢读数
+        story.events = [event for event in story.events if event.get("scan_id") != "scan2"]
+        self.assertEqual([scan["scan_id"] for scan in story.ledger()["scans"]], ["scan1", "scan3"])
 
     def test_no_loot_records_keeps_the_old_section(self):
         story = collect_run(Story(), finished=[self.A], 兽肉=100)
@@ -504,7 +543,7 @@ class CardSplitTests(unittest.TestCase):
         model = story.end().report()
         self.assertEqual(len(model["segments"][0]["loot"]), 2)
         page = render_day_html(model)
-        for needle in ("五、吸取 · 分卡产出", "剧情 01 血骑士", "剧情 03 迷雾神射手", "未记录掉落", "未分到卡带", "（十）吸取分卡产出"):
+        for needle in ("五、吸取 · 分卡产出", "剧情 01 血骑士", "剧情 03 迷雾神射手", "未记录掉落", "卡带未知", "（十）吸取分卡产出"):
             self.assertIn(needle, page)
         self.assertNotIn("None", page)
 
@@ -593,6 +632,44 @@ class OutputTests(unittest.TestCase):
             self.assertEqual(output.generate_reports(store, "42", agent_dir=ROOT / "agent")["days"], ["2026-11-15"])
             everything = output.generate_reports(store, "42", agent_dir=ROOT / "agent", force=True)["days"]
             self.assertEqual(everything, ["2026-11-13", "2026-11-14", "2026-11-15"])
+
+    def test_entry_page_in_install_folder(self):
+        story = next_morning(preset_run(Story()))
+        with tempfile.TemporaryDirectory() as folder:
+            store, install = Path(folder) / "存档", Path(folder) / "安装目录"
+            store.mkdir()
+            install.mkdir()
+            (store / "agent_save_data.json").write_text(json.dumps(
+                {"arbitrage": {"inventory": {"events": story.events}}}, ensure_ascii=False), encoding="utf-8")
+            # 不给 entry_dir（安卓、宿主指定存档目录）就不写入口
+            self.assertIsNone(output.generate_reports(store, "0", agent_dir=ROOT / "agent", as_of=iso(story.now))["entry"])
+            self.assertFalse((install / output.ENTRY_NAME).exists())
+            result = output.generate_reports(store, "0", agent_dir=ROOT / "agent", as_of=iso(story.now), force=True,
+                                             entry_dir=install)
+            self.assertEqual(result["entry"], install / output.ENTRY_NAME)
+            page = result["entry"].read_text(encoding="utf-8")
+            latest = output.report_dir(store, "0").joinpath("latest.html").resolve().as_uri()
+            self.assertIn(f"location.replace({json.dumps(latest)})", page)   # 只有一个存档：直接跳过去
+            self.assertIn("默认存档", page)
+            # 第二个存档出报表后，入口列出两个、不再自动跳
+            (store / "agent_save_data_小号.json").write_text(json.dumps(
+                {"arbitrage": {"inventory": {"events": story.events}}}, ensure_ascii=False), encoding="utf-8")
+            output.generate_reports(store, "小号", agent_dir=ROOT / "agent", as_of=iso(story.now), entry_dir=install)
+            page = (install / output.ENTRY_NAME).read_text(encoding="utf-8")
+            self.assertNotIn("location.replace", page)
+            self.assertIn("存档 小号", page)
+            self.assertIn(output.report_dir(store, "小号").joinpath("index.html").resolve().as_uri(), page)
+            # 安装目录写不进去：报表照出，只是没有入口
+            original = output._write
+
+            def read_only_install(path, text):
+                if path.name == output.ENTRY_NAME:
+                    raise OSError("只读")
+                original(path, text)
+
+            with patch.object(output, "_write", read_only_install):
+                again = output.generate_reports(store, "0", agent_dir=ROOT / "agent", force=True, entry_dir=install)
+            self.assertEqual((again["entry"], bool(again["days"])), (None, True))
 
 
 if __name__ == "__main__":

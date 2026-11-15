@@ -493,6 +493,16 @@ class BagScanRun(CustomAction):
         return True
 
 
+def scope_names(context: Context, scope) -> set:
+    """某几个扫描类型要找的物品名；配置读不到时空集。"""
+    try:
+        config = context.get_node_object(CONFIG).attach
+        names, _ = _plan(config, _scope_keys(scope, config["scopes"]))
+        return set(names)
+    except Exception:
+        return set()
+
+
 def run_bag_scan(context: Context, *, label: str | None, targets: str | list[str] = "all",
                  scope: str | list[str] = "A", note: str | None = None, origin: dict | None = None) -> dict:
     """同步执行一次仓检（开包 → 按页扫描 → 原路返回），返回扫描记录副本。

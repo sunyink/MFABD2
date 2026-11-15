@@ -6,6 +6,7 @@
 报表放在 <存档目录>/inventory_reports/<sha256(账号)>/：
     <游戏日>.json / .html   当日报表模型与页面；结账定稿后不再重写
     index.html              多日总览      latest.html   最近一个游戏日的页面副本
+另在安装目录放一个入口页 库存报表.html（ENTRY_NAME），指向各存档的 latest.html：存档目录藏得太深，用户找不到（U60）。
 """
 
 from datetime import datetime, timedelta, timezone
@@ -17,8 +18,10 @@ import re
 
 from .inventory_ledger import build_ledger, ts
 from .inventory_report import SCHEMA, VALUED, build_report
-from .inventory_report_render import clock, render_day_html, render_index_html
+from .inventory_report_render import clock, render_day_html, render_entry_html, render_index_html
 from .ledger_rules import QUIET
+
+ENTRY_NAME = "库存报表.html"
 
 # 物品表（agent/data/bag_item_names.json）里的档案 → 背包仓检的扫描类型（Agt_BagScan_Config.attach.scopes）。
 PROFILE_SCOPE = {"ingredients": "A", "dishes": "A", "growth": "B", "craft": "C"}
@@ -161,11 +164,37 @@ def _snapshots(folder: Path) -> dict:
     return result
 
 
+def write_entry(store_dir, entry_dir) -> Path | None:
+    """在 entry_dir 写入口页，列出存档目录里每个存档最近一天的报表（最近更新的在前）。一份报表都没有时不写。"""
+    base = Path(store_dir) / "inventory_reports"
+    accounts = []
+    for folder in sorted(base.iterdir()) if base.is_dir() else ():
+        latest = folder / "latest.html"
+        days = sorted(path.stem for path in folder.glob("*.json") if _DAY.fullmatch(path.stem))
+        model = _read_json(folder / f"{days[-1]}.json") if days else None
+        if not latest.is_file() or not isinstance(model, dict):
+            continue
+        alias = (model.get("account") or {}).get("alias")
+        index = folder / "index.html"
+        accounts.append({"name": f"存档 {alias}" if alias else "默认存档", "day": model.get("game_day") or days[-1],
+                         "status": model.get("status"), "summary": model.get("summary"), "as_of": model.get("as_of"),
+                         "latest": latest.resolve().as_uri(), "index": index.resolve().as_uri() if index.is_file() else None,
+                         "touched": latest.stat().st_mtime})
+    if not accounts:
+        return None
+    accounts.sort(key=lambda account: -account["touched"])
+    path = Path(entry_dir) / ENTRY_NAME
+    _write(path, render_entry_html(accounts, base.resolve().as_uri()))
+    return path
+
+
 def generate_reports(store_dir, account, *, agent_dir, as_of: str | None = None, days=None, force=False, hot=None,
-                     quiet=QUIET, alias=None) -> dict:
+                     quiet=QUIET, alias=None, entry_dir=None) -> dict:
     """重算还没结账的游戏日（days 给了就只算这些天，force 连已定稿的也重算），并更新总览与 latest。
 
-    返回 {"days": 写了哪几天, "folder": 报表目录, "latest": 最近一天页面的路径, "summary": 最近一天的摘要}。
+    entry_dir：给了就顺手在那里更新入口页（安装目录）；写不进去只是没有入口，报表照出。
+    返回 {"days": 写了哪几天, "folder": 报表目录, "latest": 最近一天页面的路径, "summary": 最近一天的摘要,
+          "entry": 入口页路径或 None}。
     """
     folder = report_dir(store_dir, account)
     as_of = as_of or datetime.now(timezone.utc).isoformat(timespec="seconds")
@@ -197,12 +226,17 @@ def generate_reports(store_dir, account, *, agent_dir, as_of: str | None = None,
         _write(folder / f"{day}.html", render_day_html(model))
         saved[day] = model
         written.append(day)
-    result = {"days": written, "folder": folder, "latest": None, "summary": None}
+    result = {"days": written, "folder": folder, "latest": None, "summary": None, "entry": None}
     if saved and written:
         recent = sorted(saved)[-INDEX_DAYS:]
         _write(folder / "index.html", render_index_html([saved[day] for day in recent]))
         _write(folder / "latest.html", (folder / f"{recent[-1]}.html").read_text(encoding="utf-8"))
         result.update(latest=folder / "latest.html", summary=saved[recent[-1]].get("summary"))
+        if entry_dir is not None:
+            try:
+                result["entry"] = write_entry(store_dir, entry_dir)
+            except OSError:
+                pass   # 安装目录不可写（装在只读位置）：没有入口而已
     return result
 
 
@@ -211,5 +245,5 @@ def game_days_between(first: str, last: str) -> list:
     return [(start + timedelta(days=offset)).isoformat() for offset in range((end - start).days + 1)]
 
 
-__all__ = ["generate_reports", "load_vouchers", "load_catalog", "load_cookbook", "load_prices", "report_dir",
+__all__ = ["ENTRY_NAME", "generate_reports", "write_entry", "load_vouchers", "load_catalog", "load_cookbook", "load_prices", "report_dir",
            "history_dir", "save_file", "game_days_between", "ts"]

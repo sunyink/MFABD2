@@ -164,23 +164,12 @@ def _shop(items, book, cookbook):
             "mismatch": [row["name"] for row in rows if row["mismatch"]]}
 
 
-def _apportion(total, shares):
-    """正整数 total 按 shares 的比例分成整数，各份之和恰好是 total（最大余数法）。"""
-    whole = sum(shares.values())
-    exact = {key: total * value / whole for key, value in shares.items()}
-    parts = {key: int(value) for key, value in exact.items()}
-    for key in sorted(exact, key=lambda key: (parts[key] - exact[key], str(key)))[:total - sum(parts.values())]:
-        parts[key] += 1
-    return parts
-
-
 def _by_card(ledger, first, day_intervals, prices):
-    """吸取分卡产出：吸取各段的盘点总数，按落在段里的各次进卡读到的数量分给各张卡带；同一天同一张卡合成一行。
+    """吸取分卡产出：各张卡带列它自己那几次进卡读到的数量，盘点与读数的差单列「卡带未知」；同一天同一张卡合成一行。
 
-    一样东西在吸取段里的一笔变化（它物品链上的一段，可能跨几段吸取）：这几段吸完的卡都有记录时，按读到的比例分满这笔；
-    有卡没记录、或没走到正常结束（不知道吸完了哪些）时不放大，照读到的数列，差额归「未分到卡带」；
-    读到的比盘点还多时按比例缩到盘点数。盘点没给出变化的东西（不扫、没读准、跨到别的段）只有读数，单列、不估值。
-    当天没有吸取段返回 None。
+    一样东西在吸取段里的一笔变化（它物品链上的一段，可能跨几段吸取）：各卡照读到的数列，多了少了都不缩放；
+    这笔减去各卡读数之和归「卡带未知」，可正可负——走路碰到的、没读到的、吸完却没记录的卡，说不清是哪张卡的就不替它分（U60）。
+    盘点没给出变化的东西（不扫、没读准、跨到别的段）只有读数，单列、不估值。当天没有吸取段返回 None。
     """
     scans, chains = ledger["scans"], ledger["items"]
     collects = {first + offset: interval for offset, interval in enumerate(day_intervals) if interval["kind"] == "collect"}
@@ -206,8 +195,7 @@ def _by_card(ledger, first, day_intervals, prices):
             for name, count in visit["items"].items():
                 bucket = reads.setdefault((index, name), {})
                 bucket[visit["card"]] = bucket.get(visit["card"], 0) + count
-        # 吸完的卡都有记录才放大。卡名没读到的那次进卡也是记录，照样参与分摊；它若其实是某张吸完的卡，
-        # 那张卡在 named 里就缺着，这一段本来就不放大。
+        # 这一段吸完的卡是不是都有掉落记录：只用来在页面上说明「卡带未知」里有没有整张卡的产出，不影响怎么分。
         full[index] = bool(visits) and interval["cards"] is not None and set(interval["cards"]) <= named
 
     def worth(name, quantity, scan):
@@ -235,16 +223,11 @@ def _by_card(ledger, first, day_intervals, prices):
                 used.add((index, name))
                 for card, count in reads.get((index, name), {}).items():
                     share[card] = share.get(card, 0) + count
-            total, got = piece["delta"], sum(share.values())
-            if total > 0 and got > 0 and (got >= total or all(full[index] for index in span)):
-                parts = _apportion(total, share)
-            else:
-                parts = share if total > 0 else {}
             closing = scans[piece["to"]]
-            for card, quantity in parts.items():
+            for card, quantity in share.items():
                 if quantity:
                     add(row(card), name, quantity, worth(name, quantity, closing))
-            left = total - sum(parts.values())
+            left = piece["delta"] - sum(share.values())   # 盘点与读数的差，可正可负
             if left:
                 add(rest, name, left, worth(name, left, closing))
     for (index, name), share in reads.items():
@@ -277,14 +260,14 @@ def _by_card(ledger, first, day_intervals, prices):
 
 
 def _by_card_check(items, by_card):
-    """C8：逐物品，各卡分得 + 未分到卡带 = 表一的吸取列。"""
+    """C8：逐物品，各卡读到 + 卡带未知 = 表一的吸取列。"""
     allocated = {}
     for row in by_card["rows"] + [by_card["unallocated"]]:
         for entry in row["items"]:
             allocated[entry["name"]] = allocated.get(entry["name"], 0) + entry["quantity"]
     column = {item["name"]: item["deltas"].get("collect") or 0 for item in items}
     broken = sorted(name for name in set(allocated) | set(column) if allocated.get(name, 0) != column.get(name, 0))
-    return {"name": "C8 各卡分得 + 未分到卡带 = 吸取列（逐物品）", "ok": not broken,
+    return {"name": "C8 各卡读到 + 卡带未知 = 吸取列（逐物品）", "ok": not broken,
             "detail": f"{len(by_card['rows'])} 张卡" if not broken else "不平：" + "、".join(broken[:8])}
 
 
@@ -506,6 +489,7 @@ def build_report(ledger, *, game_day: str, as_of: str, prices=None, cookbook=Non
         "game_day": game_day, "as_of": as_of, "status": status, "first_scan": first_ever,
         "scans": [{key: scan[key] for key in ("id", "scan_id", "seq", "at", "label", "scope", "seconds", "pages", "read",
                                               "absent", "unknown", "complete", "termination")}
+                  | {"retried": scan.get("retried", 0)}
                   | {"gold": scan["readings"].get(GOLD)} for scan in day_scans],
         "segments": day_intervals, "cols": cols, "items": changed,
         "unchanged": [{"name": item["name"], "group": item["group"], "quantity": item["closing"],

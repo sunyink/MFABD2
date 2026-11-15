@@ -6,6 +6,7 @@
 
 from datetime import datetime, timedelta, timezone
 import html
+import json
 import re
 
 from .inventory_report import GOLD, GROUPS, KIND_LABEL, REASONS, VALUED
@@ -189,9 +190,9 @@ RULES = (
     ("（八）推算与余额项", "料理制作份数取制作时记下的读数；材料消耗按配方展开。常规采购不逐笔记，是余额项，"
                      "等于盘点净额减去已记账与推算部分；不可购买的材料余额项应为零。推算结果只在报表里，不写回存档。"),
     ("（九）自检", "每张表都核对恒等式，结果列在页末。任何一条不成立时进通知并标红，表照样画出，便于排查。"),
-    ("（十）吸取分卡产出", "放技能时读屏幕左侧的获得列表，每进一次卡记一笔。一段吸取的盘点总数，按各张卡读到的数量比例分开；"
-                     "这一段吸完的卡有一张没有记录时不放大，照读到的数列，差额归「未分到卡带」。同一张卡一天里进了几次合成一行。"
-                     "盘点不扫的东西只列读数，不计入。"),
+    ("（十）吸取分卡产出", "放技能时读屏幕左侧的获得列表，每进一次卡记一笔。各张卡列它自己读到的数，不按盘点缩放；"
+                     "盘点与各卡读数之和的差单列「卡带未知」，可正可负（走路碰到的、没读到的、吸完却没有记录的卡，说不清是哪张卡的）。"
+                     "同一张卡一天里进了几次合成一行。盘点不扫的东西只列读数，不计入。"),
 )
 
 
@@ -534,7 +535,7 @@ def _collect_section(model):
            cap(("期间", f'{esc(model["game_day"])} 游戏日的吸取各段'),
                ("单位", "个" + ("；折合为金币，满万以万计" if valued else ""))),
            '<div class="tw"><table><thead><tr><th class="sticky">卡带</th><th>进入</th>'
-           '<th>产出<span class="sub">盘点总数按读到的比例分摊</span></th>'
+           '<th>产出<span class="sub">各卡读到的数；与盘点的差在「卡带未知」</span></th>'
            + ('<th class="num">折合金币<span class="sub">金币面值 + 存货估值</span></th>' if valued else "")
            + "</tr></thead><tbody>"]
     for row in by_card["rows"]:
@@ -559,16 +560,16 @@ def _collect_section(model):
     rest = by_card["unallocated"]
     if rest["items"]:
         worth = f'<td class="num">{amount(rest["value"])}</td>' if valued else ""
-        out.append(f'<tr class="val"><td class="sticky">未分到卡带</td><td></td><td class="note">{_products(rest["items"])}</td>'
+        out.append(f'<tr class="val"><td class="sticky">卡带未知</td><td></td><td class="note">{_products(rest["items"])}</td>'
                    f"{worth}</tr>")
     out.append("</tbody></table></div>")
     runs, recorded, covered = by_card["runs"], by_card["recorded"], by_card["covered"]
-    if covered == runs:
-        basis = "各段吸完的卡都有记录，盘点总数全部按读到的比例分给了各张卡。"
-    else:
-        basis = (f"{runs} 段吸取里 {covered} 段吸完的卡都有记录、按比例分满；其余 {runs - covered} 段"
-                 + ("没有掉落记录或" if recorded < runs else "") + "有卡没记录，照读到的数列，差额归「未分到卡带」。")
-    out.append(f'<p class="small mut">{basis}各卡加上未分到卡带等于表一「吸取」列（自检 C8）。'
+    basis = ("各卡是它自己读到的数，不按盘点缩放；盘点与读数的差列在「卡带未知」：正数是盘点比读到的多（走路碰到的、没读到的），"
+             "负数是读到的比盘点多。")
+    if covered < runs:
+        basis += (f"{runs} 段吸取里有 {runs - covered} 段" + ("没有掉落记录或" if recorded < runs else "")
+                  + "有吸完的卡没记录，那几张卡的产出也在「卡带未知」里。")
+    out.append(f'<p class="small mut">{basis}各卡加上卡带未知等于表一「吸取」列（自检 C8）。'
                "同一张卡一天里进了几次合成一行；读数来自放技能时左侧的获得列表，只用来分摊，总数以盘点为准。</p></section>")
     return "".join(out)
 
@@ -600,7 +601,8 @@ def _details(model, show):
     for scan in model["scans"]:
         unknown = esc("、".join(scan["unknown"])) or '<span class="zero">–</span>'
         out.append(f'<tr><td class="sticky">{esc(scan["id"])}</td><td>{esc(show(scan["at"]))}</td><td>{esc(scan["label"] or "")}</td>'
-                   f'<td>{esc("+".join(scan["scope"]))}{"" if scan["complete"] else "（没盘完）"}</td>'
+                   f'<td>{esc("+".join(scan["scope"]))}{"" if scan["complete"] else "（没盘完）"}'
+                   f'{"（存货退出重扫过）" if scan.get("retried") else ""}</td>'
                    f'<td class="num">{scan["seconds"]}</td><td class="num">{scan["pages"]}</td><td class="num">{scan["read"]}</td>'
                    f'<td class="num">{scan["absent"]}</td><td>{unknown}</td><td class="num">{fmt(scan["gold"])}</td></tr>')
     out.append("</tbody></table></div></div></details>")
@@ -678,3 +680,28 @@ def render_index_html(models) -> str:
               '<th class="num">商店现金净额</th><th class="num">损益</th><th class="num">吸取项数</th><th class="num">盘点</th>'
               '<th class="num">提醒</th></tr></thead><tbody>' + "".join(rows) + "</tbody></table></div></section>")
     return _page("库存总览", body)
+
+
+def render_entry_html(accounts, folder: str) -> str:
+    """安装目录里的入口页：各存档最近一天的报表。只有一个存档时直接跳过去，跳不过去就点链接。
+
+    accounts：[{name, day, status, summary, as_of, latest, index}]，latest / index 是 file:// 地址；folder 是报表目录的地址。
+    """
+    rows = []
+    for account in accounts:
+        when = clock(account["day"])(account["as_of"]) if account.get("as_of") else ""
+        links = [f'<a href="{esc(account["latest"])}">{esc(account["day"])} 日报</a>']
+        if account.get("index"):
+            links.append(f'<a href="{esc(account["index"])}">多日总览</a>')
+        rows.append(f'<tr><td class="sticky">{esc(account["name"])}</td><td>{" · ".join(links)}</td>'
+                    f'<td>{STATUS_LABEL.get(account.get("status"), "")}</td><td>{esc(when)}</td>'
+                    f'<td class="note">{esc(account.get("summary") or "")}</td></tr>')
+    jump = ""
+    if len(accounts) == 1:
+        target = json.dumps(accounts[0]["latest"]).replace("</", "<\\/")
+        jump = f"<script>location.replace({target});</script>"
+    body = ('<header class="sheet"><h1>库存报表</h1><div class="meta"><span>每次记账盘点后自动更新</span>'
+            f'<span>报表都在 <a href="{esc(folder)}">存档目录的 inventory_reports</a> 里，这一页只是入口</span></div></header>'
+            '<section><div class="tw"><table><thead><tr><th class="sticky">存档</th><th>报表</th><th>状态</th>'
+            '<th>更新（KST）</th><th>摘要</th></tr></thead><tbody>' + "".join(rows) + "</tbody></table></div></section>" + jump)
+    return _page("库存报表", body, script=False)
