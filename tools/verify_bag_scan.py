@@ -8,6 +8,7 @@ import copy
 import json
 from pathlib import Path
 import sys
+import tempfile
 import unittest
 from unittest.mock import patch
 
@@ -18,7 +19,8 @@ sys.path.insert(0, str(ROOT / "agent"))
 
 from utils import arbitrage_store as store
 from utils import inventory_store
-from utils.bag_cells import Cell, Grid, Icon, Page, color_count, hsv, icon_pack, item_table, read_page
+from utils import bag_pictures
+from utils.bag_cells import Cell, Grid, Icon, Page, color_count, hsv, icon_pack, item_table, match_picture, read_page
 from utils.bag_detail import DetailLayout, FadeWatch, anchor_of, split_quantity, stitch, text_box
 from utils.bag_scan_engine import BagScanEngine, Reading, Section, estimate_shift, joining_kinds
 from utils.ocr_item_name import item_aliases
@@ -114,8 +116,17 @@ class Bag:
 class Device:
     def __init__(self, bag, quantities, *, sees=None, says=None, kinds=None, frames=None, list_faults=0,
                  stop_after_opens=None, open_failures=None, close_failures=0, false_bottoms=0, swipe_failures=0,
-                 blank_names=(), unscalable=(), first_names=None, slow_items=(), settled=False):
+                 blank_names=(), unscalable=(), first_names=None, slow_items=(), settled=False, drifts=None,
+                 drift_after_close=None, tw=False, late_items=()):
         self.bag = bag
+        # late_items：点开慢半拍——点下去时列表还在、核对过一次之后弹窗才出来（11-15 模拟器实跑）。
+        self.late_items = set(late_items)
+        self.late = None
+        self.tw = tw                        # 繁体客户端：数量写成「持有N個」（简体是「拥有N个」）
+        # drifts：点这个物品时点击没成立、列表被带着挪了这么多像素（正数 = 列表内容上移）。11-15 PC 实机。
+        self.drifts = dict(drifts or {})
+        # drift_after_close：关掉这个物品的详情后，列表悄悄挪了这么多像素（下一次点击就点到别的格子上）。
+        self.drift_after_close = dict(drift_after_close or {})
         self.settled = settled              # 读数是否取自设备核实过「已静止」的那一帧（MaaBagDevice 的截帧判定）
         self.detail_reads = 0               # 弹窗开着时又读了几次
         self.slow_items = set(slow_items)   # 点开了、但规定时间内没读清的物品（弹窗其实已经开着）
@@ -156,6 +167,13 @@ class Device:
         if self.list_faults:
             self.list_faults -= 1
             return False
+        if self.late is not None:
+            item, self.late = self.late, None
+            if self.current is None:          # 这一次核对还看得到列表，之后弹窗才出来
+                self.pending_popup = item
+                return True
+        if getattr(self, "pending_popup", None) is not None:
+            self.current, self.pending_popup = self.pending_popup, None
         return self.current is None
 
     def read(self, image):
@@ -187,13 +205,26 @@ class Device:
             self.last = next(self.frame_iter, self.last)
             text, box = self.last
             return Reading(names=self._name(item), quantities=[(text, .99, list(box))], settled=self.settled)
-        return Reading(names=self._name(item),
-                       quantities=[(f"拥有{self.quantities.get(item, 0)}个", .99, list(QUANTITY_BOX))],
+        return Reading(names=self._name(item), quantities=[(self._count(item), .99, list(QUANTITY_BOX))],
                        settled=self.settled)
+
+    def _count(self, item):
+        quantity = self.quantities.get(item, 0)
+        return f"持有{quantity}個" if self.tw else f"拥有{quantity}个"
+
+    def _drift(self, pixels):
+        self.bag.offset = min(self.bag.max_offset, max(0, self.bag.offset + pixels))
 
     def open_detail(self, box):
         item = self.bag.item_at(box)
         self.clicks.append(item)
+        if item in self.drifts:
+            self._drift(self.drifts.pop(item))
+            return None
+        if item in self.late_items:
+            self.late_items.discard(item)
+            self.late = item
+            return None
         if item in self.slow_items:
             self.slow_items.discard(item)
             self.opens.append(item)
@@ -225,12 +256,14 @@ class Device:
     def read_quantity_scaled(self):
         if self.current in self.unscalable:
             return []
-        return [f"拥有{self.quantities.get(self.current, 0)}个"]
+        return [self._count(self.current)]
 
     def close_detail(self):
         if self.close_failures:
             self.close_failures -= 1
             return False
+        if self.current in self.drift_after_close:
+            self._drift(self.drift_after_close.pop(self.current))
         self.current = None
         return True
 
@@ -442,11 +475,14 @@ class EngineTests(unittest.TestCase):
         self.assertEqual(scan(0)["unknown"], {"盐": "continuity_broken"})
         self.assertEqual(scan(64)["absent"], ["盐"])
 
-    def test_icon_guess_is_overruled_by_the_name_read(self):
-        # 身份以点开读名为准：读图把番茄认成苹果，点开读出番茄——苹果没被挡住判 0，番茄照常记数。
+    def test_icon_and_name_that_keep_disagreeing_are_both_left_unverified(self):
+        # 图文都相符才采信（用户 11-15）：读图把番茄认成苹果、点开读出番茄，先当列表挪了、重新分格；
+        # 重新分格后还是对不上，就是图标和读名有一个错了——分不清是哪个，番茄不记数，苹果、番茄本轮都不判 0。
         device = Device(Bag(layout("番茄", *fillers(20)), blank_rows=2), amounts("番茄"), sees={"番茄": "苹果"})
         result = run(device, ["苹果", "番茄"])
-        self.assertEqual((result["quantities"], result["absent"], result["complete"]), (amounts("番茄"), ["苹果"], True))
+        self.assertEqual((result["quantities"], result["absent"]), ({}, []))
+        self.assertEqual(sorted(result["unknown"]), ["番茄", "苹果"])
+        self.assertEqual(result["cells"]["resplit"], 1)
 
     def test_shared_icon_is_always_opened_and_the_missing_twin_is_zeroed(self):
         # 两个物品共用一张图：每一格都点开由读名定；有的那个读到，没有的那个到底判 0。
@@ -544,6 +580,24 @@ class EngineTests(unittest.TestCase):
         result = run(device, ["牛奶"], sections=[], ambiguous={"牛奶"})
         self.assertEqual(result["quantities"], {"牛奶": 5})
 
+    def test_milk_is_ambiguous_only_on_a_simplified_client(self):
+        # 简体里活动道具也叫「牛奶」，繁体里它叫「純白牛奶」（11-15 PC 繁体实机）。认不出图标的格子读到「牛奶」：
+        # 繁体客户端上它只会是食材，照常记数；简体客户端上分不清，不记、也不判 0。语言从前面读到的数量字样认。
+        by_language = {"cn": {"牛奶"}, "tw": set()}
+        for tw, expected in ((True, ({"兽肉": 3, "牛奶": 77}, {})), (False, ({"兽肉": 3}, {"牛奶": "detail_unreadable"}))):
+            with self.subTest(tw=tw):
+                bag = Bag(layout("兽肉", "牛奶", *others(10), end=False), blank_rows=2)
+                device = Device(bag, {"兽肉": 3, "牛奶": 77}, sees={"牛奶": None}, tw=tw)
+                result = run(device, ["兽肉", "牛奶"], sections=[], ambiguous=by_language)
+                self.assertEqual((result["quantities"], result["unknown"]), expected)
+
+    def test_event_milk_with_its_own_icon_is_the_foreign_twin(self):
+        # 简体客户端：活动道具认出了自己的图标（#牛奶）、点开读到「牛奶」——图文相符，它是目录外那个，不算食材牛奶。
+        bag = Bag(layout("活动牛奶", *others(10), end=False), blank_rows=2)
+        device = Device(bag, {"活动牛奶": 9}, sees={"活动牛奶": "#牛奶"}, says={"活动牛奶": "牛奶"})
+        result = run(device, ["牛奶"], sections=[], ambiguous={"cn": {"牛奶"}, "tw": set()})
+        self.assertEqual((result["quantities"], result["absent"], result["cells"]["resplit"]), ({}, ["牛奶"], 0))
+
     def test_run_section_settles_after_leaving_it(self):
         # 制作材料在列表中间连成一段：进去再出来就结清，不必扫到底；进去之前见到别类物品不算数。
         craft = Section("装备制作材料", frozenset(CRAFT), "run")
@@ -629,9 +683,156 @@ class EngineTests(unittest.TestCase):
         self.assertEqual(result["unknown"], {"盐": "state_lost"})
 
     def test_open_failure_marks_target_unverified(self):
-        device = Device(Bag(layout("兽肉", *fillers(20)), blank_rows=2), amounts("兽肉"), open_failures={"兽肉": 2})
+        # 一直点不开：先重新分格再点（每页两次），用完了按原坐标补点，仍不开就记没核实。
+        device = Device(Bag(layout("兽肉", *fillers(20)), blank_rows=2), amounts("兽肉"), open_failures={"兽肉": 9})
         result = run(device, ["兽肉"])
         self.assertEqual((result["absent"], result["unknown"]), ([], {"兽肉": "detail_unreadable"}))
+        self.assertEqual(result["cells"]["resplit"], 2)
+
+    def test_popup_that_opens_after_the_check_is_closed_before_splitting_again(self):
+        # 点开慢半拍：核对时列表还在、判成没反应，重新分格去截图时弹窗才出来——关掉再截，不当成状态异常、不回顶部重扫。
+        device = Device(Bag(layout("番茄", *fillers(20)), blank_rows=2), amounts("番茄"), late_items={"番茄"})
+        result = run(device, ["番茄"])
+        self.assertEqual((result["quantities"], result["unknown"], result["recovered"]), (amounts("番茄"), {}, False))
+        self.assertEqual((result["cells"]["resplit"], device.resets), (1, 0))
+
+    def test_small_strip_that_changed_is_not_taken_as_the_list_moving(self):
+        # 点开没反应时只有底部一条变了（11-15 PC：按下的高亮 / 提示条，列表没动）：当列表没动接着做，照常判 0。
+        bag = Bag(layout("兽肉", *fillers(20)), footer=64, toast_frames=2)
+        device = Device(bag, amounts("兽肉"), open_failures={"兽肉": 1})
+        result = run(device, ["兽肉", "盐"])
+        self.assertEqual((result["quantities"], result["absent"], result["unknown"]), (amounts("兽肉"), ["盐"], {}))
+        self.assertEqual(result["cells"]["resplit"], 1)
+
+    def test_open_that_fails_once_is_retried_after_splitting_again(self):
+        device = Device(Bag(layout("兽肉", *fillers(20)), blank_rows=2), amounts("兽肉"), open_failures={"兽肉": 1})
+        result = run(device, ["兽肉"])
+        self.assertEqual((result["quantities"], result["unknown"], result["cells"]["resplit"]), (amounts("兽肉"), {}, 1))
+
+
+
+def engine_for(device, targets, **options):
+    options.setdefault("on_page", lambda page, reads: device.persisted.append((page, reads)))
+    options.setdefault("aliases", ALIASES)
+    options.setdefault("sections", [])
+    return BagScanEngine(device, device.read, targets, known_names=KNOWN, grid_roi=GRID, row_height=ROW, columns=6,
+                         **options)
+
+
+class PictureMemoryTests(unittest.TestCase):
+    """记住目录外物品的图（用户 11-15）：第一次点开读出是目录外的，记下那一格的图；之后的盘点凭图跳过、不再点开。"""
+
+    def bag(self):
+        return Bag(layout(*["神秘宝箱"] * 2, "活动糖果", *others(10), end=False), blank_rows=2)
+
+    def test_second_scan_skips_what_the_first_scan_learned(self):
+        sees = {"神秘宝箱": None, "活动糖果": None}
+        first = Device(self.bag(), {}, sees=sees)
+        engine = engine_for(first, ["铁矿石"])
+        result = engine.run()
+        seen, new = engine.pictures()
+        self.assertEqual((first.opens, result["absent"], seen), (["神秘宝箱", "活动糖果"], ["铁矿石"], set()))
+        self.assertEqual([name for _, name in new], ["神秘宝箱", "活动糖果"])
+        known = bag_pictures.merge([], set(), new, now=1000)
+        second = Device(self.bag(), {}, sees=sees)
+        engine = engine_for(second, ["铁矿石"], known_pictures=known)
+        result = engine.run()
+        self.assertEqual((second.opens, result["absent"], result["cells"]["known_picture"]), ([], ["铁矿石"], 3))
+        self.assertEqual(engine.pictures(), ({0, 1}, []))
+
+    def test_catalog_item_without_an_icon_is_never_remembered(self):
+        # 模板没认出的目录物品可能是要读数的目标：照常点开，不记图。
+        device = Device(Bag(layout("铁矿石", *others(10), end=False), blank_rows=2), {"铁矿石": 7}, sees={"铁矿石": None})
+        engine = engine_for(device, ["铁矿石", "金矿石"])
+        self.assertEqual(engine.run()["quantities"], {"铁矿石": 7})
+        self.assertEqual(engine.pictures(), (set(), []))
+
+    def test_named_outside_item_is_remembered_too(self):
+        # 名录里带 # 的目录外物品（繁体「純白牛奶」）点开读出来也记。
+        device = Device(Bag(layout("活动牛奶", *others(10), end=False), blank_rows=2), {}, sees={"活动牛奶": None},
+                        says={"活动牛奶": "純白牛奶"})
+        engine = engine_for(device, ["铁矿石"], aliases={**ALIASES, "純白牛奶": "#牛奶"})
+        engine.run()
+        self.assertEqual([name for _, name in engine.pictures()[1]], ["#牛奶"])
+
+    def test_picture_matches_across_a_small_offset_only(self):
+        rng = np.random.default_rng(5)
+        picture = rng.integers(0, 255, (80, 80, 3), np.uint8)
+        stack = np.stack([rng.integers(0, 255, (80, 80, 3), np.uint8), picture]).astype(np.float32)
+        self.assertEqual(match_picture(stack, picture), 1)
+        self.assertEqual(match_picture(stack, np.roll(picture, (1, -2), axis=(0, 1))), 1)   # 跨盘点格子错开一两个像素
+        self.assertIsNone(match_picture(stack, np.roll(picture, 5, axis=0)))
+        self.assertIsNone(match_picture(stack, rng.integers(0, 255, (80, 80, 3), np.uint8)))
+        self.assertIsNone(match_picture(None, picture))
+
+    def test_store_round_trip_expiry_and_dedup(self):
+        rng = np.random.default_rng(7)
+        a, b = (rng.integers(0, 255, (40, 40, 3), np.uint8) for _ in range(2))
+        with tempfile.TemporaryDirectory() as folder:
+            self.assertEqual(bag_pictures.load(folder, "pc"), [])
+            day = 86400
+            entries = bag_pictures.merge([], set(), [(a, "幽灵糖果"), (a.copy(), "幽灵糖果"), (b, "仙女棒")], now=100 * day)
+            self.assertEqual([entry["name"] for entry in entries], ["幽灵糖果", "仙女棒"])     # 同图只记一张
+            self.assertTrue(bag_pictures.save(folder, "pc", entries, now=100 * day))
+            loaded = bag_pictures.load(folder, "pc", now=110 * day)
+            self.assertEqual([entry["name"] for entry in loaded], ["幽灵糖果", "仙女棒"])
+            self.assertTrue(np.array_equal(loaded[0]["patch"], a))
+            self.assertEqual(bag_pictures.load(folder, "base", now=110 * day), [])          # 按图集分开
+            refreshed = bag_pictures.merge(loaded, {1}, [], now=125 * day)                  # 仙女棒 125 天时又见到了
+            bag_pictures.save(folder, "pc", refreshed, now=125 * day)
+            self.assertEqual([entry["name"] for entry in bag_pictures.load(folder, "pc", now=140 * day)], ["仙女棒"])
+
+DRIFT_FOOD = ["兽肉", "米", "白糖", "鸡蛋", "小麦", "番茄",
+              "蘑菇", "洋葱", "大蒜", "辣椒", "苹果", "葡萄",
+              "蜂蜜", "杏仁", "芥末", "料酒", "牛奶", "肉桂",
+              "樱桃", "胡椒", "土豆", "香草", "黄油"]
+
+
+class DriftTests(unittest.TestCase):
+    """2026-11-15 PC 实机（ledger 试跑5）：点开没反应时列表被带着上移，后面按旧坐标点到下一行，
+    读到的「牛奶」与格子图标对不上被当成目录外，存货段提前关掉、100 项判 0。"""
+
+    def scan(self, **faults):
+        targets = [*DRIFT_FOOD, "盐"]
+        device = Device(Bag(layout(*DRIFT_FOOD, *fillers(30))), amounts(*DRIFT_FOOD), **faults)
+        return device, run(device, targets, ambiguous={"牛奶"})
+
+    def test_failed_open_that_drags_the_list_resplits_and_reads_on(self):
+        for pixels in (ROW, 32):
+            with self.subTest(pixels=pixels):
+                device, result = self.scan(drifts={"大蒜": pixels})
+                self.assertEqual((result["quantities"], result["absent"], result["unknown"]),
+                                 (amounts(*DRIFT_FOOD), ["盐"], {}))
+                self.assertEqual(result["cells"]["resplit"], 1)
+                self.assertEqual(device.opens.count("大蒜"), 1)
+
+    def test_name_that_does_not_match_the_icon_does_not_end_the_section(self):
+        # 关掉辣椒后列表悄悄上移一行：下一格（苹果的旧坐标）点开是牛奶，牛奶又与亲密饮品同名。
+        # 旧做法信图标、当它是目录外，存货段当场走完；现在重新分格接着做，全部读到。
+        device, result = self.scan(drift_after_close={"辣椒": ROW})
+        self.assertEqual((result["quantities"], result["absent"], result["unknown"]),
+                         (amounts(*DRIFT_FOOD), ["盐"], {}))
+        self.assertEqual(result["cells"]["resplit"], 1)
+
+    def test_name_read_at_the_wrong_cell_is_not_taken(self):
+        # 图文对不上的那一格不收读数（用户 11-15），重新分格后到它自己那格再点开读。
+        device, result = self.scan(drift_after_close={"蘑菇": ROW})
+        self.assertEqual(result["quantities"], amounts(*DRIFT_FOOD))
+        self.assertEqual(device.opens.count("杏仁"), 2)    # 在洋葱的旧坐标上点开过一次，不收；自己那格再点一次
+
+    def test_rows_that_scrolled_away_unread_block_every_zero(self):
+        # 上移了三行：还没处理的那两行滚出屏幕，再也点不到——不知道它们是不是盐，本轮不判 0。
+        device, result = self.scan(drifts={"米": 3 * ROW})
+        self.assertEqual(result["absent"], [])
+        self.assertEqual(result["unknown"].get("盐"), "cell_unverified")
+
+    def test_shift_that_cannot_be_measured_blocks_every_zero(self):
+        # 第二页往回挪（列表内容下移）：量不出挪了多少，整页重走，本轮不判 0。
+        names = [*DRIFT_FOOD, *fillers(40)]
+        device = Device(Bag(layout(*names, "盐")), amounts(*DRIFT_FOOD, "盐"), drifts={"盐": -150})
+        result = run(device, [*DRIFT_FOOD, "盐", "鸡蛋"], ambiguous={"牛奶"})
+        self.assertEqual((result["absent"], result["cells"]["resplit"]), ([], 1))
+        self.assertEqual(result["quantities"], amounts(*DRIFT_FOOD, "盐"))
 
 
 def detail_layout(pack="base"):
@@ -1052,8 +1253,9 @@ class ConfigTests(unittest.TestCase):
                            ("冰龙鳞", "#冰龙鳞"), ("純白牛奶", "#牛奶"), ("牛奶", "牛奶")):
             with self.subTest(text=text):
                 self.assertEqual(resolve_ocr_name(text, .99, aliases=aliases)["name"], name)
-        self.assertIn("牛奶", ambiguous)                 # 简体里食材与一个活动道具同名
-        self.assertNotIn("兽肉", ambiguous)
+        self.assertIn("牛奶", ambiguous["cn"])           # 简体里食材与一个活动道具同名
+        self.assertNotIn("牛奶", ambiguous["tw"])        # 繁体里那个活动道具叫「純白牛奶」，「牛奶」只会是食材（11-15 PC 实机）
+        self.assertNotIn("兽肉", ambiguous["cn"] | ambiguous["tw"])
         self.assertNotIn("精炼水晶", set(item_aliases().values()))     # 共用名录没被动过
 
 

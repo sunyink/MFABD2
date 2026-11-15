@@ -326,3 +326,20 @@ def read_page(image: np.ndarray, grid: Grid, pack: IconPack) -> Page:
 def same_picture(a: np.ndarray, b: np.ndarray, limit: float = 6.0) -> bool:
     """两个格子的比对区是不是同一张图（同一物品占了几格）：逐像素差的平均值很小。"""
     return a.shape == b.shape and float(np.abs(a.astype(np.float32) - b.astype(np.float32)).mean()) < limit
+
+
+def match_picture(pictures, patch: np.ndarray, limit: float = 6.0, reach: int = 2):
+    """patch 是记住的图（N × 高 × 宽 × 3，float32）里的哪一张：允许上下左右错开 reach 像素以内
+    （跨盘点格子的位置会差一两个像素），取重叠部分逐像素差的平均值最小的那个错位。返回下标，没有同图返回 None。"""
+    if pictures is None or not len(pictures) or pictures.shape[1:] != patch.shape:
+        return None
+    b = patch.astype(np.float32)
+    h, w = patch.shape[:2]
+    best = np.full(len(pictures), np.inf, np.float32)
+    for dy in range(-reach, reach + 1):
+        for dx in range(-reach, reach + 1):
+            pa = pictures[:, max(0, dy):h + min(0, dy), max(0, dx):w + min(0, dx)]
+            pb = b[max(0, -dy):h + min(0, -dy), max(0, -dx):w + min(0, -dx)]
+            best = np.minimum(best, np.abs(pa - pb).mean(axis=(1, 2, 3)))
+    index = int(np.argmin(best))
+    return index if best[index] < limit else None

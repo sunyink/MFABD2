@@ -9,6 +9,11 @@ doc/agent/bag/背包仓检_设计.md §4、§16。
 - 图标认定是还没读数的目标、几个物品共用的图标、彼此相像的券 → 点开读名读数；
 - 有东西但图标认不出 → 点开一次；同一趟里再遇到同一张图就不重复点。
 
+格子坐标来自这一页的截图，列表一挪就不准（2026-11-15 PC：点开没反应时列表被带着滚了，后面按旧坐标点到下一行）。
+点开没反应、或点开读到的名字与格子图标对不上时，**重新截图分格**，量出挪了多少，同一页接着做（设计 §21）。
+图标认得出的格子，图文都相符才采信（用户 11-15）：对不上的那一格不收读数，重新分格后再点；重新分格过还对不上，
+就是图标和读名有一个错了，两边的物品本轮都不判 0。
+
 判 0 的四个前提缺一不可：这个物品所在的那一段走完了（段尾核实过，或到了列表底）；从第一页起每次翻页都接得上；
 它本轮没有「点开了却没核实」；走过的格子个个有着落（认得出，或点开读过名）。读到的数不受这四条约束。
 """
@@ -18,7 +23,7 @@ import time
 
 import numpy as np
 
-from .bag_cells import same_picture
+from .bag_cells import match_picture, same_picture
 from .ocr_item_name import clean, name_candidates, resolve_ocr_name
 from .ocr_read import NUMBER, unique_parsed
 
@@ -29,10 +34,16 @@ _STATIC_ROW = 3.0  # 两帧同一行的平均差低于它算没动；实机静�
 _NAME_SCORE = 0.3      # 名称识别里低于它的碎片（稀有度菱形被读成字，实测约 0.2）不要；偏低的整段交给重读
 _FOREIGN_SCORE = 0.8   # 目录外的名字要读得这么清楚才算数
 _STRAY_SCORE = 0.5     # 空格之后的格子还能认到这个分数，说明前面那个「空格」可疑
+_RESPLITS_PER_PAGE = 2  # 一页最多重新分格几次；用完了按老办法（原坐标补点、信读名）往下走，免得来回打转
+_STILL_TRIES = 5        # 重新分格前等列表停稳：最多截这么多张，相邻两张不动就用
 
 
 class _Stop(Exception):
     pass
+
+
+class _Resplit(Exception):
+    """这一页的格子坐标信不过了（点开没反应、或读到的名字与图标对不上）：重新截图分格，同一页接着做。"""
 
 
 class _Timeout(Exception):
@@ -199,14 +210,18 @@ class BagScanEngine:
     def __init__(self, device, reader, targets, *, known_names, grid_roi, row_height, columns, footer_rows=0,
                  sections=(), loose_kinds=(), loose_names=(), ambiguous=(), aliases=None,
                  max_pages=40, timeout_seconds=900, confirm_frames=4, box_tolerance=3,
-                 continuity_threshold=12.0, on_page=None, log=None, clock=time.monotonic):
+                 continuity_threshold=12.0, on_page=None, log=None, clock=time.monotonic, known_pictures=()):
         """reader：截图 → bag_cells.Page（每格：空 / 认定的图标 / 认不出）。
 
         known_names：名录里有的目录物品；请求里不在其中的记 template_missing（读到了也对不上号）。
         sections：见 Section。目标不属于任何一段的，扫到列表底才判 0。
         loose_kinds / loose_names：彼此相像、图标信不过的类别（券）与其中的目录物品；这类格子一律点开，由读名定。
         ambiguous：两个不同物品共用的名字（简体「牛奶」既是食材也是活动道具）；读到它时要图标也认定才算数。
+            可以按客户端语言给 {"cn": …, "tw": …}：语言由读到的数量字样定（「持有…個」繁体、「拥有…个」简体），
+            还不知道语言时按两种合起来算。
         aliases：OCR 名 → 规范名；None 用共用名录。
+        known_pictures：以前的盘点记住的目录外物品的图（utils/bag_pictures.load 的结果）：认不出图标的格子比中了就跳过，不点开。
+            这一趟用到了哪几张、新记了哪些，跑完由 pictures() 交给调用方存。
         """
         self.device = device
         self.reader = reader
@@ -217,7 +232,12 @@ class BagScanEngine:
         self.sections = list(sections)
         self.loose_kinds = frozenset(loose_kinds)
         self.loose_names = frozenset(loose_names)
-        self.ambiguous = frozenset(ambiguous)
+        if isinstance(ambiguous, dict):
+            self.ambiguous_by = {language: frozenset(names) for language, names in ambiguous.items()}
+            self.ambiguous = frozenset().union(*self.ambiguous_by.values())
+        else:
+            self.ambiguous_by, self.ambiguous = {}, frozenset(ambiguous)
+        self.language = None        # 客户端语言：读到第一个数量时定下
         self.aliases = aliases
         self.max_pages = int(max_pages)
         self.confirm_frames = max(2, int(confirm_frames))
@@ -250,8 +270,19 @@ class BagScanEngine:
         self.origin = None
         self.done = {}              # (绝对行, 列) → _Seen：相邻两页重叠的行不重复处理
         self.remembered = []        # 认不出但点开读过的图：[(比对区像素, _Seen)]
+        self.known_pictures = list(known_pictures)
+        self._known_stack = (np.stack([entry["patch"] for entry in self.known_pictures]).astype(np.float32)
+                             if self.known_pictures and len({entry["patch"].shape for entry in self.known_pictures}) == 1
+                             else None)
+        self.pictures_seen = set()  # 这一趟比中过的记住的图（下标）
+        self.pictures_new = []      # 这一趟点开读出是目录外的图：[(比对区像素, 名字)]
         self.stats = {"opened": 0, "by_icon": 0, "same_picture": 0, "unverified": 0, "unaligned_pages": 0,
-                      "joined_by_item": 0}
+                      "joined_by_item": 0, "resplit": 0, "known_picture": 0}
+        self._resplits_left = 0     # 这一页还能重新分格几次
+        self._mismatched = set()    # 重新分格过的「图标 → 读到的名字」：再遇到就是图标认错了，不再重分
+        self._page_image = None     # 这一页分格用的截图与结果：重新分格时量挪了多少、查有没有没处理就滚出去的格子
+        self._page = None
+        self._gap_shift = None      # 刚重新分格、量出的挪动距离（判不出为 None）：读新页时查有没有格子滚出去
         self.tail = None
         self.unjoined = None
         self.timing = {"read": 0.0, "swipe": 0.0, "open": [], "confirm": [], "close": []}
@@ -307,16 +338,23 @@ class BagScanEngine:
         }
 
     def _scan(self):
-        image = None
+        image, resplit = None, None
         while True:
             try:
                 if image is None:
-                    image = self._ready_image()
+                    image, resplit = self._ready_image(), None
                     self._begin_pass()
-                self.pages += 1
+                if resplit is not None:
+                    image = self._resplit(image, resplit)
+                    resplit = None
+                else:
+                    self.pages += 1
+                    self._resplits_left = _RESPLITS_PER_PAGE
                 started = self.clock()
                 page = self.reader(image)
                 self.timing["read"] += self.clock() - started
+                self._check_gap(page)
+                self._page_image, self._page = image, page
                 self._settle_turn(page)
                 outcome = self._work_page(page)
                 self._flush_page()
@@ -332,9 +370,80 @@ class BagScanEngine:
                     self._conclude([name for name in self.order if name in self.pending], "list_bottom")
                     self.termination = "list_bottom"
                     return
+            except _Resplit as why:
+                self._flush_page()
+                self._resplits_left -= 1
+                self.stats["resplit"] += 1
+                resplit = str(why)
             except _Restart:
                 self._flush_page()
                 image = None
+
+    def pictures(self):
+        """(这一趟比中过的记住的图的下标, 新记的目录外的图 [(像素, 名字)])，交给 utils/bag_pictures.merge 存回去。"""
+        return set(self.pictures_seen), list(self.pictures_new)
+
+    def _resplit(self, image, why):
+        """同一页重新截图分格：等列表停稳，量出比上次分格时挪了多少，计进滚动量，处理过的格子照旧认得出来。
+
+        量不出（往回挪了、或画面有歧义）时整页从头重走（读过的凭图标跳过，不多点），这一轮不判 0：
+        往上挪了多少不知道，就不能保证没有格子没处理就滚出去了。
+        """
+        current = self._still_image()
+        row = int(round(self.row_height))
+        shift, state, info = estimate_shift(self._scroll_area(image), self._scroll_area(current), row,
+                                            self.continuity_threshold)
+        if state == "broken" and info.get("viewport", row * 2) < row * 2:
+            # 只有不到两行高的一条在变（按下格子的高亮、提示条）：列表本身没动——列表真挪了，几乎每一行都会变。
+            # 翻页那边要量出滚了多少，变化太少只能判不出；这里只问动没动（11-15 PC 实跑：只有最底下 86 行不同，被当成判不出，整轮不判 0）。
+            shift, state = 0, "same"
+        self._gap_shift = None
+        if state == "broken":
+            self.done.clear()
+            self.blind += 1
+            self.log("warning", f"第 {self.pages} 页{why}，重新截图分格；列表挪了多少判不出（{info}），"
+                                "这一页从头重走，本轮不判 0")
+        else:
+            self.scroll += shift or 0
+            self._gap_shift = shift or 0
+            moved = "列表没动" if state == "same" else f"列表上移 {shift} 像素"
+            self.log("warning", f"第 {self.pages} 页{why}，重新截图分格（{moved}），这一页接着做")
+        return current
+
+    def _still_image(self):
+        """截到列表停稳的一帧：相邻两帧的列表区不动才用；一直在动就用最后一帧（随后还有图文不符的兜底）。"""
+        current = self._list_image()
+        for _ in range(_STILL_TRIES - 1):
+            following = self._list_image()
+            _, state, _ = estimate_shift(self._scroll_area(current), self._scroll_area(following),
+                                         int(round(self.row_height)), self.continuity_threshold)
+            current = following
+            if state == "same":
+                break
+        return current
+
+    def _list_image(self):
+        """重新分格用的一帧列表。弹窗开着多半是点开慢了半拍——判成没反应之后才弹出来（11-15 模拟器实跑）：
+        关掉再截，不当成状态异常；关了还不在列表，才走整轮一次的恢复。"""
+        self._check()
+        image = self.device.capture()
+        if self.device.list_ready(image):
+            return image
+        self.device.close_detail()
+        return self._ready_image()
+
+    def _check_gap(self, page):
+        """重新分格后：上一张截图里还没处理的格子，挪动后跑到了新页第一行之上（滚出去了），就再也点不到——本轮不判 0。"""
+        shift, self._gap_shift = self._gap_shift, None
+        if shift is None or self._page is None or not page.tops:
+            return
+        first = min(page.tops) - self.box_tolerance
+        lost = [cell for cell in self._page.cells if not cell.empty and cell.box[1] - shift < first
+                and (round((cell.box[1] + self.scroll - shift - (self.origin or 0)) / self.row_height), cell.col)
+                not in self.done]
+        if lost:
+            self.blind += 1
+            self.log("warning", f"第 {self.pages} 页列表挪动时有 {len(lost)} 格没处理就滚出去了，本轮不判 0")
 
     def _settle_turn(self, page):
         """上一次翻页在画面上接不上时，改按物品判：这一页第一格的物品是上一页末尾两种之一，就没有漏掉别的东西。
@@ -427,6 +536,12 @@ class BagScanEngine:
                 if same_picture(patch, cell.patch):
                     self.stats["same_picture"] += 1
                     return seen
+            index = match_picture(self._known_stack, cell.patch)
+            if index is not None:
+                # 以前的盘点点开读过、是目录外的东西（活动道具等）：不再点开（用户 11-15）
+                self.stats["known_picture"] += 1
+                self.pictures_seen.add(index)
+                return _Seen("foreign")
         # 认不出的格子先只看名字：它多半不是目标（箱子、新出的活动道具），用不着数量；
         # 箱子的详情还多一行，数量不在老位置，等「名称和数量都可读」会一直等不到。
         status, name, quantity, closed = self._inspect(cell.target, peek=icon is None)
@@ -434,12 +549,49 @@ class BagScanEngine:
         seen = self._judge(icon, names, loose, status, name, quantity)
         if icon is None and cell.patch is not None and seen.how in ("read", "foreign"):
             self.remembered.append((cell.patch, seen))
+            # 只记目录外的：读到的名字不在名录里，或是名录里带 # 的目录外物品。名录里的物品可能是要读数的目标，不记。
+            if seen.how == "foreign" or (seen.names and all(str(item).startswith("#") for item in seen.names)):
+                self.pictures_new.append((cell.patch, str(name or "")))
         if not closed:
             self._ensure_list()
+        if seen.how == "moved":
+            shown = "、".join(sorted(names)) or "?"
+            raise _Resplit(f"点开读到的是{name or '目录外的东西'}，格子图标是{shown}")
         return seen
 
+    def _is_ambiguous(self, name) -> bool:
+        table = self.ambiguous_by.get(self.language) if self.language else None
+        return name in (self.ambiguous if table is None else table)
+
+    def _note_language(self, reading):
+        """从数量字样认客户端语言（繁体「持有…個」、简体「拥有…个」），认出一次就不再改。"""
+        if self.language is not None or reading is None:
+            return
+        texts = "".join(str(text) for text, *_ in reading.quantities)
+        if "持有" in texts or "擁有" in texts or "個" in texts:
+            self.language = "tw"
+        elif "拥有" in texts or "个" in texts:
+            self.language = "cn"
+
     def _judge(self, icon, names, loose, status, name, quantity) -> _Seen:
-        if status == "named" and name in self.ambiguous and name not in names:
+        if icon is not None and not loose and status in ("named", "foreign"):
+            # 图文都相符才采信（用户 11-15）。简体里同名的活动道具「牛奶」认出了自己的图标、读到「牛奶」，也算相符——它是目录外那个。
+            twin = status == "named" and self._is_ambiguous(name) and ("#" + name) in names
+            if name not in names and not twin:
+                if self._resplits_left > 0 and (names, name) not in self._mismatched:
+                    # 多半是列表挪了、点到了别的格子：这一格不算数、读数不收、不推进分段，重新分格后再点
+                    # （上次正是这样一格被当成「走出存货段」，把 100 项判了 0）。
+                    self._mismatched.add((names, name))
+                    return _Seen("moved", frozenset({name}) if name else frozenset())
+                # 重新分格过还对不上：图标和读名必有一个错了，分不清是哪个——都不采信，两边的物品本轮都不判 0。
+                self.suspect.update(names & self.pending)
+                if status == "named" and name in self.pending:
+                    self.suspect.add(name)
+                self.stats["unverified"] += 1
+                return _Seen("unverified", names)
+            if twin:
+                return _Seen("foreign")
+        if status == "named" and self._is_ambiguous(name) and name not in names:
             # 两个不同物品同一个名字：图标认定是另一个，就不是它；图标也认不出，这个名字本轮不许判 0。
             if icon is not None:
                 return _Seen("foreign")
@@ -541,6 +693,9 @@ class BagScanEngine:
         """
         self._check()
         if self.device.list_ready(self.device.capture()):
+            if self._resplits_left > 0:
+                # 点击没成立时列表可能被带着挪了（11-15 PC：上移一行，补点打开的是正下方那格）：重新分格再点。
+                raise _Resplit("点开没反应")
             return opener(box)
         for _ in range(self.confirm_frames):
             self._check()
@@ -554,6 +709,7 @@ class BagScanEngine:
         return None
 
     def _read(self, first):
+        self._note_language(first)
         status, name = self._resolve_name(first.names)
         if status == "unreadable":
             # 「可读」那一帧名称可能还在出现动画里（数量先读全了）：弹窗还开着，再看一眼再下结论。
@@ -568,6 +724,7 @@ class BagScanEngine:
                 full = self.device.read_detail()
                 if full is not None:
                     first = full
+                    self._note_language(full)
                     break
             else:
                 return status, name, None

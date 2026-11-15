@@ -17,7 +17,7 @@ from maa.agent.agent_server import AgentServer
 from maa.context import Context
 from maa.custom_action import CustomAction
 
-from utils import mfaalog
+from utils import bag_pictures, mfaalog
 from utils.account_sync import sync_from_context
 from utils.bag_cells import Grid, icon_pack, item_table, read_page
 from utils.bag_detail import (DetailLayout, FadeWatch, anchor_of, at_anchor, crop, plain_quantity, same_text,
@@ -60,30 +60,36 @@ def profile_names(*profiles) -> list:
 
 @lru_cache(maxsize=1)
 def _names():
-    """读名用的名录与同名表：(OCR 写法 → 规范名, 与目录外物品同名的目录物品)。
+    """读名用的名录与同名表：(OCR 写法 → 规范名, {"cn": 同名的目录物品, "tw": 同名的目录物品})。
 
     共用名录（食材等，含简繁异名）也服务商店 OCR，不往里加东西；这里另起一份，只给背包仓检用。
     目录外物品的规范名带 # 前缀：读到它们只说明「这格不是要找的」。一个写法对上一个目录物品和一个目录外物品时
     （简体「牛奶」），按目录物品收，并记进同名表——扫描核心要图标也认定才采信。两个目录物品同一个写法的不收。
+    同名表**按客户端语言分开**：简体里活动道具也叫「牛奶」，繁体里它叫「純白牛奶」，繁体客户端读到「牛奶」只会是食材
+    （2026-11-15 PC 繁体实机：牛奶被当成同名、按旧截图的图标判成目录外，存货段被提前关掉）。
     """
     aliases = dict(item_aliases())
     seen = {}
+    by_language = {"cn": {}, "tw": {}}
     for item in _bag_items():
         canonical = item["cn"] if item["profile"] != OTHER else "#" + item["cn"]
         # alias：游戏物品表里与项目规范名不同的简体原名（如「光圣石」→ 规范名「光明圣石」）
-        for text in {item["cn"], item.get("tw") or "", *item.get("alias", [])} - {""}:
-            seen.setdefault(clean(text), set()).add(canonical)
-    ambiguous = set()
+        for language, texts in (("cn", {item["cn"], *item.get("alias", [])}), ("tw", {item.get("tw") or ""})):
+            for text in texts - {""}:
+                seen.setdefault(clean(text), set()).add(canonical)
+                by_language[language].setdefault(clean(text), set()).add(canonical)
+    ambiguous = {language: set() for language in by_language}
     for text, names in seen.items():
         catalog = sorted(name for name in names if not name.startswith("#"))
         if len(catalog) == 1:
             if aliases.get(text, catalog[0]) == catalog[0]:
                 aliases[text] = catalog[0]
-                if len(names) > 1:
-                    ambiguous.add(catalog[0])
+                for language, table in by_language.items():
+                    if catalog[0] in table.get(text, ()) and len(table[text]) > 1:
+                        ambiguous[language].add(catalog[0])
         elif not catalog:
             aliases.setdefault(text, sorted(names)[0])
-    return aliases, frozenset(ambiguous)
+    return aliases, {language: frozenset(names) for language, names in ambiguous.items()}
 
 
 def get_scan(scan_id):
@@ -376,6 +382,30 @@ def _save_absent(record, reference, absent_by):
         raise RuntimeError("判 0 写入失败")
 
 
+def _pictures_dir():
+    """记住的目录外物品的图放在存档目录下（所有账号共用）；存档目录还没定下来就不记。"""
+    try:
+        from utils.persistent_store import PersistentStore
+        return PersistentStore.CONFIG_DIR
+    except Exception:
+        return None
+
+
+def _keep_pictures(folder, pack, known, engine) -> None:
+    """把这一趟用到的、新认识的目录外物品的图存回去。出什么错都只记日志：下次照常逐格点开而已。"""
+    try:
+        seen, new = engine.pictures()
+        if not seen and not new:
+            return
+        if not bag_pictures.save(folder, pack, bag_pictures.merge(known, seen, new)):
+            mfaalog.debug("[BagScan] 目录外物品的图没存成（存档目录不可写或未定），下次照常点开")
+        elif new:
+            names = "、".join(dict.fromkeys(name for _, name in new if name)) or "?"
+            mfaalog.info(f"[BagScan] 记住了 {len(new)} 张目录外物品的图（{names}），之后的盘点凭图跳过")
+    except Exception as exc:
+        mfaalog.debug(f"[BagScan] 目录外物品的图没存成：{exc}")
+
+
 @AgentServer.custom_action("BagScanRun")
 class BagScanRun(CustomAction):
     """扫描核心：BagScan_Run 节点。只观察、不作废任何旧量；完整与否只看记录里的 complete。"""
@@ -404,6 +434,8 @@ class BagScanRun(CustomAction):
             reference = {"scan_id": record["scan_id"], "label": record["label"]}
             grid, pack = _grid(layout), icon_pack(layout["icons"])
             aliases, ambiguous = _names()
+            pictures_dir = _pictures_dir()
+            known_pictures = bag_pictures.load(pictures_dir, layout["icons"])
             loose_kinds = frozenset(config.get("loose_kinds", ()))
 
             def persist(page, quantities):
@@ -420,8 +452,10 @@ class BagScanRun(CustomAction):
                 ambiguous=ambiguous, aliases=aliases,
                 max_pages=config["max_pages"], timeout_seconds=config["timeout_seconds"],
                 confirm_frames=config["confirm_frames"], box_tolerance=config["box_tolerance"],
-                continuity_threshold=config["continuity_threshold"], on_page=persist, log=_log)
+                continuity_threshold=config["continuity_threshold"], on_page=persist, log=_log,
+                known_pictures=known_pictures)
             result = engine.run()
+            _keep_pictures(pictures_dir, layout["icons"], known_pictures, engine)
             record.update({key: result[key] for key in (
                 "complete", "termination", "continuity", "pages", "quantities", "absent", "unknown", "cells",
                 "timing_ms")})
@@ -449,8 +483,10 @@ class BagScanRun(CustomAction):
                      f"{record['pages']} 页，{round(timing.get('total', 0) / 1000)} 秒"
                      f"（读图 {round(timing.get('read', 0) / 1000, 1)} 秒，点开 {cells.get('opened', 0)} 格，"
                      f"凭图标跳过 {cells.get('by_icon', 0)}，同图跳过 {cells.get('same_picture', 0)}，"
-                     f"没核实 {cells.get('unverified', 0)}"
-                     + (f"，对齐没把握 {cells['unaligned_pages']} 页" if cells.get("unaligned_pages") else "") + "）")
+                     + (f"凭记住的图跳过 {cells['known_picture']}，" if cells.get("known_picture") else "")
+                     + f"没核实 {cells.get('unverified', 0)}"
+                     + (f"，对齐没把握 {cells['unaligned_pages']} 页" if cells.get("unaligned_pages") else "")
+                     + (f"，重新分格 {cells['resplit']} 次" if cells.get("resplit") else "") + "）")
         if record["unknown"]:
             mfaalog.info(f"[BagScan] 未知（不判 0）—— {unknown_text(record['unknown'])}")
         # 允许按 BagReturn 原路返回；业务是否完整只看记录里的 complete。
