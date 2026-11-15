@@ -5,6 +5,8 @@
 隔夜那一段记在上一日。下一个游戏日的盘点还没来时只能记账（期中），来了才结账（期末）。
 """
 
+from .inventory_ledger import SUSPECT_MIN
+
 SCHEMA = "ledger-report/2"
 KIND_LABEL = {"daily": "日常", "collect": "吸取", "shop": "商店", "outside": "期间外", "mixed": "混合", "later": "次日以后"}
 GROUPS = (("money", "货币票券"), ("ingredient", "存货 · 食材"), ("dish", "存货 · 料理"), ("growth", "养成材料"),
@@ -14,7 +16,7 @@ GROUP_OF = {"currency": "money", "ticket": "money", "ingredient": "ingredient", 
 VALUED = ("ingredient", "dish")
 GOLD = "金币"
 REASONS = {"unknown": "中间有盘点没读到它", "unread": "中间有盘点没读到顶栏", "out_of_scope": "中间的盘点不扫这一科目",
-           "missed": "中间有盘点没盘完"}
+           "missed": "中间有盘点没盘完", "suspect_zero": "中间那次盘点把它判成了 0，前后读数相同，按漏读处理"}
 
 
 def _unit(prices, scan, name):
@@ -62,12 +64,20 @@ def _items(ledger, first, last, close, prices):
         if priced:
             value = {"opening": opening * price_open["unit"], "closing": closing * price["unit"], "flows": flows,
                      "spans": sum(span["flow"] for span in spans), "reval": reval}
+        elif valued and not opening and not closing and not any(piece["open"] or piece["close"] for piece in pieces):
+            priced = True   # 一直是 0 的东西没有单价也不碍事：估值就是 0，不必提醒
+            value = {"opening": 0, "closing": 0, "flows": {}, "spans": 0, "reval": 0}
+        # 一大笔库存在一段里清零、这一段又没有它的出售或制作记录：多半是盘点漏读，提醒但不改数。
+        emptied = next((piece["open"] for piece in pieces
+                        if piece["to"] - piece["from"] == 1 and piece["open"] >= SUSPECT_MIN and piece["close"] == 0
+                        and name not in intervals[piece["from"]]["book"]["sales"]
+                        and not intervals[piece["from"]]["book"]["cooked"]), None)
         rows.append({
             "name": name, "category": entry["category"], "group": group, "kind": entry.get("kind"),
             "scope": entry.get("scope"), "opening": opening, "closing": closing, "total": closing - opening,
             "opening_at": scans[opening_at]["id"], "closing_at": scans[closing_at]["id"],
             "deltas": deltas, "spans": spans, "price": price, "price_open": price_open, "value": value,
-            "unpriced": valued and not priced})
+            "unpriced": valued and not priced, "emptied": emptied, "suspect": entry.get("suspect") or []})
     return rows, sorted(unread)
 
 
@@ -138,6 +148,8 @@ def _shop(items, book, cookbook):
             mismatch = True
         if bought:
             notes.append(f"补买 {bought}（花费 {book['replenish'][name]['spent']:,}）")
+        if not (net or bought or sold or cooking or notes):
+            continue   # 柜台上确认过「没有可卖的」也会留一条数量为 0 的出售记录：没有任何数可列，不占一行
         rows.append({"name": name, "net": net, "replenish": bought or None, "sales": -sold if sold else None,
                      "cooking": cooking or None, "residual": residual, "mismatch": mismatch,
                      "dish": name in recipes or name in book["cooked"], "basis": "；".join(notes)})
@@ -246,7 +258,7 @@ def _checks(items, statement, shop, day_intervals, stray, valuation):
     return checks
 
 
-def _notices(status, first_ever, day_intervals, day_scans, tail, checks, shop, valuation, kst):
+def _notices(status, first_ever, day_intervals, day_scans, tail, checks, shop, valuation, kst, items=()):
     notices = []
     for check in checks:
         if not check["ok"]:
@@ -271,6 +283,13 @@ def _notices(status, first_ever, day_intervals, day_scans, tail, checks, shop, v
                                                      f"{'、'.join(scan['unknown'][:6])}。它们前后两段合并显示。"})
         elif not scan["complete"]:
             notices.append({"level": "warn", "text": f"{kst(scan['at'])} 的盘点没盘完（{scan['termination']}）。"})
+    for item in items:
+        for miss in item["suspect"]:
+            notices.append({"level": "warn", "text": f"{miss['scan']} 那次盘点把「{item['name']}」判成了 0，但前后两次都是 "
+                                                     f"{miss['value']:,}：按漏读处理，没有计入变动。"})
+        if item["emptied"]:
+            notices.append({"level": "warn", "text": f"「{item['name']}」从 {item['emptied']:,} 变成了 0，这一段没有它的出售或制作记录，"
+                                                     "可能是盘点漏读；下一次盘点读到它时会自动更正。"})
     if shop and shop["mismatch"]:
         notices.append({"level": "warn", "text": "商店推算失配：" + "、".join(shop["mismatch"][:8]) + "（见表二）。"})
     if valuation is not None:
@@ -326,7 +345,7 @@ def build_report(ledger, *, game_day: str, as_of: str, prices=None, cookbook=Non
     status = "final" if final else "interim"
     first_ever = first == 0 and not history_before
     notices = _notices(status, first_ever, day_intervals, day_scans, ledger["tail"] if not final else {"types": []},
-                       checks, shop, valuation, kst)
+                       checks, shop, valuation, kst, items)
     gold = next((item for item in items if item["name"] == GOLD), None)
     collected = [item for item in items if item["group"] in VALUED and (item["deltas"].get("collect") or 0) > 0]
     kpis = {"gold_delta": gold["total"] if gold else None,
@@ -343,8 +362,10 @@ def build_report(ledger, *, game_day: str, as_of: str, prices=None, cookbook=Non
             "warnings": sum(notice["level"] != "info" for notice in notices)}
     money = sorted((item for item in items if item["group"] == "money"),
                    key=lambda item: (item["category"] != "currency", item["name"] != GOLD, item["name"]))
-    assets = {"currency": [{"name": item["name"], "opening": item["opening"], "closing": item["closing"]}
-                           for item in money],
+    assets = {"currency": [{"name": item["name"], "opening": item["opening"], "closing": item["closing"],
+                            "opening_at": item["opening_at"], "closing_at": item["closing_at"]}
+                           for item in money   # 货币都列；票券只列手里有的
+                           if item["category"] == "currency" or item["opening"] or item["closing"]],
               "groups": [{"group": key, "label": label, "read": sum(item["group"] == key for item in items),
                           "value": None if valuation is None or key not in VALUED else {
                               "opening": valuation[key]["opening"], "closing": valuation[key]["closing"]}}

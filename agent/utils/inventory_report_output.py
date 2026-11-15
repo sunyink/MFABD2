@@ -43,8 +43,10 @@ def load_catalog(agent_dir) -> dict:
     catalog = {}
     for item in data.get("items") or ():
         category = "ticket" if item.get("kind") in TICKET_KINDS else PROFILE_CATEGORY.get(item.get("profile"), "other")
-        catalog[item["cn"]] = {"category": category, "scope": PROFILE_SCOPE.get(item.get("profile")),
-                               "kind": item.get("kind")}
+        scope = PROFILE_SCOPE.get(item.get("profile"))
+        if scope is None and (catalog.get(item["cn"]) or {}).get("scope"):
+            continue   # 目录外有同名的东西（亲密饮品里也有「牛奶」）：盘点读的是会被扫到的那一个，不让它盖掉
+        catalog[item["cn"]] = {"category": category, "scope": scope, "kind": item.get("kind")}
     return catalog
 
 

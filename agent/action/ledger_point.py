@@ -71,7 +71,8 @@ def _read_currency(context, label: str, scan_id: str) -> None:
         record.update(label=label, scan_id=scan_id)
         saved = save_currency_reading(record)
         mfaalog.info(f"[Ledger] {label}：钻石 {_shown(record['diamond'])}、金币 {_shown(record['gold'])}、"
-                     f"天赋神药 {_shown(record['tonic'])}" + ("" if saved else "（⚠️ 存档未写入）"))
+                     f"天赋神药 {_shown(record['tonic'])}" + ("" if saved else "（⚠️ 存档未写入）")
+                     + (f"（钻石的免费 / 付费没读成：{record['detail_error']}）" if record.get("detail_error") else ""))
     except Exception as exc:
         mfaalog.warning(f"[Ledger] ⚠️ {label}：货币没读成：{exc}")
 
@@ -160,7 +161,8 @@ def _run(context: Context, argv: CustomAction.RunArg) -> None:
         mfaalog.debug(f"[Ledger] {label}：不盘——{decision['reason']}")
     with _LOCK:
         ledger_rules.settle(state, mark=mark, kind=kind, task_id=task_id, entry=entry, now=time.time(), scan=scan)
-    if scan is not None and options["report"]:
+    # 盘了就出报表；结束游戏与手动结账即使规则说不用盘也出一次：收个尾，把最后几个任务的起止补进去。
+    if options["report"] and (scan is not None or mark in ("queue_end", "manual")):
         _report(label)
 
 

@@ -46,6 +46,7 @@ class Story:
         self.stock = {"兽肉": 1000, "米": 500, "包饭": 10, "精炼石": 30, "抽抽乐券": 2, "素材": 5}
         self.money = {"gold": 1_000_000, "diamond": 500, "diamond_free": 500, "diamond_paid": 0, "tonic": 9000}
         self.unknown = ()
+        self.lost = ()   # 下一次盘点里明明有、却被判成 0 的物品（漏读）
         self.cycles = {"Story_01_血骑士@g_weekly": "2026-11-07 12:00:00", "Daily_Mail@daily": "2026-11-13 12:00:00"}
 
     def restart(self, wait):
@@ -98,14 +99,15 @@ class Story:
                 "kind": "inventory_scan", "scan_id": scan_id, "seq": self.scans, "label": f"记账·{mark}",
                 "started_at": iso(started), "finished_at": iso(self.now), "observed_at": iso(self.now),
                 "scope": list(scopes), "complete": True, "termination": "list_bottom", "pages": 7,
-                "quantities": {name: quantity for name, quantity in seen.items() if quantity > 0},
-                "absent": [name for name, quantity in seen.items() if quantity == 0],
+                "quantities": {name: quantity for name, quantity in seen.items()
+                               if quantity > 0 and name not in self.lost},
+                "absent": [name for name, quantity in seen.items() if quantity == 0 or name in self.lost],
                 "unknown": {name: "看不清" for name in self.unknown if SCOPE[name] in scopes},
                 "origin": {"mark": mark, "type": kind, "node": node, "task": task, "session": self.session}})
             self.now += 8
             self.events.append({"kind": "currency_reading", "scan_id": scan_id, "observed_at": iso(self.now),
                                 "label": f"记账·{mark}", **self.money})
-            self.unknown = ()
+            self.unknown = self.lost = ()
         return self
 
     def sell(self, name, quantity, gold):
@@ -306,6 +308,35 @@ class ReportTests(unittest.TestCase):
                          ({}, ["collect", "shop"], 6, "unknown"))
         self.assertTrue(any("没读准" in notice["text"] for notice in model["notices"]))
 
+    def test_zero_between_two_equal_readings_is_a_missed_read(self):
+        """11-14 实机：吸取开头那次盘点把 9 万多个鸡蛋判成了 0，前后两次读数相同。"""
+        story = Story()
+        story.task("Daily_HomePage").at("begin", "daily", FULL).work(精炼石=3)
+        story.lost = ("兽肉",)
+        story.task("Collect_StartGame_HomePage").at("begin", "collect", FULL).work(300, 米=50)
+        interim = story.report()   # 下一次盘点还没来：数照实列，但要提醒
+        self.assertEqual(item(interim, "兽肉")["deltas"], {"daily": -1000})
+        self.assertTrue(any("从 1,000 变成了 0" in notice["text"] for notice in interim["notices"]))
+        story.at("end", "collect", ("A",))
+        model = story.end().report()
+        self.assertNotIn("兽肉", [row["name"] for row in model["items"]])      # 更正后没有变动
+        self.assertIn("兽肉", [row["name"] for row in model["unchanged"]])
+        self.assertTrue(any("S2 那次盘点把「兽肉」判成了 0" in notice["text"] for notice in model["notices"]))
+        self.assertEqual(item(model, "米")["deltas"], {"daily": 0, "collect": 50})
+        self.assertTrue(all(check["ok"] for check in model["checks"]), model["checks"])
+
+    def test_small_or_sold_out_items_may_really_hit_zero(self):
+        story = Story()
+        story.task("Daily_HomePage").at("begin", "daily", FULL).work(抽抽乐券=-2)   # 两张券用光
+        story.task("Arbitrage_Start").at("begin", "shop", FULL).work(10, 抽抽乐券=2).sell("包饭", 10, 70_000)
+        story.at("end", "shop", ("A",))
+        story.work(10, 包饭=10)
+        story.task("Close_HomePage").at("queue_end", None, FULL)
+        ledger = story.end().ledger()
+        self.assertEqual(ledger["items"]["抽抽乐券"]["suspect"], [])          # 数量小：有 → 0 → 同一个数是可能的
+        self.assertEqual([piece["delta"] for piece in ledger["items"]["抽抽乐券"]["pieces"]], [-2, 2])
+        self.assertEqual(ledger["items"]["包饭"]["suspect"], [])              # 有出售记录：卖光是真的
+
     def test_shop_reconciliation_leaves_regular_purchase_as_residual(self):
         model = preset_run(Story()).report()
         rows = {row["name"]: row for row in model["shop"]["rows"]}
@@ -344,6 +375,11 @@ class ReportTests(unittest.TestCase):
         del prices["scan1"]["米"]
         model = build_report(ledger, game_day="2026-11-14", as_of=iso(story.now), prices=prices, cookbook=COOKBOOK)
         self.assertEqual(model["valuation"]["ingredient"]["unpriced"], ["米"])
+        ledger["items"]["土豆"] = {"category": "ingredient", "kind": "食材", "scope": "A", "suspect": [],
+                                   "readings": [[0, 0], [4, 0]],
+                                   "pieces": [{"from": 0, "to": 4, "open": 0, "close": 0, "delta": 0}]}
+        model = build_report(ledger, game_day="2026-11-14", as_of=iso(story.now), prices=prices, cookbook=COOKBOOK)
+        self.assertEqual(model["valuation"]["ingredient"]["unpriced"], ["米"])   # 一直是 0 的没有单价也不提醒
         self.assertTrue(all(check["ok"] for check in model["checks"]), model["checks"])
 
     def test_first_day_and_tail_are_announced(self):
@@ -401,6 +437,7 @@ class OutputTests(unittest.TestCase):
         expected = {profile: key for key, row in scopes.items() for profile in row["profiles"]}
         self.assertEqual(output.PROFILE_SCOPE, expected)
         self.assertEqual((catalog["兽肉"]["scope"], catalog["兽肉"]["category"]), ("A", "ingredient"))
+        self.assertEqual(catalog["牛奶"]["category"], "ingredient")   # 亲密饮品里有同名的，不能盖掉食材
         self.assertTrue(any(row["category"] == "ticket" for row in catalog.values()))
 
     def test_vouchers_come_from_hot_and_cold_and_reports_are_written(self):

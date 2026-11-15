@@ -258,6 +258,14 @@ def _unit(row):
     return row["unit"] if row else None
 
 
+def card_name(key: str) -> str:
+    """周期记录里的卡带键名（Story_10_霍尔蒙克斯）→ 页面上的名字（剧情 10 霍尔蒙克斯）。认不出格式的原样返回。"""
+    kind, _, rest = str(key).partition("_")
+    number, _, name = rest.partition("_")
+    label = {"Story": "剧情", "Event": "活动", "Character": "角色"}.get(kind)
+    return f"{label} {number} {name}" if label and number.isdigit() and name else str(key)
+
+
 def _header(model, show):
     status = model["status"]
     account = model["account"]
@@ -382,11 +390,14 @@ def _stock_table(model, show):
     out.append("</tbody></table></div>")
     if notes:
         out.append('<ol class="fns">' + "".join(f"<li><b>{esc(name)}</b>{esc(text)}</li>" for name, text in notes) + "</ol>")
+    held = [row for row in unchanged if row["quantity"]]
     if unchanged:
         worth = sum(row["value"] or 0 for row in unchanged)
-        out.append(f'<details class="plain"><summary>未变动的 {len(unchanged)} 项 <small>两头读数相同'
-                   + (f"，估值 {wan(worth)}" if valued and worth else "") + '</small></summary><div class="body"><div class="small mut">'
-                   + esc("、".join(f'{row["name"]} {row["quantity"]:,}' for row in unchanged)) + "</div></div></details>")
+        none = len(unchanged) - len(held)
+        out.append(f'<details class="plain"><summary>未变动的 {len(held)} 项 <small>两头读数相同'
+                   + (f"，估值 {wan(worth)}" if valued and worth else "")
+                   + (f"；另有 {none} 项一直是 0，不列" if none else "") + '</small></summary><div class="body"><div class="small mut">'
+                   + esc("、".join(f'{row["name"]} {row["quantity"]:,}' for row in held)) + "</div></div></details>")
     if model["unread"]:
         out.append(f'<details class="plain"><summary>当天没读到的 {len(model["unread"])} 项 <small>以前盘到过，当天的盘点都没读到</small></summary>'
                    f'<div class="body"><div class="small mut">{esc("、".join(model["unread"]))}</div></div></details>')
@@ -433,8 +444,10 @@ def _assets_table(model, show):
            '<th>口径</th></tr></thead><tbody><tr class="grp"><td class="sticky" colspan="4">货币票券</td></tr>']
     for row in assets["currency"]:
         note = "面值" if row["name"] == GOLD else "不估值，只报数量"
-        out.append(f'<tr><td class="sticky">{esc(row["name"])}</td><td class="num">{fmt(row["opening"])}</td>'
-                   f'<td class="num"><b>{fmt(row["closing"])}</b></td><td class="note">{note}</td></tr>')
+        early = f'<span class="amt">{esc(row["opening_at"])}</span>' if row.get("opening_at") not in (None, first["id"]) else ""
+        late = f'<span class="amt">截至 {esc(row["closing_at"])}</span>' if row.get("closing_at") not in (None, last["id"]) else ""
+        out.append(f'<tr><td class="sticky">{esc(row["name"])}</td><td class="num">{fmt(row["opening"])}{early}</td>'
+                   f'<td class="num"><b>{fmt(row["closing"])}</b>{late}</td><td class="note">{note}</td></tr>')
     for group in assets["groups"]:
         value = group["value"]
         if value:
@@ -507,7 +520,7 @@ def _details(model, show):
                 f'<li>{esc(task["label"])} <span class="dim">{esc(show(task["start"]) if task["start"] else "?")}–'
                 f'{esc(show(task["end"]) if task["end"] else "?")}</span></li>' for task in segment["tasks"]) + "</ul>")
         if segment["cards"]:
-            out.append(f'<div class="small mut">卡带：{esc("、".join(segment["cards"]))}</div>')
+            out.append(f'<div class="small mut">卡带：{esc("、".join(card_name(card) for card in segment["cards"]))}</div>')
         out.append("</div>")
     if not model["segments"]:
         out.append('<div class="small mut">当天只有一次盘点，还没有成段。</div>')
@@ -550,12 +563,12 @@ def render_day_html(model) -> str:
               _assets_table(model, show), _statement_table(model)]
     collect = model["collect"]
     if collect["runs"]:
-        chips = "".join(f'<span class="chip">{esc(card)}</span>' for card in collect["cards"] or ())
+        chips = "".join(f'<span class="chip">{esc(card_name(card))}</span>' for card in collect["cards"] or ())
         state = f'<span class="chip warn">{collect["abnormal"]} 段未正常结束</span>' if collect["abnormal"] \
             else '<span class="chip ok">正常结束</span>'
         parts.append(f'<section><h2>五、吸取 <small>{collect["runs"]} 段</small></h2><div class="chips">{state}{chips}</div>'
                      '<p class="small mut">一段里吸多张卡，不拆分卡产出；产出见表一「吸取」列。'
-                     + ("" if collect["cards"] is not None else "卡带名单尚未记录。") + "</p></section>")
+                     + ("" if collect["cards"] is not None else "没走到正常结束点的那一段，卡带不记名。") + "</p></section>")
     parts.append(_details(model, show))
     parts.append('<section><h2>自检</h2><div class="checks">' + "".join(
         f'<div class="{"" if check["ok"] else "bad"}">{esc(check["name"])} <span class="mut">· {esc(check["detail"])}</span></div>'

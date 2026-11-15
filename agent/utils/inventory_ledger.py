@@ -21,6 +21,9 @@ CURRENCY = (("金币", "gold"), ("钻石", "diamond"), ("钻石（免费）", "d
 CURRENCY_SCOPE = "$"
 # 周期完成记录里属于采集卡带的键名前缀（剧情、活动、角色卡带）；别的是日常任务之类的完成记录。
 CARD_PREFIXES = ("Story_", "Event_", "Character_")
+# 判成 0 的读数夹在两次相同的读数之间、数量不小于它，就当作那次盘点漏读（做账参数，改了重算）。
+# 定得偏大是因为有上限的小额物品（用光、次日补满）会合法地出现「有 → 0 → 同一个数」。
+SUSPECT_MIN = 100
 _SALE, _BUY, _UNSURE = "sale_confirmed", "replenish_purchase", "sale_unconfirmed"
 
 
@@ -304,7 +307,22 @@ def _cards(marks, kind):
                   if first.get(key) != stamp and key.startswith(CARD_PREFIXES))
 
 
-def _chains(scans, catalog) -> dict:
+def _drop_suspect_zeros(name, readings, scans, intervals):
+    """判成 0 的读数夹在两次相同的读数之间，其间又没有它的出售、补买或制作记录：那次盘点漏读了它，这个 0 不作数。"""
+    kept, dropped = [], []
+    for position, (index, quantity) in enumerate(readings):
+        if quantity == 0 and 0 < position < len(readings) - 1:
+            (before, held), (after, again) = readings[position - 1], readings[position + 1]
+            booked = any(name in intervals[step]["book"][section] for step in range(before, min(after, len(intervals)))
+                         for section in ("sales", "replenish", "cooked"))
+            if held == again >= SUSPECT_MIN and not booked:
+                dropped.append({"scan": scans[index]["id"], "value": held})
+                continue
+        kept.append((index, quantity))
+    return kept, dropped
+
+
+def _chains(scans, catalog, intervals) -> dict:
     items = {}
     for index, scan in enumerate(scans):
         for name, quantity in scan["readings"].items():
@@ -314,19 +332,22 @@ def _chains(scans, catalog) -> dict:
     for name, readings in items.items():
         entry = catalog.get(name) or {}
         scope = CURRENCY_SCOPE if name in currency else entry.get("scope")
+        readings, suspect = _drop_suspect_zeros(name, readings, scans, intervals)
+        doubted = {miss["scan"] for miss in suspect}
         pieces = []
         for (start, opening), (end, closing) in zip(readings, readings[1:]):
             piece = {"from": start, "to": end, "open": opening, "close": closing, "delta": closing - opening}
             if end - start > 1:
                 gaps = scans[start + 1:end]
-                piece["reason"] = ("unknown" if any(name in scan["unknown"] for scan in gaps)
+                piece["reason"] = ("suspect_zero" if any(scan["id"] in doubted for scan in gaps)
+                                   else "unknown" if any(name in scan["unknown"] for scan in gaps)
                                    else "unread" if scope == CURRENCY_SCOPE
                                    else "out_of_scope" if all(scope not in scan["scope"] for scan in gaps)
                                    else "missed")
                 piece["missing_at"] = [scan["id"] for scan in gaps]
             pieces.append(piece)
         result[name] = {"category": "currency" if name in currency else entry.get("category", "other"),
-                        "kind": entry.get("kind"), "scope": scope,
+                        "kind": entry.get("kind"), "scope": scope, "suspect": suspect,
                         "readings": [[index, quantity] for index, quantity in readings], "pieces": pieces}
     return result
 
@@ -349,4 +370,4 @@ def build_ledger(vouchers, *, catalog=None, quiet=(), gap: float = GAP_SECONDS) 
     public = [{key: value for key, value in scan.items() if key != "started"} | {
         "at": iso(scan["at"]), "started_at": iso(scan["started"]), "ts": scan["at"]} for scan in scans]
     return {"rule_version": RULE_VERSION, "gap_seconds": gap, "scans": public, "intervals": intervals,
-            "items": _chains(scans, catalog or {}), "tail": tail}
+            "items": _chains(scans, catalog or {}, intervals), "tail": tail}

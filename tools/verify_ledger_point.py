@@ -210,6 +210,14 @@ class LedgerPointTests(unittest.TestCase):
         self.run_point("end", "shop", 103, "Arbitrage_Start")                     # 报表开关关着 → 照盘、不出
         self.assertEqual((len(self.scans), len(self.reports)), (3, 1))
 
+    def test_closing_positions_refresh_the_report_even_without_a_scan(self):
+        self.task("Arbitrage_Start", 101)
+        self.run_point("begin", "shop", 101, "Arbitrage_Start")
+        self.run_point("end", "shop", 101, "Arbitrage_Start")
+        self.task("Ledger_Settle_Manual", 102)
+        self.run_point("manual", None, 102, "Ledger_Settle_Manual")               # 没有没盘掉的活动：不盘，但出一次报表
+        self.assertEqual((len(self.scans), self.reports[-1], len(self.reports)), (2, "记账·手动结账", 3))
+
     def test_report_failure_is_only_logged(self):
         with patch.object(point, "_report", REAL_REPORT), \
                 patch.object(MemoryAccountStore, "CONFIG_DIR", "Z:/不存在", create=True), \
