@@ -447,7 +447,7 @@
         "focus": "确认区域地图tp3"
     },
     "Collect_TargetMap4": {
-        "desc": "详细地图额外位置4。白名单制,每一张图名称都要手动指定.★2026-10-10 本地:next 里把 Collect_QuickCart_TargetMapEnd(卡带结束判定)提到 Collect_TargetMap4_Special **之前**。原因:END 白名单(Cpt_Collect_TargetMapEnd_Ocr)里本来就含『夜世界入口』,而 Collect_TargetMap4_Special 认的是『通往暗夜世界入口之路』——**同一张图被同时登记成 结束标记 与 返回tp3继续采的路由**,原顺序让 Special 抢先命中,它的 next 只指向 Collect_TargetMap3(只认 战斗II/战斗Ⅱ),遇到名条『战斗V通往暗夜世界入口之路』必然不命中 ⇒ 死路 ⇒ 整链超时退栈到定位链 ⇒ 在还开着的区域地图上滑动翻卡带(卡带19 实测 2026-10-10 16:23:28~16:23:32)。『卡带该结束』的判定优先级本就应高于『返回 tp3 继续采』的路由,故对调。",
+        "desc": "详细地图额外位置4。白名单制,每一张图名称都要手动指定.★2026-10-10 本地:next 里把 Collect_QuickCart_TargetMapEnd(卡带结束判定)提到 Collect_TargetMap4_Special **之前**。原因:END 白名单(Cpt_Collect_TargetMapEnd_Ocr)里本来就含『夜世界入口』,而 Collect_TargetMap4_Special 认的是『通往暗夜世界入口之路』——**同一张图被同时登记成 结束标记 与 返回tp3继续采的路由**,原顺序让 Special 抢先命中,它的 next 只指向 Collect_TargetMap3(只认 战斗II/战斗Ⅱ),遇到名条『战斗V通往暗夜世界入口之路』必然不命中 ⇒ 死路 ⇒ 整链超时退栈到定位链 ⇒ 在还开着的区域地图上滑动翻卡带(卡带19 实测 2026-10-10 16:23:28~16:23:32)。『卡带该结束』的判定优先级本就应高于『返回 tp3 继续采』的路由,故对调。★2026-11-15：Collect_QuickCart_FastUI 挪到 Collect_MapRight_NoFind 之后，与 Collect_TargetMap3 一致。10-12 起 FastUI 改接失败出口；末页采完没有右箭头时经 Collect_OperationsEnd_NORight 先 Abort、退栈回本节点（画面已是快速卡带列表），要先由 NoFind 走成功收尾，原顺序 FastUI 先中、整卡判失败被重选（大逃脱 11-15 实测重进到 max_hit 用完）。NoFind 不能提到 [JumpBack]Collect_ClickTeleporCircleIco 之前：首次翻到末页时它同样命中，会不采末图就收尾。",
         "recognition": "OCR",
         "roi": [
             408,
@@ -464,13 +464,13 @@
             "[JumpBack]Collect_TargetMap_Special_ClickTpCircleIco",
             "Collect_TargetMap4_Special",
             "Collect_QuickCart_TargetMapEnd",
-            "Collect_QuickCart_FastUI",
             "Collect_Architecture_Underlying_Logic_Protection",
             "[JumpBack]Collect_ClickTelepor_ButNotActive",
             "[JumpBack]Collect_ClickTeleporCircleIco",
             "[JumpBack]Collect_Protection_ReturnToAreaMap",
             "[JumpBack]Collect_ClickTelepor_Abnormal_Overlap",
             "Collect_MapRight_NoFind",
+            "Collect_QuickCart_FastUI",
             "[JumpBack]Collect_TeleporNotFind"
         ],
         "on_error": [
