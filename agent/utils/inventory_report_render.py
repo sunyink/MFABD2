@@ -189,6 +189,9 @@ RULES = (
     ("（八）推算与余额项", "料理制作份数取制作时记下的读数；材料消耗按配方展开。常规采购不逐笔记，是余额项，"
                      "等于盘点净额减去已记账与推算部分；不可购买的材料余额项应为零。推算结果只在报表里，不写回存档。"),
     ("（九）自检", "每张表都核对恒等式，结果列在页末。任何一条不成立时进通知并标红，表照样画出，便于排查。"),
+    ("（十）吸取分卡产出", "放技能时读屏幕左侧的获得列表，每进一次卡记一笔。一段吸取的盘点总数，按各张卡读到的数量比例分开；"
+                     "这一段吸完的卡有一张没有记录时不放大，照读到的数列，差额归「未分到卡带」。同一张卡一天里进了几次合成一行。"
+                     "盘点不扫的东西只列读数，不计入。"),
 )
 
 
@@ -504,6 +507,72 @@ def _statement_table(model):
     return "".join(out)
 
 
+def _products(items, read_only=()) -> str:
+    """一格里的产出：「金币 +3,000、兽肉 +240」；只有读数的东西跟在后面、着淡色。"""
+    text = "、".join(f'{esc(item["name"])} {fmt(item["quantity"], sign=True)}' for item in items)
+    seen = "、".join(f'{esc(item["name"])} {item["quantity"]:,}' for item in read_only)
+    if seen:
+        text += ("；" if text else "") + f'<span class="dim">读到 {seen}（盘点不扫，未计入）</span>'
+    return text or '<span class="zero">–</span>'
+
+
+def _collect_section(model):
+    """五、吸取：有掉落记录时按卡带列产出（盘点总数按读数分摊），没有时只列吸完的卡。"""
+    collect = model["collect"]
+    if not collect["runs"]:
+        return ""
+    state = f'<span class="chip warn">{collect["abnormal"]} 段未正常结束</span>' if collect["abnormal"] \
+        else '<span class="chip ok">正常结束</span>'
+    by_card = collect.get("by_card")
+    if not by_card or not by_card["recorded"]:
+        chips = "".join(f'<span class="chip">{esc(card_name(card))}</span>' for card in collect["cards"] or ())
+        return (f'<section><h2>五、吸取 <small>{collect["runs"]} 段</small></h2><div class="chips">{state}{chips}</div>'
+                '<p class="small mut">没有记录吸取掉落（「记录吸取掉落」关着），不拆分卡产出；产出见表一「吸取」列。'
+                + ("" if collect["cards"] is not None else "没走到正常结束点的那一段，卡带不记名。") + "</p></section>")
+    valued = model["valuation"] is not None
+    out = [f'<section><h2>五、吸取 · 分卡产出 <small>{collect["runs"]} 段</small></h2><div class="chips">{state}</div>',
+           cap(("期间", f'{esc(model["game_day"])} 游戏日的吸取各段'),
+               ("单位", "个" + ("；折合为金币，满万以万计" if valued else ""))),
+           '<div class="tw"><table><thead><tr><th class="sticky">卡带</th><th>进入</th>'
+           '<th>产出<span class="sub">盘点总数按读到的比例分摊</span></th>'
+           + ('<th class="num">折合金币<span class="sub">金币面值 + 存货估值</span></th>' if valued else "")
+           + "</tr></thead><tbody>"]
+    for row in by_card["rows"]:
+        name = card_name(row["card"]) if row["card"] else "未识别卡带"
+        if not row["recorded"]:
+            out.append(f'<tr class="sub"><td class="sticky">{esc(name)}</td><td>吸完</td>'
+                       f'<td class="note">未记录掉落</td>' + ('<td class="num"><span class="dim">·</span></td>' if valued else "")
+                       + "</tr>")
+            continue
+        entered = f'{row["visits"]} 次' + (" · 吸完" if row["complete"] or row["finished"] else " · 没吸完")
+        notes = [f'{row["points"]} 个点']
+        if row["unread"]:
+            notes.append(f'{row["unread"]} 条没读成')
+        if row["stuck"]:
+            notes.append(f'{row["stuck"]} 个点列表卡住')
+        worth = ""
+        if valued:
+            extra = f'<span class="amt">{len(row["unpriced"])} 项没有单价</span>' if row["unpriced"] else ""
+            worth = f'<td class="num">{amount(row["value"])}{extra}</td>'
+        out.append(f'<tr><td class="sticky">{esc(name)}</td><td>{esc(entered)}<span class="amt">{esc("，".join(notes))}</span></td>'
+                   f'<td class="note">{_products(row["items"], row["read_only"])}</td>{worth}</tr>')
+    rest = by_card["unallocated"]
+    if rest["items"]:
+        worth = f'<td class="num">{amount(rest["value"])}</td>' if valued else ""
+        out.append(f'<tr class="val"><td class="sticky">未分到卡带</td><td></td><td class="note">{_products(rest["items"])}</td>'
+                   f"{worth}</tr>")
+    out.append("</tbody></table></div>")
+    runs, recorded, covered = by_card["runs"], by_card["recorded"], by_card["covered"]
+    if covered == runs:
+        basis = "各段吸完的卡都有记录，盘点总数全部按读到的比例分给了各张卡。"
+    else:
+        basis = (f"{runs} 段吸取里 {covered} 段吸完的卡都有记录、按比例分满；其余 {runs - covered} 段"
+                 + ("没有掉落记录或" if recorded < runs else "") + "有卡没记录，照读到的数列，差额归「未分到卡带」。")
+    out.append(f'<p class="small mut">{basis}各卡加上未分到卡带等于表一「吸取」列（自检 C8）。'
+               "同一张卡一天里进了几次合成一行；读数来自放技能时左侧的获得列表，只用来分摊，总数以盘点为准。</p></section>")
+    return "".join(out)
+
+
 def _details(model, show):
     out = ['<details><summary>各段与任务明细 <small>每一段里跑过什么、怎么结束</small></summary><div class="body"><div class="segs">']
     for segment in model["segments"]:
@@ -560,15 +629,7 @@ def render_day_html(model) -> str:
                  + "".join(f'<div class="rule"><b>{esc(title)}</b><p>{text}</p></div>' for title, text in RULES)
                  + "</div></details>")
     parts += [_kpis(model), _timeline(model, show), _stock_table(model, show), _shop_table(model),
-              _assets_table(model, show), _statement_table(model)]
-    collect = model["collect"]
-    if collect["runs"]:
-        chips = "".join(f'<span class="chip">{esc(card_name(card))}</span>' for card in collect["cards"] or ())
-        state = f'<span class="chip warn">{collect["abnormal"]} 段未正常结束</span>' if collect["abnormal"] \
-            else '<span class="chip ok">正常结束</span>'
-        parts.append(f'<section><h2>五、吸取 <small>{collect["runs"]} 段</small></h2><div class="chips">{state}{chips}</div>'
-                     '<p class="small mut">一段里吸多张卡，不拆分卡产出；产出见表一「吸取」列。'
-                     + ("" if collect["cards"] is not None else "没走到正常结束点的那一段，卡带不记名。") + "</p></section>")
+              _assets_table(model, show), _statement_table(model), _collect_section(model)]
     parts.append(_details(model, show))
     parts.append('<section><h2>自检</h2><div class="checks">' + "".join(
         f'<div class="{"" if check["ok"] else "bad"}">{esc(check["name"])} <span class="mut">· {esc(check["detail"])}</span></div>'

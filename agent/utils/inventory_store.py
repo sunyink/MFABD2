@@ -114,3 +114,21 @@ def save_ledger_mark(record: dict) -> bool:
         data = _base.PersistentStore.load()
         _base._inventory(data)["events"].append(event)
         return bool(_base._save_inventory(data))
+
+
+_LOOT_FIELDS = ("card", "end", "session", "task", "entered_at", "first_at", "last_at", "at", "points", "items",
+                "unknown", "unread", "stuck")
+
+
+def save_collect_loot(record: dict) -> bool:
+    """保存一次进卡的吸取掉落（每进一次卡一条，utils/loot_cards.py 交出来的）：只进事件流，不动 items 与 latest。
+
+    数量是放技能时左侧获得列表读到的，不是库存读数；报表只拿它把吸取的盘点总数分到各张卡带上。
+    """
+    event = {key: copy.deepcopy(record[key]) for key in _LOOT_FIELDS if key in record}
+    event["kind"] = "collect_loot"
+    event["observed_at"] = event.get("at") or _base.utc_now()
+    with _base._LOCK:
+        data = _base.PersistentStore.load()
+        _base._inventory(data)["events"].append(event)
+        return bool(_base._save_inventory(data))

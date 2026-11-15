@@ -1635,6 +1635,19 @@
         },
         "post_delay": 0,
         "next": [
+            "Collect_Pack_FeedCard"
+        ]
+    },
+    "Collect_Pack_FeedCard": {
+        "desc": "[读掉落·按卡落盘]卡名进来：上一次进卡没正常离开（卡内失败、换卡、上个任务中途停）的掉落在这里马上落盘，从这里开始记这一张 | 每次进卡正好走一次（33 个具名卡节点都只接 Collect_Pack_Prepare）。动作 LootFeedCard 读锚 CurrentCollectPack 指向的卡名；与正在记的是同一张卡、同一个任务就什么都不做。没开「记录吸取掉落」时一个采集点都没记，只记个卡名、不写存档。",
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "LootFeedCard",
+        "custom_action_param": {
+            "event": "enter"
+        },
+        "post_delay": 0,
+        "next": [
             "Collect_Pack_ResetSkirmish"
         ]
     },

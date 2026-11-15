@@ -164,6 +164,130 @@ def _shop(items, book, cookbook):
             "mismatch": [row["name"] for row in rows if row["mismatch"]]}
 
 
+def _apportion(total, shares):
+    """正整数 total 按 shares 的比例分成整数，各份之和恰好是 total（最大余数法）。"""
+    whole = sum(shares.values())
+    exact = {key: total * value / whole for key, value in shares.items()}
+    parts = {key: int(value) for key, value in exact.items()}
+    for key in sorted(exact, key=lambda key: (parts[key] - exact[key], str(key)))[:total - sum(parts.values())]:
+        parts[key] += 1
+    return parts
+
+
+def _by_card(ledger, first, day_intervals, prices):
+    """吸取分卡产出：吸取各段的盘点总数，按落在段里的各次进卡读到的数量分给各张卡带；同一天同一张卡合成一行。
+
+    一样东西在吸取段里的一笔变化（它物品链上的一段，可能跨几段吸取）：这几段吸完的卡都有记录时，按读到的比例分满这笔；
+    有卡没记录、或没走到正常结束（不知道吸完了哪些）时不放大，照读到的数列，差额归「未分到卡带」；
+    读到的比盘点还多时按比例缩到盘点数。盘点没给出变化的东西（不扫、没读准、跨到别的段）只有读数，单列、不估值。
+    当天没有吸取段返回 None。
+    """
+    scans, chains = ledger["scans"], ledger["items"]
+    collects = {first + offset: interval for offset, interval in enumerate(day_intervals) if interval["kind"] == "collect"}
+    if not collects:
+        return None
+    cards, reads, full = {}, {}, {}
+
+    def row(card):
+        return cards.setdefault(card, {"card": card, "visits": 0, "complete": 0, "points": 0, "unread": 0, "stuck": 0,
+                                       "finished": False, "items": {}, "worth": {}, "read_only": {}})
+
+    for index, interval in collects.items():
+        for card in interval["cards"] or ():
+            row(card)["finished"] = True
+        visits, named = interval.get("loot") or [], set()
+        for visit in visits:
+            target = row(visit["card"])
+            target["visits"] += 1
+            target["complete"] += visit["end"] == "complete"
+            for key in ("points", "unread", "stuck"):
+                target[key] += visit[key]
+            named.add(visit["card"])
+            for name, count in visit["items"].items():
+                bucket = reads.setdefault((index, name), {})
+                bucket[visit["card"]] = bucket.get(visit["card"], 0) + count
+        # 吸完的卡都有记录才放大。卡名没读到的那次进卡也是记录，照样参与分摊；它若其实是某张吸完的卡，
+        # 那张卡在 named 里就缺着，这一段本来就不放大。
+        full[index] = bool(visits) and interval["cards"] is not None and set(interval["cards"]) <= named
+
+    def worth(name, quantity, scan):
+        if prices is None:
+            return None
+        if name == GOLD:
+            return quantity
+        group = GROUP_OF.get(str((chains.get(name) or {}).get("category") or "other"), "other")
+        unit = _unit(prices, scan, name) if group in VALUED else None
+        return None if unit is None else quantity * unit["unit"]
+
+    def add(target, name, quantity, value):
+        target["items"][name] = target["items"].get(name, 0) + quantity
+        known = target["worth"].get(name, 0)
+        target["worth"][name] = None if value is None or known is None else known + value
+
+    rest, used = {"card": None, "items": {}, "worth": {}}, set()
+    for name, entry in chains.items():
+        for piece in entry["pieces"]:
+            span = range(piece["from"], piece["to"])
+            if not all(index in collects for index in span):
+                continue
+            share = {}
+            for index in span:
+                used.add((index, name))
+                for card, count in reads.get((index, name), {}).items():
+                    share[card] = share.get(card, 0) + count
+            total, got = piece["delta"], sum(share.values())
+            if total > 0 and got > 0 and (got >= total or all(full[index] for index in span)):
+                parts = _apportion(total, share)
+            else:
+                parts = share if total > 0 else {}
+            closing = scans[piece["to"]]
+            for card, quantity in parts.items():
+                if quantity:
+                    add(row(card), name, quantity, worth(name, quantity, closing))
+            left = total - sum(parts.values())
+            if left:
+                add(rest, name, left, worth(name, left, closing))
+    for (index, name), share in reads.items():
+        if (index, name) not in used:
+            for card, count in share.items():
+                target = row(card)
+                target["read_only"][name] = target["read_only"].get(name, 0) + count
+
+    def listed(target):
+        items = [{"name": name, "quantity": quantity, "value": target["worth"].get(name)}
+                 for name, quantity in target["items"].items() if quantity]
+        items.sort(key=lambda item: (item["name"] != GOLD, -(item["value"] or 0), -item["quantity"], item["name"]))
+        values = [item["value"] for item in items]
+        return items, (None if prices is None else sum(value for value in values if value is not None)), \
+            sorted(item["name"] for item in items if item["value"] is None and prices is not None)
+
+    rows = []
+    for target in cards.values():
+        items, value, unpriced = listed(target)
+        rows.append({key: target[key] for key in ("card", "visits", "complete", "points", "unread", "stuck", "finished")}
+                    | {"recorded": target["visits"] > 0, "items": items, "value": value, "unpriced": unpriced,
+                       "read_only": [{"name": name, "quantity": quantity}
+                                     for name, quantity in sorted(target["read_only"].items(), key=lambda pair: -pair[1])]})
+    rows.sort(key=lambda row: (not row["recorded"], row["card"] is None, -(row["value"] or 0),
+                               -sum(item["quantity"] for item in row["items"]), str(row["card"])))
+    items, value, unpriced = listed(rest)
+    return {"rows": rows, "unallocated": {"items": items, "value": value, "unpriced": unpriced},
+            "runs": len(collects), "recorded": sum(bool(interval.get("loot")) for interval in collects.values()),
+            "covered": sum(full.values())}
+
+
+def _by_card_check(items, by_card):
+    """C8：逐物品，各卡分得 + 未分到卡带 = 表一的吸取列。"""
+    allocated = {}
+    for row in by_card["rows"] + [by_card["unallocated"]]:
+        for entry in row["items"]:
+            allocated[entry["name"]] = allocated.get(entry["name"], 0) + entry["quantity"]
+    column = {item["name"]: item["deltas"].get("collect") or 0 for item in items}
+    broken = sorted(name for name in set(allocated) | set(column) if allocated.get(name, 0) != column.get(name, 0))
+    return {"name": "C8 各卡分得 + 未分到卡带 = 吸取列（逐物品）", "ok": not broken,
+            "detail": f"{len(by_card['rows'])} 张卡" if not broken else "不平：" + "、".join(broken[:8])}
+
+
 def _valuation(items):
     result = {}
     for group in VALUED:
@@ -342,6 +466,9 @@ def build_report(ledger, *, game_day: str, as_of: str, prices=None, cookbook=Non
     shop = _shop(items, book, cookbook) if has_shop else None
     statement = _statement(items, cols, valuation, shop)
     checks = _checks(items, statement, shop, day_intervals, stray, valuation)
+    by_card = _by_card(ledger, first, day_intervals, prices)
+    if by_card and by_card["recorded"]:
+        checks.append(_by_card_check(items, by_card))
     status = "final" if final else "interim"
     first_ever = first == 0 and not history_before
     notices = _notices(status, first_ever, day_intervals, day_scans, ledger["tail"] if not final else {"types": []},
@@ -385,7 +512,8 @@ def build_report(ledger, *, game_day: str, as_of: str, prices=None, cookbook=Non
                        "value": item["value"]["closing"] if item["value"] else None} for item in unchanged],
         "unread": unread, "shop": shop, "valuation": valuation, "assets": assets, "statement": statement,
         "collect": {"runs": len(collects), "cards": cards if any(interval["cards"] is not None for interval in collects)
-                    else None, "abnormal": sum("abnormal_end" in interval["flags"] for interval in collects)},
+                    else None, "abnormal": sum("abnormal_end" in interval["flags"] for interval in collects),
+                    "by_card": by_card},
         "checks": checks, "notices": notices, "kpis": kpis}
     model["summary"] = summarize(model)
     return model

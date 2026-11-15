@@ -4,6 +4,9 @@
     LootFeedWatch    只连拍，不点击（落地时补拍；别的场景想盯这条列表时也用它）
     LootFeedConfirm  流程认出某个技能已用掉时，把它最近一次施放补记为已确认（参数 feed / tag / switch）
     LootFeedCollect  等列表停下，把还没读过的条目一次识别出来并播报
+    LootFeedCard     吸取按卡带落盘的两个时刻（参数 event）：enter 卡名进来、complete 整卡完成（见 utils/loot_cards.py）
+
+开关跟着库存记账走：switch 指的节点启用、且库存记账开着，才连拍与读取（库存记账每个任务读一次）。
 
 为什么不边拍边识别：识别一行要 0.15–0.4 秒（游戏同机运行时偏慢），而条目 0.2 秒来一条、
 最快 1.6 秒就被挤出屏幕；截图只要几十毫秒。连拍期间不识别，读得全不全就与机器快慢无关。
@@ -11,7 +14,8 @@
 
 参数（custom_action_param，全部可省）：
     feed       会话名，同一任务内同名的动作共用一份跟踪状态。默认 "default"
-    switch     Cast/Watch：一个节点名，它启用时才连拍，否则只点击（Watch 不点）并等 watch_ms（与原节点等价）
+    switch     Cast/Watch：一个节点名，它启用且库存记账开着时才连拍，否则只点击（Watch 不点）并等 watch_ms（与原节点等价）
+    by_card    Collect：true = 这次收取的结果记到当前卡带（锚 CurrentCollectPack）名下，换卡或整卡完成时落盘成凭证
     tag        Cast：记在这次点击之后到达的条目上（如 "吸取"）。Watch：给了就打一个标记，之后到达、
                又没有哪次施放认领的条目记在它名下（如 "落地"）
     only       LootFeedCast：这次施放只会出的物品名（字典里的简体名）。之后到达的条目不在其中，就往前归给别的施放
@@ -58,10 +62,15 @@ from maa.agent.agent_server import AgentServer
 from maa.context import Context
 from maa.custom_action import CustomAction
 
-from utils import loot_feed, mfaalog
+from utils import ledger_config, loot_cards, loot_feed, mfaalog, task_journal
+from utils.account_sync import current_session, sync_from_context
 from utils.ocr_item_name import clean, resolve_ocr_name
+from utils.persistent_store import PersistentStore
+
+from .pack_type_select import card_name_of
 
 LAYOUT_NODE = "Agt_LootFeed_Layout"
+CARD_ANCHOR = "CurrentCollectPack"   # 进卡时指向当前卡的节点；卡名在那个节点给完成写档设的载荷里
 OCR_NODE = "Agt_LootFeed_Line_Ocr"
 FRAME_PERIOD = 0.09      # 连拍周期（秒）。出条间隔 0.2 秒，离线回放在 0.3 秒间隔下仍全对
 READ_BUDGET = 15.0       # 一次 Collect 里识别最多花这么久，超了剩下的记为没读成
@@ -92,15 +101,62 @@ def _session(context, argv, feed):
     return loot_feed.open_session(_task_id(argv), feed, make_layout)
 
 
-def _switched_on(context, params):
-    """`switch` 指向一个节点：它启用时才连拍。没写 switch 就一直连拍。"""
+_LEDGER_ON = {}   # 任务号 → 库存记账开没开。MFAA 上要读实例配置，每个任务只读一次
+
+
+def _ledger_on(argv) -> bool:
+    task_id = _task_id(argv)
+    if task_id not in _LEDGER_ON:
+        try:
+            on = bool(ledger_config.ledger_options(current_session())["scan"])
+        except Exception as e:
+            mfaalog.debug(f"[LootFeed] 库存记账开关没读成，按开处理: {e!r}")
+            on = True   # 与记账本身一致：配置读不成按默认（开）
+        _LEDGER_ON.clear()
+        _LEDGER_ON[task_id] = on
+    return _LEDGER_ON[task_id]
+
+
+def _switched_on(context, argv, params):
+    """`switch` 指向一个节点：它启用、且库存记账开着时才连拍。没写 switch 就一直连拍。"""
     node = params.get("switch")
     if not node:
         return True
     try:
-        return bool(getattr(context.get_node_object(str(node)), "enabled", False))
+        enabled = bool(getattr(context.get_node_object(str(node)), "enabled", False))
     except Exception:
         return False
+    return enabled and _ledger_on(argv)
+
+
+def _task(argv):
+    detail = getattr(argv, "task_detail", None)
+    return {"entry": getattr(detail, "entry", "") or "", "task_id": getattr(detail, "task_id", 0)}
+
+
+def _current_card(context):
+    """当前卡带名（Story_01_血骑士 这种）：锚 CurrentCollectPack 指向的进卡节点给完成写档设的卡名。读不到返回 None。"""
+    try:
+        node = context.get_anchor(CARD_ANCHOR)
+        data = context.get_node_data(node) if node else None
+        return card_name_of(data) if isinstance(data, dict) else None
+    except Exception:
+        return None
+
+
+def _store_visit(context, voucher, where):
+    """把 utils/loot_cards 交出来的一次进卡写进存档；先确认账号。出什么错都只记日志。"""
+    if not voucher:
+        return
+    try:
+        if not sync_from_context(context, where=where, stop=False):
+            mfaalog.warning(f"[LootFeed] ⚠️ 账号未确认，{voucher.get('card') or '未识别卡带'} 的掉落没有落盘")
+            return
+        text = loot_cards.store(voucher, PersistentStore._current_account_id)
+        if text:
+            (mfaalog.warning if text.startswith("⚠️") else mfaalog.info)(f"[LootFeed] {text}")
+    except Exception as e:
+        mfaalog.error(f"[LootFeed] 卡带掉落落盘出错: {e!r}")
 
 
 def _grab(context):
@@ -332,7 +388,7 @@ def _collect(context, session, feed, params):
     resync = sum(1 for n in tracker.notes if n[1] == "resync")
     tracker.notes.clear()
     record = {"time": time.time(), "feed": feed, "label": params.get("label"), "items": items,
-              "unread": unread, "resync": resync}
+              "unread": unread, "resync": resync, "stuck": stuck}
     confirms = "、".join(
         f"{c['tag'] or '?'} " + ("未见确认" if c["confirmed"] is None else f"{(c['confirmed'] - c['t']) * 1000:.0f}ms")
         + f"/拍 {c.get('watched', 0) * 1000:.0f}ms" for c in session.casts)
@@ -392,7 +448,7 @@ class LootFeedCastAction(CustomAction):
             return False
         session = None
         try:
-            if _switched_on(context, params):
+            if _switched_on(context, argv, params):
                 session = _session(context, argv, str(params.get("feed", "default")))
         except Exception as e:
             mfaalog.error(f"[LootFeed] 会话建立失败，本次只点击不连拍: {e!r}")
@@ -443,7 +499,7 @@ class LootFeedConfirmAction(CustomAction):
     def run(self, context: Context, argv: CustomAction.RunArg) -> bool:
         try:
             params = _params(argv)
-            if not _switched_on(context, params):
+            if not _switched_on(context, argv, params):
                 return True
             session = loot_feed.peek_session(_task_id(argv), str(params.get("feed", "default")))
             tag = params.get("tag")
@@ -463,7 +519,7 @@ class LootFeedWatchAction(CustomAction):
         try:
             params = _params(argv)
             watch_s = float(params.get("watch_ms", 2000)) / 1000
-            if not _switched_on(context, params):
+            if not _switched_on(context, argv, params):
                 time.sleep(watch_s)       # 开关没开：与原节点的固定等待等价
                 return True
             session = _session(context, argv, str(params.get("feed", "default")))
@@ -487,7 +543,44 @@ class LootFeedCollectAction(CustomAction):
         try:
             params = _params(argv)
             feed = str(params.get("feed", "default"))
-            _collect(context, _session(context, argv, feed), feed, params)
+            record = _collect(context, _session(context, argv, feed), feed, params)
         except Exception as e:
             mfaalog.error(f"[LootFeed] LootFeedCollect 出错，本次掉落未记录: {e!r}")
+            return True
+        if params.get("by_card"):
+            try:
+                # 卡名对不上（没赶上进卡、换了卡）时 add_point 交出旧的那次，这里落盘
+                old = loot_cards.add_point(record, card=_current_card(context), task=_task(argv),
+                                           session=task_journal.SESSION, account=PersistentStore._current_account_id)
+                _store_visit(context, old, "LootFeedCollect")
+            except Exception as e:
+                mfaalog.error(f"[LootFeed] 本点掉落没能记到卡带名下: {e!r}")
+        return True
+
+
+@AgentServer.custom_action("LootFeedCard")
+class LootFeedCardAction(CustomAction):
+    """吸取掉落按卡带落盘的两个时刻（参数 event），只在采集链上：
+
+        enter     卡名进来（Collect_Pack_FeedCard）。上一张没正常离开（卡内失败、换卡、上个任务中途停）的，在这里马上落盘
+        complete  整卡正常完成（Collect_PackEnd_FeedCard，跟在完成写档后面）。这一张落盘
+
+    吸取任务的正常结束点由 LedgerPoint 在盘点前替最后一张落盘。没开「记录吸取掉落」时一个采集点都没记，
+    这里只记个卡名、不写存档。永远返回 True：落不了盘只少一份分卡记录，不拦采集。
+    """
+
+    def run(self, context: Context, argv: CustomAction.RunArg) -> bool:
+        try:
+            event = _params(argv).get("event")
+            card, task = _current_card(context), _task(argv)
+            if event == "enter":
+                old = loot_cards.enter(card, task=task, session=task_journal.SESSION,
+                                       account=PersistentStore._current_account_id)
+            elif event == "complete":
+                old = loot_cards.leave("complete", task_id=task["task_id"], card=card)
+            else:
+                raise ValueError(f"参数 event 不对：{event!r}")
+            _store_visit(context, old, "LootFeedCard")
+        except Exception as e:
+            mfaalog.error(f"[LootFeed] LootFeedCard 出错（不影响采集）: {e!r}")
         return True

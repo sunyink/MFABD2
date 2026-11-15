@@ -139,6 +139,17 @@ class Story:
                             "started_at": iso(self.now - 3), "observed_at": iso(self.now)})
         return self
 
+    def loot(self, card, end="complete", seconds=30, **items):
+        """一次进卡的吸取掉落凭证（utils/loot_cards.py 交出来的那种）：读到的条目，不动库存。"""
+        self.now += seconds
+        row = self.rows[-1]
+        self.events.append({"kind": "collect_loot", "card": card, "end": end, "session": self.session,
+                            "task": {"entry": row["entry"], "task_id": row["task_id"]},
+                            "entered_at": iso(self.now - seconds), "first_at": iso(self.now - seconds + 5),
+                            "last_at": iso(self.now), "at": iso(self.now), "observed_at": iso(self.now), "points": 3,
+                            "items": dict(items), "unknown": {}, "unread": 0, "stuck": 0})
+        return self
+
     def ledger(self):
         return build_ledger(self.events, catalog=CATALOG, quiet=QUIET)
 
@@ -389,6 +400,113 @@ class ReportTests(unittest.TestCase):
         self.assertTrue(model["first_scan"])
         self.assertEqual((model["segments"], [row["name"] for row in model["items"]]), ([], []))
         self.assertTrue(any("没盘掉的活动（日常）" in notice["text"] for notice in model["notices"]))
+
+
+def collect_run(story, *cards, finished=None, **changes):
+    """一次吸取任务：开头全盘 → 各次进卡（卡名, end, 读到的条目）→ 正常结束只盘 A。finished 是这一段吸完的卡。"""
+    story.task("Collect_StartGame_HomePage").at("begin", "collect", FULL).work(300, **changes)
+    for card, end, items in cards:
+        story.loot(card, end, **items)
+    for minute, card in enumerate(finished if finished is not None else [c for c, end, _ in cards if end == "complete"]):
+        story.cycles[f"{card}@g_weekly"] = f"2026-11-14 12:{10 + minute:02d}:00"
+    return story.at("end", "collect", ("A",))
+
+
+def split(model):
+    """分卡产出 → {卡带: {物品: 数量}}，未分到卡带记在 None 下。"""
+    by_card = model["collect"]["by_card"]
+    result = {row["card"]: {item["name"]: item["quantity"] for item in row["items"]} for row in by_card["rows"]}
+    result[None] = {item["name"]: item["quantity"] for item in by_card["unallocated"]["items"]}
+    return result
+
+
+class CardSplitTests(unittest.TestCase):
+    A, B, C = "Story_01_血骑士", "Story_02_苍蓝魔女", "Story_03_迷雾神射手"
+
+    def test_totals_are_split_by_what_each_card_read(self):
+        story = collect_run(Story(), (self.A, "complete", {"兽肉": 60, "金币": 2000}),
+                            (self.B, "complete", {"兽肉": 40, "金币": 2000}), 兽肉=400, gold=5000)
+        model = story.end().report()
+        self.assertEqual(split(model), {self.A: {"兽肉": 240, "金币": 2500}, self.B: {"兽肉": 160, "金币": 2500}, None: {}})
+        by_card = model["collect"]["by_card"]
+        self.assertEqual((by_card["runs"], by_card["recorded"], by_card["covered"]), (1, 1, 1))
+        self.assertTrue(all(check["ok"] for check in model["checks"]), model["checks"])
+        self.assertIn("C8 各卡分得 + 未分到卡带 = 吸取列（逐物品）", [check["name"] for check in model["checks"]])
+
+    def test_odd_split_still_adds_up(self):
+        story = collect_run(Story(), (self.A, "complete", {"兽肉": 1}), (self.B, "complete", {"兽肉": 1}),
+                            (self.C, "complete", {"兽肉": 1}), 兽肉=100)
+        parts = split(story.end().report())
+        self.assertEqual(sorted(parts[card]["兽肉"] for card in (self.A, self.B, self.C)), [33, 33, 34])
+
+    def test_unrecorded_finished_card_keeps_reads_and_leaves_the_rest(self):
+        # C 吸完了却没有掉落记录：不放大，照读到的数列，差额归「未分到卡带」，C 灰着列出来
+        story = collect_run(Story(), (self.A, "complete", {"兽肉": 60, "金币": 2000}),
+                            (self.B, "complete", {"兽肉": 40, "金币": 2000}),
+                            finished=[self.A, self.B, self.C], 兽肉=400, gold=5000)
+        model = story.end().report()
+        self.assertEqual(split(model), {self.A: {"兽肉": 60, "金币": 2000}, self.B: {"兽肉": 40, "金币": 2000},
+                                        self.C: {}, None: {"兽肉": 300, "金币": 1000}})
+        silent = next(row for row in model["collect"]["by_card"]["rows"] if row["card"] == self.C)
+        self.assertEqual((silent["recorded"], silent["finished"]), (False, True))
+        self.assertEqual(model["collect"]["by_card"]["covered"], 0)
+        self.assertTrue(all(check["ok"] for check in model["checks"]), model["checks"])
+
+    def test_reading_more_than_counted_is_scaled_down(self):
+        story = collect_run(Story(), (self.A, "complete", {"兽肉": 300}), (self.B, "complete", {"兽肉": 200}),
+                            finished=[self.A, self.B, self.C], 兽肉=400)
+        self.assertEqual(split(story.end().report()), {self.A: {"兽肉": 240}, self.B: {"兽肉": 160}, self.C: {},
+                                                       None: {}})
+
+    def test_same_card_twice_in_a_day_is_one_row(self):
+        story = collect_run(Story(), (self.A, "task_end", {"兽肉": 50}), 兽肉=100)   # 次数用完，卡没吸完
+        story.task("Close_HomePage").at("queue_end")
+        collect_run(story.end().restart(3600), (self.A, "complete", {"兽肉": 30}), 兽肉=60)
+        model = story.end().report()
+        row, = [row for row in model["collect"]["by_card"]["rows"] if row["card"] == self.A]
+        self.assertEqual((row["visits"], row["complete"], row["items"]), (2, 1, [{"name": "兽肉", "quantity": 160,
+                                                                                   "value": None}]))
+        self.assertEqual(model["collect"]["by_card"]["runs"], 2)
+        self.assertTrue(all(check["ok"] for check in model["checks"]), model["checks"])
+
+    def test_items_the_scan_skips_are_only_listed_as_reads(self):
+        story = collect_run(Story(), (self.A, "complete", {"兽肉": 10, "精炼石": 4}), 兽肉=20, 精炼石=4)
+        row = next(row for row in story.end().report()["collect"]["by_card"]["rows"] if row["card"] == self.A)
+        self.assertEqual(row["items"], [{"name": "兽肉", "quantity": 20, "value": None}])
+        self.assertEqual(row["read_only"], [{"name": "精炼石", "quantity": 4}])
+
+    def test_unknown_card_and_values(self):
+        story = collect_run(Story(), (None, "later", {"兽肉": 10}), (self.A, "complete", {"兽肉": 30}),
+                            finished=[self.A], 兽肉=80, gold=1000)
+        ledger = story.end().ledger()
+        prices = {scan["scan_id"]: {"兽肉": {"unit": 8}} for scan in ledger["scans"]}
+        model = build_report(ledger, game_day="2026-11-14", as_of=iso(story.now), prices=prices, cookbook=COOKBOOK)
+        rows = {row["card"]: row for row in model["collect"]["by_card"]["rows"]}
+        self.assertEqual((rows[self.A]["items"][0]["quantity"], rows[self.A]["value"]), (60, 60 * 8))
+        self.assertEqual(rows[None]["items"][0]["quantity"], 20)   # 卡名读不到的那次进卡照样分，列作「未识别卡带」
+        self.assertEqual(model["collect"]["by_card"]["unallocated"]["items"], [{"name": "金币", "quantity": 1000,
+                                                                                "value": 1000}])
+        self.assertIn("未识别卡带", render_day_html(model))
+
+    def test_no_loot_records_keeps_the_old_section(self):
+        story = collect_run(Story(), finished=[self.A], 兽肉=100)
+        model = story.end().report()
+        self.assertEqual(model["collect"]["by_card"]["recorded"], 0)
+        self.assertNotIn("C8", " ".join(check["name"] for check in model["checks"]))
+        page = render_day_html(model)
+        self.assertIn("不拆分卡产出", page)
+        self.assertNotIn("分卡产出 <small>", page)
+
+    def test_page_lists_cards_and_duplicates_are_dropped(self):
+        story = collect_run(Story(), (self.A, "complete", {"兽肉": 60}), (self.B, "complete", {"兽肉": 40}),
+                            finished=[self.A, self.B, self.C], 兽肉=400)
+        story.events += [dict(event) for event in story.events if event["kind"] == "collect_loot"]   # 热档冷档各一份
+        model = story.end().report()
+        self.assertEqual(len(model["segments"][0]["loot"]), 2)
+        page = render_day_html(model)
+        for needle in ("五、吸取 · 分卡产出", "剧情 01 血骑士", "剧情 03 迷雾神射手", "未记录掉落", "未分到卡带", "（十）吸取分卡产出"):
+            self.assertIn(needle, page)
+        self.assertNotIn("None", page)
 
 
 class RenderTests(unittest.TestCase):

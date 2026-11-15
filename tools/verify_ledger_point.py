@@ -68,6 +68,7 @@ class LedgerPointTests(unittest.TestCase):
         task_journal.reset()
         point._STATES.clear()
         point._CURSORS.clear()
+        point.loot_cards.reset()
         self.scans, self.clock, self.reports = [], [T0], []
         self.scan_result = {"executed": True, "returned": True}
         ledger_config.remember_injected({})
@@ -150,6 +151,32 @@ class LedgerPointTests(unittest.TestCase):
         collect, daily = self.events("ledger_mark")
         self.assertEqual(collect["cards"], {"Story_01_血骑士@g_weekly": "2025-11-15 20:00:00"})
         self.assertNotIn("cards", daily)
+
+    def test_collect_end_hands_over_the_last_card_before_marking(self):
+        self.task("Collect_StartGame_HomePage", 101)
+        self.run_point("begin", "collect", 101, "Collect_StartGame_HomePage")
+        task = {"entry": "Collect_StartGame_HomePage", "task_id": 101}
+        point.loot_cards.enter("Story_01_血骑士", task=task, account="7", now=self.clock[0])
+        point.loot_cards.add_point({"time": self.clock[0] + 5, "items": [{"name": "兽肉", "count": 12, "known": True}]},
+                                   card="Story_01_血骑士", task=task)
+        self.run_point("end", "collect", 101, "Collect_StartGame_HomePage")   # 次数用完，卡没吸完
+        events = MemoryAccountStore.data["arbitrage"]["inventory"]["events"]
+        kinds = [event["kind"] for event in events]
+        self.assertLess(kinds.index("collect_loot"), len(kinds) - 1 - kinds[::-1].index("ledger_mark"))
+        loot, = self.events("collect_loot")
+        self.assertEqual((loot["card"], loot["end"], loot["items"], loot["task"]),
+                         ("Story_01_血骑士", "task_end", {"兽肉": 12}, task))
+        self.assertNotIn("account", loot)
+
+    def test_later_position_hands_over_a_stopped_collect(self):
+        task = {"entry": "Collect_StartGame_HomePage", "task_id": 101}
+        point.loot_cards.enter("Story_01_血骑士", task=task, account="7", now=self.clock[0])
+        point.loot_cards.add_point({"time": self.clock[0] + 5, "items": [{"name": "兽肉", "count": 3, "known": True}]},
+                                   card="Story_01_血骑士", task=task)
+        self.task("Mail_HomePage", 102)
+        self.run_point("begin", "daily", 102, "Mail_HomePage")
+        loot, = self.events("collect_loot")
+        self.assertEqual(loot["end"], "later")
 
     def test_normal_end_mark_needs_a_begin_in_the_same_task(self):
         self.task("Mail_HomePage", 101)

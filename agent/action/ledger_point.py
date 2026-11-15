@@ -18,7 +18,7 @@ from maa.agent.agent_server import AgentServer
 from maa.context import Context
 from maa.custom_action import CustomAction
 
-from utils import inventory_report_output, ledger_config, ledger_rules, mfaalog, task_journal
+from utils import inventory_report_output, ledger_config, ledger_rules, loot_cards, mfaalog, task_journal
 from utils.account_sync import current_session, sync_from_context
 from utils.inventory_ledger import CARD_PREFIXES
 from utils.inventory_store import get_events, save_currency_reading, save_ledger_mark, utc_now
@@ -87,6 +87,16 @@ def _cycle_marks():
         return None
 
 
+def _hand_over_loot(mark: str, kind, task_id, account) -> None:
+    """吸取掉落按卡带落盘：吸取结束位置替最后一张卡交，别的位置交上一个任务中途停下没交的。只记日志，不拦记账。"""
+    try:
+        text = loot_cards.store(loot_cards.settle(task_id, task_end=mark == "end" and kind == "collect"), account)
+        if text:
+            (mfaalog.warning if text.startswith("⚠️") else mfaalog.info)(f"[Ledger] {text}")
+    except Exception as exc:
+        mfaalog.warning(f"[Ledger] ⚠️ 吸取掉落没能落盘（不影响记账）：{exc}")
+
+
 def _report(label: str) -> None:
     """盘完出报表：从凭证现算，重写还没结账的游戏日。出什么错都只记日志，不影响所在流程。"""
     try:
@@ -118,6 +128,7 @@ def _run(context: Context, argv: CustomAction.RunArg) -> None:
         return
     account = PersistentStore._current_account_id
     task_id = argv.task_detail.task_id
+    _hand_over_loot(mark, kind, task_id, account)   # 先于标记与盘点：这次出的报表就用得上
     rows = task_journal.rows()
     entry = getattr(argv.task_detail, "entry", None) or next(
         (row["entry"] for row in rows if row["task_id"] == task_id), "")

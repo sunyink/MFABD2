@@ -626,7 +626,7 @@
         ]
     },
     "Collect_Skill_FeedCollect": {
-        "desc": "[读掉落]出口前收一次：等左侧获得列表停下，把施放期间连拍攒下的条目一次识别并播报 | 默认关，由 interface「记录吸取掉落」打开；三个施放节点的 LootFeedCast 也看它是否启用来决定连不连拍。识别 LootFeedPending=本轮点过技能或有没收的条目，收完不再命中，TapReset 自然走向出口；一个技能都没放时不命中、零耗时。读不出只少一条记录，不拦出口。 | 游戏偶发卡住（带 expect 的施放已确认、到下一次点击前一条都没来；同一个点上别的技能的列表可以照常出）时，动作在 py 里用 run_task 跑一次 refresh 指的 Collect_Skill_FeedRefresh，再连拍读一遍；仍没有就放弃。",
+        "desc": "[读掉落]出口前收一次：等左侧获得列表停下，把施放期间连拍攒下的条目一次识别并播报 | 由 interface「记录吸取掉落」打开（默认开）；三个施放节点的 LootFeedCast 也看它是否启用来决定连不连拍，库存记账关着时一律不连拍、不读。by_card：收完记到当前卡带名下，换卡、整卡完成或吸取收尾时落盘成凭证，库存报表据此分卡产出。识别 LootFeedPending=本轮点过技能或有没收的条目，收完不再命中，TapReset 自然走向出口；一个技能都没放时不命中、零耗时。读不出只少一条记录，不拦出口。 | 游戏偶发卡住（带 expect 的施放已确认、到下一次点击前一条都没来；同一个点上别的技能的列表可以照常出）时，动作在 py 里用 run_task 跑一次 refresh 指的 Collect_Skill_FeedRefresh，再连拍读一遍；仍没有就放弃。",
         "enabled": false,
         "recognition": "Custom",
         "custom_recognition": "LootFeedPending",
@@ -639,7 +639,8 @@
         "custom_action_param": {
             "feed": "collect",
             "label": "吸取",
-            "refresh": "Collect_Skill_FeedRefresh"
+            "refresh": "Collect_Skill_FeedRefresh",
+            "by_card": true
         },
         "post_delay": 0,
         "focus": "CSB.读取本轮掉落"

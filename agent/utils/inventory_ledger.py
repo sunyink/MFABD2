@@ -5,7 +5,8 @@
 
 账的组成：
     scans      记账盘点（带 origin 的 inventory_scan），按时刻排；每次盘点是一个时点
-    intervals  相邻两次记账盘点之间的一段：归属（daily / collect / shop / outside / mixed）、标志、跑过的任务、逐笔记录
+    intervals  相邻两次记账盘点之间的一段：归属（daily / collect / shop / outside / mixed）、标志、跑过的任务、逐笔记录、
+               落在这一段的各次进卡读到的掉落（loot，凭证 collect_loot，按第一个采集点的时刻归段）
     items      每样东西自己的读数链：相邻两次「读到它」的盘点之间是一段变化
     tail       最后一次盘点之后还没盘掉的活动
 """
@@ -14,7 +15,7 @@ from datetime import datetime, timezone
 
 from .ledger_rules import GAP_SECONDS, _connected, game_day
 
-RULE_VERSION = 2
+RULE_VERSION = 3   # 3：吸取分卡产出
 # 顶栏货币在账里的名字 → 货币读数里的字段。
 CURRENCY = (("金币", "gold"), ("钻石", "diamond"), ("钻石（免费）", "diamond_free"),
             ("钻石（付费）", "diamond_paid"), ("天赋神药", "tonic"))
@@ -58,6 +59,9 @@ def dedupe(vouchers) -> list:
             key = (kind, event.get("scan_id"), event.get("observed_at"))
         elif kind == "cooking_made":
             key = (kind, event.get("recipe"), event.get("started_at"))
+        elif kind == "collect_loot":
+            key = (kind, event.get("session"), (event.get("task") or {}).get("task_id"), event.get("first_at"),
+                   event.get("card"))
         else:
             key = (kind, event.get("observed_at"), event.get("reason"), reference.get("scan_id"), reference.get("page"),
                    tuple(sorted(event.get("quantities") or event.get("items") or ())))
@@ -160,6 +164,29 @@ def _task_rows(marks, scans) -> dict:
     return {key: task for key, task in tasks.items() if task["from"] is not None}
 
 
+def _loot_rows(events) -> list:
+    """吸取掉落凭证：每进一次卡一条，记的是左侧获得列表读到的条目，不是库存读数。"""
+    rows = []
+    for event in events:
+        first, last = ts(event.get("first_at")), ts(event.get("last_at"))
+        if event.get("kind") != "collect_loot" or first is None:
+            continue
+        items = {name: count for name, count in (event.get("items") or {}).items()
+                 if isinstance(name, str) and type(count) is int and count > 0}
+        rows.append({"card": event.get("card") if isinstance(event.get("card"), str) else None,
+                     "end": event.get("end"), "first": first, "last": last if last is not None else first,
+                     "points": event.get("points") or 0, "items": items, "unread": event.get("unread") or 0,
+                     "stuck": event.get("stuck") or 0, "unknown": sum((event.get("unknown") or {}).values()),
+                     "session": event.get("session"), "task_id": (event.get("task") or {}).get("task_id")})
+    rows.sort(key=lambda row: row["first"])
+    return rows
+
+
+def _visits_between(visits, lower, upper) -> list:
+    return [{key: iso(value) if key in ("first", "last") else value for key, value in visit.items()}
+            for visit in visits if lower < visit["first"] <= upper]
+
+
 def _book(events, lower, upper) -> dict:
     """区间里逐笔记下的事实：出售、补买、料理制作。"""
     book = {"sales": {}, "replenish": {}, "cooked": {}, "unconfirmed": 0, "first": None, "last": None}
@@ -208,11 +235,11 @@ def _settled(interval_tasks, closing, tasks, gap) -> bool:
     return _connected(rows, last["task_id"], closer, gap)
 
 
-def _intervals(scans, marks, tasks, events, quiet, gap):
+def _intervals(scans, marks, tasks, events, quiet, gap, visits=()):
     quiet = frozenset(quiet)
     orphans = _orphan_pages(events, scans)
     intervals = []
-    tail = {"marks": [], "tasks": [], "types": []}
+    tail = {"marks": [], "tasks": [], "types": [], "loot": []}
 
     def slot(mark):
         """标记落进哪个区间：始标记触发了盘点 → 以那次盘点开头的区间；其余按时刻。"""
@@ -250,7 +277,8 @@ def _intervals(scans, marks, tasks, events, quiet, gap):
                   "end": None if task["end"] is None else iso(task["end"]), "status": task["status"]} for task in shown]
         if closing is None:
             tail = {"marks": [{"mark": mark["mark"], "type": mark["type"], "at": iso(mark["at"]), "entry": mark["entry"]}
-                              for mark in inside], "tasks": brief, "types": types}
+                              for mark in inside], "tasks": brief, "types": types,
+                    "loot": _visits_between(visits, opening["at"], float("inf"))}
             break
         if len(types) == 1 and not strangers:
             kind = types[0]
@@ -276,7 +304,8 @@ def _intervals(scans, marks, tasks, events, quiet, gap):
             "end": iso(closing["at"]), "minutes": round((closing["at"] - opening["at"]) / 60), "day": opening["day"],
             "kind": kind, "types": types, "flags": flags, "tasks": brief,
             "strangers": [task["entry"] for task in strangers], "cards": cards, "sessions": len(sessions),
-            "closed_by": closing["origin"].get("mark"), "book": _book(events, opening["at"], closing["at"])})
+            "closed_by": closing["origin"].get("mark"), "book": _book(events, opening["at"], closing["at"]),
+            "loot": _visits_between(visits, opening["at"], closing["at"])})
     return intervals, tail
 
 
@@ -366,7 +395,7 @@ def build_ledger(vouchers, *, catalog=None, quiet=(), gap: float = GAP_SECONDS) 
     scans = _scan_rows(events, currencies)
     marks = _mark_rows(events, scans)
     tasks = _task_rows(marks, scans)
-    intervals, tail = _intervals(scans, marks, tasks, events, quiet, gap)
+    intervals, tail = _intervals(scans, marks, tasks, events, quiet, gap, _loot_rows(events))
     public = [{key: value for key, value in scan.items() if key != "started"} | {
         "at": iso(scan["at"]), "started_at": iso(scan["started"]), "ts": scan["at"]} for scan in scans]
     return {"rule_version": RULE_VERSION, "gap_seconds": gap, "scans": public, "intervals": intervals,
