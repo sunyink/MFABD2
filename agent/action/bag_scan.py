@@ -449,7 +449,8 @@ class BagScanRun(CustomAction):
                      f"{record['pages']} 页，{round(timing.get('total', 0) / 1000)} 秒"
                      f"（读图 {round(timing.get('read', 0) / 1000, 1)} 秒，点开 {cells.get('opened', 0)} 格，"
                      f"凭图标跳过 {cells.get('by_icon', 0)}，同图跳过 {cells.get('same_picture', 0)}，"
-                     f"没核实 {cells.get('unverified', 0)}）")
+                     f"没核实 {cells.get('unverified', 0)}"
+                     + (f"，对齐没把握 {cells['unaligned_pages']} 页" if cells.get("unaligned_pages") else "") + "）")
         if record["unknown"]:
             mfaalog.info(f"[BagScan] 未知（不判 0）—— {unknown_text(record['unknown'])}")
         # 允许按 BagReturn 原路返回；业务是否完整只看记录里的 complete。

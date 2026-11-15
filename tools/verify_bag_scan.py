@@ -20,7 +20,7 @@ from utils import arbitrage_store as store
 from utils import inventory_store
 from utils.bag_cells import Cell, Grid, Icon, Page, color_count, hsv, icon_pack, item_table, read_page
 from utils.bag_detail import DetailLayout, FadeWatch, anchor_of, split_quantity, stitch, text_box
-from utils.bag_scan_engine import BagScanEngine, Reading, Section, estimate_shift
+from utils.bag_scan_engine import BagScanEngine, Reading, Section, estimate_shift, joining_kinds
 from utils.ocr_item_name import item_aliases
 
 
@@ -264,10 +264,10 @@ def food_section():
     return Section("存货", FOOD, "head", "ingredient_boundary")
 
 
-def run(device, targets, *, sections=None, **options):
+def run(device, targets, *, sections=None, reader=None, **options):
     options.setdefault("on_page", lambda page, reads: device.persisted.append((page, reads)))
     options.setdefault("aliases", ALIASES)
-    engine = BagScanEngine(device, device.read, targets, known_names=KNOWN, grid_roi=GRID, row_height=ROW, columns=6,
+    engine = BagScanEngine(device, reader or device.read, targets, known_names=KNOWN, grid_roi=GRID, row_height=ROW, columns=6,
                            sections=[food_section()] if sections is None else sections, **options)
     return engine.run()
 
@@ -300,6 +300,62 @@ class EngineTests(unittest.TestCase):
         self.assertEqual(result["absent_by"], {"ingredient_boundary": ["盐"]})
         self.assertEqual(device.opens, ["兽肉", "米"])   # 段尾凭图标认定，不用点开
         self.assertLess(result["pages"], 5)
+
+    def test_icons_on_a_page_without_confident_alignment_are_not_trusted(self):
+        # 2026-11-14 实机：整页错位，鸡蛋那格凑巧对上已读过的别的物品的图标而没点开，段尾给鸡蛋判了 0。
+        names, held = ["兽肉", "鸡蛋", "盐"], amounts("兽肉", "鸡蛋")
+        layout_of = lambda: Bag(layout("兽肉", "米", "白糖", "小麦", "鸡蛋", *others(60), end=False))
+        trusting = Device(layout_of(), held, sees={"鸡蛋": "兽肉"})
+        self.assertEqual(sorted(run(trusting, names)["absent"]), ["盐", "鸡蛋"])   # 读图说对齐有把握时，认错的图标无从发现
+        device = Device(layout_of(), held, sees={"鸡蛋": "兽肉"})
+
+        def reader(image):
+            page = device.read(image)
+            page.aligned = device.bag.offset != 0      # 只有第一页（还没滑动时）对齐没把握
+            return page
+
+        result = run(device, names, reader=reader)
+        self.assertEqual((result["quantities"], result["absent"]), (held, ["盐"]))   # 没有的照样判 0：身份都是读名读出来的
+        self.assertIn("鸡蛋", device.opens)
+        self.assertGreaterEqual(result["cells"]["unaligned_pages"], 1)
+        self.assertTrue(result["complete"])
+
+    def test_same_item_filling_rows_joins_two_pages_by_identity(self):
+        # 2026-11-15 PC 实机：214 万泥炭连占三行，相邻两页重叠的部分全是同款，画面上分不清位移。
+        # 上一页末尾与下一页开头是同一种物品，中间夹着的只可能还是它：没有漏掉别的东西，照常判 0。
+        bag = Bag(layout("兽肉", *fillers(11), *["别类900"] * 42, *others(30)))
+        device = Device(bag, amounts("兽肉"))
+        result = run(device, ["兽肉", "盐"], sections=[])
+        self.assertEqual((result["quantities"], result["absent"], result["unknown"]), (amounts("兽肉"), ["盐"], {}))
+        self.assertEqual(result["continuity"], "verified")
+        self.assertGreaterEqual(result["cells"]["joined_by_item"], 1)
+
+    def test_either_of_the_last_two_items_joins_the_next_page(self):
+        # 上一页末尾两种、对上哪一种都行：最后一格认错或认不出时，还有倒数第二种可接。
+        self.assertEqual(joining_kinds(["布料", "布料", "泥炭", "泥炭"]), ["泥炭", "布料"])
+        self.assertEqual(joining_kinds(["布料", "泥炭", None]), ["泥炭", "布料"])          # 最后一格认不出：跳过它
+        self.assertEqual(joining_kinds(["布料", "泥炭", "认错的"]), ["认错的", "泥炭"])      # 最后一格认错：泥炭仍在
+        self.assertEqual(joining_kinds(["泥炭"] * 8), ["泥炭"])
+        self.assertEqual(joining_kinds(None), [])
+
+    def test_pages_that_do_not_share_an_item_stay_broken(self):
+        # 同款铺满几行，但下一页开头已经是上一页没见过的东西（中间可能漏了）：照旧判接不上。
+        bag = Bag(layout("兽肉", *fillers(11), *["别类900"] * 42, *others(30)))
+        device = Device(bag, amounts("兽肉"))
+        pages = []
+
+        def reader(image):
+            page = device.read(image)
+            pages.append(page)
+            if len(pages) >= 2:      # 第二页起，把开头几格认成上一页没出现过的物品
+                for cell in page.cells[:6]:
+                    if cell.icon is not None:
+                        cell.icon = Icon(("没见过的",), cell.icon.kinds, frozenset())
+            return page
+
+        result = run(device, ["兽肉", "盐"], sections=[], reader=reader)
+        self.assertEqual(result["continuity"], "broken")
+        self.assertEqual(result["unknown"], {"盐": "continuity_broken"})
 
     def test_one_stray_icon_inside_the_food_does_not_end_the_section(self):
         # 读图把一格食材错认成别类物品：只有一格、后面又是食材，不算走出这一段。
@@ -896,6 +952,18 @@ class CellTests(unittest.TestCase):
                 self.assertEqual(found, names)        # 矿石三种形状几乎一样，靠颜色核分开
                 self.assertTrue(page.ends_with_blanks())
                 self.assertTrue(all(cell.empty for cell in page.cells[len(names):]))
+
+    def test_row_tops_are_found_when_the_quantity_text_steals_the_phase(self):
+        # 实机截图（tools/fixtures/bag_scan_misaligned）：估出的行上沿比真实位置高 14 像素，旧对齐只找 ±7 像素够不回来。
+        with __import__("PIL.Image", fromlist=["Image"]).open(ROOT / "tools/fixtures/bag_scan_misaligned/page.jpg") as image:
+            frame = np.asarray(image.convert("RGB"))[:, :, ::-1].copy()
+        page = read_page(frame, grid_of("base"), icon_pack("base"))
+        self.assertTrue(page.aligned)
+        self.assertEqual(len(page.tops), 5)
+        self.assertLessEqual(abs(page.tops[1] - 227), 2)
+        egg = next(cell for cell in page.cells if cell.row == 1 and cell.col == 5)
+        self.assertEqual(egg.icon.names, ("鸡蛋",))
+        self.assertLessEqual(sum(cell.icon is None for cell in page.occupied()), 2)
 
     def test_shared_pictures_are_merged_into_one_icon(self):
         pack = icon_pack("base")

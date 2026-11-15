@@ -75,6 +75,25 @@ class Section:
     closed: bool = False
 
 
+def _kinds(page):
+    """一页里按阅读顺序认出的物品（到第一个空格为止）。认不出、或图标不止对应一种物品的格子记 None；
+    整页对齐没把握时图标都信不过，返回 None。"""
+    if not getattr(page, "aligned", True):
+        return None
+    kinds = []
+    for cell in page.cells:
+        if cell.empty:
+            break
+        names = cell.icon.names if cell.icon is not None else ()
+        kinds.append(names[0] if len(names) == 1 else None)
+    return kinds
+
+
+def joining_kinds(kinds) -> list:
+    """上一页末尾的两种物品（按阅读顺序从最后一格往回数，认不出的格子跳过），最后一种在前。"""
+    return [kind for kind in dict.fromkeys(reversed(kinds or ())) if kind is not None][:2]
+
+
 @dataclass(frozen=True)
 class _Seen:
     """一个格子的着落。icon：凭图标认定；read：点开读到名录里的名字；foreign：点开读到目录外的名字；
@@ -231,7 +250,10 @@ class BagScanEngine:
         self.origin = None
         self.done = {}              # (绝对行, 列) → _Seen：相邻两页重叠的行不重复处理
         self.remembered = []        # 认不出但点开读过的图：[(比对区像素, _Seen)]
-        self.stats = {"opened": 0, "by_icon": 0, "same_picture": 0, "unverified": 0}
+        self.stats = {"opened": 0, "by_icon": 0, "same_picture": 0, "unverified": 0, "unaligned_pages": 0,
+                      "joined_by_item": 0}
+        self.tail = None
+        self.unjoined = None
         self.timing = {"read": 0.0, "swipe": 0.0, "open": [], "confirm": [], "close": []}
         self._page_reads = {}
 
@@ -295,6 +317,7 @@ class BagScanEngine:
                 started = self.clock()
                 page = self.reader(image)
                 self.timing["read"] += self.clock() - started
+                self._settle_turn(page)
                 outcome = self._work_page(page)
                 self._flush_page()
                 if not self.pending:
@@ -313,12 +336,35 @@ class BagScanEngine:
                 self._flush_page()
                 image = None
 
+    def _settle_turn(self, page):
+        """上一次翻页在画面上接不上时，改按物品判：这一页第一格的物品是上一页末尾两种之一，就没有漏掉别的东西。
+
+        依据是同一种物品的格子在列表里连成一片：这一页从上一页末尾见过的物品起头，中间夹着的只可能还是它。
+        上一页取末尾两种、对上哪一种都行（用户 2026-11-15）：只取最后一种的话，那一格万一认错就接不上了。
+        只证明没漏东西，不管滚了几行：格子的记号在翻页时已经清掉，这一页逐格重新处理，用不着行号。
+        """
+        previous, self.tail = self.tail, _kinds(page)
+        if self.unjoined is None:
+            return
+        detail, self.unjoined = self.unjoined, None
+        head = self.tail
+        last = joining_kinds(previous)
+        if head and head[0] is not None and head[0] in last:
+            self.stats["joined_by_item"] += 1
+            self.log("info", f"第 {self.pages - 1} 页翻页在画面上分不清位置，按物品接上了（上一页末尾是{'、'.join(reversed(last))}，"
+                             f"这一页从{head[0]}起），照常判 0")
+            return
+        self.log("warning", f"相邻两页接不上，本轮不再判 0{detail}")
+        self.continuous = False
+
     def _begin_pass(self):
         """从列表顶部（重新）走起：格子编号、各段的进度从头算，上一趟没着落的格子会重新遇到。"""
         self.scroll = 0
         self.origin = None
         self.done = {}
         self.blind = 0
+        self.tail = None        # 上一页按阅读顺序认出的物品
+        self.unjoined = None    # 上一次翻页画面上接不上时的说明，等读完这一页再定
         for section in self.sections:
             if not section.closed:
                 section.entered, section.strikes = False, 0
@@ -329,6 +375,14 @@ class BagScanEngine:
         cells = page.cells
         if self.origin is None and page.tops:
             self.origin = page.tops[0]
+        if not page.aligned and any(cell.icon is not None for cell in cells):
+            # 整页对齐没把握时，凑巧对上的图标信不过：这一页的格子一律当认不出，点开读名（同图的仍只点一次）。
+            # 身份全来自读到的名字，所以这一轮照样可以判 0。
+            self.stats["unaligned_pages"] += 1
+            self.log("warning", f"第 {self.pages} 页整页对齐没有把握，这一页不凭图标跳过，逐格点开读名")
+            for cell in cells:
+                if cell.icon is not None:
+                    cell.icon = None
         blank_at = next((index for index, cell in enumerate(cells) if cell.empty), None)
         live = cells if blank_at is None else cells[:blank_at]
         rest = [] if blank_at is None else cells[blank_at:]
@@ -650,9 +704,9 @@ class BagScanEngine:
         elif outcome == "bottom":
             self.log("warning", f"滑动报到底但画面在动，按正常翻页继续{detail}")
         if state == "broken":
-            self.log("warning", f"相邻两页接不上，本轮不再判 0{detail}")
-            self.continuous = False
-            self.done.clear()       # 位移信不过，格子对不上号：宁可重新处理
+            # 位移信不过，格子对不上号：宁可重新处理。算不算漏了东西，等读完新的一页按物品再定（_settle_turn）。
+            self.unjoined = detail
+            self.done.clear()
         self.scroll += shift or 0
         return "moved", current
 

@@ -184,7 +184,7 @@ class Cell:
 class Page:
     tops: list                     # 完整露出的各行上沿 y
     cells: list
-    aligned: bool = True           # 整页对齐有没有把握（整页都认不出东西时没有）
+    aligned: bool = True           # 整页对齐有没有把握：较好的一半格子平均认得出才算有；没把握的页不该凭图标下结论
 
     def occupied(self):
         return [cell for cell in self.cells if not cell.empty]
@@ -241,24 +241,37 @@ def read_page(image: np.ndarray, grid: Grid, pack: IconPack) -> Page:
     lefts = [int(round(grid.left + col * pitch_x)) for col in range(grid.columns)]
     rough = [int(round(phase + k * pitch_y)) for k in range(-1, int(area_h / pitch_y) + 3)]
 
-    # 整页对齐：每行挑内容最丰富的三格，在竖直方向试一段，取「认得最好的那一半格子的平均分」最大的偏移。
-    # 只看较好的一半：一页里常有认不出的物品（箱子、新出的活动道具），不能让它们把对齐拖垮。
-    inner = [top for top in rough if top - grid.reach + grid.row_offset >= area_y - 1
-             and top + grid.reach + grid.row_offset + cell_h <= bottom + 1]
-    samples = []
-    for top in inner:
-        row = sorted(((float(_crop(gray, left, top + band_top + grid.row_offset, pack.shape).std()), left)
-                      for left in lefts), reverse=True)[:3]
-        samples += [(left, top) for std, left in row if std >= grid.empty_std]
-    offset, aligned = grid.row_offset, False
-    if samples:
-        tries = list(range(grid.row_offset - grid.reach, grid.row_offset + grid.reach + 1))
+    def align(reach):
+        """每行挑内容最丰富的三格，在 row_offset 上下 reach 个像素里试，取「认得最好的那一半格子的平均分」最大的偏移。
+
+        只看较好的一半：一页里常有认不出的物品（箱子、新出的活动道具），不能让它们把对齐拖垮。返回 (分数, 偏移)。
+        """
+        inner = [top for top in rough if top - reach + grid.row_offset >= area_y - 1
+                 and top + reach + grid.row_offset + cell_h <= bottom + 1]
+        samples = []
+        for top in inner:
+            row = sorted(((float(_crop(gray, left, top + band_top + grid.row_offset, pack.shape).std()), left)
+                          for left in lefts), reverse=True)[:3]
+            samples += [(left, top) for std, left in row if std >= grid.empty_std]
+        if not samples:
+            return None
+        tries = list(range(grid.row_offset - reach, grid.row_offset + reach + 1))
         patches = np.stack([_crop(frame, left, top + band_top + dy, pack.shape)
                             for dy in tries for left, top in samples]).astype(np.float32)
         peak = np.sort(pack.scores(patches).max(axis=0).reshape(len(tries), len(samples)), axis=1)
         peak = peak[:, len(samples) // 2:].mean(axis=1)
-        if float(peak.max()) >= 0.6:
-            offset, aligned = tries[int(peak.argmax())], True
+        return float(peak.max()), tries[int(peak.argmax())]
+
+    # 整页对齐。先在估出的行上沿附近找；分数够不上「认得出」就把整个行距找一遍——
+    # 行上沿是按亮度跳变估的，格子里的数量字也按行距重复，有时会抢到最强的位置，估出来的行差出十几像素
+    # （2026-11-14 实机：那一页只有一格凑巧对上别的图标，被当成已读过的物品跳过，段尾给真物品判了 0）。
+    # 对齐有没有把握以「认得出」为准：没把握的页由引擎逐格点开读名，不凭图标下结论。
+    found = align(grid.reach)
+    if found is None or found[0] < grid.known:
+        wide = align(int(pitch_y // 2))
+        if wide is not None and (found is None or wide[0] > found[0]):
+            found = wide
+    offset, aligned = (found[1], found[0] >= grid.known) if found else (grid.row_offset, False)
 
     tops = [top + offset for top in rough if top + offset >= area_y - 1 and top + offset + cell_h <= bottom + 1]
     cells = [Cell(row, col, [left, top, cell_w, cell_h])
