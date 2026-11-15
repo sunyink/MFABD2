@@ -1251,6 +1251,9 @@
                         },
                         "Collect_PackScan_DebugMode": {
                             "enabled": true
+                        },
+                        "Collect_Skill3_2_Depleted": {
+                            "enabled": false
                         }
                     },
                     "option": [

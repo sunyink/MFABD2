@@ -1634,6 +1634,25 @@
         },
         "post_delay": 0,
         "next": [
+            "Collect_Pack_ResetSkirmish"
+        ]
+    },
+    "Collect_Pack_ResetSkirmish": {
+        "desc": "每张卡点下去之前清零遭遇战的逃跑次数 | 清通用脱战链 Collect_Skirmish_Escape（一张卡内逃跑总次数）与四个逃跑薄壳（额度用完后的重进次数）。进卡薄壳 Collect_Pack_Skirmish 在认到箱庭前就可能用到，所以清零点要在点卡之前，不能放在箱庭入口或活动入口。",
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "ClearNodeHitCount",
+        "custom_action_param": {
+            "node_name": [
+                "Collect_Skirmish_Escape",
+                "Collect_Pack_Skirmish",
+                "Collect_OperationsMain_Skirmish",
+                "Collect_TeleporCircle_OnFoot_Skirmish",
+                "Collect_IM_Skirmish"
+            ]
+        },
+        "post_delay": 0,
+        "next": [
             "Collect_Pack_Click"
         ]
     },
@@ -1653,7 +1672,8 @@
             "value": 1
         },
         "anchor": {
-            "Pack_Bypass": ""
+            "Pack_Bypass": "",
+            "Skirmish_Resume": ""
         },
         "post_delay": 0,
         "timeout": 1,
@@ -2625,7 +2645,9 @@
         "anchor": {
             "Pack_Click": "Collect_Pack_Event_1",
             "CurrentCollectPack": "Collect_Pack_Event_1",
-            "PackScan_Return": "Collect_PackScan_Prepare"
+            "PackScan_Return": "Collect_PackScan_Prepare",
+            "Pack_Bypass": "Collect_IM_Entry",
+            "Skirmish_Resume": "Collect_IM_Rejoin"
         },
         "post_delay": 0,
         "next": [
@@ -2689,7 +2711,9 @@
         "anchor": {
             "Pack_Click": "Collect_Pack_Event_3",
             "CurrentCollectPack": "Collect_Pack_Event_3",
-            "PackScan_Return": "Collect_PackScan_Prepare"
+            "PackScan_Return": "Collect_PackScan_Prepare",
+            "Pack_Bypass": "Collect_IM_Entry",
+            "Skirmish_Resume": "Collect_IM_Rejoin"
         },
         "post_delay": 0,
         "next": [
@@ -2721,7 +2745,9 @@
         "anchor": {
             "Pack_Click": "Collect_Pack_Event_4",
             "CurrentCollectPack": "Collect_Pack_Event_4",
-            "PackScan_Return": "Collect_PackScan_Prepare"
+            "PackScan_Return": "Collect_PackScan_Prepare",
+            "Pack_Bypass": "Collect_IM_Entry",
+            "Skirmish_Resume": "Collect_IM_Rejoin"
         },
         "post_delay": 0,
         "next": [
@@ -2753,7 +2779,9 @@
         "anchor": {
             "Pack_Click": "Collect_Pack_Event_5",
             "CurrentCollectPack": "Collect_Pack_Event_5",
-            "PackScan_Return": "Collect_PackScan_Prepare"
+            "PackScan_Return": "Collect_PackScan_Prepare",
+            "Pack_Bypass": "Collect_IM_Entry",
+            "Skirmish_Resume": "Collect_IM_Rejoin"
         },
         "post_delay": 0,
         "next": [
@@ -2782,10 +2810,29 @@
             "[JumpBack]Global_WaitingForLoading",
             "[JumpBack]Collect_FirstPack",
             "[JumpBack]Collect_FirstPack_Talk",
+            "[JumpBack]Collect_Pack_Skirmish",
             "[Anchor]Pack_Bypass",
             "Collect_OperationsMain_Sandplay",
             "Collect_Pack_Click"
         ]
+    },
+    "Collect_Pack_Skirmish": {
+        "desc": "进卡后、认到箱庭前就撞上遭遇战：调通用脱战链逃跑并快速移动离开，之后按卡分流 | 活动卡（没有传送阵）由进卡设的 Skirmish_Resume 接回活动入口，必定命中，不会落到后面的步行回阵；异教塔、救赎、C3 交 Pack_Bypass 入口自行处理；普通卡落在阵上直接退栈，回了主城就步行回阵后退栈，再由 Collect_Pack_Click 交通用箱庭入口。max_hit 8 限脱战链额度用完后的重进（按节点名借识别不看对方的 max_hit，用完后本节点照样认得出战斗画面），由 Collect_Pack_ResetSkirmish 每卡清零；用完后 Collect_Pack_Click 超时退栈。",
+        "max_hit": 8,
+        "recognition": "Or",
+        "any_of": [
+            "Collect_Skirmish_Escape"
+        ],
+        "pre_delay": 0,
+        "post_delay": 0,
+        "next": [
+            "[JumpBack]Collect_Skirmish_Escape",
+            "[Anchor]Skirmish_Resume",
+            "[Anchor]Pack_Bypass",
+            "Collect_Skirmish_OnCircle",
+            "Collect_TeleporCircle_OnFoot_Start"
+        ],
+        "focus": "CM.L.进卡遭遇战-逃跑"
     },
     "Collect_FirstPack": {
         "desc": "事件图可能会有新卡带",

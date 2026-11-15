@@ -651,6 +651,7 @@
         "focus": "CTOB.打开导航地图"
     },
     "Collect_TeleporCircle_OnFoot_NviMap": {
+        "desc": "导航地图已打开（读底栏按钮），步行回阵在当前页找阵 | 也被各处借作「地图已打开」判据。活动卡与 M14 的步行吸取入口不挂在这里：活动卡进卡走 Collect_IM_Entry，M14 走 Collect_Special_M14_NviMap_Enter。",
         "recognition": "OCR",
         "roi": [
             538,
@@ -666,7 +667,6 @@
         "action": "DoNothing",
         "next": [
             "Collect_TeleporCircle_OnFoot_TPIco",
-            "Collect_InitiatingManual_Onfoot_Start",
             "Collect_TeleporCircle_OnFoot_Sandbox",
             "[JumpBack]Global_ToSandBox"
         ],
@@ -742,8 +742,116 @@
             "Collect_TeleporCircle_OnFoot_StateResolGroup_Step1_Right"
         ]
     },
+    "Collect_IM_Rejoin": {
+        "desc": "活动卡逃跑后接回活动入口 | 由 Collect_Pack_Event_1/3/4/5 进卡时设的锚点 Skirmish_Resume 指向，供普通卡的逃跑薄壳（Collect_Pack_Skirmish、Collect_OperationsMain_Skirmish）在逃完后优先走：本节点必定命中，所以活动卡永远落不到后面的步行回阵、开传送阵面板（活动图没有传送阵）。随后等活动入口认到箱庭，重新清计次、开地图按标题分发；等不到就超时退栈回选卡列表，不写完成。",
+        "pre_delay": 0,
+        "post_delay": 0,
+        "timeout": 10000,
+        "next": [
+            "Collect_IM_Entry"
+        ],
+        "focus": "IM.遭遇战后接回活动步行"
+    },
+    "Collect_IM_Entry": {
+        "desc": "活动卡（地图没有传送阵）进卡入口 | 由 Collect_Pack_Event_1/3/4/5 的 Pack_Bypass 进入，不走通用箱庭入口，也不回传送阵。确认箱庭后清零本模块带 max_hit 的节点，再清步行标签、开导航地图按标题分发。同轮重进从首次状态开始。本模块新增带 max_hit 的节点时要补进这份清单；逃跑薄壳 Collect_IM_Skirmish 与脱战链按卡计次，由进卡前的 Collect_Pack_ResetSkirmish 清零，不在此列（遇敌接回本入口时不重置，次数才限得住）。失败一律默认退栈回选卡列表，不写完成。",
+        "recognition": "Or",
+        "any_of": [
+            "Global_ToSandBox_Enter"
+        ],
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "ClearNodeHitCount",
+        "custom_action_param": {
+            "node_name": [
+                "Collect_IM_Locate",
+                "Collect_IM_OnFoot_NviMap_E01_A2_Move",
+                "Collect_IM_OnFoot_NviMap_E01_B2_Move",
+                "Collect_IM_OnFoot_NviMap_E03_A2_Move",
+                "Collect_IM_OnFoot_NviMap_E03_B2_Move",
+                "Collect_IM_OnFoot_NviMap_E04_A2_Move",
+                "Collect_IM_OnFoot_NviMap_E04_B2_Move",
+                "Collect_IM_OnFoot_NviMap_E05_A2_Move",
+                "Collect_IM_OnFoot_NviMap_E05_B2_Move"
+            ]
+        },
+        "post_delay": 0,
+        "next": [
+            "Collect_IM_Entry_ResetTag"
+        ],
+        "focus": "IM.活动卡进卡-开导航地图步行吸取"
+    },
+    "Collect_IM_Entry_ResetTag": {
+        "desc": "清掉上次没走完留下的步行阶段标签与子菜单重开计数，让本次从第一次放技能开始 | 入口与遭遇战逃跑后（Collect_IM_Skirmish）共用。进卡刚落地就被怪撞上时，开地图前先逃跑（11-06 ADB 海滨天使实例）。",
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "ResetTag",
+        "custom_action_param": {
+            "tags": [
+                "IM_Skill_1",
+                "IM_Skill_End",
+                "NviMap_Sub_Err"
+            ]
+        },
+        "post_delay": 0,
+        "next": [
+            "Collect_IM_Locate",
+            "Collect_IM_Skirmish"
+        ]
+    },
+    "Collect_IM_Locate": {
+        "desc": "在箱庭点左上小地图打开导航地图 | 活动卡入口与子菜单点不动后的重开（Collect_IM_OnFoot_NviMap_Sub_Err_Out）共用。max_hit 4 由 Collect_IM_Entry 与 Collect_IM_M14_Prepare 清零；点了没打开就重点，用完或超时即退栈。",
+        "max_hit": 4,
+        "recognition": "Or",
+        "any_of": [
+            "Rec_SandBox_Pin_Tpl",
+            "Rec_SandBox_Run_Tpl"
+        ],
+        "action": "Click",
+        "target": [
+            148,
+            119,
+            34,
+            38
+        ],
+        "post_delay": 2500,
+        "timeout": 5000,
+        "next": [
+            "Collect_IM_Locate_Ready",
+            "Collect_IM_Skirmish",
+            "Collect_IM_Locate"
+        ],
+        "focus": "IM.打开导航地图"
+    },
+    "Collect_IM_Locate_Ready": {
+        "desc": "确认导航地图已打开再读标题分发 | 标题不在活动/M14 名单里时超时退栈，不写完成。",
+        "recognition": "Or",
+        "any_of": [
+            "Collect_TeleporCircle_OnFoot_NviMap"
+        ],
+        "pre_delay": 0,
+        "post_delay": 0,
+        "timeout": 5000,
+        "next": [
+            "Collect_InitiatingManual_Onfoot_Start"
+        ]
+    },
+    "Collect_IM_Skirmish": {
+        "desc": "步行吸取中撞上遭遇战：调通用脱战链逃跑，回到箱庭后从清标签重来 | 逃跑后人可能在出发图、半路或目的图，不接回原流程，交 Collect_IM_Entry_ResetTag 清步行标签、重开地图按标题重新分发。逃不掉时脱战链超时退栈，回到这里会马上再进脱战链，重试次数由 Collect_Skirmish_Escape 的 max_hit 限住。本节点 max_hit 8 限的是额度用完后的重进：按节点名借识别不看对方的 max_hit，脱战链用完后本节点照样认得出战斗画面，没有它就会与 _ResetTag 零延迟互跳。两者都由进卡前的 Collect_Pack_ResetSkirmish 清零；用完后不再命中，调用方按各自超时退栈。",
+        "max_hit": 8,
+        "recognition": "Or",
+        "any_of": [
+            "Collect_Skirmish_Escape"
+        ],
+        "pre_delay": 0,
+        "post_delay": 0,
+        "next": [
+            "[JumpBack]Collect_Skirmish_Escape",
+            "Collect_IM_Entry_ResetTag"
+        ],
+        "focus": "IM.遭遇战-逃跑后重新分发"
+    },
     "Collect_InitiatingManual_Onfoot_Start": {
-        "desc": "[入口]IM=特殊步行.吸取地图",
+        "desc": "[入口]IM 步行吸取：按导航地图标题分发到各图的步行路线 | 调用方：活动卡经 Collect_IM_Locate_Ready，M14 经 Collect_Special_M14_NviMap_Enter；都已确认地图打开。",
         "recognition": "OCR",
         "roi": [
             175,
@@ -794,12 +902,6 @@
             "Collect_IM_OnFoot_NviMap_E01_A2",
             "[JumpBack]Collect_IM_DouMap_Tab"
         ],
-        "on_error": [
-            "Global_QuickCart_MenuReset",
-            "[JumpBack]Global_ToSandBox",
-            "Global_Null_Exception",
-            "Global_Null_Panic"
-        ],
         "focus": "CTB.特殊地图-夏日骑士-01"
     },
     "Collect_IM_OnFoot_NviMap_E01_B1": {
@@ -820,12 +922,6 @@
             "[JumpBack]Collect_IM_OnFoot_NviMap_Skill01",
             "Collect_IM_OnFoot_NviMap_E01_B2",
             "[JumpBack]Collect_IM_DouMap_Tab"
-        ],
-        "on_error": [
-            "Global_QuickCart_MenuReset",
-            "[JumpBack]Global_ToSandBox",
-            "Global_Null_Exception",
-            "Global_Null_Panic"
         ],
         "focus": "CTB.特殊地图-夏日骑士-01"
     },
@@ -890,6 +986,7 @@
         "timeout": 8000,
         "next": [
             "[JumpBack]Collect_IM_OnFoot_Moveing",
+            "Collect_IM_Skirmish",
             "Collect_IM_OnFoot_NviMap_2_Move_End",
             "[JumpBack]Collect_IM_Move_MGS",
             "[JumpBack]Global_WaitingForLoading"
@@ -901,7 +998,7 @@
         "focus": "小地图图标子菜单"
     },
     "Collect_IM_OnFoot_NviMap_Sub_Err": {
-        "desc": "ui子菜单无法点击回退后,从此重开",
+        "desc": "折叠子菜单点了没反应：退出地图后重开 | 游戏 bug，进卡后第一次弹出的折叠子菜单能识别但点不动，退出地图重开才点得动（见 priv 公共返程计划 §17.2）。计 NviMap_Sub_Err，最多 5 次；先回箱庭，再由 Sub_Err_Out 交 Collect_IM_Locate 重开地图、按标题重新分发。",
         "recognition": "Custom",
         "custom_recognition": "CheckTag",
         "custom_recognition_param": {
@@ -920,12 +1017,13 @@
         ]
     },
     "Collect_IM_OnFoot_NviMap_Sub_Err_Out": {
+        "desc": "已回箱庭，重开导航地图 | 不经回阵步行模块：活动地图没有传送阵，M14 也只需重开地图。",
         "recognition": "Or",
         "any_of": [
             "Global_ToSandBox_Enter"
         ],
         "next": [
-            "Collect_TeleporCircle_OnFoot_Start"
+            "Collect_IM_Locate"
         ]
     },
     "Collect_IM_OnFoot_NviMap_E01_B2_Move": {
@@ -944,6 +1042,7 @@
         "post_delay": 1000,
         "next": [
             "[JumpBack]Collect_IM_OnFoot_Moveing",
+            "Collect_IM_Skirmish",
             "Collect_IM_OnFoot_NviMap_2_Move_End",
             "[JumpBack]Collect_IM_Move_MGS",
             "[JumpBack]Global_WaitingForLoading"
@@ -1167,12 +1266,6 @@
             "Collect_IM_OnFoot_NviMap_E03_A2",
             "[JumpBack]Collect_IM_DouMap_Tab"
         ],
-        "on_error": [
-            "Global_QuickCart_MenuReset",
-            "[JumpBack]Global_ToSandBox",
-            "Global_Null_Exception",
-            "Global_Null_Panic"
-        ],
         "focus": "CTB.特殊地图-海滨天使-01"
     },
     "Collect_IM_OnFoot_NviMap_E03_B1": {
@@ -1193,12 +1286,6 @@
             "[JumpBack]Collect_IM_OnFoot_NviMap_Skill01",
             "Collect_IM_OnFoot_NviMap_E03_B2",
             "[JumpBack]Collect_IM_DouMap_Tab"
-        ],
-        "on_error": [
-            "Global_QuickCart_MenuReset",
-            "[JumpBack]Global_ToSandBox",
-            "Global_Null_Exception",
-            "Global_Null_Panic"
         ],
         "focus": "CTB.特殊地图-海滨天使-01"
     },
@@ -1255,6 +1342,7 @@
         "timeout": 8000,
         "next": [
             "[JumpBack]Collect_IM_OnFoot_Moveing",
+            "Collect_IM_Skirmish",
             "Collect_IM_OnFoot_NviMap_2_Move_End",
             "[JumpBack]Collect_IM_Move_MGS",
             "[JumpBack]Global_WaitingForLoading"
@@ -1291,6 +1379,7 @@
         "post_delay": 1000,
         "next": [
             "[JumpBack]Collect_IM_OnFoot_Moveing",
+            "Collect_IM_Skirmish",
             "Collect_IM_OnFoot_NviMap_2_Move_End",
             "[JumpBack]Collect_IM_Move_MGS",
             "[JumpBack]Global_WaitingForLoading",
@@ -1316,12 +1405,6 @@
             "Collect_IM_OnFoot_NviMap_E04_A2",
             "[JumpBack]Collect_IM_DouMap_Tab"
         ],
-        "on_error": [
-            "Global_QuickCart_MenuReset",
-            "[JumpBack]Global_ToSandBox",
-            "Global_Null_Exception",
-            "Global_Null_Panic"
-        ],
         "focus": "CTB.特殊地图-记忆边缘-01"
     },
     "Collect_IM_OnFoot_NviMap_E04_B1": {
@@ -1342,12 +1425,6 @@
             "[JumpBack]Collect_IM_OnFoot_NviMap_Skill01",
             "Collect_IM_OnFoot_NviMap_E04_B2",
             "[JumpBack]Collect_IM_DouMap_Tab"
-        ],
-        "on_error": [
-            "Global_QuickCart_MenuReset",
-            "[JumpBack]Global_ToSandBox",
-            "Global_Null_Exception",
-            "Global_Null_Panic"
         ],
         "focus": "CTB.特殊地图-记忆边缘-01"
     },
@@ -1377,6 +1454,7 @@
         "post_delay": 1000,
         "next": [
             "[JumpBack]Collect_IM_OnFoot_Moveing",
+            "Collect_IM_Skirmish",
             "Collect_IM_OnFoot_NviMap_2_Move_End",
             "[JumpBack]Collect_IM_Move_MGS",
             "[JumpBack]Global_WaitingForLoading",
@@ -1409,6 +1487,7 @@
         "post_delay": 1000,
         "next": [
             "[JumpBack]Collect_IM_OnFoot_Moveing",
+            "Collect_IM_Skirmish",
             "Collect_IM_OnFoot_NviMap_2_Move_End",
             "[JumpBack]Collect_IM_Move_MGS",
             "[JumpBack]Global_WaitingForLoading",
@@ -1434,12 +1513,6 @@
             "Collect_IM_OnFoot_NviMap_E05_A2",
             "[JumpBack]Collect_IM_DouMap_Tab"
         ],
-        "on_error": [
-            "Global_QuickCart_MenuReset",
-            "[JumpBack]Global_ToSandBox",
-            "Global_Null_Exception",
-            "Global_Null_Panic"
-        ],
         "focus": "CTB.特殊地图-戏水女王-01"
     },
     "Collect_IM_OnFoot_NviMap_E05_B1": {
@@ -1460,12 +1533,6 @@
             "[JumpBack]Collect_IM_OnFoot_NviMap_Skill01",
             "Collect_IM_OnFoot_NviMap_E05_B2",
             "[JumpBack]Collect_IM_DouMap_Tab"
-        ],
-        "on_error": [
-            "Global_QuickCart_MenuReset",
-            "[JumpBack]Global_ToSandBox",
-            "Global_Null_Exception",
-            "Global_Null_Panic"
         ],
         "focus": "CTB.特殊地图-戏水女王-01"
     },
@@ -1495,14 +1562,15 @@
         "focus": "CTB.特殊地图-神圣审判"
     },
     "Collect_IM_M14_Prepare": {
-        "desc": "每次进入M14步行采集时清零专用返程和拉卡带调用次数，避免上次中断影响本次收尾。",
+        "desc": "每次进入M14步行采集时清零专用返程、拉卡带与重开地图的调用次数，避免上次中断或此前的活动卡影响本次。子菜单重开也会回到这里，重开总数由 NviMap_Sub_Err 限制。",
         "pre_delay": 0,
         "action": "Custom",
         "custom_action": "ClearNodeHitCount",
         "custom_action_param": {
             "node_name": [
                 "Collect_IM_M14_ReturnOnce",
-                "Collect_IM_M14_OpenMenuOnce"
+                "Collect_IM_M14_OpenMenuOnce",
+                "Collect_IM_Locate"
             ]
         },
         "post_delay": 0,
@@ -1646,6 +1714,7 @@
         "post_delay": 1000,
         "next": [
             "[JumpBack]Collect_IM_OnFoot_Moveing",
+            "Collect_IM_Skirmish",
             "Collect_IM_OnFoot_NviMap_2_Move_End",
             "[JumpBack]Collect_IM_Move_MGS",
             "[JumpBack]Global_WaitingForLoading",
@@ -1678,6 +1747,7 @@
         "post_delay": 1000,
         "next": [
             "[JumpBack]Collect_IM_OnFoot_Moveing",
+            "Collect_IM_Skirmish",
             "Collect_IM_OnFoot_NviMap_2_Move_End",
             "[JumpBack]Collect_IM_Move_MGS",
             "[JumpBack]Global_WaitingForLoading",
@@ -2021,6 +2091,23 @@
         "focus": "CTOB.行路中施放'压制'"
     },
     "Collect_TeleporCircle_OnFoot_Skirmish": {
+        "desc": "步行回阵途中撞上遭遇战：调通用脱战链逃跑，回到箱庭后重开导航地图继续往传送阵走 | 逃跑步骤在 Collect_Skirmish_Escape；本节点只决定逃完之后做什么。max_hit 8 限脱战链额度用完后的重进（按节点名借识别不看对方的 max_hit），由进卡前的 Collect_Pack_ResetSkirmish 清零。",
+        "max_hit": 8,
+        "recognition": "Or",
+        "any_of": [
+            "Collect_Skirmish_Escape"
+        ],
+        "pre_delay": 0,
+        "post_delay": 0,
+        "next": [
+            "[JumpBack]Collect_Skirmish_Escape",
+            "Collect_TeleporCircle_OnFoot_GoinNviMap"
+        ],
+        "focus": "CTOB.进入战斗界面"
+    },
+    "Collect_Skirmish_Escape": {
+        "desc": "[通用脱战][JumpBack 子程序] 撞上遭遇战时点暂停 → 逃跑 → 确认逃跑，回到箱庭后退栈，逃完做什么由调用方决定 | 调用方（各留一个薄壳决定逃完做什么）：卡带进卡 Collect_Pack_Skirmish、通用箱庭入口 Collect_OperationsMain_Skirmish、步行回阵 Collect_TeleporCircle_OnFoot_Skirmish、活动步行 Collect_IM_Skirmish。认战斗界面左上的换位图标（Onfight.png，ADB/PC 实测都中）。入口清零链内计次。本节点 max_hit 8 是一张卡内的逃跑总次数：链退栈后薄壳会从头重查 next，战斗画面还在就马上再进本节点，重试只靠这个数限住；进卡前由 Collect_Pack_ResetSkirmish 清零。用完后薄壳照样认得出战斗画面（按节点名借识别不看本节点的 max_hit），所以每个薄壳另有自己的 max_hit 8 限重进，同处清零。额度用完仍困在战斗里时只退栈，不重启：重启后进箱庭还在原位，照样挂（用户 11-07）。逃完马上用左上寻路列表快速移动离开原地（原地的怪约 3 秒内会再撞上），列表打不开或没有可选地点时直接退栈。逃不掉时超时退栈交还调用方。",
+        "max_hit": 8,
         "recognition": "TemplateMatch",
         "roi": [
             172,
@@ -2034,12 +2121,26 @@
         "threshold": [
             0.9
         ],
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "ClearNodeHitCount",
+        "custom_action_param": {
+            "node_name": [
+                "Collect_Skirmish_Escape_Pause",
+                "Collect_Skirmish_Escape_Run",
+                "Collect_Skirmish_Escape_Away",
+                "Collect_Skirmish_Escape_Pick"
+            ]
+        },
+        "post_delay": 0,
         "next": [
-            "Collect_TeleporCircle_OnFoot_Skirmish_Tpause"
+            "Collect_Skirmish_Escape_Pause"
         ],
-        "focus": "CTOB.进入战斗界面"
+        "focus": "CSE.遭遇战-准备逃跑"
     },
-    "Collect_TeleporCircle_OnFoot_Skirmish_Tpause": {
+    "Collect_Skirmish_Escape_Pause": {
+        "desc": "点右上暂停键，直到暂停菜单出现「逃跑」 | 坐标沿用原回阵链 _Tpause；max_hit 由 Collect_Skirmish_Escape 清零。",
+        "max_hit": 5,
         "action": "Click",
         "target": [
             1178,
@@ -2050,11 +2151,13 @@
         "post_wait_freezes": 600,
         "post_delay": 1000,
         "next": [
-            "Collect_TeleporCircle_OnFoot_Skirmish_TRun",
-            "Collect_TeleporCircle_OnFoot_Skirmish_Tpause"
+            "Collect_Skirmish_Escape_Run",
+            "Collect_Skirmish_Escape_Pause"
         ]
     },
-    "Collect_TeleporCircle_OnFoot_Skirmish_TRun": {
+    "Collect_Skirmish_Escape_Run": {
+        "desc": "暂停菜单点「逃跑」，等确认框 | 区域沿用原回阵链 _TRun；max_hit 由 Collect_Skirmish_Escape 清零。",
+        "max_hit": 4,
         "recognition": "OCR",
         "roi": [
             471,
@@ -2068,11 +2171,12 @@
         "action": "Click",
         "post_delay": 2000,
         "next": [
-            "Collect_TeleporCircle_OnFoot_Skirmish_TRun_Ty2",
-            "Collect_TeleporCircle_OnFoot_Skirmish_TRun"
+            "Collect_Skirmish_Escape_Confirm",
+            "Collect_Skirmish_Escape_Run"
         ]
     },
-    "Collect_TeleporCircle_OnFoot_Skirmish_TRun_Ty2": {
+    "Collect_Skirmish_Escape_Confirm": {
+        "desc": "确认框点「逃跑」，等过场回到箱庭 | 区域沿用原回阵链 _TRun_Ty2。",
         "recognition": "OCR",
         "roi": [
             682,
@@ -2086,9 +2190,127 @@
         "action": "Click",
         "post_wait_freezes": 800,
         "next": [
-            "Collect_TeleporCircle_OnFoot_GoinNviMap"
+            "Collect_Skirmish_Escape_Away",
+            "Collect_Skirmish_Escape_Done"
         ],
-        "focus": "CTOB.逃离战斗"
+        "focus": "CSE.遭遇战-已逃跑"
+    },
+    "Collect_Skirmish_Escape_Away": {
+        "desc": "逃回箱庭后立刻点开左上寻路列表，准备快速移动离开 | 原地的怪约 3 秒内会再撞上，所以不等箱庭稳定、前后不加延时。按钮识别借 Collect_WayPoint_Open_Tpl / _Csm（PC 覆盖同用），并要求列表还没展开（借 Rec_QuickMove_Menu 取反）：过场刚结束时点按钮可能没反应（11-06 23:43 ADB），列表没开就重点，已展开就不再点，免得把列表点收回去。max_hit 由 Collect_Skirmish_Escape 清零；等不到可选地点就默认退栈。",
+        "max_hit": 3,
+        "recognition": "And",
+        "all_of": [
+            {
+                "recognition": "Or",
+                "any_of": [
+                    "Collect_WayPoint_Open_Tpl",
+                    "Collect_WayPoint_Csm"
+                ]
+            },
+            {
+                "recognition": "Custom",
+                "custom_recognition": "NotRecognition",
+                "custom_recognition_param": {
+                    "node": "Rec_QuickMove_Menu"
+                }
+            }
+        ],
+        "pre_delay": 0,
+        "action": "Click",
+        "post_delay": 800,
+        "timeout": 10000,
+        "next": [
+            "Collect_Skirmish_Escape_Pick",
+            "Collect_Skirmish_Escape_Away"
+        ],
+        "focus": "CSE.遭遇战-快速移动离开"
+    },
+    "Collect_Skirmish_Escape_Pick": {
+        "desc": "在寻路列表里按狩猎场 → 艾琳 → 探索告示板 → 旅馆点第一个亮着的地点（与寻路回阵同序），确认后等快速移动结束 | 地点 OCR 借 Collect_WayPoint_Hunt / _Eileen / _Board / _Inn，再用 Sub_Ocr_Enable_Clr 校验文字亮起：点下后確認框淡入时列表文字立刻变暗，但 OCR 仍读得到，不校验就可能再点一次文字、把確認框取消（ADB 实测亮 165–426 / 暗 0，阈值 40）。点完等 0.5 秒，再依次认確認框（勾了「不再显示」的配置没有）、过场；文字仍亮才重点（max_hit 由入口清零）；到达判据用 Rec_QuickMove_Ready（列表、確認框、过场都不在），不会在確認框出来前提前退栈。",
+        "max_hit": 3,
+        "recognition": "Or",
+        "any_of": [
+            {
+                "recognition": "And",
+                "all_of": [
+                    {
+                        "sub_name": "OCR",
+                        "recognition": "Or",
+                        "any_of": [
+                            "Collect_WayPoint_Hunt"
+                        ]
+                    },
+                    "Sub_Ocr_Enable_Clr"
+                ]
+            },
+            {
+                "recognition": "And",
+                "all_of": [
+                    {
+                        "sub_name": "OCR",
+                        "recognition": "Or",
+                        "any_of": [
+                            "Collect_WayPoint_Eileen"
+                        ]
+                    },
+                    "Sub_Ocr_Enable_Clr"
+                ]
+            },
+            {
+                "recognition": "And",
+                "all_of": [
+                    {
+                        "sub_name": "OCR",
+                        "recognition": "Or",
+                        "any_of": [
+                            "Collect_WayPoint_Board"
+                        ]
+                    },
+                    "Sub_Ocr_Enable_Clr"
+                ]
+            },
+            {
+                "recognition": "And",
+                "all_of": [
+                    {
+                        "sub_name": "OCR",
+                        "recognition": "Or",
+                        "any_of": [
+                            "Collect_WayPoint_Inn"
+                        ]
+                    },
+                    "Sub_Ocr_Enable_Clr"
+                ]
+            }
+        ],
+        "pre_delay": 0,
+        "action": "Click",
+        "post_delay": 500,
+        "timeout": 8000,
+        "next": [
+            "[JumpBack]Collect_IM_Move_MGS",
+            "[JumpBack]Global_WaitingForLoading",
+            "Collect_Skirmish_Escape_Pick",
+            "Collect_Skirmish_Escape_Done"
+        ]
+    },
+    "Collect_Skirmish_Escape_Done": {
+        "desc": "已回到可操作箱庭，退栈交还调用方 | 判据借 Rec_QuickMove_Ready（箱庭且不在自动移动、载入、寻路列表中）。正常是快速移动到达后；寻路按钮不在时由 Confirm 直接到这里。人可能已不在原地，调用方要重新判断位置。",
+        "recognition": "Or",
+        "any_of": [
+            "Rec_QuickMove_Ready"
+        ],
+        "pre_delay": 0,
+        "post_delay": 0
+    },
+    "Collect_Skirmish_OnCircle": {
+        "desc": "逃跑并快速移动后已站在传送阵上（到狩猎场会直接落在阵上），退栈交回调用方继续 | 认传送阵手标，借 Collect_TeleporCircle_Ico_Enter（PC 覆盖同用），只识别不点。不在阵上（快速移动回了主城）时，调用方接着用步行 Collect_TeleporCircle_OnFoot_Start 走回阵，不用传送技能（用户 11-06：没阵或禁用技能的图会挂）。",
+        "recognition": "Or",
+        "any_of": [
+            "Collect_TeleporCircle_Ico_Enter"
+        ],
+        "pre_delay": 0,
+        "post_delay": 0
     },
     "Collect_ForceTelepor_FindTeleporCircle": {
         "desc": "发现传送按钮标,（步行到终点）模块出口",
@@ -2168,7 +2390,7 @@
         "focus": "CTB.优先通过寻路列表返回传送阵"
     },
     "Collect_WayPoint_Entry": {
-        "desc": "打开左上寻路列表，按狩猎场、探索告示板、旅馆的顺序选择目的地返回传送阵 | max_hit 4限制恢复重入；通用箱庭入口与C3返程调用前会清零本节点、两个寻路按钮及Board、Arrived的计数。S18/M14仍由OnFoot_Entry调用，普通卡带成功收尾不经这里。后续识别超时先尝试纯步行，纯步行入口也不命中时退回调用方。",
+        "desc": "打开左上寻路列表，按狩猎场、艾琳、探索告示板、旅馆的顺序选择目的地返回传送阵 | max_hit 4限制恢复重入；通用箱庭入口与C3返程调用前会清零本节点、两个寻路按钮及Board、Arrived的计数。S18/M14仍由OnFoot_Entry调用，普通卡带成功收尾不经这里。后续识别超时先尝试纯步行，纯步行入口也不命中时退回调用方。",
         "max_hit": 4,
         "recognition": "Or",
         "any_of": [
@@ -2181,6 +2403,7 @@
         },
         "next": [
             "Collect_WayPoint_Hunt",
+            "Collect_WayPoint_Eileen",
             "Collect_WayPoint_Board",
             "Collect_WayPoint_Inn",
             "[JumpBack]Collect_WayPoint_Open_Tpl",
@@ -2270,6 +2493,32 @@
         ],
         "focus": "CTB.选择狩猎场"
     },
+    "Collect_WayPoint_Eileen": {
+        "desc": "快速移动到艾琳后，从导航地图步行返回传送阵 | 排在探索告示板前（用户 11-06）：告示板分支到达后放传送技能，没阵或禁用技能的图会挂；艾琳与旅馆一样到达后开导航地图步行。识别区与旅馆、告示板共用（PC 另有覆盖），艾琳简繁同字。子菜单失效时退出地图并回到 Arrived 重开。",
+        "recognition": "OCR",
+        "roi": [
+            247,
+            59,
+            201,
+            440
+        ],
+        "expected": [
+            "艾琳"
+        ],
+        "action": "Click",
+        "anchor": {
+            "ExplorationBoard_Arrived": "Collect_WayPoint_ExplorationBoard_Arrived",
+            "IntSubMenu_ErrReturn": "Collect_WayPoint_Arrived"
+        },
+        "post_delay": 1000,
+        "next": [
+            "[JumpBack]Collect_IM_Move_MGS",
+            "[JumpBack]Collect_IM_OnFoot_Moveing",
+            "[JumpBack]Global_WaitingForLoading",
+            "Collect_WayPoint_Arrived"
+        ],
+        "focus": "CTB.选择艾琳"
+    },
     "Collect_WayPoint_Board": {
         "desc": "在整个可变长度下拉列表内 OCR 定位并点击探索告示板。",
         "max_hit": 4,
@@ -2282,7 +2531,7 @@
         ],
         "expected": [
             "探索告示板",
-            "探索佈告欄"
+            "任務布告欄"
         ],
         "action": "Click",
         "anchor": {
@@ -2528,7 +2777,7 @@
             "酒[馆館]",
             "旅[馆館]",
             "探索告示板",
-            "探索佈告欄",
+            "任務布告欄",
             "狩[猎獵][场場]"
         ]
     },
@@ -2951,7 +3200,7 @@
         ],
         "expected": [
             "探索告示板",
-            "探索佈告欄"
+            "任務布告欄"
         ],
         "pre_delay": 0,
         "action": "Click",
@@ -2980,7 +3229,7 @@
                 "recognition": "OCR",
                 "expected": [
                     "探索告示板",
-                    "探索佈告欄"
+                    "任務布告欄"
                 ]
             }
         ],
