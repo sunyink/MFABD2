@@ -105,13 +105,16 @@
         ]
     },
     "Arbitrage_OperationsMain_Sandplay": {
-        "desc": "中断：章节内主要操作开始。找到图钉，确认进入箱庭",
+        "desc": "中断：章节内主要操作开始。找到图钉，确认进入箱庭 | 设两个锚点，每次进箱庭都重设（补买、出售再次寻路同样经过这里）：SandBox_Bypass 指向本节点，借采集选图传送后由采集的点阵节点交回这里；AreaMap_Return 指向 Arbitrage_Merchant_Locate_AreaMapReturn——那次交回发生在 Collect_TargetMap1-2 的单图回跳里，寻路到商人后 Egress 退栈先落到 TargetMap1-2，由它消费此锚点再退回调用方。",
         "recognition": "Or",
         "any_of": [
             "Rec_SandBox_Pin_Tpl",
             "Rec_SandBox_Run_Tpl"
         ],
-        "anchor": "SandBox_Bypass",
+        "anchor": {
+            "SandBox_Bypass": "Arbitrage_OperationsMain_Sandplay",
+            "AreaMap_Return": "Arbitrage_Merchant_Locate_AreaMapReturn"
+        },
         "post_delay": 1000,
         "next": [
             "[JumpBack]PVP_PerPetTask",
@@ -264,12 +267,24 @@
         "green_mask": true
     },
     "Arbitrage_Merchant_Locate_Egress": {
-        "desc": "寻路到商人的公共出口。由卡带5箱庭导航链进入；仅引用商人交互识别（钱袋或名牌），空next退回总入口或出售恢复调用方，不进入Action_Hub。",
+        "desc": "寻路到商人的公共出口。由卡带5箱庭导航链进入；仅引用商人交互识别（钱袋或名牌），空next退回总入口或出售恢复调用方，不进入Action_Hub。 | 借采集选图传送过来时，最近一层回跳在 Collect_TargetMap1-2，这里退栈先落到那里，由锚点 AreaMap_Return 接到 Arbitrage_Merchant_Locate_AreaMapReturn 再退一层。",
         "recognition": "Or",
         "any_of": [
             "Arbitrage_Merchant_Ico"
         ],
         "pre_delay": 0,
+        "post_delay": 0
+    },
+    "Arbitrage_Merchant_Locate_AreaMapReturn": {
+        "desc": "借采集选图传送后，寻路到商人的第二道出口：再认一次商人交互，清锚点 AreaMap_Return，空 next 退回总入口或出售恢复调用方 | 由 Collect_TargetMap1-2 的 next 经锚点进入（Arbitrage_OperationsMain_Sandplay 设）。Egress 那次退栈只退出采集的单图回跳，落在 TargetMap1-2；这里再退一层才回到套利。认不到商人时不命中，TargetMap1-2 照旧往后走、退卡重进兜底，锚点留到下次进箱庭重设。 | 清理：这里用完即清；采集每张卡点卡时 Collect_Pack_Click 再清一次。",
+        "recognition": "Or",
+        "any_of": [
+            "Arbitrage_Merchant_Ico"
+        ],
+        "pre_delay": 0,
+        "anchor": {
+            "AreaMap_Return": ""
+        },
         "post_delay": 0
     },
     "#2商人交互与分支总枢纽": {},

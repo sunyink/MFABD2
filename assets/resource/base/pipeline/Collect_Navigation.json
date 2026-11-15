@@ -216,7 +216,7 @@
         ]
     },
     "Collect_TargetMap1-2": {
-        "desc": "详细地图确定位置",
+        "desc": "详细地图确定位置 | 单图回跳采完由 Collect_MapRight 退栈回到这里再认下一页。借这条链传送的业务（套利寻路到商人）在箱庭里交回、走到空 next 时也退栈落到这里，由锚点 AreaMap_Return 接回业务方再退一层；采集不设此锚点，该候选跳过。 | 锚点排在各单图回跳之后、FastUI 与 TeleporNotFind 之前：首次到第 1 页先点阵传送；退栈回来时画面在箱庭，前面的区域地图识别都不中。",
         "recognition": "OCR",
         "roi": [
             408,
@@ -272,6 +272,7 @@
             "[JumpBack]Collect_ClickTeleporCircleIco",
             "[JumpBack]Collect_ClickBackOnSecureMap",
             "[JumpBack]Collect_ClickTelepor_Abnormal_Overlap",
+            "[Anchor]AreaMap_Return",
             "Collect_QuickCart_FastUI",
             "[JumpBack]Collect_TeleporNotFind"
         ],
