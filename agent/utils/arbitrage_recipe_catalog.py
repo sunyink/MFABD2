@@ -6,12 +6,23 @@
 
 from collections import Counter
 from dataclasses import dataclass, replace
-from pathlib import PurePosixPath
+from functools import lru_cache
+import json
+from pathlib import Path, PurePosixPath
 
 from .name_i18n import canon
 
 
 COOKING_HUBS = ("Arbitrage_Cooking_MenuEnter", "Arbitrage_Cooking_Page1")
+_ITEM_NAMES = Path(__file__).resolve().parents[1] / "data" / "bd2_item_names_i18n.json"
+
+
+@lru_cache(maxsize=1)
+def recipe_item_names() -> frozenset:
+    """物品表里全部料理（成品）的简体名。读不到时抛错，由调用方决定怎么保守处理。"""
+    items = json.loads(_ITEM_NAMES.read_text(encoding="utf-8"))
+    return frozenset(canon(str(item["cn"]).strip()) for item in items
+                     if isinstance(item, dict) and item.get("category") == "Recipe" and item.get("cn"))
 REPLENISH_END = "Arbitrage_Cooking_Replenish_End"
 COOKING_EXIT_ANCHOR = "Cooking_Exit"
 _SUBMENU = "Arbitrage_Cooking_SubMenu"

@@ -9,11 +9,13 @@ from maa.agent.agent_server import AgentServer
 from utils import mfaalog
 from utils.account_sync import sync_from_context
 from utils.arbitrage_store import (
+    get_inventory_items,
     get_market_snapshot,
     market_day,
     save_market_snapshot,
     save_possession_snapshot,
 )
+from utils.arbitrage_sale_skip import known_empty, trust_since
 from utils.name_i18n import canon
 from utils.arbitrage_sale_state import LOCKED_REASON
 from utils.arbitrage_pricelist import (
@@ -618,6 +620,14 @@ class ArbitrageSellController(CustomAction):
             mfaalog.info("[Arbitrage] 💤 今日无符合条件的最高价商品，收工！")
             return True
 
+        known_empty_names = []
+        if mode == _MODE_SELL and params.get("sale_scope", "recipes") == "recipes":
+            targets_to_sell, known_empty_names = self._drop_known_empty(targets_to_sell)
+            if not targets_to_sell:
+                mfaalog.info(f"[Arbitrage] 💤 今日峰值料理库存都记录为 0，不去柜台："
+                             f"{', '.join(known_empty_names)}")
+                return True
+
         # 🌟 优化日志 3：列出最终交集的执行清单
         final_sell_names = [t["name"] for t in targets_to_sell]
         mfaalog.info(f"[Arbitrage] 🛒 确认共 {len(targets_to_sell)} 项物品待出售: {', '.join(final_sell_names)}")
@@ -711,11 +721,26 @@ class ArbitrageSellController(CustomAction):
             parts.append(f"{len(sold_skipped)}项无可卖数量")
         if sold_locked:
             parts.append(f"{len(sold_locked)}项{LOCKED_REASON}，已跳过")  # noqa: RUF001
+        if known_empty_names:
+            parts.append(f"{len(known_empty_names)}项库存记录为0、没去柜台")
         if parts:
             mfaalog.info(f"[Arbitrage] 本轮{'，'.join(parts)}")  # noqa: RUF001
         else:
             mfaalog.info(f"[Arbitrage] ➖ 本轮 {len(targets_to_sell)} 项待售,一项都未及处理(多半是收到停止指令)。")
         return True
+
+    @staticmethod
+    def _drop_known_empty(targets: list) -> tuple[list, list]:
+        """④ 卖料理：本轮已读到 0 的不去柜台（U62）。记录读不到就照旧每家都去。"""
+        try:
+            since = trust_since()
+            empty = known_empty([t["name"] for t in targets], get_inventory_items(), since) if since else {}
+        except Exception as exc:
+            mfaalog.warning(f"[Arbitrage] 库存记录读不到({exc})，照旧逐家柜台核对")
+            return targets, []
+        for name, (source, seen) in empty.items():
+            mfaalog.info(f"[Arbitrage] [{name}] 库存记录为 0（{source}，{seen.astimezone():%H:%M:%S}），不去柜台")
+        return [t for t in targets if t["name"] not in empty], list(empty)
 
     def _scan_price_list(self, context: Context, max_scan_pages: int, stop_at_non_max: bool,
                          stop_below_rate: int | None = None) -> dict:

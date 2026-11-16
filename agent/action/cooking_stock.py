@@ -25,6 +25,7 @@ from utils.arbitrage_store import (
     save_cooking_stock_observation, save_cooking_made, get_inventory_items,
     invalidate_inventory_quantities, utc_now,
 )
+from utils.arbitrage_recipe_catalog import recipe_item_names
 from utils.name_i18n import canon
 from utils.ocr_read import NUMBER as _NUMBER, clean as _clean
 from utils.ocr_read import read_texts as _read_texts, unique_parsed as _unique_parsed
@@ -71,11 +72,19 @@ class CookingInventoryBoundary(CustomAction):
             items = get_inventory_items()
             known = {canon(name) for name in catalog
                      if items.get(canon(name), {}).get("quantity_status") == "known"}
+            image, before = None, None
+            try:
+                image = context.tasker.controller.post_screencap().wait().get()
+                if image is None or not image.size:
+                    image = None
+                    raise RuntimeError("制作前截图失败")
+                before = read_cooking_page(context, scan, image)
+            except Exception as exc:
+                mfaalog.warning(f"[CookingMade] 制作前读数失败，本次不记做了几个: {exc}")
             names = []
             if known:
                 try:
-                    image = context.tasker.controller.post_screencap().wait().get()
-                    if image is None or not image.size:
+                    if image is None:
                         raise RuntimeError("制作前截图失败")
                     recipe_names = _current_recipe_materials(context, scan, image)
                     names = sorted(known.intersection(recipe_names))
@@ -83,11 +92,14 @@ class CookingInventoryBoundary(CustomAction):
                     # 不能确定配方时仍允许原制作流程继续，但不能保留可能被消耗的旧量。
                     names = sorted(known)
                     mfaalog.warning(f"[CookingStock] 当前配方未核实，全部 {len(names)} 项旧数量待补查: {exc}")
+            # 料理自己的旧数也作废：做完读不到「拥有」时留着旧数，出售会把刚做出来的当成没货（U62）。
+            names += _dishes_to_invalidate(before, items)
             if not invalidate_inventory_quantities(names, "cooking_attempt"):
                 raise RuntimeError("制作前库存作废未能写入")
             if names:
                 mfaalog.info("[CookingStock] 制作前待更新: " + "、".join(names))
-            _remember_before_cooking(context, argv.task_detail.task_id, scan)
+            if before is not None:
+                _remember(argv.task_detail.task_id, before, scan)
             result = context.run_action(params["click_node"], box=argv.box)
             return bool(result is not None and result.success)
         except Exception as exc:
@@ -108,6 +120,30 @@ def read_cooking_page(context: Context, scan: dict, image) -> dict:
     }
 
 
+def _dishes_to_invalidate(before: dict | None, items: dict) -> list[str]:
+    """这次要做的那道料理；菜名没读出来就是所有记着数量的料理——不知道做的是哪道，哪道的旧数都不能留。"""
+    if before and before.get("recipe"):
+        return [before["recipe"]]
+    try:
+        dishes = recipe_item_names()
+    except Exception as exc:
+        mfaalog.warning(f"[CookingStock] 料理名录读不到({exc})，菜名又没读出，料理旧数量无法作废")
+        return []
+    names = sorted(name for name in dishes if items.get(name, {}).get("quantity_status") == "known")
+    if names:
+        mfaalog.warning(f"[CookingStock] 制作前菜名没读出，{len(names)} 道料理的旧数量一起作废")
+    return names
+
+
+def _remember(task_id: int, before: dict, scan: dict) -> None:
+    before = dict(before, started_at=utc_now(), scan=scan)
+    with _LOCK:
+        _MADE_PENDING[task_id] = before
+        _MADE_PENDING.move_to_end(task_id)
+        while len(_MADE_PENDING) > 16:
+            _MADE_PENDING.popitem(last=False)
+
+
 def _remember_before_cooking(context: Context, task_id: int, scan: dict) -> None:
     """点「料理」前读一次；失败只记日志，不影响制作。"""
     try:
@@ -118,12 +154,7 @@ def _remember_before_cooking(context: Context, task_id: int, scan: dict) -> None
     except Exception as exc:
         mfaalog.warning(f"[CookingMade] 制作前读数失败，本次不记做了几个: {exc}")
         return
-    before.update(started_at=utc_now(), scan=scan)
-    with _LOCK:
-        _MADE_PENDING[task_id] = before
-        _MADE_PENDING.move_to_end(task_id)
-        while len(_MADE_PENDING) > 16:
-            _MADE_PENDING.popitem(last=False)
+    _remember(task_id, before, scan)
 
 
 def _made(before: dict, after: dict):

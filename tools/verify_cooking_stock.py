@@ -145,6 +145,54 @@ class CookingStockTests(unittest.TestCase):
             self.assertFalse(stock.CookingInventoryBoundary().run(context, argv))
             context.run_action.assert_not_called()
 
+    def test_commit_also_drops_the_dish_count(self):
+        """做之前料理自己的旧数也作废，做完读不到「拥有」时出售不会把刚做的当成没货（U62）。"""
+        from utils import arbitrage_store as store
+
+        data = {}
+        memory = Mock()
+        memory.load.side_effect = lambda: copy.deepcopy(data)
+
+        def save(value):
+            data.clear()
+            data.update(copy.deepcopy(value))
+            return True
+
+        memory.save.side_effect = save
+        context = Mock()
+        context.get_node_object.side_effect = lambda name: (
+            SimpleNamespace(action=SimpleNamespace(param=SimpleNamespace(custom_action_param=PARAMS)))
+            if name == ENTRY else SimpleNamespace(attach=PIPELINE[name]["attach"]))
+        context.tasker.controller.post_screencap.return_value.wait.return_value.get.return_value = SimpleNamespace(size=1)
+        context.run_action.return_value = SimpleNamespace(success=True)
+        argv = SimpleNamespace(custom_action_param=PIPELINE["Arbitrage_Cooking_NubMenu_Doing"]["custom_action_param"],
+                               task_detail=SimpleNamespace(task_id=103), box=[1, 2, 3, 4])
+        stock._MADE_PENDING.clear()
+        with patch.object(store, "PersistentStore", memory), \
+                patch.object(stock, "sync_from_context", return_value=True), \
+                patch.object(stock, "_current_recipe_materials", return_value=["蜂蜜"]), \
+                patch.object(stock, "read_cooking_page",
+                             return_value={"recipe": "香甜马卡龙", "owned": 0, "selected_count": 5}) as page:
+            store.set_inventory_quantities({"香甜马卡龙": 0, "炒蘑菇": 0}, "bag_absent")
+            store.save_cooking_stock_observation({"observed_at": "01", "materials": [
+                {"name": "蜂蜜", "stock": 9}, {"name": "黄油", "stock": 3}]})
+            self.assertTrue(stock.CookingInventoryBoundary().run(context, argv))
+            items = store.get_inventory_items()
+            self.assertEqual(items["香甜马卡龙"]["quantity_status"], "unknown")
+            self.assertEqual(items["蜂蜜"]["quantity_status"], "unknown")
+            self.assertEqual((items["炒蘑菇"]["quantity"], items["黄油"]["quantity"]), (0, 3))
+            self.assertEqual(stock._MADE_PENDING[103]["recipe"], "香甜马卡龙")
+            self.assertEqual(context.tasker.controller.post_screencap.call_count, 1)  # 读页和认配方共用一张图
+            # 菜名没读出：不知道做的是哪道，所有记着数的料理一起作废；食材照旧只动这道配方的。
+            page.return_value = {"recipe": None, "owned": None, "selected_count": None}
+            store.set_inventory_quantities({"香甜马卡龙": 7}, "cooking_detail")
+            self.assertTrue(stock.CookingInventoryBoundary().run(context, argv))
+            items = store.get_inventory_items()
+            self.assertEqual(items["香甜马卡龙"]["quantity_status"], "unknown")
+            self.assertEqual(items["炒蘑菇"]["quantity_status"], "unknown")
+            self.assertEqual(items["黄油"]["quantity"], 3)
+            context.run_action.assert_called_with("Agt_Cooking_Commit_Click", box=argv.box)
+
     def test_numeric_reading_does_not_invent_zero_or_join_fragments(self):
         pattern = stock._NUMBER + "/" + stock._NUMBER
         self.assertEqual(stock._unique_parsed(["０／２"], pattern), (0, 2))
