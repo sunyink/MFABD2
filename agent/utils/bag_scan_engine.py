@@ -291,6 +291,7 @@ class BagScanEngine:
         self.full_stacks = frozenset(int(value) for value in full_stacks)
         self.provisional = {}       # 角标收下、还没定下来的：{物品: 数}
         self.by_corner = set()      # 角标读数定下来的物品
+        self._corner_recheck = set()  # 这一页从头重走之后，原来那一格会再遇到一次：再遇到先重读角标，一样就是同一格
         self.stats = {"opened": 0, "by_icon": 0, "same_picture": 0, "unverified": 0, "unaligned_pages": 0,
                       "joined_by_item": 0, "resplit": 0, "known_picture": 0,
                       "corner": 0, "corner_missed": 0, "corner_reopened": 0}
@@ -420,6 +421,8 @@ class BagScanEngine:
         if state == "broken":
             self.done.clear()
             self.blind += 1
+            # 处理过的格子不再认得出：角标收下的那一格会再遇到一次，别把它当成同一物品的别的格去点开（11-16 PC 实机白点了 33 格）
+            self._corner_recheck = set(self.provisional)
             self.log("warning", f"第 {self.pages} 页{why}，重新截图分格；列表挪了多少判不出（{info}），"
                                 "这一页从头重走，本轮不判 0")
         else:
@@ -496,6 +499,7 @@ class BagScanEngine:
         # 角标收下还没定的：从头走起会再见到它们的格子，放回待查，到时照样先读角标。
         self.pending.update(self.provisional)
         self.provisional.clear()
+        self._corner_recheck.clear()
         for section in self.sections:
             if not section.closed:
                 section.entered, section.strikes = False, 0
@@ -551,6 +555,11 @@ class BagScanEngine:
             names = frozenset(icon.names)
             loose = bool(icon.kinds & self.loose_kinds)
             again = sorted(names & self.provisional.keys())
+            if again and len(names) == 1 and again[0] in self._corner_recheck:
+                name = again[0]
+                self._corner_recheck.discard(name)
+                if self._read_corner(cell, name) == self.provisional[name]:
+                    return _Seen("corner", names)          # 重走时又遇到原来那一格
             if again:
                 # 角标收下的物品又见到一格：不止一格，角标只是其中一格的数。点开读详情里的总数。
                 for name in again:
@@ -602,13 +611,7 @@ class BagScanEngine:
         if (name not in self.pending or expected is None or name in self.ambiguous
                 or expected in self.full_stacks or expected > max(self.full_stacks, default=0)):
             return None
-        started = self.clock()
-        try:
-            value = self.corner(self._page_image, cell)
-        except Exception as exc:  # 角标只是省点开的捷径：读不了就照旧点开
-            self.log("debug", f"角标读数出错（{name}）：{exc}")
-            value = None
-        self.timing["corner"].append(self.clock() - started)
+        value = self._read_corner(cell, name)
         if value is None or value != expected:
             self.stats["corner_missed"] += 1
             return None
@@ -616,6 +619,16 @@ class BagScanEngine:
         self.provisional[name] = value
         self.stats["corner"] += 1
         return _Seen("corner", frozenset({name}))
+
+    def _read_corner(self, cell, name):
+        started = self.clock()
+        try:
+            value = self.corner(self._page_image, cell)
+        except Exception as exc:  # 角标只是省点开的捷径：读不了就照旧点开
+            self.log("debug", f"角标读数出错（{name}）：{exc}")
+            value = None
+        self.timing["corner"].append(self.clock() - started)
+        return value
 
     def _confirm_corner(self, members=None):
         """角标收下的数定下来：它所在那一段走完了，或到了列表底——同一趟里没再见到它的别的格子。"""

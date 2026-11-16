@@ -1086,6 +1086,20 @@ class CornerTests(unittest.TestCase):
         self.assertEqual(result["quantities"], held)
         self.assertEqual((result["corner"], result["cells"]["corner_reopened"]), (["米"], 1))
 
+    def test_page_walked_again_after_an_unmeasurable_shift_does_not_reopen(self):
+        # 11-16 PC 实机：点开没反应、列表挪了多少判不出，这一页从头重走；角标收下的那几格又遇到一次，
+        # 曾被当成「同一物品的别的格」逐个点开（吸取结束那次白点了 33 格）。重走时先重读角标，一样就是原来那格。
+        late = ["鸡蛋", "小麦", "番茄"]
+        held = amounts("兽肉", "米", "白糖", *late, "盐")
+        device = Device(Bag(layout("兽肉", "米", "白糖", *fillers(34), *late, "盐")), held, drifts={"盐": -150})
+        device.corners = dict(held)
+        result = run(device, list(held), corner=device.corner, baseline={name: held[name] for name in late})
+        self.assertEqual(result["cells"]["resplit"], 1)
+        self.assertEqual(result["cells"]["corner_reopened"], 0)
+        self.assertFalse(set(late) & set(device.opens))
+        self.assertEqual(device.corner_reads.count("鸡蛋"), 2)       # 收下时读一次，重走时再读一次
+        self.assertEqual((result["quantities"], result["corner"]), (held, sorted(late)))
+
     def test_scan_that_ends_early_drops_the_corner_reads(self):
         held = amounts(*self.NAMES)
         device = Device(self.bag(*self.NAMES), held, stop_after_opens=1)
