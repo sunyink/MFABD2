@@ -376,8 +376,40 @@ class ReportTests(unittest.TestCase):
         self.assertEqual((rows["包饭"]["net"], rows["包饭"]["sales"], rows["包饭"]["cooking"], rows["包饭"]["residual"]),
                          (-5, -25, 20, 0))
         self.assertEqual(model["shop"]["gold"], {"net": 187_600, "sales": 190_000, "replenish": -1700, "residual": -700,
-                                                 "unconfirmed_sales": 0})
+                                                 "unconfirmed_sales": 0, "carried": 0, "unknown_sales": [],
+                                                 "regular": True})
         self.assertEqual(model["shop"]["mismatch"], [])
+
+    def test_sale_confirmed_by_stock_takes_the_quote_or_stays_unknown(self):
+        """11-16 试跑7：金币没核上、回读库存确认卖光——按开窗时核对过的报价记；少的不是选量那么多、或没有报价，记未知（用户 11-16）。"""
+        def run(proof):
+            story = Story()
+            story.task("Arbitrage_Start").at("begin", "shop", FULL)
+            story.sell("包饭", 10, 70_000)
+            story.events[-1]["reference"]["proofs"] = [proof]
+            story.at("end", "shop", ("A",))
+            return story.end().report()
+
+        model = run({"basis": "inventory_delta", "before": 40, "after": 30, "quantity": 10, "selected": 10,
+                     "quoted_total": 70_000})
+        money = model["shop"]["gold"]
+        self.assertEqual((money["sales"], money["carried"], money["residual"], money["regular"]), (70_000, 70_000, 0, True))
+        self.assertTrue(all(check["ok"] for check in model["checks"]), model["checks"])
+        for label, proof in (("只卖成一部分", {"basis": "inventory_delta", "before": 40, "after": 35, "quantity": 5,
+                                              "selected": 10, "quoted_total": 70_000}),
+                             ("旧凭证没有报价", {"basis": "inventory_delta", "before": 40, "after": 30, "quantity": 10})):
+            with self.subTest(label):
+                model = run(proof)
+                money = model["shop"]["gold"]
+                self.assertEqual((money["sales"], money["residual"], money["unknown_sales"], money["regular"]),
+                                 (0, 70_000, ["包饭"], False))
+                check = next(check for check in model["checks"] if check["name"].startswith("C3"))
+                self.assertFalse(check["ok"])
+                self.assertIn("包饭 的出售没核到金币", check["detail"])
+                self.assertIn("余额项 +70,000 为正，不是常规采购", check["detail"])
+                labels = [row["label"] for row in model["statement"]["rows"]]
+                self.assertIn("商店套利：未分清的金币（余额项）", labels)
+                self.assertNotIn("商店套利：常规采购支出", labels)
 
     def test_shop_mismatch_is_reported_not_smoothed(self):
         story = Story()

@@ -414,7 +414,15 @@ def _shop_table(model):
     if not shop:
         return ""
     money = shop["gold"]
-    unsure = f'；另有 {money["unconfirmed_sales"]} 笔出售未确认，未计入' if money["unconfirmed_sales"] else ""
+    notes = ["出售按成交时核对过的金币差"]
+    if money.get("carried"):
+        notes.append(f"其中 {money['carried']:,} 是金币没核上、回读库存确认全部成交，按开窗时的报价记")
+    if money.get("unknown_sales"):
+        notes.append(f"{'、'.join(money['unknown_sales'])} 的出售没核到金币，没有计入，混在余额项里")
+    if money["unconfirmed_sales"]:
+        notes.append(f'另有 {money["unconfirmed_sales"]} 笔出售未确认，未计入')
+    regular = money.get("regular", True)
+    bad = "" if regular else " bad"
     out = ["<section><h2>二、商店账实核对 <small>逐笔记下的 对 两头盘点</small></h2>",
            cap(("期间", "当天的商店各段"), ("单位", "个（数量表）；金币一行为金币")),
            '<div class="tw"><table><thead><tr><th class="sticky">物品</th><th class="num">盘点净额</th>'
@@ -424,8 +432,8 @@ def _shop_table(model):
            '<tr class="grp"><td class="sticky" colspan="7">金币</td></tr>',
            f'<tr><td class="sticky">金币</td><td class="num">{fmt(money["net"], sign=True)}</td>'
            f'<td class="num">{fmt(money["replenish"], sign=True)}</td><td class="num">{fmt(money["sales"], sign=True)}</td>'
-           f'<td class="num"><span class="dim">·</span></td><td class="num">{fmt(money["residual"], sign=True)}</td>'
-           f'<td class="note">出售按成交时核对过的金币差{esc(unsure)}</td></tr>']
+           f'<td class="num"><span class="dim">·</span></td><td class="num{bad}">{fmt(money["residual"], sign=True)}</td>'
+           f'<td class="note{bad}">{esc(("不是常规采购：" if not regular else "") + "；".join(notes))}</td></tr>']
     if shop["rows"]:
         out.append('<tr class="grp"><td class="sticky" colspan="7">料理 / 食材</td></tr>')
     for row in shop["rows"]:

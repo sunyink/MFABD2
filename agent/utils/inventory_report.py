@@ -158,8 +158,14 @@ def _shop(items, book, cookbook):
     net = gold["deltas"].get("shop") if gold else None
     sales = sum(row["gold"] for row in book["sales"].values())
     spent = sum(row["spent"] for row in book["replenish"].values())
-    return {"gold": {"net": net, "sales": sales, "replenish": -spent,
-                     "residual": None if net is None else net - sales + spent, "unconfirmed_sales": book["unconfirmed"]},
+    residual = None if net is None else net - sales + spent
+    unknown = sorted(name for name, row in book["sales"].items() if row.get("unknown"))
+    # 余额项只该是常规采购：它只花钱，不会为正；有出售没核到金币时，余额项里混着那几笔收入，也不能叫常规采购。
+    return {"gold": {"net": net, "sales": sales, "replenish": -spent, "residual": residual,
+                     "unconfirmed_sales": book["unconfirmed"],
+                     "carried": sum(row.get("carried", 0) for row in book["sales"].values()),
+                     "unknown_sales": unknown,
+                     "regular": residual is not None and residual <= 0 and not unknown},
             "rows": rows, "cooked": [{"recipe": dish, **row} for dish, row in sorted(book["cooked"].items())],
             "mismatch": [row["name"] for row in rows if row["mismatch"]]}
 
@@ -300,8 +306,9 @@ def _statement(items, cols, valuation, shop):
         amount = None if stock is None else stock[key]
         if key == "shop" and shop and cash is not None:
             money = shop["gold"]
+            rest = "常规采购支出" if money.get("regular", True) else "未分清的金币（余额项）"
             for label, value, basis in (("出售收入", money["sales"], "booked"), ("补买支出", money["replenish"], "booked"),
-                                        ("常规采购支出", money["residual"], "derived")):
+                                        (rest, money["residual"], "derived")):
                 rows.append({"group": group, "col": key, "label": f"商店套利：{label}", "cash": value, "stock": None,
                              "basis": basis, "part": True})
         rows.append({"group": group, "col": key, "label": {"daily": "日常任务", "collect": "地图吸取", "shop": "商店套利",
@@ -345,9 +352,13 @@ def _checks(items, statement, shop, day_intervals, stray, valuation):
                        "detail": f"{gold['total']:+,} 对 {statement['totals']['cash']:+,}"})
     if shop and shop["gold"]["net"] is not None:
         money = shop["gold"]
-        checks.append({"name": "C3 商店金币净额 = 出售 + 补买 + 余额项",
-                       "ok": money["net"] == money["sales"] + money["replenish"] + money["residual"],
-                       "detail": f"余额项 {money['residual']:+,}，即常规采购（推算）"})
+        problems = []
+        if money["unknown_sales"]:
+            problems.append(f"{'、'.join(money['unknown_sales'])} 的出售没核到金币")
+        if money["residual"] > 0:
+            problems.append(f"余额项 {money['residual']:+,} 为正，不是常规采购")
+        checks.append({"name": "C3 商店余额项只能是常规采购（不为正、出售都核到了金币）", "ok": not problems,
+                       "detail": "；".join(problems) if problems else f"余额项 {money['residual']:+,}，即常规采购（推算）"})
     chained = all(left["to"] == right["from"] for left, right in zip(day_intervals, day_intervals[1:]))
     checks.append({"name": "C4 区间首尾相接", "ok": chained, "detail": f"{len(day_intervals)} 段"})
     checks.append({"name": "C5 出售、补买、制作的逐笔记录都落在商店区间里", "ok": not stray,
