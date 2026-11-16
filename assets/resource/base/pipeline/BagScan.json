@@ -641,7 +641,7 @@
         }
     },
     "Agt_BagScan_Grid": {
-        "desc": "py独占，勿挂进管路。背包列表在截图里的排布，资源包整节点覆盖。icons：agent/data里的图标图集（tools/gen_bag_templates.py生成）；area列表区、columns列数、left第一列格子左沿、pitch列距与行距、footer列表区最下方压着的固定底栏行数；row_offset图标相对边框估出的行上沿的竖直偏移（整页对齐失败时的后备值）；known认定一个图标的最低分、margin认定时要领先另一个图标的分差。",
+        "desc": "py独占，勿挂进管路。背包列表在截图里的排布，资源包整节点覆盖。icons：agent/data里的图标图集（tools/gen_bag_templates.py生成）；area列表区、columns列数、left第一列格子左沿、pitch列距与行距、footer列表区最下方压着的固定底栏行数；row_offset图标相对边框估出的行上沿的竖直偏移（整页对齐失败时的后备值）；known认定一个图标的最低分、margin认定时要领先另一个图标的分差；corner格子右下角数量字的找字参数（agent/utils/bag_corner.py：band条带起点占格高的比例、white_min与white_spread白字亮度下限与三通道差上限、gap同一串字的列空隙上限、guard左沿外再看多宽、edge字串右端离条带右沿上限、pad裁块留白，像素）。",
         "enabled": false,
         "attach": {
             "icons": "base",
@@ -660,7 +660,16 @@
             "footer": 64,
             "row_offset": 0,
             "known": 0.85,
-            "margin": 0.05
+            "margin": 0.05,
+            "corner": {
+                "band": 0.74,
+                "white_min": 150,
+                "white_spread": 40,
+                "gap": 8,
+                "guard": 16,
+                "edge": 16,
+                "pad": 3
+            }
         }
     }
 }

@@ -279,7 +279,16 @@
             "footer": 0,
             "row_offset": 5,
             "known": 0.8,
-            "margin": 0.05
+            "margin": 0.05,
+            "corner": {
+                "band": 0.74,
+                "white_min": 150,
+                "white_spread": 40,
+                "gap": 8,
+                "guard": 16,
+                "edge": 16,
+                "pad": 3
+            }
         }
     }
 }

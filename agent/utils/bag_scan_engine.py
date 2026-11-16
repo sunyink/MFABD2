@@ -16,6 +16,11 @@ doc/agent/bag/背包仓检_设计.md §4、§16。
 
 判 0 的四个前提缺一不可：这个物品所在的那一段走完了（段尾核实过，或到了列表底）；从第一页起每次翻页都接得上；
 它本轮没有「点开了却没核实」；走过的格子个个有着落（认得出，或点开读过名）。读到的数不受这四条约束。
+
+角标读数（用户 11-16，设计 §23）：图标认定、今天前一次读过数（baseline）的目标，先读格子右下角的数量，
+和前一次一样才不点开；不一样、读不出、格式不规范都照旧点开。同一物品可能占几格、而且不一定挨着（11-11 模拟器：
+兽肉 192 与两格 99,999 中间隔着别的），所以角标收下的数先算「待定」：同一趟里再见到它的另一格就点开读详情里的总数；
+它所在那一段走完、或到了列表底才算定下来；扫描中途结束的，待定的一律记未知、不写进存档。
 """
 
 from dataclasses import dataclass, field
@@ -108,7 +113,7 @@ def joining_kinds(kinds) -> list:
 @dataclass(frozen=True)
 class _Seen:
     """一个格子的着落。icon：凭图标认定；read：点开读到名录里的名字；foreign：点开读到目录外的名字；
-    unverified：点开了但没核实。names 是它可能是的物品。"""
+    corner：图标认定、角标读数与前一次一样（待定）；unverified：点开了但没核实。names 是它可能是的物品。"""
     how: str
     names: frozenset = frozenset()
 
@@ -210,7 +215,8 @@ class BagScanEngine:
     def __init__(self, device, reader, targets, *, known_names, grid_roi, row_height, columns, footer_rows=0,
                  sections=(), loose_kinds=(), loose_names=(), ambiguous=(), aliases=None,
                  max_pages=40, timeout_seconds=900, confirm_frames=4, box_tolerance=3,
-                 continuity_threshold=12.0, on_page=None, log=None, clock=time.monotonic, known_pictures=()):
+                 continuity_threshold=12.0, on_page=None, log=None, clock=time.monotonic, known_pictures=(),
+                 corner=None, baseline=None, full_stacks=(99, 9_999, 99_999)):
         """reader：截图 → bag_cells.Page（每格：空 / 认定的图标 / 认不出）。
 
         known_names：名录里有的目录物品；请求里不在其中的记 template_missing（读到了也对不上号）。
@@ -222,6 +228,10 @@ class BagScanEngine:
         aliases：OCR 名 → 规范名；None 用共用名录。
         known_pictures：以前的盘点记住的目录外物品的图（utils/bag_pictures.load 的结果）：认不出图标的格子比中了就跳过，不点开。
             这一趟用到了哪几张、新记了哪些，跑完由 pictures() 交给调用方存。
+        corner：(这一页的截图, 格子) → 角标读数或 None；None 表示这一趟不读角标、全部点开。
+        baseline：{物品: 今天前一次读到的数}，只有它里面的物品才读角标。
+        full_stacks：一格放满时的数（物品不同上限不同，11-11 截图见过 99、9,999、99,999）。读到它说明可能还有别的格，
+            照旧点开；前一次的数比最大的还大，一定不止一格，不读角标。
         """
         self.device = device
         self.reader = reader
@@ -276,8 +286,14 @@ class BagScanEngine:
                              else None)
         self.pictures_seen = set()  # 这一趟比中过的记住的图（下标）
         self.pictures_new = []      # 这一趟点开读出是目录外的图：[(比对区像素, 名字)]
+        self.corner = corner
+        self.baseline = dict(baseline or {})
+        self.full_stacks = frozenset(int(value) for value in full_stacks)
+        self.provisional = {}       # 角标收下、还没定下来的：{物品: 数}
+        self.by_corner = set()      # 角标读数定下来的物品
         self.stats = {"opened": 0, "by_icon": 0, "same_picture": 0, "unverified": 0, "unaligned_pages": 0,
-                      "joined_by_item": 0, "resplit": 0, "known_picture": 0}
+                      "joined_by_item": 0, "resplit": 0, "known_picture": 0,
+                      "corner": 0, "corner_missed": 0, "corner_reopened": 0}
         self._resplits_left = 0     # 这一页还能重新分格几次
         self._mismatched = set()    # 重新分格过的「图标 → 读到的名字」：再遇到就是图标认错了，不再重分
         self._page_image = None     # 这一页分格用的截图与结果：重新分格时量挪了多少、查有没有没处理就滚出去的格子
@@ -285,7 +301,7 @@ class BagScanEngine:
         self._gap_shift = None      # 刚重新分格、量出的挪动距离（判不出为 None）：读新页时查有没有格子滚出去
         self.tail = None
         self.unjoined = None
-        self.timing = {"read": 0.0, "swipe": 0.0, "open": [], "confirm": [], "close": []}
+        self.timing = {"read": 0.0, "swipe": 0.0, "open": [], "confirm": [], "close": [], "corner": []}
         self._page_reads = {}
 
     # ------------------------------------------------------------------ 主循环
@@ -326,6 +342,7 @@ class BagScanEngine:
             "recovered": self.recovered,
             "error": self.error,
             "cells": dict(self.stats),
+            "corner": sorted(self.by_corner),
             "timing_ms": {
                 "total": round((self.clock() - started) * 1000),
                 "read": round(self.timing["read"] * 1000),
@@ -334,6 +351,7 @@ class BagScanEngine:
                            "open_median": median(self.timing["open"]),
                            "confirm_median": median(self.timing["confirm"]),
                            "close_median": median(self.timing["close"])},
+                "corner": {"count": len(self.timing["corner"]), "median": median(self.timing["corner"])},
             },
         }
 
@@ -358,7 +376,7 @@ class BagScanEngine:
                 self._settle_turn(page)
                 outcome = self._work_page(page)
                 self._flush_page()
-                if not self.pending:
+                if not self.pending and not self.provisional:
                     self.termination = self.termination or "all_found"
                     return
                 if outcome != "bottom":
@@ -367,6 +385,7 @@ class BagScanEngine:
                         return
                     outcome, image = self._next_page(image)
                 if outcome == "bottom":
+                    self._confirm_corner()
                     self._conclude([name for name in self.order if name in self.pending], "list_bottom")
                     self.termination = "list_bottom"
                     return
@@ -474,6 +493,9 @@ class BagScanEngine:
         self.blind = 0
         self.tail = None        # 上一页按阅读顺序认出的物品
         self.unjoined = None    # 上一次翻页画面上接不上时的说明，等读完这一页再定
+        # 角标收下还没定的：从头走起会再见到它们的格子，放回待查，到时照样先读角标。
+        self.pending.update(self.provisional)
+        self.provisional.clear()
         for section in self.sections:
             if not section.closed:
                 section.entered, section.strikes = False, 0
@@ -502,7 +524,7 @@ class BagScanEngine:
             self.log("warning", f"第 {self.pages} 页空格之后还有认得出的物品，空格判定可疑，本轮不判 0")
             self.blind += 1
             live = [cell for cell in cells if not cell.empty]
-        counts = {"icon": 0, "read": 0, "foreign": 0, "unverified": 0}
+        counts = {"icon": 0, "read": 0, "foreign": 0, "unverified": 0, "corner": 0}
         for cell in live:
             self._check()
             key = (round((cell.box[1] + self.scroll - (self.origin or 0)) / self.row_height), cell.col)
@@ -512,11 +534,11 @@ class BagScanEngine:
             self.done[key] = seen
             counts[seen.how] += 1
             self._advance(seen)
-            if not self.pending:
+            if not self.pending and not self.provisional:
                 break
         self.log("debug", f"第 {self.pages} 页：{len(cells)} 格，空 {sum(cell.empty for cell in cells)}，"
                           f"新处理 {sum(counts.values())}（凭图标 {counts['icon']}、读名 {counts['read']}、"
-                          f"目录外 {counts['foreign']}、没核实 {counts['unverified']}）")
+                          f"角标 {counts['corner']}、目录外 {counts['foreign']}、没核实 {counts['unverified']}）")
         if blank_at is not None and not doubtful and len(rest) >= self.columns:
             return "bottom"
         return None
@@ -528,9 +550,21 @@ class BagScanEngine:
         if icon is not None:
             names = frozenset(icon.names)
             loose = bool(icon.kinds & self.loose_kinds)
-            if not (names & self.pending or (loose and self.pending & self.loose_names)):
+            again = sorted(names & self.provisional.keys())
+            if again:
+                # 角标收下的物品又见到一格：不止一格，角标只是其中一格的数。点开读详情里的总数。
+                for name in again:
+                    self.provisional.pop(name)
+                    self.pending.add(name)
+                self.stats["corner_reopened"] += 1
+                self.log("info", f"角标读过的{'、'.join(again)}又见到一格，点开读总数")
+            elif not (names & self.pending or (loose and self.pending & self.loose_names)):
                 self.stats["by_icon"] += 1
                 return _Seen("icon", names)
+            else:
+                seen = self._try_corner(cell, names, loose)
+                if seen is not None:
+                    return seen
         elif cell.patch is not None:
             for patch, seen in self.remembered:
                 if same_picture(patch, cell.patch):
@@ -558,6 +592,38 @@ class BagScanEngine:
             shown = "、".join(sorted(names)) or "?"
             raise _Resplit(f"点开读到的是{name or '目录外的东西'}，格子图标是{shown}")
         return seen
+
+    def _try_corner(self, cell, names, loose):
+        """图标只认一种物品、不是券、不同名、今天前一次读过数的待查目标：读角标，与前一次一样就先收下（待定），不点开。"""
+        if self.corner is None or loose or len(names) != 1:
+            return None
+        name = next(iter(names))
+        expected = self.baseline.get(name)
+        if (name not in self.pending or expected is None or name in self.ambiguous
+                or expected in self.full_stacks or expected > max(self.full_stacks, default=0)):
+            return None
+        started = self.clock()
+        try:
+            value = self.corner(self._page_image, cell)
+        except Exception as exc:  # 角标只是省点开的捷径：读不了就照旧点开
+            self.log("debug", f"角标读数出错（{name}）：{exc}")
+            value = None
+        self.timing["corner"].append(self.clock() - started)
+        if value is None or value != expected:
+            self.stats["corner_missed"] += 1
+            return None
+        self.pending.discard(name)
+        self.provisional[name] = value
+        self.stats["corner"] += 1
+        return _Seen("corner", frozenset({name}))
+
+    def _confirm_corner(self, members=None):
+        """角标收下的数定下来：它所在那一段走完了，或到了列表底——同一趟里没再见到它的别的格子。"""
+        for name in [name for name in self.provisional if members is None or name in members]:
+            value = self.provisional.pop(name)
+            self.quantities[name] = value
+            self._page_reads[name] = value
+            self.by_corner.add(name)
 
     def _is_ambiguous(self, name) -> bool:
         table = self.ambiguous_by.get(self.language) if self.language else None
@@ -633,13 +699,14 @@ class BagScanEngine:
                 continue
             if section.kind == "run" and not section.entered:
                 continue
-            section.strikes += 1 if seen.how == "icon" else 2
+            section.strikes += 1 if seen.how in ("icon", "corner") else 2
             if section.strikes >= 2:
                 section.closed = True
+                self._confirm_corner(section.members)
                 names = [name for name in self.order if name in self.pending and name in section.members]
                 self._conclude(names, section.evidence)
                 self.log("info", f"「{section.name}」这一段走完，段内还没见到的 {len(names)} 项就地结清")
-                if not self.pending:
+                if not self.pending and not self.provisional:
                     self.termination = "section_end"
 
     def _flush_page(self):
@@ -945,3 +1012,7 @@ class BagScanEngine:
             if name in self.pending:
                 self.unknown[name] = termination
         self.pending.clear()
+        # 角标收下还没定的：没走完它所在那一段，不知道它是不是还有别的格子，记未知、不写进存档。
+        for name in self.provisional:
+            self.unknown[name] = "corner_unconfirmed"
+        self.provisional.clear()

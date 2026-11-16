@@ -18,7 +18,7 @@ from .arbitrage_store import (  # noqa: F401  通用读写原样转出
 _RECORD_FIELDS = (
     "scan_id", "label", "note", "started_at", "finished_at", "job_id", "profile", "scope", "target_count",
     "complete", "termination", "continuity", "pages", "quantities", "absent", "unknown", "cells", "timing_ms",
-    "origin",
+    "origin", "corner",
 )
 
 

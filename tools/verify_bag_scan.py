@@ -21,6 +21,7 @@ from utils import arbitrage_store as store
 from utils import inventory_store
 from utils import bag_pictures
 from utils.bag_cells import Cell, Grid, Icon, Page, color_count, hsv, icon_pack, item_table, match_picture, read_page
+from utils.bag_corner import CornerLayout, corner_box, parse_corner
 from utils.bag_detail import DetailLayout, FadeWatch, anchor_of, split_quantity, stitch, text_box
 from utils.bag_scan_engine import BagScanEngine, Reading, Section, estimate_shift, joining_kinds
 from utils.ocr_item_name import item_aliases
@@ -156,6 +157,14 @@ class Device:
         self.persisted = []
         self.swipes = 0
         self.resets = 0
+        self.corners = {}                   # 物品 → 格子右下角显示的数；没写就是读不出
+        self.corner_reads = []              # 读过角标的格子是哪个物品
+
+    def corner(self, image, cell):
+        """仿 MaaBagDevice.read_corner：按格子位置找出物品，给它角标上的数。"""
+        item = self.bag.item_at(cell.box)
+        self.corner_reads.append(item)
+        return self.corners.get(item)
 
     def stopping(self):
         return self.stop_after_opens is not None and len(self.opens) >= self.stop_after_opens
@@ -1029,6 +1038,126 @@ class DeviceTests(unittest.TestCase):
         self.assertEqual(device.read_names(), [])
 
 
+def corner_cell(*blocks, color=(255, 255, 255)):
+    """一张 300×300 的图，格子在 [100, 100, 80, 80]；blocks 是格子下沿条带里的竖条 (相对格子左沿的 x, 宽)。"""
+    image = np.full((300, 300, 3), 40, np.uint8)
+    for left, width in blocks:
+        image[100 + 63:100 + 75, 100 + left:100 + left + width] = color
+    return image
+
+
+class CornerTests(unittest.TestCase):
+    """角标读数（用户 11-16，设计 §23）：与今天前一次一样才不点开；待定的数等段尾或列表底才定。"""
+
+    NAMES = ["兽肉", "米", "白糖"]
+
+    def bag(self, *items):
+        return Bag(layout(*items, *fillers(10), *others(20), end=False))
+
+    def test_corner_equal_to_the_last_reading_is_not_opened(self):
+        held = amounts(*self.NAMES)
+        device = Device(self.bag(*self.NAMES), held)
+        device.corners = dict(held)
+        result = run(device, self.NAMES, corner=device.corner, baseline={"兽肉": 100, "米": 101})
+        self.assertEqual(device.opens, ["白糖"])                 # 没有前一次读数的照旧点开
+        self.assertEqual(device.corner_reads, ["兽肉", "米"])
+        self.assertEqual((result["quantities"], result["corner"]), (held, ["兽肉", "米"]))
+        # 待查的都有着落了也不停：等食材段走完，确认没有别的格子，角标的数才定下来、写进存档
+        self.assertEqual(result["termination"], "section_end")
+        self.assertEqual(persisted(device), sorted(self.NAMES))
+        self.assertEqual((result["cells"]["corner"], result["cells"]["opened"]), (2, 1))
+
+    def test_corner_that_differs_is_opened(self):
+        held = amounts(*self.NAMES)
+        device = Device(self.bag(*self.NAMES), held)
+        device.corners = {"兽肉": 100, "米": 1}                  # 米：角标读成别的数（截半、读错）
+        result = run(device, self.NAMES, corner=device.corner, baseline={"兽肉": 100, "米": 101})
+        self.assertEqual(device.opens, ["米", "白糖"])
+        self.assertEqual(result["quantities"], held)
+        self.assertEqual((result["corner"], result["cells"]["corner_missed"]), (["兽肉"], 1))
+
+    def test_another_cell_of_the_same_item_is_opened_for_the_total(self):
+        # 同一物品几格不一定挨着（11-11 模拟器：兽肉 45,192 与两格 99,999 中间隔着苹果、白糖、巧克力）
+        held = {"兽肉": 100_100, "米": 101, "白糖": 102}
+        device = Device(self.bag("兽肉", "米", "白糖", "兽肉"), held)
+        device.corners = {"兽肉": 100, "米": 101}
+        result = run(device, self.NAMES, corner=device.corner, baseline={"兽肉": 100, "米": 101})
+        self.assertEqual(device.opens, ["白糖", "兽肉"])          # 又见到兽肉：点开读详情里的总数
+        self.assertEqual(result["quantities"], held)
+        self.assertEqual((result["corner"], result["cells"]["corner_reopened"]), (["米"], 1))
+
+    def test_scan_that_ends_early_drops_the_corner_reads(self):
+        held = amounts(*self.NAMES)
+        device = Device(self.bag(*self.NAMES), held, stop_after_opens=1)
+        device.corners = dict(held)
+        result = run(device, self.NAMES, corner=device.corner, baseline={"兽肉": 100, "米": 101})
+        self.assertEqual(result["termination"], "stopped")
+        self.assertEqual({name: result["unknown"][name] for name in ("兽肉", "米")},
+                         {"兽肉": "corner_unconfirmed", "米": "corner_unconfirmed"})
+        self.assertNotIn("兽肉", result["quantities"])
+        self.assertNotIn("兽肉", persisted(device))
+
+    def test_full_stacks_tickets_shared_icons_and_no_baseline_are_opened(self):
+        cases = {
+            "前一次正好满格": ({"兽肉": 99_999}, {}),
+            "一格上限 99": ({"兽肉": 99}, {}),
+            "券（图标信不过）": ({"券甲": 5}, {"kinds": {"券甲": "券"}}),
+            "共用图标": ({"冰河魔石": 3}, {"sees": {"冰河魔石": ("冰河魔石", "忍耐精髓")}}),
+            "启动后第一次（没有前一次）": ({}, {}),
+        }
+        for label, (baseline, extra) in cases.items():
+            with self.subTest(label):
+                name = next(iter(baseline), "兽肉")
+                device = Device(self.bag(name), {name: baseline.get(name, 7)}, **extra)
+                device.corners = {name: baseline.get(name, 7)}
+                options = {"loose_kinds": {"券"}, "loose_names": TICKETS} if "kinds" in extra else {}
+                result = run(device, [name], corner=device.corner, baseline=baseline, **options)
+                self.assertEqual(device.corner_reads, [])
+                self.assertEqual(device.opens, [name])
+                self.assertEqual(result["corner"], [])
+
+    def test_corner_box_follows_the_white_digits_from_the_right(self):
+        layout = CornerLayout()
+        self.assertEqual(corner_box(corner_cell((60, 4), (67, 4), (74, 4)), [100, 100, 80, 80], layout),
+                         [157, 160, 23, 18])       # 右边留白到格子右沿为止
+        # 「1」和后一位隔了 7 列（11-16 模拟器截图）：仍在同一串里
+        box = corner_box(corner_cell((51, 3), (60, 4), (67, 4), (74, 4)), [100, 100, 80, 80], layout)
+        self.assertEqual(box[0], 148)
+
+    def test_corner_box_gives_up_when_unsure(self):
+        layout = CornerLayout()
+        for label, image in (("左边隔着一段还有白字", corner_cell((40, 3), (60, 4), (67, 4), (74, 4))),
+                             ("白色离右沿太远，是图标", corner_cell((10, 10))),
+                             ("有颜色的不是数量字", corner_cell((60, 4), (67, 4), (74, 4), color=(0, 0, 255))),
+                             ("没有字", corner_cell())):
+            with self.subTest(label):
+                self.assertIsNone(corner_box(image, [100, 100, 80, 80], layout))
+
+    def test_corner_text_must_be_a_well_grouped_number(self):
+        for texts, value in ((["52"], 52), (["1,200"], 1200), (["1.200"], 1200), (["1，200"], 1200),
+                             (["45,192"], 45192), (["1,234,567"], 1234567), (["1,200", "1,200"], 1200),
+                             (["1200"], None), (["05"], None), ([",992"], None), (["1.1M"], None),
+                             (["1:390"], None), (["12,34"], None), (["1,200", "200"], None), ([], None)):
+            with self.subTest(texts=texts):
+                self.assertEqual(parse_corner(texts), value)
+
+    def test_both_packs_carry_the_corner_settings(self):
+        for pack_name in ("base", "pc"):
+            with self.subTest(pack=pack_name):
+                attach = pipeline(pack_name)["Agt_BagScan_Grid"]["attach"]["corner"]
+                self.assertEqual(CornerLayout.from_attach(attach), CornerLayout())   # 11-16 两种截图都按这组测过
+
+    def test_device_reads_the_corner_crop_once(self):
+        image = corner_cell((60, 4), (67, 4), (74, 4))
+        context = FakeContext([image], texts=["1,200", "1200"])
+        device = import_bag_scan(self).MaaBagDevice(context, "ready", DeviceTests.ATTACH)
+        self.assertEqual(device.read_corner(image, [100, 100, 80, 80]), 1200)
+        self.assertEqual(context.canvases, [(18, 23, 3)])         # 只识别裁下来的那一小块
+        self.assertIsNone(device.read_corner(image, [100, 100, 80, 80]))
+        self.assertIsNone(device.read_corner(corner_cell(), [100, 100, 80, 80]))
+        self.assertEqual(len(context.canvases), 2)                # 找不到字就不送识别
+
+
 class ShiftTests(unittest.TestCase):
     def setUp(self):
         self.bag = Bag(layout(*fillers(120)))
@@ -1353,6 +1482,42 @@ class ScanRecordTests(unittest.TestCase):
         self.assertTrue(inventory_store.set_inventory_quantities({"兽肉": 5}, "bag_detail", {"scan_id": "s1"}))
         fact = MemoryAccountStore.data["arbitrage"]["inventory"]["items"]["兽肉"]
         self.assertEqual((fact["quantity"], fact["quantity_source"]), (5, "bag_detail"))
+
+
+class DayReadsTests(unittest.TestCase):
+    """角标比的「前一次」：本进程、同账号、同一游戏日最近一次读到的数，而且实时库存还是仓检写的那个数。"""
+
+    def setUp(self):
+        MemoryAccountStore.data = {}
+        patcher = patch.object(store, "PersistentStore", MemoryAccountStore)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        self.bag_scan = import_bag_scan(self)
+        self.bag_scan._DAY_READS.clear()
+        self.addCleanup(self.bag_scan._DAY_READS.clear)
+
+    def scanned(self, day, quantities, absent=(), unknown=()):
+        inventory_store.set_inventory_quantities(quantities, "bag_detail", {"scan_id": "s"})
+        self.bag_scan._keep_reads("a", day, {"quantities": quantities, "absent": list(absent),
+                                             "unknown": dict.fromkeys(unknown, "detail_unreadable")})
+
+    def test_only_same_day_same_account_and_untouched_reads_count(self):
+        day = "2026-11-16"
+        self.scanned(day, {"兽肉": 5, "米": 7, "盐": 3, "白糖": 9})
+        self.assertEqual(self.bag_scan._baseline("a", day), {"兽肉": 5, "米": 7, "盐": 3, "白糖": 9})
+        self.assertEqual(self.bag_scan._baseline("a", "2026-11-17"), {})
+        self.assertEqual(self.bag_scan._baseline("b", day), {})
+        store.set_inventory_quantities({"米": 4}, "sale_confirmed")      # 之后卖过：不再是仓检写的数
+        self.scanned(day, {"兽肉": 6}, absent=["盐"], unknown=["白糖"])  # 这次判 0、没读准的不算前一次
+        self.assertEqual(self.bag_scan._baseline("a", day), {"兽肉": 6})
+
+    def test_new_day_starts_empty(self):
+        self.scanned("2026-11-16", {"兽肉": 5})
+        self.scanned("2026-11-17", {"米": 7})
+        self.assertEqual(self.bag_scan._DAY_READS["a"], {"day": "2026-11-17", "values": {"米": 7}})
+
+    def test_game_day_is_the_utc_date(self):
+        self.assertEqual(self.bag_scan._game_day("2026-11-16T23:59:59+00:00"), "2026-11-16")
 
 
 if __name__ == "__main__":
