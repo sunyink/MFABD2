@@ -3,6 +3,7 @@
         "timeout": 1,
         "next": [
             "Env_AgentLost_Stop",
+            "[JumpBack]Ledger_Begin_Daily",
             "[JumpBack]Weekly_Arcade_Hub",
             "[JumpBack]Weekly_VisitCabin_Hub",
             "[JumpBack]Weekly_LastNight_Hub",

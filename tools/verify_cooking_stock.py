@@ -355,12 +355,118 @@ def replay(images, negative_images):
         Tasker.set_log_dir("")
 
 
+class MadeContext(FakeContext):
+    """料理详情页的假画面：每次截图取下一组文字（制作前一帧、制作后若干帧）。"""
+
+    def __init__(self, frames):
+        super().__init__()
+        self.frames = list(frames)
+        self.index = -1
+        self.texts = self.frames[0]
+        self.tasker = SimpleNamespace(stopping=False, controller=SimpleNamespace(post_screencap=self._capture))
+
+    def _capture(self):
+        self.index = min(self.index + 1, len(self.frames) - 1)
+        self.texts = self.frames[self.index]
+        return SimpleNamespace(wait=lambda: SimpleNamespace(get=lambda: SimpleNamespace(size=1)))
+
+
+def page(name="甜蜜馬卡龍 *****", owned="持有20個食物", count="450個"):
+    texts = {PARAMS["recipe_node"]: [name] if name else [], stock._OWNED_NODE: [owned, "立即恢復500生命力。"] if owned else [],
+             PARAMS["quantity_node"]: [count] if count else []}
+    return texts
+
+
+class CookingMadeTests(unittest.TestCase):
+    def setUp(self):
+        stock._MADE_PENDING.clear()
+        patcher = patch.object(stock.time, "sleep", lambda _: None)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def run_confirm(self, frames, task_id=101):
+        context = MadeContext(frames)
+        stock._remember_before_cooking(context, task_id, PARAMS)
+        argv = SimpleNamespace(task_detail=SimpleNamespace(task_id=task_id))
+        with patch.object(stock, "sync_from_context", return_value=True),                 patch.object(stock, "save_cooking_made", return_value=True) as save:
+            self.assertTrue(stock.CookingMadeConfirm().run(context, argv))
+        return save
+
+    def test_page_reading_uses_owned_line_and_selected_count(self):
+        context = MadeContext([page()])
+        self.assertEqual(stock.read_cooking_page(context, PARAMS, None),
+                         {"recipe": "香甜马卡龙", "owned": 20, "selected_count": 450})
+
+    def test_owned_increase_equal_to_selected_is_consistent(self):
+        save = self.run_confirm([page(), page(owned="持有470個食物")])
+        record = save.call_args[0][0]
+        self.assertEqual((record["recipe"], record["owned_before"], record["owned_after"], record["made"],
+                          record["consistent"]), ("香甜马卡龙", 20, 470, 450, True))
+
+    def test_stale_frame_is_reread_until_the_count_settles(self):
+        save = self.run_confirm([page(), page(), page(owned="持有470個食物")])
+        self.assertEqual(save.call_args[0][0]["made"], 450)
+
+    def test_never_settling_is_recorded_as_inconsistent(self):
+        with patch.object(stock, "_MADE_SETTLE_SECONDS", 0):
+            save = self.run_confirm([page(), page(owned="持有400個食物")])
+        record = save.call_args[0][0]
+        self.assertEqual((record["made"], record["consistent"]), (380, False))
+
+    def test_other_recipe_after_cooking_does_not_count(self):
+        with patch.object(stock, "_MADE_SETTLE_SECONDS", 0):
+            save = self.run_confirm([page(), page(name="炒蘑菇 *", owned="持有5個食物")])
+        record = save.call_args[0][0]
+        self.assertEqual((record["recipe"], record["owned_after"], record["made"], record["consistent"],
+                          record["recipe_after"]), ("香甜马卡龙", None, None, False, "炒蘑菇"))
+
+    def test_no_pending_reading_writes_nothing(self):
+        argv = SimpleNamespace(task_detail=SimpleNamespace(task_id=5))
+        with patch.object(stock, "save_cooking_made") as save:
+            self.assertTrue(stock.CookingMadeConfirm().run(MadeContext([page()]), argv))
+        save.assert_not_called()
+
+    def test_unreadable_before_page_still_cooks(self):
+        context = MadeContext([page()])
+        context.tasker.controller.post_screencap = lambda: (_ for _ in ()).throw(RuntimeError("截图坏了"))
+        stock._remember_before_cooking(context, 9, PARAMS)
+        self.assertNotIn(9, stock._MADE_PENDING)
+
+    def test_store_updates_recipe_fact_and_appends_event(self):
+        from utils import arbitrage_store
+
+        class Memory:
+            data = {}
+            _current_account_id = "7"
+
+            @classmethod
+            def load(cls):
+                return copy.deepcopy(cls.data)
+
+            @classmethod
+            def save(cls, data):
+                cls.data = copy.deepcopy(data)
+                return True
+
+        with patch.object(arbitrage_store, "PersistentStore", Memory):
+            self.assertTrue(arbitrage_store.save_cooking_made({
+                "recipe": "香甜马卡龙", "selected_count": 450, "owned_before": 20, "owned_after": 470,
+                "made": 450, "consistent": True, "started_at": "s", "observed_at": "2026-11-13T00:00:00+00:00"}))
+        inventory = Memory.data["arbitrage"]["inventory"]
+        self.assertEqual(inventory["items"]["香甜马卡龙"]["quantity"], 470)
+        self.assertEqual(inventory["items"]["香甜马卡龙"]["quantity_source"], "cooking_detail")
+        event = inventory["events"][-1]
+        self.assertEqual((event["kind"], event["made"], event["consistent"]), ("cooking_made", 450, True))
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--images", nargs="+", type=Path)
     parser.add_argument("--negative-images", nargs="+", type=Path, help="不应触发采集的料理详情截图")
     args = parser.parse_args()
-    result = unittest.TextTestRunner(verbosity=2).run(unittest.defaultTestLoader.loadTestsFromTestCase(CookingStockTests))
+    suite = unittest.TestSuite(unittest.defaultTestLoader.loadTestsFromTestCase(case)
+                               for case in (CookingStockTests, CookingMadeTests))
+    result = unittest.TextTestRunner(verbosity=2).run(suite)
     if not result.wasSuccessful():
         sys.exit(1)
     if args.images or args.negative_images:

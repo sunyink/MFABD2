@@ -340,6 +340,40 @@ def save_cooking_stock_observation(record: dict) -> bool:
         return _save_inventory(data, readable_items)
 
 
+def save_cooking_made(record: dict) -> bool:
+    """记一次料理制作：制作前后的成品持有数与选的份数。做后持有数读到时同时更新该料理的库存事实。"""
+    observed_at = record.get("observed_at") or utc_now()
+    recipe = canon(str(record.get("recipe") or "").strip())
+    after = record.get("owned_after")
+    with _LOCK:
+        data = PersistentStore.load()
+        inventory = _inventory(data)
+        names = []
+        if recipe and type(after) is int and after >= 0:
+            fact = _dict_child(inventory["items"], recipe)
+            fact.update({
+                "quantity": after,
+                "quantity_status": "known",
+                "quantity_observed_at": observed_at,
+                "quantity_source": "cooking_detail",
+                "present": after > 0,
+            })
+            names.append(recipe)
+        inventory["events"].append({
+            "kind": "cooking_made",
+            "started_at": record.get("started_at"),
+            "observed_at": observed_at,
+            "recipe": recipe or None,
+            "recipe_after": record.get("recipe_after"),
+            "selected_count": record.get("selected_count"),
+            "owned_before": record.get("owned_before"),
+            "owned_after": after,
+            "made": record.get("made"),
+            "consistent": bool(record.get("consistent")),
+        })
+        return _save_inventory(data, names)
+
+
 def set_inventory_quantities(quantities: dict[str, int], reason: str,
                              reference: dict | None = None) -> bool:
     """用执行后可确认的绝对数量覆盖当前库存，并留一条审计事件。"""

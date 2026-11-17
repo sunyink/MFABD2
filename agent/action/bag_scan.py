@@ -1,30 +1,35 @@
 """通用背包仓检：启动器 BagScan、扫描核心 BagScanRun，以及供 py 主控调用的 run_bag_scan。
 
 pipeline 侧在 assets/resource/*/pipeline/BagScan.json：开包、复位、排序、点开/关闭详情、
-翻页、原路返回都是节点；这里只决定点哪几个格子、读到的数怎么记、什么时候能判 0。
-设计见 priv doc/agent/bag/背包仓检_设计.md。
+翻页、原路返回都是节点；整页读图在 utils/bag_cells.py（把截图切成格子、每格一次同全部图标比对），
+这里只把两边接起来：按节点里的排布与扫描类型组好参数，交给 utils/bag_scan_engine.py 决定点哪几个格子、
+读到的数怎么记、什么时候能判 0。设计见 priv doc/agent/bag/背包仓检_设计.md。
 """
 
 from collections import OrderedDict
 import copy
 from functools import lru_cache
 import json
-from pathlib import Path
+import time
 from uuid import uuid4
 
 from maa.agent.agent_server import AgentServer
 from maa.context import Context
 from maa.custom_action import CustomAction
 
-from utils import mfaalog
+from utils import bag_pictures, mfaalog
 from utils.account_sync import sync_from_context
-from utils.bag_scan_engine import BagScanEngine, Reading
+from utils.bag_cells import Grid, icon_pack, item_table, read_page
+from utils.bag_detail import (DetailLayout, FadeWatch, anchor_of, at_anchor, crop, plain_quantity, same_text,
+                              split_quantity, stitch, text_box)
+from utils.bag_scan_engine import BagScanEngine, Reading, Section
 from utils.inventory_store import save_scan_record, set_inventory_quantities, utc_now
 from utils.name_i18n import canon
+from utils.ocr_item_name import clean, item_aliases
 from utils.ocr_read import read_texts
 
 
-__all__ = ["BagScan", "BagScanRun", "get_scan", "run_bag_scan"]
+__all__ = ["BagScan", "BagScanRun", "get_scan", "profile_names", "run_bag_scan"]
 
 ENTRY = "BagScan_Entry"
 RUN = "BagScan_Run"
@@ -34,16 +39,57 @@ PAGE, MOVED, BOTTOM = "BagScan_Page_Next", "BagScan_Page_Moved", "BagScan_Page_B
 SWIPE = "Agt_BagScan_Page_Swipe"
 RESET, RESET_EXIT = "BagScan_TabReset", "BagScan_TabReset_Egress"
 NAME_OCR, QUANTITY_OCR = "Rec_BagScan_Name_Ocr", "Rec_BagScan_Quantity_Ocr"
-PROFILES = {"ingredients": "Agt_BagScan_Profile_Ingredients"}
+# 详情弹窗的新读法：识别带与阈值在 Agt_BagScan_Detail；只识别的 OCR 节点；消耗品页签亮不亮（不亮 = 弹窗遮罩在）。
+DETAIL, TEXT_REC, TAB_LIT = "Agt_BagScan_Detail", "Rec_BagScan_Text_Rec", "Rec_BagScan_ConsTab_Lit_Clr"
+# 扫描类型、识别节点与各项上限在 Agt_BagScan_Config；列表的排布与图集在 Agt_BagScan_Grid（按资源包覆盖）。
+CONFIG, GRID = "Agt_BagScan_Config", "Agt_BagScan_Grid"
+OTHER = "other"     # 物品表里目录外物品（活动道具、亲密饮品）的档案名
 
 _SCANS = OrderedDict()
 
 
+def _bag_items():
+    """tools/gen_bag_templates.py 按物品表生成的物品清单：[{cn, tw, alias, profile, kind, icon}]。"""
+    return item_table()["items"]
+
+
+def profile_names(*profiles) -> list:
+    """这些档案（ingredients / dishes / growth / craft）里的目录物品，按物品表的顺序。"""
+    return [item["cn"] for item in _bag_items() if item["profile"] in profiles]
+
+
 @lru_cache(maxsize=1)
-def _ingredient_names():
-    path = Path(__file__).resolve().parents[1] / "data" / "bd2_item_names_i18n.json"
-    return frozenset(item["cn"] for item in json.loads(path.read_text(encoding="utf-8"))
-                     if item.get("category") == "Ingredients")
+def _names():
+    """读名用的名录与同名表：(OCR 写法 → 规范名, {"cn": 同名的目录物品, "tw": 同名的目录物品})。
+
+    共用名录（食材等，含简繁异名）也服务商店 OCR，不往里加东西；这里另起一份，只给背包仓检用。
+    目录外物品的规范名带 # 前缀：读到它们只说明「这格不是要找的」。一个写法对上一个目录物品和一个目录外物品时
+    （简体「牛奶」），按目录物品收，并记进同名表——扫描核心要图标也认定才采信。两个目录物品同一个写法的不收。
+    同名表**按客户端语言分开**：简体里活动道具也叫「牛奶」，繁体里它叫「純白牛奶」，繁体客户端读到「牛奶」只会是食材
+    （2026-11-15 PC 繁体实机：牛奶被当成同名、按旧截图的图标判成目录外，存货段被提前关掉）。
+    """
+    aliases = dict(item_aliases())
+    seen = {}
+    by_language = {"cn": {}, "tw": {}}
+    for item in _bag_items():
+        canonical = item["cn"] if item["profile"] != OTHER else "#" + item["cn"]
+        # alias：游戏物品表里与项目规范名不同的简体原名（如「光圣石」→ 规范名「光明圣石」）
+        for language, texts in (("cn", {item["cn"], *item.get("alias", [])}), ("tw", {item.get("tw") or ""})):
+            for text in texts - {""}:
+                seen.setdefault(clean(text), set()).add(canonical)
+                by_language[language].setdefault(clean(text), set()).add(canonical)
+    ambiguous = {language: set() for language in by_language}
+    for text, names in seen.items():
+        catalog = sorted(name for name in names if not name.startswith("#"))
+        if len(catalog) == 1:
+            if aliases.get(text, catalog[0]) == catalog[0]:
+                aliases[text] = catalog[0]
+                for language, table in by_language.items():
+                    if catalog[0] in table.get(text, ()) and len(table[text]) > 1:
+                        ambiguous[language].add(catalog[0])
+        elif not catalog:
+            aliases.setdefault(text, sorted(names)[0])
+    return aliases, {language: frozenset(names) for language, names in ambiguous.items()}
 
 
 def get_scan(scan_id):
@@ -90,13 +136,22 @@ def _ran(detail, node):
 
 
 class MaaBagDevice:
-    """把扫描核心要用的动作落到 BagScan.json 的节点上；坐标与轮询参数都在节点里，可按资源包覆盖。"""
+    """把扫描核心要用的动作落到 BagScan.json 的节点上；坐标与轮询参数都在节点里，可按资源包覆盖。
 
-    def __init__(self, context: Context, profile: dict):
+    点开详情（设计 §17）：节点只管点击；py 截帧等弹窗出现动画走完——遮罩在（消耗品页签不亮）、右上角「×」回到终态
+    （与本趟记下的参照一致）、名称与数量两处与上一帧一样——再在那一帧上按颜色定出名称、数量的范围，拼成一行只识别一次；
+    读完关闭前再截一帧核对文字没变，才交出读数。等的是画面状态，不是钟点。
+    哪一步不成（版式没见过、颜色没找到字、拼读拆不开、一直等不到走完）就退回原来的检测+识别节点，扫描核心照旧两帧复核。
+    """
+
+    def __init__(self, context: Context, ready_node: str, detail: dict):
         self.context = context
-        self.item_node = profile["item_node"]
-        self.ready_node = profile["ready_node"]
-        self.end_node = profile["end_node"]
+        self.ready_node = ready_node
+        self.layout = DetailLayout.from_attach(detail)
+        self.open_timeout = detail.get("open_timeout", 2000) / 1000
+        self.settle_timeout = detail.get("timeout", 5000) / 1000
+        self.interval = detail.get("interval", 30) / 1000
+        self.anchor = None      # 本趟记下的终态「×」：第一次读完核对通过时记，窗口缩放变了会在核对时换掉
 
     def stopping(self):
         return bool(self.context.tasker.stopping)
@@ -116,31 +171,109 @@ class MaaBagDevice:
     def list_ready(self, image):
         return bool(self._recognize(self.ready_node, image).hit)
 
-    def match(self, template, image):
-        result = self._recognize(self.item_node, image, {self.item_node: {"template": [template]}})
-        if not result.hit:
-            return []
-        matches = getattr(result, "filtered_results", None) or []
-        return [(_box(item.box), float(item.score)) for item in matches] or [(_box(result.box), 1.0)]
+    def _settle(self, opening):
+        """截帧等详情弹窗淡入走完。返回 (结论, 截图)：
 
-    def end_markers(self, image):
-        result = self._recognize(self.end_node, image)
-        if not result.hit:
-            return []
-        return [_box(item.box) for item in getattr(result, "filtered_results", None) or []] or [_box(result.box)]
+        settled：遮罩在、「×」回到终态（有参照时）、文字与上一帧一样；还没有参照时要文字与「×」连续三帧不变
+        （截图偶尔连着两次给同一帧，单看「和上一帧一样」不够）；
+        opened：遮罩在，但到上限也没等到走完（参照可能已不对，丢掉，下一格重新记）；None：弹窗不在——opening 为真时
+        （刚点过）等 open_timeout 让它出来，否则（弹窗本该开着）一帧就下结论。
+        """
+        watch = FadeWatch(self.layout, self.anchor)
+        started, masked, image = time.monotonic(), False, None
+        while not self.stopping():
+            tick = time.monotonic()
+            image = self.capture()
+            if not self._recognize(TAB_LIT, image).hit:
+                masked = True
+                if watch.feed(image):
+                    return "settled", image
+            elif masked or not opening:
+                return None, image
+            elapsed = time.monotonic() - started
+            if not masked and elapsed > self.open_timeout:
+                return None, image
+            if elapsed > self.settle_timeout:
+                self.anchor = None
+                return "opened", image
+            time.sleep(max(0.0, self.interval - (time.monotonic() - tick)))
+        return None, image
 
-    def open_detail(self, box):
-        detail = self.context.run_task(OPEN, {OPEN: {"target": list(box)}})
-        ready = _ran(detail, READY)
-        return _reading(ready.recognition) if ready is not None and ready.recognition is not None else None
+    def _rec(self, image):
+        """只识别一块裁好的文字图（Rec_BagScan_Text_Rec，only_rec）。"""
+        result = self._recognize(TEXT_REC, image)
+        return [(str(getattr(item, "text", "")), float(getattr(item, "score", 0))) for item in _ocr_items(result)]
+
+    def _node_names(self, image):
+        result = self._recognize(NAME_OCR, image)
+        return [(str(getattr(item, "text", "")), float(getattr(item, "score", 0))) for item in _ocr_items(result)]
+
+    def _read_nodes(self, image, quantity):
+        """退回原来的检测+识别节点。读数不算核实过，扫描核心照旧两帧复核。"""
+        if quantity:
+            result = self._recognize(READY, image)
+            if result.hit:
+                return _reading(result)
+        return Reading(names=self._node_names(image))
+
+    def _read_frame(self, image, quantity):
+        """在走完的那一帧上读：按颜色定出名称（与数量）的范围；要数量时两段拼成一行只识别一次，拆不开再分开读。
+        返回 (读数, 文字框)；颜色没找到字时退回原节点，文字框为空。"""
+        name_box = text_box(image, self.layout.name, "white", self.layout)
+        quantity_box = text_box(image, self.layout.quantity, "blue", self.layout, top_line=True) if quantity else None
+        if name_box is None or (quantity and quantity_box is None):
+            return self._read_nodes(image, quantity), ()
+        boxes = (name_box, quantity_box)
+        if not quantity:
+            return Reading(names=self._rec(crop(image, name_box)), settled=True), boxes
+        texts = self._rec(stitch(image, [name_box, quantity_box]))
+        parts = split_quantity("".join(text for text, _ in texts))
+        if parts is not None:
+            score = min(score for _, score in texts)
+            return Reading(names=[(parts[0], score)], quantities=[(parts[1], score, list(quantity_box))],
+                           settled=True), boxes
+        quantities = [(plain_quantity(text), score, list(quantity_box)) for text, score in self._rec(crop(image, quantity_box))]
+        return Reading(names=self._rec(crop(image, name_box)), quantities=quantities, settled=True), boxes
+
+    def _read_settled(self, image, quantity):
+        """读判定走完的那一帧，读完关闭前再截一帧核对：文字处与读的那帧一样（这时离判定已过了一次识别的时间）才交出读数，
+        并把这一帧的「×」记成本趟参照；不一样说明读的那帧还没走完，换这一帧再读（最多两次），仍不行退回原节点。"""
+        for _ in range(2):
+            reading, boxes = self._read_frame(image, quantity)
+            if not reading.settled:
+                return reading
+            later = self.capture()
+            if not self._recognize(TAB_LIT, later).hit and same_text(image, later, boxes, self.layout):
+                if not at_anchor(later, self.anchor, self.layout):
+                    self.anchor = anchor_of(later, self.layout)
+                return reading
+            image = later
+        return self._read_nodes(image, quantity)
+
+    def open_detail(self, box, quantity=True):
+        """点开一格并读。None = 弹窗没出来（是否再点由扫描核心先看列表还在不在再定）。"""
+        self.context.run_task(OPEN, {OPEN: {"target": list(box)}})
+        state, image = self._settle(opening=True)
+        if state is None:
+            return None
+        return self._read_settled(image, quantity) if state == "settled" else self._read_nodes(image, quantity)
+
+    def peek_detail(self, box):
+        """点开一格，只读名称：认不出的格子多半不是要找的，用不着数量；是待查物品时扫描核心再要数量。"""
+        return self.open_detail(box, quantity=False)
 
     def read_detail(self):
-        result = self._recognize(READY, self.capture())
-        return _reading(result) if result.hit else None
+        """弹窗开着时再读一帧名称与数量；弹窗不在返回 None。"""
+        state, image = self._settle(opening=False)
+        if state is None:
+            return None
+        return self._read_settled(image, True) if state == "settled" else self._read_nodes(image, True)
 
     def read_names(self):
-        result = self._recognize(NAME_OCR, self.capture())
-        return [(str(getattr(item, "text", "")), float(getattr(item, "score", 0))) for item in _ocr_items(result)]
+        state, image = self._settle(opening=False)
+        if state is None:
+            return []
+        return (self._read_settled(image, False) if state == "settled" else self._read_nodes(image, False)).names
 
     def read_quantity_scaled(self):
         texts, _, _ = read_texts(self.context, QUANTITY_OCR, self.capture(), retry=True)
@@ -164,13 +297,45 @@ class MaaBagDevice:
         return _ran(self.context.run_task(RESET), RESET_EXIT) is not None
 
 
-def _targets(raw, catalog, names):
+def _scope_keys(raw, scopes: dict) -> list:
+    """扫描类型参数（一个键如 "A"，或一组如 ["A", "C"]）→ 去重后的键列表。键在 Agt_BagScan_Config.attach.scopes 里定义。"""
+    keys = [raw] if isinstance(raw, str) else list(raw or [])
+    keys = list(dict.fromkeys(keys))
+    if not keys or not all(isinstance(key, str) and key in scopes for key in keys):
+        raise ValueError(f"未知扫描类型: {raw}（可用：{'、'.join(scopes)}）")
+    return keys
+
+
+def _targets(raw, names):
     if raw in (None, "", "all"):
-        # 按完整名录展开：资源包缺图的也列进来，由扫描核心记为 template_missing，不悄悄少扫。
-        return list(catalog) + sorted(set(names) - catalog.keys())
+        return list(names)
     if not isinstance(raw, list) or not all(isinstance(name, str) for name in raw):
         raise ValueError("targets 只能是 all 或名称列表")
     return list(dict.fromkeys(canon(name.strip()) for name in raw if name.strip()))
+
+
+def _plan(config: dict, keys: list):
+    """按扫描类型列出要找的物品与各自连成的段：(物品名列表, [Section])。
+
+    segment：head = 从列表开头起的一段，走出这一段就结清；run = 中间连成一段，进去再出来就结清；
+    tail（或不写）= 没有可靠的段尾，扫到列表底。几种类型一起扫时各段各自结清，全部结清或到底即停。
+    """
+    names, sections = [], []
+    for key in keys:
+        scope = config["scopes"][key]
+        members = profile_names(*scope["profiles"])
+        names += members
+        if scope.get("segment") in ("head", "run"):
+            sections.append(Section(name=scope.get("title", key), members=frozenset(members), kind=scope["segment"],
+                                    evidence=scope.get("zero_evidence", "section_end")))
+    return list(dict.fromkeys(names)), sections
+
+
+def _grid(attach: dict) -> Grid:
+    options = {key: attach[key] for key in ("footer", "row_offset", "reach", "shift", "known", "margin", "empty_std")
+               if key in attach}
+    return Grid(area=tuple(attach["area"]), columns=int(attach["columns"]), left=float(attach["left"]),
+                pitch=tuple(attach["pitch"]), **options)
 
 
 def _label(raw):
@@ -185,9 +350,10 @@ def _log(level, text):
 
 
 _UNKNOWN_TEXT = {
-    "template_missing": "缺模板图", "detail_unreadable": "详情未核实", "continuity_broken": "翻页接不上",
-    "persist_failed": "存档写入失败", "page_limit": "翻页上限", "timeout": "超时", "stopped": "任务停止",
-    "state_lost": "列表状态丢失", "error": "扫描出错", "not_scanned": "没进背包核对",
+    "template_missing": "不在物品表里", "detail_unreadable": "详情未核实", "continuity_broken": "翻页接不上",
+    "cell_unverified": "有格子没核实", "persist_failed": "存档写入失败", "page_limit": "翻页上限",
+    "timeout": "超时", "stopped": "任务停止", "state_lost": "列表状态丢失", "error": "扫描出错",
+    "not_scanned": "没进背包核对",
 }
 
 
@@ -199,18 +365,45 @@ def unknown_text(unknown):
     return "；".join(f"{_UNKNOWN_TEXT.get(reason, reason)}：{'、'.join(names)}" for reason, names in groups.items())
 
 
-def _save_absent(record, reference, evidence):
-    """判 0 写进存档才算数；没写进去的改记未知，扫描随之不完整。"""
-    names = record["absent"]
-    saved = False
-    try:
-        saved = set_inventory_quantities(dict.fromkeys(names, 0), "bag_absent", {**reference, "evidence": evidence})
-    finally:
+def _save_absent(record, reference, absent_by):
+    """判 0 写进存档才算数；没写进去的改记未知，扫描随之不完整。absent_by：{判 0 依据: [名称]}。"""
+    failed = []
+    for evidence, names in absent_by.items():
+        try:
+            saved = set_inventory_quantities(dict.fromkeys(names, 0), "bag_absent", {**reference, "evidence": evidence})
+        except Exception as exc:
+            mfaalog.warning(f"[BagScan] 判 0 写入异常: {exc}")
+            saved = False
         if not saved:
-            record["absent"] = []
-            record["unknown"] = {**record["unknown"], **dict.fromkeys(names, "persist_failed")}
-    if not saved:
+            failed += names
+    if failed:
+        record["absent"] = sorted(set(record["absent"]) - set(failed))
+        record["unknown"] = {**record["unknown"], **dict.fromkeys(failed, "persist_failed")}
         raise RuntimeError("判 0 写入失败")
+
+
+def _pictures_dir():
+    """记住的目录外物品的图放在存档目录下（所有账号共用）；存档目录还没定下来就不记。"""
+    try:
+        from utils.persistent_store import PersistentStore
+        return PersistentStore.CONFIG_DIR
+    except Exception:
+        return None
+
+
+def _keep_pictures(folder, pack, known, engine) -> None:
+    """把这一趟用到的、新认识的目录外物品的图存回去。出什么错都只记日志：下次照常逐格点开而已。"""
+    try:
+        seen, new = engine.pictures()
+        if not seen and not new:
+            return
+        if not bag_pictures.save(folder, pack, bag_pictures.merge(known, seen, new)):
+            mfaalog.debug("[BagScan] 目录外物品的图没存成（存档目录不可写或未定），下次照常点开")
+        elif new:
+            names = "、".join(dict.fromkeys(name for _, name in new if name)) or "?"
+            mfaalog.info(f"[BagScan] 记住了 {len(new)} 张目录外物品的图（{names}），之后的盘点凭图跳过")
+    except Exception as exc:
+        mfaalog.debug(f"[BagScan] 目录外物品的图没存成：{exc}")
 
 
 @AgentServer.custom_action("BagScanRun")
@@ -222,41 +415,54 @@ class BagScanRun(CustomAction):
         params = raw if isinstance(raw, dict) else json.loads(str(raw or "{}"))
         record = {"scan_id": params.get("scan_id") or uuid4().hex, "label": str(params.get("label") or "未指定"),
                   "note": params.get("note"), "started_at": utc_now(), "job_id": None,
-                  "profile": params.get("profile"), "target_count": 0, "complete": False,
+                  "scope": [], "target_count": 0, "complete": False,
                   "termination": "error", "continuity": "broken", "pages": 0,
-                  "quantities": {}, "absent": [], "unknown": {}, "timing_ms": {}}
+                  "quantities": {}, "absent": [], "unknown": {}, "cells": {}, "timing_ms": {}}
+        if isinstance(params.get("origin"), dict):
+            record["origin"] = params["origin"]   # 库存记账的位置触发的盘点：哪个节点、哪个任务、什么类型
         if not sync_from_context(context, where="BagScanRun"):
             return False
         try:
             record["job_id"] = context.get_task_job().job_id
             record["label"] = _label(record["label"])
-            profile = context.get_node_object(params["profile"]).attach
-            catalog = context.get_node_object(profile["catalog_node"]).attach["templates"]
-            targets = _targets(params.get("targets"), catalog, _ingredient_names())
+            config = context.get_node_object(CONFIG).attach
+            layout = context.get_node_object(GRID).attach
+            record["scope"] = _scope_keys(params.get("scope", "A"), config["scopes"])
+            names, sections = _plan(config, record["scope"])
+            targets = _targets(params.get("targets"), names)
             record["target_count"] = len(targets)
-            item = context.get_node_object(profile["item_node"])
             reference = {"scan_id": record["scan_id"], "label": record["label"]}
+            grid, pack = _grid(layout), icon_pack(layout["icons"])
+            aliases, ambiguous = _names()
+            pictures_dir = _pictures_dir()
+            known_pictures = bag_pictures.load(pictures_dir, layout["icons"])
+            loose_kinds = frozenset(config.get("loose_kinds", ()))
 
             def persist(page, quantities):
                 if not set_inventory_quantities(quantities, "bag_detail", {**reference, "page": page}):
                     raise RuntimeError("库存写入失败")
 
             engine = BagScanEngine(
-                MaaBagDevice(context, profile), catalog, targets,
-                grid_roi=item.recognition.param.roi, row_height=item.attach["row_height"],
-                footer_rows=item.attach.get("footer_rows", 0),
-                ingredient_names=_ingredient_names(),
-                max_pages=profile["max_pages"], timeout_seconds=profile["timeout_seconds"],
-                confirm_frames=profile["confirm_frames"], box_tolerance=profile["box_tolerance"],
-                continuity_threshold=profile["continuity_threshold"],
-                zero_evidence=profile["zero_evidence"], on_page=persist, log=_log)
+                MaaBagDevice(context, config["ready_node"], context.get_node_object(DETAIL).attach), lambda image: read_page(image, grid, pack), targets,
+                known_names=frozenset(item["cn"] for item in _bag_items() if item["profile"] != OTHER),
+                grid_roi=grid.area, row_height=grid.pitch[1], columns=grid.columns, footer_rows=grid.footer,
+                sections=sections, loose_kinds=loose_kinds,
+                loose_names=frozenset(item["cn"] for item in _bag_items()
+                                      if item["profile"] != OTHER and item["kind"] in loose_kinds),
+                ambiguous=ambiguous, aliases=aliases,
+                max_pages=config["max_pages"], timeout_seconds=config["timeout_seconds"],
+                confirm_frames=config["confirm_frames"], box_tolerance=config["box_tolerance"],
+                continuity_threshold=config["continuity_threshold"], on_page=persist, log=_log,
+                known_pictures=known_pictures)
             result = engine.run()
+            _keep_pictures(pictures_dir, layout["icons"], known_pictures, engine)
             record.update({key: result[key] for key in (
-                "complete", "termination", "continuity", "pages", "quantities", "absent", "unknown", "timing_ms")})
+                "complete", "termination", "continuity", "pages", "quantities", "absent", "unknown", "cells",
+                "timing_ms")})
             if result["error"]:
                 record["error"] = result["error"]
             if record["absent"]:
-                _save_absent(record, reference, result["zero_evidence"])
+                _save_absent(record, reference, result["absent_by"])
         except Exception as exc:
             record["error"] = str(exc)
             record["complete"] = False
@@ -271,9 +477,16 @@ class BagScanRun(CustomAction):
             except Exception as exc:
                 mfaalog.error(f"[BagScan] 扫描记录存档异常: {exc}")
             _remember(record)
-        seconds = round((record["timing_ms"] or {}).get("total", 0) / 1000)
-        mfaalog.info(f"[BagScan] {record['label']}：读到 {len(record['quantities'])}，判 0 {len(record['absent'])}，"
-                     f"未知 {len(record['unknown'])}，结束={record['termination']}，{record['pages']} 页，{seconds} 秒")
+        timing, cells = record["timing_ms"] or {}, record["cells"] or {}
+        mfaalog.info(f"[BagScan] {record['label']}（{'+'.join(record['scope'])}）：读到 {len(record['quantities'])}，"
+                     f"判 0 {len(record['absent'])}，未知 {len(record['unknown'])}，结束={record['termination']}，"
+                     f"{record['pages']} 页，{round(timing.get('total', 0) / 1000)} 秒"
+                     f"（读图 {round(timing.get('read', 0) / 1000, 1)} 秒，点开 {cells.get('opened', 0)} 格，"
+                     f"凭图标跳过 {cells.get('by_icon', 0)}，同图跳过 {cells.get('same_picture', 0)}，"
+                     + (f"凭记住的图跳过 {cells['known_picture']}，" if cells.get("known_picture") else "")
+                     + f"没核实 {cells.get('unverified', 0)}"
+                     + (f"，对齐没把握 {cells['unaligned_pages']} 页" if cells.get("unaligned_pages") else "")
+                     + (f"，重新分格 {cells['resplit']} 次" if cells.get("resplit") else "") + "）")
         if record["unknown"]:
             mfaalog.info(f"[BagScan] 未知（不判 0）—— {unknown_text(record['unknown'])}")
         # 允许按 BagReturn 原路返回；业务是否完整只看记录里的 complete。
@@ -281,19 +494,24 @@ class BagScanRun(CustomAction):
 
 
 def run_bag_scan(context: Context, *, label: str | None, targets: str | list[str] = "all",
-                 profile: str = "ingredients", note: str | None = None) -> dict:
+                 scope: str | list[str] = "A", note: str | None = None, origin: dict | None = None) -> dict:
     """同步执行一次仓检（开包 → 按页扫描 → 原路返回），返回扫描记录副本。
 
+    scope：扫描类型，Agt_BagScan_Config 里定义的键，可给一个或一组——A 存货（食材、料理）、
+    B 票券与养成材料、C 装备制作材料；一趟扫完它们的并集，记录里的 scope 写明扫了哪些。
+    A、C 各自连成一段，走完那一段就结清；带 B 时扫到列表底。
     executed=False 表示没走到扫描核心（账号未确认、配置无效或进包失败），此时没有任何读数；
     returned=False 表示子任务没正常结束，页面位置未知，调用方须自行恢复。
+    origin：谁在什么位置触发的这次盘点，原样写进扫描记录；库存记账靠它认出自己的盘点。
     """
     if not sync_from_context(context, where="BagScan"):
         return {"executed": False, "returned": False, "error": "account"}
-    if profile not in PROFILES:
-        raise ValueError(f"未知仓检档案: {profile}")
+    if not scope or not all(isinstance(key, str) for key in ([scope] if isinstance(scope, str) else scope)):
+        raise ValueError(f"未知扫描类型: {scope}")
     scan_id = uuid4().hex
-    param = {"scan_id": scan_id, "label": _label(label), "targets": targets,
-             "profile": PROFILES[profile], "note": note}
+    param = {"scan_id": scan_id, "label": _label(label), "targets": targets, "scope": scope, "note": note}
+    if origin is not None:
+        param["origin"] = origin
     local = context.clone()
     detail = local.run_task(ENTRY, {RUN: {"custom_action_param": param}})
     record = get_scan(scan_id)
@@ -306,14 +524,17 @@ def run_bag_scan(context: Context, *, label: str | None, targets: str | list[str
 
 @AgentServer.custom_action("BagScan")
 class BagScan(CustomAction):
-    """启动器：放进任何流程，参数 {label, targets?, profile?, note?}；跑完开包、扫描、返回这个节点才结束。"""
+    """启动器：放进任何流程，参数 {label, scope?, targets?, note?}；跑完开包、扫描、返回这个节点才结束。
+
+    scope 写一个扫描类型或一组（如 "A"、["B", "C"]），默认 "A"。
+    """
 
     def run(self, context: Context, argv: CustomAction.RunArg) -> bool:
         try:
             raw = argv.custom_action_param
             params = raw if isinstance(raw, dict) else json.loads(str(raw or "{}"))
             record = run_bag_scan(context, label=params.get("label"), targets=params.get("targets", "all"),
-                                  profile=params.get("profile", "ingredients"), note=params.get("note"))
+                                  scope=params.get("scope", "A"), note=params.get("note"))
         except Exception as exc:
             mfaalog.error(f"[BagScan] 启动失败：{exc}")
             return False

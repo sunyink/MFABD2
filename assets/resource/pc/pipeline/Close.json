@@ -1,11 +1,12 @@
 {
     "Close_HomePage": {
-        "desc": "[PC覆盖] 关闭游戏入口：先确认 Agent 通信正常，再由 Close_PCStopApp 关闭游戏。PC_StopApp 是自定义动作，通道断开时会一直卡住，所以不放在入口上。覆盖base的action:StopApp。",
+        "desc": "[PC覆盖] 关闭游戏入口：先确认 Agent 通信正常，再做库存记账的收尾，最后由 Close_PCStopApp 关闭游戏。PC_StopApp 是自定义动作，通道断开时会一直卡住，所以不放在入口上。覆盖 base 的 next：末位换成 Close_PCStopApp（Win32 没有 StopApp 动作）。",
         "pre_delay": 0,
         "action": "DoNothing",
         "post_delay": 0,
         "next": [
             "Env_AgentLost_Stop",
+            "[JumpBack]Ledger_QueueEnd",
             "Close_PCStopApp"
         ]
     },
