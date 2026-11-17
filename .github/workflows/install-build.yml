@@ -179,6 +179,10 @@ jobs:
       # install / android 两条构建链都 needs 本 job，所以图标脚本只在这里验一次。
       - name: Check application icon preparation
         run: python scripts/verify_icons.py
+
+      # 发布 interface.json 的改写规则（scripts/release_interface.py）；产物本身在各构建 job 末尾再核一次。
+      - name: Check release interface rules
+        run: python scripts/verify_release_interface.py
   install:
     needs: [meta, resource_check]
     # PR 只跑资源检查，不跑完整构建
@@ -566,17 +570,20 @@ jobs:
             cp -rf MFA/* install/
           fi
 
+      # 只剩 Windows EXE 图标：MFAA 运行时图标是 interface.json 的字段，已由 install.py
+      # 调用的 scripts/release_interface.py 连同图片一起写好，mac/linux 在这里无事可做。
       # 不要在这一步加 continue-on-error：脚本自己已经把「图标没贴上」降级成
       # status=degraded + ::warning 并退出 0，非零退出只剩「脚本根本跑不起来」，
       # 那种情况必须让构建停下来。
       - name: Apply optional application icons
+        if: matrix.os == 'win'
         id: icons
         shell: bash
         run: python scripts/prepare_icons.py "${{ matrix.os }}"
 
       # 声称贴上了就必须在产物里验得到，否则静默半成品会直接进发布包。
       - name: Verify applied application icons
-        if: steps.icons.outputs.status == 'applied'
+        if: matrix.os == 'win' && steps.icons.outputs.status == 'applied'
         shell: bash
         run: python scripts/prepare_icons.py "${{ matrix.os }}" --check
 
@@ -768,6 +775,13 @@ jobs:
 
       - name: Verify packaged project identity statement
         run: python scripts/verify_branding.py install
+
+      # 上传前最后一道，必须排在所有碰 install/ 的步骤之后：install/interface.json 要与按源文件
+      # 重算的结果完全一致（拦 MFAA 合并、剥注释、图标等后续步骤的改动或覆盖），再过一遍发布约定。
+      # 规则在 scripts/release_interface.py，它是这个文件唯一的写入者。
+      - name: Verify release interface
+        shell: bash
+        run: python scripts/release_interface.py verify install --target "${{ matrix.os }}" --version "${{ needs.meta.outputs.tag }}"
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:

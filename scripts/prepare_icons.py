@@ -1,4 +1,8 @@
-"""Optional release branding. Failed operations leave the original files usable.
+"""Optional release branding for the Windows executable and the Android launcher.
+
+The MFAA runtime icon is not here: it is a field of interface.json, which only
+scripts/release_interface.py writes (it reuses validate_png and report from this file).
+Failed operations leave the original files usable.
 
 The exit code answers "could this script run at all", never "did the icon land": an icon
 that cannot be applied warns, reports status=degraded and exits 0 so the build continues,
@@ -26,7 +30,6 @@ RCEDIT_SHA256 = "3e7801db1a5edbec91b49a24a094aad776cb4515488ea5a4ca2289c400eade2
 PROFILE_ICON = re.compile(r"(?m)^  icon: [^\r\n]+(?=\r?$)")
 MAX_PNG_BYTES = 8 * 1024 * 1024
 MAX_ICO_BYTES = 8 * 1024 * 1024
-RUNTIME_ICON = "resource/ui/title.png"
 
 
 class IconRollbackError(RuntimeError):
@@ -97,26 +100,6 @@ def validate_png(path: Path) -> bytes:
             or any(pixels[i] > 4 for i in range(0, len(pixels), stride))):
         raise ValueError(f"Invalid PNG pixel data: {path}")
     return data
-
-
-def apply_runtime(install: Path, branding: Path) -> None:
-    png = validate_png(branding / "title.png")
-    interface_path = install / "interface.json"
-    interface = json.loads(interface_path.read_text(encoding="utf-8"))
-    interface["icon"] = RUNTIME_ICON
-    updated_interface = (json.dumps(interface, ensure_ascii=False, indent=4) + "\n").encode()
-    image_path = install / RUNTIME_ICON
-    previous_image = image_path.read_bytes() if image_path.exists() else None
-    # Write the image first: no interface can point to a missing/partial new image.
-    atomic_write(image_path, png)
-    try:
-        atomic_write(interface_path, updated_interface)
-    except Exception:
-        if previous_image is None:
-            image_path.unlink(missing_ok=True)
-        else:
-            atomic_write(image_path, previous_image)
-        raise
 
 
 def ico_frames(path: Path) -> list[bytes]:
@@ -277,17 +260,8 @@ def restore_android(profile: Path, work: Path) -> bool:
     return True
 
 
-def check_runtime(install: Path, branding: Path) -> None:
-    """Assert on the artifact, not on the return value of the step that built it."""
-    interface = json.loads((install / "interface.json").read_text(encoding="utf-8"))
-    if interface.get("icon") != RUNTIME_ICON:
-        raise ValueError(f"interface.json icon is {interface.get('icon')!r}, expected {RUNTIME_ICON!r}")
-    image = install / RUNTIME_ICON
-    if not image.is_file() or image.read_bytes() != (branding / "title.png").read_bytes():
-        raise ValueError(f"Packaged {RUNTIME_ICON} is missing or is not the branding image")
-
-
 def check_windows(install: Path, branding: Path) -> None:
+    """Assert on the artifact, not on the return value of the step that built it."""
     verify_windows_resources(install / "MFAAvalonia.exe", ico_frames(branding / "app.ico"))
 
 
@@ -340,7 +314,8 @@ def optional(name, action) -> bool:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("platform", choices=("win", "macos", "linux", "android"))
+    # macOS/Linux have nothing left here: their only icon is the runtime one in interface.json.
+    parser.add_argument("platform", choices=("win", "android"))
     parser.add_argument("--branding", type=Path, default=ROOT / "release" / "branding")
     parser.add_argument("--install", type=Path, default=ROOT / "install")
     parser.add_argument("--profile", type=Path, default=ROOT / "android/pi-profile.yaml")
@@ -358,17 +333,12 @@ def main() -> None:
         if args.platform == "android":
             check_android(args.profile, args.work, args.branding)
         else:
-            check_runtime(args.install, args.branding)
-            if args.platform == "win":
-                check_windows(args.install, args.branding)
+            check_windows(args.install, args.branding)
         print("Applied application icons verified")
     elif args.platform == "android":
         publish_status(optional("Android launcher", lambda: apply_android(args.profile, args.work, args.branding)))
     else:
-        applied = optional("MFAA runtime", lambda: apply_runtime(args.install, args.branding))
-        if args.platform == "win":
-            applied = optional("Windows EXE", lambda: apply_windows(args.install, args.branding)) and applied
-        publish_status(applied)
+        publish_status(optional("Windows EXE", lambda: apply_windows(args.install, args.branding)))
 
 
 if __name__ == "__main__":
