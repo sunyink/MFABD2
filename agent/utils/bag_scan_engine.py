@@ -34,6 +34,9 @@ from .ocr_read import NUMBER, unique_parsed
 
 
 QUANTITY_PATTERN = r"(?:[拥擁]有|持有)" + NUMBER + r"[个個]"
+# 正常走完的结束原因。其余（stopped、timeout、state_lost、error、page_limit）是半路断了：
+# 没走到的目标记成未知，原因就是这个结束原因；角标收下还没定的记 corner_unconfirmed。
+FINISHED = frozenset({"all_found", "list_bottom", "section_end"})
 _CONTINUITY_MARGIN = 4.0
 _STATIC_ROW = 3.0  # 两帧同一行的平均差低于它算没动；实机静止区约 1.6～2.0
 _NAME_SCORE = 0.3      # 名称识别里低于它的碎片（稀有度菱形被读成字，实测约 0.2）不要；偏低的整段交给重读

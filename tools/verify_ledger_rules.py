@@ -155,6 +155,24 @@ class LedgerRuleTests(unittest.TestCase):
         self.assertEqual(play.daily("Weekly_Start")["scopes"], FULL)
         self.assertEqual(play.scans(), [FULL, FULL])
 
+    def test_closing_position_crossing_game_day_scans_everything(self):
+        play = Play(start=NOON + 12 * 3600 - 400)          # 08:53 KST：日常、吸取开头都在换日前
+        play.daily("Mail_HomePage")
+        play.task("Collect_StartGame_HomePage").at("begin", "collect")
+        play.now += 600                                    # 吸取跑过 09:00 KST
+        crossing = play.at("end", "collect")
+        self.assertEqual((crossing["scopes"], crossing["reason"]), (FULL, "收尾，跨过游戏日"))
+        self.assertFalse(play.task("Arbitrage_Start").at("begin", "shop")["scan"])   # 同一天里照旧一盘两用
+        self.assertEqual(play.at("end", "shop")["scopes"], ["A"])                    # 不再跨日：只盘本阶段要的
+        self.assertEqual(play.scans(), [FULL, FULL, FULL, ["A"]])
+
+    def test_closing_position_crossing_game_day_without_activity_does_not_scan(self):
+        play = Play(start=NOON + 12 * 3600 - 400)
+        play.task("Arbitrage_Start").at("begin", "shop")
+        play.at("end", "shop")
+        play.now += 600
+        self.assertFalse(play.task("Close_HomePage").at("queue_end")["scan"])   # 没有未盘掉的活动：留给下一个开头去全盘
+
     def test_k15_scan_that_did_not_run_leaves_activity_pending(self):
         play = Play()
         first = play.task("Mail_HomePage").at("begin", "daily", executed=False)

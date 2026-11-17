@@ -103,6 +103,9 @@ def decide(mark: str, kind: str | None, state: LedgerState, *, task_id: int, row
         return result((), "没有还没盘掉的活动")
     if last is None or not connected or strangers:
         return result(ALL_SCOPES, "收尾，之前没有可接的盘点" if not strangers else f"收尾，中间跑过没接记账的任务（{strangers[0]}）")
+    # 与开头位置同一条：这一盘是新游戏日的第一盘、也是上一日的期末，期末读不全的东西做账时接不回上一日。
+    if last["game_day"] != game_day(now):
+        return result(ALL_SCOPES, "收尾，跨过游戏日")
     return result(_union(kinds), "收尾")
 
 
