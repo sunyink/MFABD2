@@ -1,6 +1,16 @@
 {
     "Close_HomePage": {
-        "desc": "PVE点击技能1。next暴力修改：因无物品可吸取不会消耗次数，故两个吸取技能连续使用；且缩减延迟。",
+        "desc": "任务「[全局]结束游戏」入口：先确认 Agent 通信正常，再做库存记账的收尾（上一次盘点之后有还没盘掉的活动就盘一次，没有就不盘），最后由 Close_StopApp 关闭游戏。记账收尾是自定义动作，通道断开时会一直卡住，所以前面要有失联检查；失联时在首位停下，不关游戏。",
+        "pre_delay": 0,
+        "post_delay": 0,
+        "next": [
+            "Env_AgentLost_Stop",
+            "[JumpBack]Ledger_QueueEnd",
+            "Close_StopApp"
+        ]
+    },
+    "Close_StopApp": {
+        "desc": "关闭游戏。",
         "action": "StopApp",
         "package": "com.neowizgames.game.browndust2"
     }

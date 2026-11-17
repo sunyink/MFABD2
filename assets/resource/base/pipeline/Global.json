@@ -1626,5 +1626,219 @@
         "expected": [
             "格鲁菲餐厅"
         ]
+    },
+    "Agt_Currency_Gold_Icon_Tpl": {
+        "desc": "py 独占，勿挂进管路。顶栏金币图标；主界面与箱庭通用。",
+        "recognition": "TemplateMatch",
+        "roi": [
+            400,
+            8,
+            620,
+            64
+        ],
+        "template": [
+            "Currency/Gold.png"
+        ],
+        "threshold": 0.9
+    },
+    "Agt_Currency_Tonic_Icon_Tpl": {
+        "desc": "py 独占，勿挂进管路。顶栏天赋神药图标；主界面与箱庭通用。",
+        "recognition": "TemplateMatch",
+        "roi": [
+            400,
+            8,
+            620,
+            64
+        ],
+        "template": [
+            "Currency/Tonic.png"
+        ],
+        "threshold": 0.9
+    },
+    "Agt_Currency_Number_Ocr": {
+        "desc": "py 独占，勿挂进管路。顶栏图标右侧的数字；roi 由 py 按认出的图标现算（这里的只是占位），attach 给数字区的宽度与起点容差。",
+        "recognition": "OCR",
+        "roi": [
+            400,
+            8,
+            620,
+            64
+        ],
+        "attach": {
+            "tail_width": 110,
+            "max_lead": 20,
+            "half_height": 16
+        }
+    },
+    "Agt_Currency_Diamond_Free_Ocr": {
+        "desc": "py 独占，勿挂进管路。免费钻石一行的「拥有 N 个」，右对齐，位数多了往左长。",
+        "recognition": "OCR",
+        "roi": [
+            400,
+            302,
+            170,
+            30
+        ]
+    },
+    "Agt_Currency_Diamond_Paid_Ocr": {
+        "desc": "py 独占，勿挂进管路。付费钻石一行的「拥有 N 个」，右对齐。",
+        "recognition": "OCR",
+        "roi": [
+            400,
+            330,
+            170,
+            30
+        ]
+    },
+    "Global_DiamondDetail_Entry": {
+        "desc": "钻石免费 / 付费读数链入口，由 agent/action/currency_read.py 调起：弹窗已开直接点 ⊕，否则点顶栏钻石图标。读数由 py 在链结束后读，关闭另调 Global_DiamondDetail_Close。",
+        "pre_delay": 0,
+        "post_delay": 0,
+        "timeout": 3000,
+        "rate_limit": 0,
+        "next": [
+            "Global_DiamondDetail_Expand",
+            "Global_DiamondDetail_Open"
+        ]
+    },
+    "Global_DiamondDetail_Open": {
+        "desc": "点顶栏钻石图标打开钻石弹窗；主界面与箱庭通用（顶栏随位数挪动，按图标认）。py 读顶栏时也借它认钻石图标。点完盯弹窗区域静止 1.5 秒：模拟器上弹窗约 1–2 秒才出来，太早重试会把刚出来的弹窗点掉。没出弹窗最多再点三次：实机见过刚回主页连点两下都没出来（主页还在加载时不收点击），停稳的等待每轮最多 4 秒，全都没出来约 20 秒收场。",
+        "max_hit": 4,
+        "recognition": "TemplateMatch",
+        "roi": [
+            400,
+            8,
+            620,
+            64
+        ],
+        "template": [
+            "Currency/Diamond.png"
+        ],
+        "threshold": 0.9,
+        "pre_delay": 0,
+        "action": "Click",
+        "post_wait_freezes": {
+            "time": 1500,
+            "target": [
+                330,
+                200,
+                620,
+                300
+            ],
+            "rate_limit": 300,
+            "timeout": 4000
+        },
+        "post_delay": 0,
+        "timeout": 4000,
+        "rate_limit": 300,
+        "next": [
+            "Global_DiamondDetail_Expand",
+            "Global_DiamondDetail_Open"
+        ]
+    },
+    "Rec_DiamondPopup_Title_Ocr": {
+        "desc": "[识别]钻石弹窗标题，弹窗开着的判据；主界面与箱庭弹出的是同一个弹窗。点 ⊕、点 X 与 py 都借它。",
+        "recognition": "OCR",
+        "roi": [
+            255,
+            182,
+            110,
+            52
+        ],
+        "expected": [
+            "^[钻鑽]石$"
+        ]
+    },
+    "Rec_DiamondPopup_Expand_Tpl": {
+        "desc": "[识别]弹窗「拥有 N 个」右边的 ⊕；位置随数字位数左右移，roi 罩住整行。抽出来是为了让 pc 包换模板与 roi。",
+        "recognition": "TemplateMatch",
+        "roi": [
+            330,
+            234,
+            200,
+            36
+        ],
+        "template": [
+            "Currency/Expand.png"
+        ],
+        "threshold": 0.9
+    },
+    "Global_DiamondDetail_Expand": {
+        "desc": "弹窗开着时点 ⊕ 展开免费 / 付费。点完盯小框区域静止再认；没展开最多再点一次。",
+        "max_hit": 2,
+        "recognition": "And",
+        "all_of": [
+            "Rec_DiamondPopup_Title_Ocr",
+            "Rec_DiamondPopup_Expand_Tpl"
+        ],
+        "box_index": 1,
+        "pre_delay": 0,
+        "action": "Click",
+        "post_wait_freezes": {
+            "time": 500,
+            "target": [
+                270,
+                258,
+                320,
+                112
+            ],
+            "rate_limit": 300,
+            "timeout": 4000
+        },
+        "post_delay": 0,
+        "timeout": 4000,
+        "rate_limit": 300,
+        "next": [
+            "Global_DiamondDetail_Shown",
+            "Global_DiamondDetail_Expand"
+        ]
+    },
+    "Global_DiamondDetail_Shown": {
+        "desc": "「详细拥有量」小框已展开，链到此结束；py 随后读免费 / 付费（Agt_Currency_Diamond_Free_Ocr / _Paid_Ocr）。",
+        "recognition": "OCR",
+        "roi": [
+            272,
+            262,
+            120,
+            40
+        ],
+        "expected": [
+            "[详詳][细細]"
+        ],
+        "pre_delay": 0,
+        "post_delay": 0
+    },
+    "Global_DiamondDetail_Close": {
+        "desc": "弹窗还开着才点右上角 X；点完盯弹窗区域静止，没关上最多再点一次，关上了就认不到、超时退出。弹窗里还有「前往商店」，别点。",
+        "max_hit": 2,
+        "recognition": "And",
+        "all_of": [
+            "Rec_DiamondPopup_Title_Ocr"
+        ],
+        "pre_delay": 0,
+        "action": "Click",
+        "target": [
+            995,
+            175,
+            25,
+            25
+        ],
+        "post_wait_freezes": {
+            "time": 500,
+            "target": [
+                330,
+                200,
+                620,
+                300
+            ],
+            "rate_limit": 300,
+            "timeout": 4000
+        },
+        "post_delay": 0,
+        "timeout": 1500,
+        "rate_limit": 300,
+        "next": [
+            "Global_DiamondDetail_Close"
+        ]
     }
 }

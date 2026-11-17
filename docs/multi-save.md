@@ -36,7 +36,7 @@ APK 使用默认 `0` 号档，不显示多存档设置。宿主原有的持久�
 `assets/interface.json` 里的「启用多存档」挂在 `global_option`，并把号码注入数据节点 `Agt_MultiSave_Inject`。
 VS Code 插件（MaaSupport）把全局选项显示在每个任务里、按任务各存一份，单跑一个任务时可以直接在任务里改号。
 
-`install.py` 发布时把它移进「⚙️ 多存档」任务并去掉注入，所以 MFAA 用户只在这一个任务里看到它。
+发布时 `scripts/release_interface.py`（由 `install.py` 调用）把它移进「⚙️ 多存档」任务并去掉注入，所以 MFAA 用户只在这一个任务里看到它。
 找不到唯一的多存档任务或形态异常时构建直接失败。**判断用户实际看到什么，以 install 产物为准，不要看源文件。**
 
 Agent 按客户端决定来源，不按「哪里有值」：

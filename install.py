@@ -1,8 +1,6 @@
 from pathlib import Path
-from copy import deepcopy
 import shutil
 import sys
-import re
 import os
 
 # 解决 Windows CI 环境下打印 Emoji 报错的问题
@@ -11,179 +9,20 @@ import os
 #     sys.stdout.reconfigure(encoding='utf-8')
 #     sys.stderr.reconfigure(encoding='utf-8')
 
-try:
-    import jsonc
-except ImportError as e:
-    print("❌ 缺少依赖: json-with-comments")
-    print("请运行以下命令安装:")
-    print("  pip install json-with-comments")
-    print("或")
-    print("  pip install -r requirements.txt")
-    sys.exit(1)
-
 from configure import configure_ocr_model
 
 working_dir = Path(__file__).parent
 install_path = working_dir / Path("install")
 
-# ── pretask 的启动路径 ────────────────────────────────────────────────────────
-# 协议规定 pretask 的 CWD 是 interface.json 所在目录，即安装根
-# （deps/tools/interface.schema.json 的 pretaskConfig.exec）。但 MFAA v2.15.2 至少有
-# 一条代码路径用的是 resource/base：线上实测中，点「刷新连接目标」时两级上跳能跑通并
-# 写出 pc_bootstrap.log，而点「开始任务」时一行日志都没有。一个相对路径不可能同时满足
-# 两个 CWD，这里必须选一个锚点——默认沿用唯一已知可用的那个，不拿「协议正确」去换掉它。
-# 切换只需改这一个常量。
-PRETASK_ANCHOR = "base"  # "base" = resource/base（实测可用）；"root" = 安装根（协议正确）
-PRETASK_EXEC = {"base": "../../python/python.exe", "root": "./python/python.exe"}[PRETASK_ANCHOR]
-# 脚本路径反过来可以做到与 CWD 无关：CreateProcess 一定把 exec 解析成绝对路径，于是
-# sys.executable 必然是 <安装根>/python/python.exe，往上两级就是安装根。这样即便 CWD
-# 与 exec 的解析锚点不一致（上面那两条路径的差异），脚本也一定找得到。
-PRETASK_LAUNCH = (
-    "import os,runpy,sys;d=os.path.dirname;"
-    "r=d(d(os.path.realpath(sys.executable)));"
-    "runpy.run_path(os.path.join(r,'agent','pc_bootstrap.py'),run_name='__main__')"
-)
+# 发布 interface.json 的全部改写都在 scripts/release_interface.py，本文件只拷文件、调用它一次。
+sys.path.insert(0, str(working_dir / "scripts"))
+import release_interface  # noqa: E402
+
 version = len(sys.argv) > 1 and sys.argv[1] or "v0.0.1"
 target_os = len(sys.argv) > 2 and sys.argv[2] or "win"
 # 确保这里能接收到 CI 传进来的版本号，默认为 0.0.0
 maa_ver = len(sys.argv) > 3 and sys.argv[3] or "0.0.0"
 
-
-# The source keeps the multi-save switch in global_option: VS Code MaaSupport stores global
-# values per task, so a single task run can pick its account, injected into the Agt_ node.
-# MFAA shares global values across instances, so releases move the switch into the
-# multi-save task (saved per instance) and drop the injection; the agent reads MFAA's file.
-MULTI_SAVE_ENTRY = "Env_MultiSave_Config"
-MULTI_SAVE_SWITCH = "启用多存档"
-MULTI_SAVE_OPTIONS = (MULTI_SAVE_SWITCH, "存档名称")
-MULTI_SAVE_INJECT_NODE = "Agt_MultiSave_Inject"
-
-
-def relocate_multi_save_switch(interface):
-    """Move the global multi-save switch into its task, in place; release shapes pass unchanged."""
-    tasks = [task for task in interface.get("task", []) if task.get("entry") == MULTI_SAVE_ENTRY]
-    in_global = MULTI_SAVE_SWITCH in interface.get("global_option", [])
-    if not tasks and not in_global:
-        return
-    if len(tasks) != 1:
-        raise ValueError(f"Expected exactly one {MULTI_SAVE_ENTRY} task, found {len(tasks)}")
-    task = tasks[0]
-    if in_global:
-        if task.get("option"):
-            raise ValueError("The source multi-save task must not declare its own options")
-        interface["global_option"] = [name for name in interface["global_option"] if name != MULTI_SAVE_SWITCH]
-        task["option"] = [MULTI_SAVE_SWITCH]
-    elif task.get("option") != [MULTI_SAVE_SWITCH]:
-        raise ValueError(f"The multi-save task must carry only {MULTI_SAVE_SWITCH!r}")
-    for name in MULTI_SAVE_OPTIONS:
-        option = interface.get("option", {}).get(name)
-        if option is None:
-            raise ValueError(f"Missing multi-save option {name!r}")
-        for holder in (option, *option.get("cases", [])):
-            override = holder.get("pipeline_override")
-            if isinstance(override, dict):
-                override.pop(MULTI_SAVE_INJECT_NODE, None)
-                if not override:
-                    del holder["pipeline_override"]
-
-
-# The source keeps the PC window options in global_option for VS Code MaaSupport. MFAA keeps one
-# global value per instance whatever its controller, so releases move each option into the Win32
-# controllers it names: MFAA then saves a value per controller and merges it into every task, and
-# the startup sink re-reads it at each task start — a task-level option would reach only its task.
-PC_WINDOW_OPTIONS = ("PC窗口分辨率", "PC启动最小化")
-
-
-def relocate_pc_window_options(interface):
-    """Move the PC window options from global_option into their controllers, in place."""
-    controllers = {item.get("name"): item for item in interface.get("controller", [])}
-    for name in PC_WINDOW_OPTIONS:
-        option = interface.get("option", {}).get(name)
-        if option is None:
-            if name in interface.get("global_option", []):
-                raise ValueError(f"Missing PC window option {name!r}")
-            continue
-        owners = option.get("controller") or []
-        if not owners:
-            raise ValueError(f"PC window option {name!r} must name its controllers")
-        lists = []
-        for owner in owners:
-            controller = controllers.get(owner)
-            if controller is None or controller.get("type") != "Win32":
-                raise ValueError(f"PC window option {name!r} names a non-Win32 controller {owner!r}")
-            lists.append(controller.setdefault("option", []))
-        if name in interface.get("global_option", []):
-            interface["global_option"] = [item for item in interface["global_option"] if item != name]
-            for listed in lists:
-                if name not in listed:
-                    listed.append(name)
-        elif not all(name in listed for listed in lists):
-            raise ValueError(f"PC window option {name!r} is neither global nor on all its controllers")
-
-
-def prepare_interface_for_target(interface, target_os):
-    """Return a target-specific interface copy without mutating the source object."""
-    result = deepcopy(interface)
-    relocate_multi_save_switch(result)
-    relocate_pc_window_options(result)
-    if not str(target_os).lower().startswith("android"):
-        return result
-
-    controllers = result.get("controller") or []
-    adb = next(
-        (item for item in controllers if item.get("type") == "Adb"),
-        None,
-    )
-    if adb is None:
-        raise ValueError("Android target requires a controller with type=Adb")
-    adb_name = adb.get("name")
-    if not adb_name:
-        raise ValueError("Android Adb controller requires a name")
-    result["controller"] = [adb]
-    if "pretask" in result:
-        result["pretask"] = [
-            task for task in result["pretask"]
-            if not task.get("controller") or adb_name in task["controller"]
-        ]
-
-    resources = []
-    for resource in result.get("resource") or []:
-        allowed = resource.get("controller")
-        if not allowed or adb_name in allowed:
-            resources.append(resource)
-    if not resources:
-        raise ValueError("Android target has no resource compatible with the Adb controller")
-    result["resource"] = resources
-    # Android runs base plus a minimal native-controller overlay, in that order.
-    native_layer = "./resource/android_native"
-    for resource in resources:
-        # setdefault would happily build a resource whose only layer is the overlay —
-        # a pack with no base under it loads, and then silently lacks every node.
-        paths = resource.get("path")
-        if not paths:
-            raise ValueError(f"Android resource {resource.get('name')!r} has no base layer to overlay")
-        if native_layer not in paths:
-            paths.append(native_layer)
-        if resource.get("name") == "ADB":
-            resource["label"] = "安卓原生机"
-    # Keep the normal task entries, but omit tasks for other controllers.
-    tasks = result.get("task", [])
-    result["task"] = [task for task in tasks
-                      if task.get("entry") != "Env_MultiSave_Config"
-                      and (not task.get("controller") or adb_name in task["controller"])]
-    # The APK has one local account; no MFAA instance settings or account override.
-    account_options = {"启用多存档", "存档名称"}
-    result["global_option"] = [name for name in result.get("global_option", [])
-                               if name not in account_options]
-    for name in account_options:
-        result.get("option", {}).pop(name, None)
-    task_names = {task["name"] for task in result["task"]}
-    for preset in result.get("preset", []):
-        preset["task"] = [task for task in preset.get("task", []) if task.get("name") in task_names]
-    # Left here the RID would reach both Android identities; android_build.py pins it
-    # in the PI profile for the released identity only.
-    result.pop("mirrorchyan_rid", None)
-    return result
 
 # def install_deps():
 #     if not (working_dir / "deps" / "bin").exists():
@@ -195,7 +34,7 @@ def prepare_interface_for_target(interface, target_os):
 
 def copy_resources_for_target(source, destination, target_os):
     """Copy resource packs, excluding other platforms from Android output."""
-    android = str(target_os).lower().startswith("android")
+    android = release_interface.release_target(target_os) == "android"
     # Announcement is shared documentation, not a platform resource pack.
     allowed = {"base", "android_native", "Announcement"}
 
@@ -223,7 +62,7 @@ def copy_resources_for_target(source, destination, target_os):
 def install_client_config():
     """Ship first-launch desktop defaults without packaging an active user config."""
     template = working_dir / "assets" / "config.template.json"
-    if str(target_os).lower().startswith("android") or not template.is_file():
+    if release_interface.release_target(target_os) == "android" or not template.is_file():
         return
     config_dir = install_path / "config"
     config_dir.mkdir(parents=True, exist_ok=True)
@@ -245,38 +84,6 @@ def install_resource():
         shutil.copy2(layout_src, install_path / "resource" / "mfa_layout.json")
     # ================= [预配置写入结束] =================
 
-    # 复制并更新 interface.json
-    shutil.copy2(
-        working_dir / "assets" / "interface.json",
-        install_path,
-    )
-
-    with open(install_path / "interface.json", "r", encoding="utf-8") as f:
-        interface = jsonc.load(f)
-
-    interface = prepare_interface_for_target(interface, target_os)
-    
-    # 1. 更新根版本字段（保持 CI 原始格式）
-    interface["version"] = version
-    
-    # 2. 动态更新 title 中的版本号
-    if "title" in interface:
-        # 匹配 "MFABD2)" 后到 " | 游戏版本" 前的所有内容
-        pattern = r"(?<=MFABD2\))(.*?)(?=\s*\|\s*游戏版本：)"
-        
-        # 使用原始版本号，不修改格式
-        display_version = f"{version} "
-        
-        # 执行替换
-        new_title = re.sub(
-            pattern, 
-            display_version,
-            interface["title"]
-        )
-        interface["title"] = new_title
-
-    with open(install_path / "interface.json", "w", encoding="utf-8") as f:
-        jsonc.dump(interface, f, ensure_ascii=False, indent=4)
 
 def install_chores():
     # 1. 基础文件复制 (保持不变)
@@ -287,7 +94,7 @@ def install_chores():
     shutil.copy2(working_dir / "TRADEMARKS.md", install_path)
     
     # 2. Mac 专属脚本处理
-    if "mac" in target_os or "osx" in target_os:
+    if release_interface.release_target(target_os) == "macos":
         script_src_dir = working_dir / "release" / "mac"
         
         # 1. 处理 AKeySetup (需注入版本号)
@@ -347,123 +154,22 @@ def install_agent(target_os):
         sys.exit(1)
     shutil.copytree(agent_src, agent_dst, dirs_exist_ok=True)
 
-    # 2. 修改 interface.json 注入 Agent 配置
-    interface_json_path = install_path / "interface.json"
-    
+
+def install_interface():
+    """发布 interface.json 只在这里生成一次：资源、杂项与 agent/ 都已就位之后。"""
     try:
-        with open(interface_json_path, "r", encoding="utf-8") as f:
-            interface = jsonc.load(f)
+        release_interface.install(install_path, target_os, version, working_dir / "assets" / "interface.json")
+    except Exception as error:
+        # 读写失败时绝不能带着仓库版 interface 出包（child_exec 指向开发机 .venv），
+        # 所有平台的 Agent 都会起不来，而后续没有任何一步会发现。
+        print(f"::error::生成发布 interface.json 失败: {error}")
+        raise
 
-        # 确保 agent 字段存在
-        if "agent" not in interface:
-            interface["agent"] = {}
-
-        win32_names = {
-            controller["name"] for controller in interface.get("controller", [])
-            if controller.get("type") == "Win32" and controller.get("name")
-        }
-        if not any(target_os.startswith(p) for p in ["win", "windows"]) and "pretask" in interface:
-            interface["pretask"] = [
-                pretask for pretask in interface["pretask"]
-                if not pretask.get("controller") or not set(pretask["controller"]).issubset(win32_names)
-            ]
-
-        # ==================== [核心路径配置] ====================
-        
-        # 1. Windows: 嵌入式 Python
-        if any(target_os.startswith(p) for p in ["win", "windows"]):
-            interface["agent"]["child_exec"] = r"{PROJECT_DIR}/python/python.exe"
-            # -s：嵌入式 Python 的 ._pth 开着 import site，用户目录
-            # %APPDATA%\Python\Python310\site-packages 会排在包内 site-packages 之前。
-            # 用户自己 pip install --user 过 maafw/numpy 时，Agent 会静默用上那一份。
-            interface["agent"]["child_args"] = ["-u", "-s", "-X", "utf8=1", r"{PROJECT_DIR}/agent/main.py"]
-            # pretask 的 exec/args 都不做 {PROJECT_DIR} 占位符展开（协议未定义该机制）。
-            # 开发时 args 里写的是脚本相对路径；发布时换成 -c 载荷，让脚本自己从
-            # sys.executable 反推安装根，不再依赖 CWD。理由见顶部 PRETASK_* 常量。
-            for pretask in interface.get("pretask", []):
-                args = pretask.get("args", [])
-                script_indices = [
-                    index for index, arg in enumerate(args)
-                    if Path(arg.replace("\\", "/")).name == "pc_bootstrap.py"
-                ]
-                if script_indices:
-                    pretask["exec"] = PRETASK_EXEC
-                    # 倒序替换：一项换两项会移动后面的下标。
-                    for index in reversed(script_indices):
-                        args[index:index + 1] = ["-c", PRETASK_LAUNCH]
-        
-        # 2. macOS: 智能判断 (有嵌入用嵌入，没嵌入用系统)
-        elif any(target_os.startswith(p) for p in ["macos", "darwin", "osx"]):
-            # 检查是否有 python/bin/python3
-            embedded_python = install_path / "python" / "bin" / "python3"
-            
-            if embedded_python.exists():
-                print("[macOS] 检测到便携版 Python，已启用独立环境模式。")
-                # 注意：MaaFramework 在 Mac 下解析 {PROJECT_DIR} 后路径拼接要准确
-                # 这里的路径不需要 .exe
-                interface["agent"]["child_exec"] = r"{PROJECT_DIR}/python/bin/python3"
-            else:
-                print("[macOS] 未检测到便携版 Python，回退到系统 python3。")
-                interface["agent"]["child_exec"] = "python3"
-            
-            # Mac 通常不需要 -X utf8=1
-            interface["agent"]["child_args"] = ["-u", r"{PROJECT_DIR}/agent/main.py"]
-        
-        # 3. Linux/Android
-        else:
-            interface["agent"]["child_exec"] = "python3"
-            interface["agent"]["child_args"] = ["-u", r"{PROJECT_DIR}/agent/main.py"]
-
-        with open(interface_json_path, "w", encoding="utf-8") as f:
-            jsonc.dump(interface, f, ensure_ascii=False, indent=4)
-
-    except Exception as e:
-        # 这里曾经只 print 不退出：一旦读写失败，CI 照常打包上传，
-        # 产物里留着仓库版 child_exec（指向开发机 .venv），所有平台的 Agent 都起不来，
-        # 而后续没有任何一步会发现。构建必须在此中止。
-        print(f"::error::更新 interface.json 失败: {e}")
-        sys.exit(1)
-
-    # 回读校验：确认写进去的确实是本平台的配置，而不是仓库里那份开发用路径。
-    with open(interface_json_path, "r", encoding="utf-8") as f:
-        written_interface = jsonc.load(f)
-    written = written_interface.get("agent", {}).get("child_exec", "")
-    if written != interface["agent"]["child_exec"]:
-        print(f"::error::child_exec 回读不符: 期望 {interface['agent']['child_exec']}，实得 {written}")
-        sys.exit(1)
-    if ".venv" in written:
-        print(f"::error::child_exec 仍指向开发环境虚拟环境: {written}")
-        sys.exit(1)
-    if written_interface.get("pretask") != interface.get("pretask"):
-        print("::error::pretask 回读不符: 写入后的内容与本次配置不一致")
-        sys.exit(1)
-    for pretask in written_interface.get("pretask", []):
-        for value in [pretask.get("exec", ""), *pretask.get("args", [])]:
-            if ".venv" in value.lower():
-                print(f"::error::pretask {pretask.get('name', '<unnamed>')!r} 仍指向开发环境虚拟环境: {value}")
-                sys.exit(1)
-
-    # pretask 路径存在性：悬空的 exec 会让 pretask 静默不执行——上层软件不报错，
-    # 运行日志里连一条警告都没有。这正是线上踩过的坑，必须在构建期就发现。
-    anchor = install_path if PRETASK_ANCHOR == "root" else install_path / "resource" / "base"
-    for pretask in written_interface.get("pretask", []):
-        if "pc_bootstrap.py" not in "".join(pretask.get("args", [])):
-            continue
-        if not (install_path / "agent" / "pc_bootstrap.py").is_file():
-            print("::error::install/agent/pc_bootstrap.py 缺失，pretask 必然起不来")
-            sys.exit(1)
-        resolved = (anchor / pretask.get("exec", "")).resolve()
-        if not (install_path / "python").is_dir():
-            # 本地手动出包时还没解开嵌入式解释器，只提示不中止；CI 里它总是先就绪。
-            print(f"⚠️ 跳过 pretask exec 存在性检查（{install_path / 'python'} 尚未就绪）：{resolved}")
-        elif not resolved.is_file():
-            print(f"::error::pretask exec 在 {PRETASK_ANCHOR} 锚点下不存在: {resolved}")
-            sys.exit(1)
-    print(f"✅ Agent 配置更新完成: {written}")
 
 if __name__ == "__main__":
     # install_deps()
     install_resource()
     install_chores()
     install_agent(target_os)
+    install_interface()
     print(f"Install to {install_path} successfully.")

@@ -12,6 +12,7 @@ from unittest.mock import patch
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "agent"))
 
+import action.arbitrage_flow as flow
 import action.arbitrage_result as ar
 from utils import name_i18n
 
@@ -374,6 +375,38 @@ class PriceListSwipeTests(unittest.TestCase):
         self.assertEqual(count, 0)
         self.assertEqual(scan["termination_reason"], "swipe_not_started")
         self.assertFalse(scan["full_list_complete"])
+
+
+class MarketEnsureDayTests(unittest.TestCase):
+    """共享行情按价目表日复用；扫描跨过换日时不把它当作新一天的行情。"""
+
+    def setUp(self):
+        self.scan = SimpleNamespace(status=SimpleNamespace(succeeded=True),
+                                    nodes=[SimpleNamespace(name="Arbitrage_PriceList_Egress")])
+        local = SimpleNamespace(set_anchor=lambda *a: True, run_task=lambda name: self.scan)
+        self.context = SimpleNamespace(clone=lambda: local)
+        self.mocks = [patch.object(flow, "sync_from_context", return_value=True),
+                      patch.object(flow, "ensure_shop"),
+                      patch.object(flow.mfaalog, "info"),
+                      patch.object(flow.mfaalog, "error")]
+        for mock in self.mocks:
+            mock.start()
+
+    def tearDown(self):
+        for mock in reversed(self.mocks):
+            mock.stop()
+
+    def test_reuses_only_the_current_market_day(self):
+        with patch.object(flow.store, "market_day", return_value="2026-11-08"), \
+                patch.object(flow.store, "get_market_snapshot", return_value={"complete": True}) as get:
+            self.assertTrue(flow.ArbitrageMarketEnsure().run(self.context, None))
+        get.assert_called_once_with("2026-11-08")
+
+    def test_scan_crossing_market_day_is_rejected(self):
+        with patch.object(flow.store, "market_day", side_effect=["2026-11-07", "2026-11-08"]), \
+                patch.object(flow.store, "get_market_snapshot", side_effect=[None, {"complete": True}]):
+            self.assertFalse(flow.ArbitrageMarketEnsure().run(self.context, None))
+        self.assertIn("换日", flow.mfaalog.error.call_args.args[0])
 
 
 if __name__ == "__main__":
