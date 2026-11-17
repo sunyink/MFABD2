@@ -216,61 +216,6 @@ def _save_inventory(data: dict, names=(), *, force=False) -> bool:
     return commit_inventory(data, inventory, PersistentStore, force=force)
 
 
-def save_possession_snapshot(scan: dict) -> bool:
-    """记录价目表证明存在的物品；该页面没有数量，绝不补零或抹掉精确数量。"""
-    observed_at = scan.get("observed_at") or utc_now()
-    items = _normalized_market_items(scan.get("items") or [])
-    with _LOCK:
-        data = PersistentStore.load()
-        inventory = _inventory(data)
-        current = inventory["items"]
-        for item in items:
-            if not item.get("name_confirmed", True):
-                continue
-            fact = _dict_child(current, item["name"])
-            fact["present"] = True
-            fact["presence_observed_at"] = observed_at
-            fact["presence_source"] = "sell_price_list"
-        item_names = [item["name"] for item in items if item.get("name_confirmed", True)]
-        peak_names = [item["name"] for item in items
-                      if item.get("is_max_price") and item.get("name_confirmed", True)]
-        coverage = {
-            "observed_at": observed_at,
-            "complete": bool(scan.get("complete")),
-            "sale_candidates_complete": bool(scan.get(
-                "sale_candidates_complete", scan.get("complete")
-            )),
-            "full_list_complete": bool(scan.get("full_list_complete", False)),
-            "cartridges_complete": bool(scan.get("cartridges_complete", False)),
-            "unconfirmed_cartridges": list(scan.get("unconfirmed_cartridges") or []),
-            "names_complete": bool(scan.get("names_complete", True)),
-            "prices_complete": bool(scan.get("prices_complete", True)),
-            "unconfirmed_names": list(scan.get("unconfirmed_names") or []),
-            "unconfirmed_prices": list(scan.get("unconfirmed_prices") or []),
-            "termination_reason": scan.get("termination_reason", "unknown"),
-            "pages_scanned": int(scan.get("pages_scanned", 0)),
-            "target_rate_floor": scan.get("target_rate_floor"),
-            "lowest_observed_rate": scan.get("lowest_observed_rate"),
-            "rate_order_safe": scan.get("rate_order_safe"),
-            "item_names": item_names,
-            "peak_item_names": peak_names,
-        }
-        _dict_child(inventory, "latest")["possession"] = coverage
-        inventory["events"].append({
-            "kind": "possession_scan",
-            "observed_at": observed_at,
-            "complete": coverage["complete"],
-            "sale_candidates_complete": coverage["sale_candidates_complete"],
-            "full_list_complete": coverage["full_list_complete"],
-            "termination_reason": coverage["termination_reason"],
-            "pages_scanned": coverage["pages_scanned"],
-            "target_rate_floor": coverage["target_rate_floor"],
-            "item_count": len(item_names),
-            "peak_item_count": len(peak_names),
-        })
-        return _save_inventory(data, item_names)
-
-
 def save_cooking_stock_observation(record: dict) -> bool:
     """保存料理菜单业务状态；OCR 候选等排错明细由识别 details 承担。"""
     observed_at = record.get("observed_at") or utc_now()

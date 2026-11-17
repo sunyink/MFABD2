@@ -431,7 +431,7 @@ class ShopAnchorLifetimeTests(unittest.TestCase):
         return NS(custom_action_param=json.dumps({"mode": mode, "sale_scope": scope}))
 
     def test_each_sale_stage_overwrites_at_start_and_clears_after_whole_run(self):
-        for mode, scope in (("preview_possess", "recipes"), ("sell", "recipes"), ("sell", "materials")):
+        for mode, scope in (("sell", "recipes"), ("sell", "materials")):
             with self.subTest(mode=mode, scope=scope):
                 self.context.set_anchor(self.anchor, "Arbitrage_Merchant_Entry")
 

@@ -130,43 +130,6 @@ class ArbitrageStoreTests(unittest.TestCase):
         self.assertEqual(row["name"], "萝卜缨")
         self.assertEqual(row["raw_name"], "蘿萄嬰")
 
-    def test_unknown_name_does_not_create_an_inventory_item(self):
-        scan = self.scan(name="未确认错字")
-        scan["items"][0]["name_confirmed"] = False
-        scan.update(names_complete=False, unconfirmed_names=["未确认错字"])
-        store.save_possession_snapshot(scan)
-        inventory = MemoryAccountStore.data["arbitrage"]["inventory"]
-        self.assertNotIn("未确认错字", inventory["items"])
-        self.assertEqual(inventory["latest"]["possession"]["unconfirmed_names"], ["未确认错字"])
-
-    def test_possession_observation_never_invents_or_erases_quantity(self):
-        MemoryAccountStore.data = {
-            "Pack_01@g_weekly": "2026-09-01 08:00:00",
-            "arbitrage": {"inventory": {"items": {
-                "烤蜂蜜苹果": {"quantity": 7, "quantity_status": "known"},
-            }, "observations": [{"kind": "legacy"}]}},
-        }
-        scan = self.scan()
-        scan.update({
-            "sale_candidates_complete": True,
-            "full_list_complete": False,
-            "target_rate_floor": 120,
-            "lowest_observed_rate": 118,
-            "rate_order_safe": True,
-        })
-        self.assertTrue(store.save_possession_snapshot(scan))
-        item = MemoryAccountStore.data["arbitrage"]["inventory"]["items"]["烤蜂蜜苹果"]
-        self.assertEqual(item["quantity"], 7)
-        self.assertTrue(item["present"])
-        self.assertEqual(MemoryAccountStore.data["Pack_01@g_weekly"], "2026-09-01 08:00:00")
-        inventory = MemoryAccountStore.data["arbitrage"]["inventory"]
-        latest = inventory["latest"]["possession"]
-        self.assertEqual(latest["item_names"], ["烤蜂蜜苹果"])
-        self.assertNotIn("items", latest)
-        self.assertEqual(latest["target_rate_floor"], 120)
-        self.assertEqual(inventory["observations"], [{"kind": "legacy"}])
-        self.assertEqual(inventory["events"][-1]["kind"], "possession_scan")
-
     def test_partial_cooking_observation_updates_only_readable_slots(self):
         record = {
             "recipe": "酱炒牛排",

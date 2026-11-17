@@ -1,9 +1,10 @@
-"""启动变现预览模式回归检查；不连接游戏、不读写真实存档。"""
+"""价目表扫描与 ① 开局出售的回归检查；不连接游戏、不读写真实存档。"""
 
 import json
 import re
 import sys
 import unittest
+from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -61,6 +62,16 @@ def item(name, is_max=True, cart="剧情游戏卡17", current_rate=120):
         "alt_cartridge": "",
         "current_rate": current_rate,
     }
+
+
+SINCE = datetime(2026, 11, 16, 9, 0, tzinfo=timezone.utc)
+
+
+def stock(quantity, minutes=5):
+    """一条本轮盘点读到的库存记录（读到时刻在 SINCE 之后 minutes 分钟）。"""
+    seen = SINCE.replace(minute=minutes).isoformat()
+    return {"quantity": quantity, "quantity_status": "known", "quantity_observed_at": seen,
+            "quantity_source": "bag_absent" if quantity == 0 else "bag_detail"}
 
 
 class ArbitragePreviewTests(unittest.TestCase):
@@ -123,116 +134,52 @@ class ArbitragePreviewTests(unittest.TestCase):
         save.assert_not_called()
         self.assertEqual(context.calls, [])
 
-    def test_preview_possess_records_all_peak_items_but_sells_only_recipe(self):
+    def presell(self, market, inventory, trusted=True):
+        """按 ① 节点自己的参数跑出售主控；派发本身被替换，只看去了哪些柜台。"""
         context = Context()
         controller = ar.ArbitrageSellController()
-        controller._parse_current_page = lambda ctx: [
-            {**item("烤蜂蜜苹果", current_rate=118), "raw_name": "烤蜂蜜苹杲", "name_confirmed": True},
-            item("蜂蜜", cart="故事游戏卡12", current_rate=118),
-            item("盐", False, current_rate=118),
-        ]
-        saved = []
-        market = {"complete": True, "items": [
-            item("烤蜂蜜苹果", current_rate=118),
-        ]}
+        controller._parse_current_page = lambda ctx: self.fail("① 不再扫描价目表")
+        params = json.dumps(PIPELINE["Arbitrage_PreSell_Run"]["custom_action_param"], ensure_ascii=False)
+        since = SINCE if trusted else None
         with patch.object(ar, "get_market_snapshot", return_value=market), \
-                patch.object(ar, "save_possession_snapshot", side_effect=lambda scan: saved.append(scan) or True), \
+                patch.object(ar, "trust_since", return_value=since), \
+                patch.object(ar, "get_inventory_items", return_value=inventory), \
                 patch.object(ar, "execute_sale_item", return_value={
                     "status": "confirmed", "actual_quantity": 10, "page_ok": True}) as execute:
-            self.assertTrue(controller.run(context, Argv('{"mode":"preview_possess"}')))
-        self.assertEqual([entry["name"] for entry in saved[0]["items"]], ["烤蜂蜜苹果", "蜂蜜", "盐"])
+            completed = controller.run(context, Argv(params))
+        return completed, execute, context
+
+    def test_presell_takes_prices_from_market_and_skips_recipes_known_empty(self):
+        market = {"complete": True, "items": [
+            item("烤蜂蜜苹果", current_rate=118),
+            item("蘑菇汤"),
+            item("蜂蜜", cart="故事游戏卡12"),
+            item("盐", False),
+        ]}
+        inventory = {"蘑菇汤": stock(0), "烤蜂蜜苹果": stock(1960)}
+        completed, execute, context = self.presell(market, inventory)
+        self.assertTrue(completed)
         execute.assert_called_once()
         self.assertEqual(execute.call_args.args[:2], (context, "烤蜂蜜苹果"))
         override = execute.call_args.args[2]
-        self.assertEqual(override["Agt_<Sell_Item>_OcrScore"]["custom_recognition_param"]["item_name"], "烤蜂蜜苹果")
         self.assertEqual(override["Arbitrage_Sell_Item_Price_MaxCheck"]["expected"], "118%")
         self.assertEqual(execute.call_args.kwargs, {"reserve": 0})
+        self.assertEqual(context.anchors["Replenish_ShopEntry"], "")
 
-    def test_possession_plan_uses_lowest_peak_recipe_rate(self):
-        recipes = {"蘑菇汤", "街头烤鸡肉串"}
-        snapshot = {
-            "complete": True,
-            "items": [
-                item("蘑菇汤", current_rate=118),
-                item("街头烤鸡肉串", current_rate=120),
-                item("胡椒", current_rate=117),
-                item("酱炒牛排", False, current_rate=120),
-            ],
-        }
-        plan = ar._possession_scan_plan(snapshot, recipes)
-        self.assertTrue(plan["usable"])
-        self.assertFalse(plan["skip"])
-        self.assertEqual(plan["target_rate_floor"], 118)
-        self.assertEqual(plan["target_names"], ["蘑菇汤", "街头烤鸡肉串"])
-        snapshot["items"][0]["current_rate"] = None
-        self.assertFalse(ar._possession_scan_plan(snapshot, recipes)["usable"])
+    def test_presell_visits_every_peak_recipe_when_no_record_is_trusted(self):
+        market = {"complete": True, "items": [item("烤蜂蜜苹果"), item("蘑菇汤")]}
+        completed, execute, _ = self.presell(market, {"蘑菇汤": stock(0)}, trusted=False)
+        self.assertTrue(completed)
+        self.assertEqual([call.args[1] for call in execute.call_args_list], ["烤蜂蜜苹果", "蘑菇汤"])
 
-    def test_possession_plan_falls_back_when_peak_name_unconfirmed(self):
-        recipes = {"蘑菇汤"}
-        unknown = {**item("蘑菇渴", current_rate=120), "name_confirmed": False}
-        # 唯一的峰值行名字未确认：不能当作"没有峰值料理"而跳过持有物扫描。
-        plan = ar._possession_scan_plan({"complete": True, "items": [unknown]}, recipes)
-        self.assertFalse(plan["usable"])
-        self.assertFalse(plan["skip"])
-        # 同页还有已确认的峰值料理时，同样退回全量扫描，不拿部分目标收窄范围。
-        plan = ar._possession_scan_plan(
-            {"complete": True, "items": [item("蘑菇汤", current_rate=118), unknown]}, recipes)
-        self.assertFalse(plan["usable"])
-        # 未确认的只是非峰值行，不影响收窄。
-        unknown["is_max_price"] = False
-        plan = ar._possession_scan_plan({"complete": True, "items": [unknown]}, recipes)
-        self.assertTrue(plan["usable"])
-        self.assertTrue(plan["skip"])
-
-    def test_possession_scan_stops_after_ordered_page_crosses_dynamic_boundary(self):
-        context = Context()
-        controller = ar.ArbitrageSellController()
-        controller._parse_current_page = lambda ctx: [
-            item("炒蘑菇", current_rate=120),
-            item("咖啡豆", current_rate=120),
-            item("鱼子酱罐头", False, current_rate=118),
-        ]
-        scan = controller._scan_price_list(
-            context, max_scan_pages=80, stop_at_non_max=False, stop_below_rate=120
-        )
-        self.assertEqual(scan["termination_reason"], "target_rate_boundary")
-        self.assertTrue(scan["sale_candidates_complete"])
-        self.assertFalse(scan["full_list_complete"])
-        self.assertEqual(scan["pages_scanned"], 1)
-        self.assertEqual(scan["lowest_observed_rate"], 118)
-        self.assertEqual(context.calls, [])
-
-    def test_unreadable_rate_disables_early_stop_and_scans_to_bottom(self):
-        context = Context()
-        controller = ar.ArbitrageSellController()
-        page = [
-            item("炒蘑菇", current_rate=120),
-            item("咖啡豆", current_rate=None),
-            item("鱼子酱罐头", False, current_rate=118),
-        ]
-        controller._parse_current_page = lambda ctx: page
-        scan = controller._scan_price_list(
-            context, max_scan_pages=80, stop_at_non_max=False, stop_below_rate=120
-        )
-        self.assertEqual(scan["termination_reason"], "repeated_page")
-        self.assertTrue(scan["full_list_complete"])
-        self.assertFalse(scan["rate_order_safe"])
-        self.assertEqual([name for name, _ in context.calls], ["Agt_PriceList_Swip"])
-
-    def test_no_peak_recipe_skips_possession_scan(self):
-        context = Context()
-        controller = ar.ArbitrageSellController()
-        controller._parse_current_page = lambda ctx: self.fail("没有峰值料理时不应扫描已有物")
-        market = {"complete": True, "items": [item("胡椒", current_rate=120)]}
-        saved = []
-        with patch.object(ar, "get_market_snapshot", return_value=market), \
-                patch.object(ar, "save_possession_snapshot",
-                             side_effect=lambda scan: saved.append(scan) or True):
-            self.assertTrue(controller.run(context, Argv('{"mode":"preview_possess"}')))
-        self.assertEqual(saved[0]["termination_reason"], "no_peak_recipe")
-        self.assertTrue(saved[0]["sale_candidates_complete"])
-        self.assertEqual(saved[0]["items"], [])
-        self.assertEqual(context.calls, [])
+    def test_presell_without_peak_recipe_or_market_does_not_dispatch(self):
+        completed, execute, _ = self.presell({"complete": True, "items": [item("蜂蜜")]}, {})
+        self.assertTrue(completed)
+        execute.assert_not_called()
+        # 没有今日完整行情：① 不猜，返回失败交给节点默认退栈（跳过 ①，后续阶段照常）。
+        completed, execute, _ = self.presell(None, {})
+        self.assertFalse(completed)
+        execute.assert_not_called()
 
     def test_invalid_mode_fails_closed(self):
         context = Context()
@@ -268,21 +215,39 @@ class ArbitragePreviewTests(unittest.TestCase):
             return modes
 
         self.assertEqual(scan_modes("Arbitrage_GlobalMarket_Entry"), {"preview_all"})
-        self.assertEqual(scan_modes("Arbitrage_PreSell_GlobalMarket_Reset"), {"preview_possess"})
+        self.assertEqual(scan_modes("Arbitrage_PreSell_Entry"), {"sell"})
         self.assertEqual(scan_modes("Arbitrage_SellItem"), {"sell"})
         self.assertEqual(scan_modes("Arbitrage_SellMaterials"), {"sell"})
         self.assertFalse(PIPELINE["Arbitrage_PriceList_Open_Egress"].get("next"))
         for node in PIPELINE.values():
             self.assertNotIn("Arbitrage_Sell_Preview", node.get("anchor", {}))
             self.assertNotIn("[Anchor]Arbitrage_Sell_Preview", node.get("next", []))
-        for name in ("Arbitrage_GlobalMarket_Scan", "Arbitrage_PreSell_Run"):
-            node = PIPELINE[name]
-            self.assertEqual(node["custom_action_param"]["max_scan_pages"], 80)
-            self.assertEqual(node["next"], ["Arbitrage_PriceList_Egress"])
+        scan_node = PIPELINE["Arbitrage_GlobalMarket_Scan"]
+        self.assertEqual(scan_node["custom_action_param"]["max_scan_pages"], 80)
+        self.assertEqual(scan_node["next"], ["Arbitrage_PriceList_Egress"])
+        # ① 与 ④ 同一套出售参数，只差日志里的阶段名；① 失败走默认退栈，不停整个商店。
+        presell, final = PIPELINE["Arbitrage_PreSell_Run"], PIPELINE["Arbitrage_ShopSell_Active"]
+
+        def sale_params(node):
+            return {key: value for key, value in node["custom_action_param"].items() if key != "stage"}
+
+        self.assertEqual(sale_params(presell), sale_params(final))
+        self.assertEqual(presell["next"], final["next"])
+        self.assertNotIn("on_error", presell)
+        self.assertEqual(PIPELINE["Arbitrage_PreSell_Entry"]["anchor"], PIPELINE["Arbitrage_SellItem"]["anchor"])
+        # 行情与出售页都准备好之后才清行情计数，③ 补买计划还要再调一次行情确认。
+        self.assertEqual(PIPELINE["Arbitrage_PreSell_Entry"]["next"], [
+            "[JumpBack]Arbitrage_GlobalMarket_Ensure",
+            "[JumpBack]Arbitrage_Sale_EnsureShop",
+            "Arbitrage_PreSell_GlobalMarket_Reset",
+        ])
+        reset = PIPELINE["Arbitrage_PreSell_GlobalMarket_Reset"]
+        self.assertEqual(reset["custom_action_param"]["node_name"], "Arbitrage_GlobalMarket_Ensure")
+        self.assertEqual(reset["next"], ["Arbitrage_PreSell_Run"])
         self.assertIn("Rec_SliderSwitch_YewOn_Clr",
                       PIPELINE["Arbitrage_PriceList_Owned_Disable"]["all_of"])
-        self.assertIn("Rec_SliderSwitch_GryOff_Clr",
-                      PIPELINE["Arbitrage_PriceList_Owned_Enable"]["all_of"])
+        self.assertNotIn("Arbitrage_PriceList_Owned_Enable", PIPELINE)
+        self.assertNotIn("Arbitrage_PreSell_Prepare", PIPELINE)
         self.assertEqual(PIPELINE["Arbitrage_Sell_Col_Amount"]["roi"], [817, 209, 79, 344])
 
 

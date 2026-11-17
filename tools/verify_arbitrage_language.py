@@ -303,12 +303,11 @@ class LanguageTests(unittest.TestCase):
             row = {**item("烤蜂蜜苹果", cart=source), "alt_cartridge": alternate, "cart_conflict": conflict}
             scan = {"items": [row], "peak_items": [row], "complete": True}
             with patch.object(ar, "sync_from_context", return_value=True), \
-                 patch.object(ar, "get_market_snapshot", return_value=None), \
-                 patch.object(ar, "save_possession_snapshot", return_value=True), \
-                 patch.object(controller, "_scan_price_list", return_value=scan), \
+                 patch.object(ar, "get_market_snapshot", return_value=scan), \
+                 patch.object(ar, "trust_since", return_value=None), \
                  patch.object(ar, "execute_sale_item", return_value={
                      "status": "skipped", "actual_quantity": 0, "page_ok": True}) as execute:
-                self.assertTrue(controller.run(context, Argv('{"mode":"preview_possess"}')))
+                self.assertTrue(controller.run(context, Argv('{"mode":"sell","sale_scope":"recipes"}')))
             self.assertEqual(execute.call_count, calls, (source, alternate))
             if calls:
                 rules = execute.call_args_list[0].args[2]["Arbitrage_Sell_PackShopSwich"]["expected"]
