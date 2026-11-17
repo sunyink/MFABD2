@@ -26,17 +26,38 @@ def _unit(prices, scan, name):
     return row if isinstance(row, dict) and type(row.get("unit")) is int else None
 
 
-def _items(ledger, first, last, close, prices):
-    """逐物品：当天的期初、各列变动、跨区间合并、期末，以及（给了单价时）量价分解。"""
+def _closers(scans) -> list:
+    """每次盘点所在那天由哪次盘点结账：之后第一次落在更晚游戏日的盘点（下标）；还没结账的为 None。"""
+    result, upcoming = [None] * len(scans), None
+    for index in range(len(scans) - 1, -1, -1):
+        if index + 1 < len(scans) and scans[index + 1]["day"] != scans[index]["day"]:
+            upcoming = index + 1
+        result[index] = upcoming
+    return result
+
+
+def _items(ledger, first, last, close, prices, closers):
+    """逐物品：当天的期初、各列变动、跨区间合并、期末，以及（给了单价时）量价分解。
+
+    一笔变化跨过了它开始那天的结账盘点（那一盘没读到它），开始那天在那一盘就定稿了，这一笔不归开始那天，
+    记在补上读数的这天当期初调整（U67-1）：期初取当天第一次读到的数，与上次读数的差单列，不进各列与损益。
+    """
     scans, intervals = ledger["scans"], ledger["intervals"]
+
+    def crossing(piece):
+        closer = closers[piece["from"]]
+        return closer is not None and piece["to"] > closer
+
     rows, unread = [], []
     for name, entry in ledger["items"].items():
         readings = [(index, quantity) for index, quantity in entry["readings"] if first <= index <= last]
         if not readings:
             unread.append(name)
             continue
-        pieces = [piece for piece in entry["pieces"] if first <= piece["from"] <= last]
+        pieces = [piece for piece in entry["pieces"] if first <= piece["from"] <= last and not crossing(piece)]
         opening_at, opening = readings[0]
+        carried = next((piece for piece in entry["pieces"] if piece["to"] == opening_at and piece["from"] < first
+                        and crossing(piece) and piece["delta"]), None)
         closing_at, closing = (pieces[-1]["to"], pieces[-1]["close"]) if pieces else readings[-1]
         group = GROUP_OF.get(entry["category"], "other")
         valued = group in VALUED and prices is not None
@@ -63,10 +84,21 @@ def _items(ledger, first, last, close, prices):
         value = None
         if priced:
             value = {"opening": opening * price_open["unit"], "closing": closing * price["unit"], "flows": flows,
-                     "spans": sum(span["flow"] for span in spans), "reval": reval}
-        elif valued and not opening and not closing and not any(piece["open"] or piece["close"] for piece in pieces):
+                     "spans": sum(span["flow"] for span in spans), "reval": reval, "adjust": 0}
+        elif valued and not opening and not closing and not carried \
+                and not any(piece["open"] or piece["close"] for piece in pieces):
             priced = True   # 一直是 0 的东西没有单价也不碍事：估值就是 0，不必提醒
-            value = {"opening": 0, "closing": 0, "flows": {}, "spans": 0, "reval": 0}
+            value = {"opening": 0, "closing": 0, "flows": {}, "spans": 0, "reval": 0, "adjust": 0}
+        adjust = None
+        if carried is not None:
+            worth, before = None, None
+            if value is not None and price_open is not None:
+                # 期初的估值按调整后的期初；与上次读数那一盘的估值之差就是调整的金额（含两次单价之差）。
+                before = _unit(prices, scans[carried["from"]], name) or price_open
+                worth = value["adjust"] = value["opening"] - carried["open"] * before["unit"]
+            adjust = {"before": carried["open"], "before_at": scans[carried["from"]]["id"],
+                      "before_time": scans[carried["from"]]["at"], "price_before": before, "delta": carried["delta"],
+                      "reason": carried.get("reason"), "missing_at": carried.get("missing_at") or [], "value": worth}
         # 一大笔库存在一段里清零、这一段又没有它的出售或制作记录：多半是盘点漏读，提醒但不改数。
         emptied = next((piece["open"] for piece in pieces
                         if piece["to"] - piece["from"] == 1 and piece["open"] >= SUSPECT_MIN and piece["close"] == 0
@@ -77,7 +109,8 @@ def _items(ledger, first, last, close, prices):
             "scope": entry.get("scope"), "opening": opening, "closing": closing, "total": closing - opening,
             "opening_at": scans[opening_at]["id"], "closing_at": scans[closing_at]["id"],
             "deltas": deltas, "spans": spans, "price": price, "price_open": price_open, "value": value,
-            "unpriced": valued and not priced, "emptied": emptied, "suspect": entry.get("suspect") or []})
+            "unpriced": valued and not priced, "emptied": emptied, "suspect": entry.get("suspect") or [],
+            "adjust": adjust})
     return rows, sorted(unread)
 
 
@@ -290,6 +323,7 @@ def _valuation(items):
                          "closing": sum(value["closing"] for value in priced), "flows": flows,
                          "spans": sum(value["spans"] for value in priced),
                          "reval": sum(value["reval"] for value in priced),
+                         "adjust": sum(value.get("adjust", 0) for value in priced),
                          "unpriced": sorted(item["name"] for item in rows if item["unpriced"])}
     return result
 
@@ -335,7 +369,16 @@ def _statement(items, cols, valuation, shop):
 
     others = {item["name"]: item["total"] for item in items
               if item["group"] == "money" and item["name"] != GOLD and item["total"]}
-    return {"opening": point(gold["opening"] if gold else None, stock_open),
+    opening = point(gold["opening"] if gold else None, stock_open)
+    # 期初调整（U67-1）：上日期末 + 期初调整 = 本日期初；调整不进本日合计。
+    cash_adjust = (gold["adjust"] or {}).get("delta", 0) if gold else 0
+    stock_adjust = None if valuation is None else sum(valuation[group]["adjust"] for group in VALUED)
+    adjustment = carried = None
+    if cash_adjust or stock_adjust:
+        adjustment = point(cash_adjust if gold else None, stock_adjust)
+        carried = point(None if opening["cash"] is None else opening["cash"] - cash_adjust,
+                        None if stock_open is None else stock_open - (stock_adjust or 0))
+    return {"carried": carried, "adjustment": adjustment, "opening": opening,
             "closing": point(gold["closing"] if gold else None, stock_close),
             "rows": rows, "totals": totals, "other_currencies": others}
 
@@ -395,10 +438,16 @@ def _notices(status, first_ever, day_intervals, day_scans, tail, checks, shop, v
                                                      "其间的手动操作与它分不开。"})
         if "partial_scan" in interval["flags"]:
             notices.append({"level": "warn", "text": f"{span} 之间有一次盘点盘到一半就断了，没有当作边界。"})
-    for scan in day_scans:
+    for position, scan in enumerate(day_scans):
         if scan["unknown"]:
+            if status == "final" and position == len(day_scans) - 1:
+                how = "这是结账的那一盘：它们本日的期末取更早的读数，之后补上的差记在补上那天的期初调整。"
+            elif position == 0 and not first_ever:
+                how = "它们本日的期初取当天第一次读到的数，与上日期末的差记为期初调整。"
+            else:
+                how = "它们前后两段合并显示。"
             notices.append({"level": "warn", "text": f"{kst(scan['at'])} 的盘点有 {len(scan['unknown'])} 项没读准："
-                                                     f"{'、'.join(scan['unknown'][:6])}。它们前后两段合并显示。"})
+                                                     f"{'、'.join(scan['unknown'][:6])}。{how}"})
         elif not scan["complete"]:
             notices.append({"level": "warn", "text": f"{kst(scan['at'])} 的盘点没盘完（{scan['termination']}）。"})
     for item in items:
@@ -408,6 +457,11 @@ def _notices(status, first_ever, day_intervals, day_scans, tail, checks, shop, v
         if item["emptied"]:
             notices.append({"level": "warn", "text": f"「{item['name']}」从 {item['emptied']:,} 变成了 0，这一段没有它的出售或制作记录，"
                                                      "可能是盘点漏读；下一次盘点读到它时会自动更正。"})
+    adjusted = [item["name"] for item in items if item["adjust"]]
+    if adjusted:
+        notices.append({"level": "warn", "text": f"{len(adjusted)} 项的本日期初与上日期末对不上（{'、'.join(adjusted[:6])}"
+                                                 + ("等" if len(adjusted) > 6 else "") + "）：上一日结账的那次盘点没读到它们，"
+                                                 "差额见「期初调整」表，不计入本日各列与损益。"})
     if shop and shop["mismatch"]:
         notices.append({"level": "warn", "text": "商店推算失配：" + "、".join(shop["mismatch"][:8]) + "（见表二）。"})
     if valuation is not None:
@@ -446,12 +500,23 @@ def build_report(ledger, *, game_day: str, as_of: str, prices=None, cookbook=Non
         interval["tasks"] = [{**task, "label": (labels or {}).get(task["entry"], task["entry"])} for task in interval["tasks"]]
     scans_by_id = {scan["id"]: scan for scan in scans}
     cols = _columns(day_intervals, scans_by_id)
-    items, unread = _items(ledger, first, last, close, prices)
+    items, unread = _items(ledger, first, last, close, prices, _closers(scans))
     for item in items:   # 该列的区间两头都不扫它的科目 → 「不扫」
         item["gaps"] = [col["key"] for col in cols if item["deltas"].get(col["key"]) is None
                         and item["scope"] not in (None, "$") and item["scope"] not in col["scopes"]]
     changed = [item for item in items if item["total"] or item["spans"]
                or any(value for value in item["deltas"].values())]
+    # 期初调整表：只列期初与上日期末对不上的；货币在前，其余按科目、调整量大小。
+    order = {key: position for position, (key, _) in enumerate(GROUPS)}
+    adjustments = [{"name": item["name"], "group": item["group"], "before": item["adjust"]["before"],
+                    "before_at": item["adjust"]["before_at"], "before_time": item["adjust"]["before_time"],
+                    "price_before": item["adjust"]["price_before"], "delta": item["adjust"]["delta"],
+                    "reason": item["adjust"]["reason"], "value": item["adjust"]["value"], "opening": item["opening"],
+                    "opening_at": item["opening_at"], "opening_time": scans_by_id[item["opening_at"]]["at"],
+                    "price": item["price_open"]}
+                   for item in sorted((item for item in items if item["adjust"]),
+                                      key=lambda item: (order.get(item["group"], len(order)), item["name"] != GOLD,
+                                                        -abs(item["adjust"]["delta"]), item["name"]))]
     names = {item["name"] for item in changed}
     unchanged = [item for item in items if item["name"] not in names]
     valuation = None if prices is None else _valuation(items)
@@ -480,7 +545,8 @@ def build_report(ledger, *, game_day: str, as_of: str, prices=None, cookbook=Non
             "collect_value": None if valuation is None else sum(
                 valuation[group]["flows"].get("collect", 0) for group in VALUED),
             "scans": len(day_scans), "scan_seconds": sum(scan["seconds"] for scan in day_scans),
-            "warnings": sum(notice["level"] != "info" for notice in notices)}
+            "warnings": sum(notice["level"] != "info" for notice in notices),
+            "adjusted": sum(bool(item["adjust"]) for item in items)}
     money = sorted((item for item in items if item["group"] == "money"),
                    key=lambda item: (item["category"] != "currency", item["name"] != GOLD, item["name"]))
     assets = {"currency": [{"name": item["name"], "opening": item["opening"], "closing": item["closing"],
@@ -502,7 +568,7 @@ def build_report(ledger, *, game_day: str, as_of: str, prices=None, cookbook=Non
                                               "absent", "unknown", "complete", "termination")}
                   | {"retried": scan.get("retried", 0)}
                   | {"gold": scan["readings"].get(GOLD)} for scan in day_scans],
-        "segments": day_intervals, "cols": cols, "items": changed,
+        "segments": day_intervals, "cols": cols, "items": changed, "adjustments": adjustments,
         "unchanged": [{"name": item["name"], "group": item["group"], "quantity": item["closing"],
                        "value": item["value"]["closing"] if item["value"] else None} for item in unchanged],
         "unread": unread, "shop": shop, "valuation": valuation, "assets": assets, "statement": statement,
@@ -537,6 +603,8 @@ def summarize(model) -> str:
         top = "，".join(f"{name} +{amount:,}" for name, amount in kpis["collect_top"][:1])
         parts.append(f"吸取 {kpis['collect_items']} 项" + (f"，{top}" if top else ""))
     parts.append(f"盘点 {kpis['scans']} 次 {kpis['scan_seconds'] // 60} 分")
+    if kpis.get("adjusted"):
+        parts.append(f"期初调整 {kpis['adjusted']} 项")
     if kpis["warnings"]:
         parts.append(f"{kpis['warnings']} 条提醒")
     return " · ".join(parts)

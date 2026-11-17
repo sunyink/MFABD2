@@ -15,7 +15,8 @@ from datetime import datetime, timezone
 
 from .ledger_rules import GAP_SECONDS, _connected, game_day
 
-RULE_VERSION = 5   # 3：吸取分卡产出；4：存货没盘全时退出重扫，重扫的读数并进原来那次盘点；5：回读库存确认的出售按报价记金币，取不到记未知
+RULE_VERSION = 6   # 3：吸取分卡产出；4：存货没盘全时退出重扫，重扫的读数并进原来那次盘点；5：回读库存确认的出售按报价记金币，取不到记未知
+                   # 6：跨过开始那天结账盘点的一笔变化，记成补上读数那天的期初调整（inventory_report，U67-1）
 # 顶栏货币在账里的名字 → 货币读数里的字段。
 CURRENCY = (("金币", "gold"), ("钻石", "diamond"), ("钻石（免费）", "diamond_free"),
             ("钻石（付费）", "diamond_paid"), ("天赋神药", "tonic"))

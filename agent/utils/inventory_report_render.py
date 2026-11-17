@@ -15,6 +15,9 @@ KST = timezone(timedelta(hours=9))
 FLAG_LABEL = {"abnormal_end": "未正常结束", "unsettled": "未当场结清", "cross_day": "跨日", "partial_scan": "有一次盘点中断"}
 STATUS_LABEL = {"interim": "期中（未结账）", "final": "期末（已结账）"}
 GROUP_TITLE = {"operating": "经营活动", "valuation": "估值调整", "outside": "未入账"}
+# 期初调整的那一笔跨过的结账盘点为什么没有它的读数（inventory_ledger 物品区间的 reason）。
+ADJUST_REASONS = {"unknown": "没读准它", "unread": "没读到顶栏", "out_of_scope": "不扫这一科目", "missed": "没盘完",
+                  "suspect_zero": "把它判成了 0、前后读数又相同，按漏读处理"}
 BASIS_LABEL = {"counted": "盘点差", "booked": "已记账", "derived": "推算"}
 
 CSS = r"""
@@ -186,7 +189,10 @@ RULES = (
                     "同一天同一类的各段把变化相加成一列。一段里混进了两类任务、或夹着没接记账的任务，整段单列「混合」，不拆。"
                     "任务没有当场结清（收尾的盘点隔了很久才来）时，变化仍记在它那一列，列头注明，其中混有期间外。"),
     ("（七）扫描范围与跨区间合并", "每类任务只盘它会动的科目。某次盘点不盘、或没读准某样东西时，它前后的几段合成一笔，"
-                           "列在「跨区间」一栏并注明原因；当天最后一次读到它的盘点即为它的期末。"),
+                           "列在「跨区间」一栏并注明原因；当天最后一次读到它的盘点即为它的期末。"
+                           "结账的那次盘点没读到某样东西时，上一日已定稿、不再改：这一天的期初取当天第一次读到的数，"
+                           "与上次读数的差单列在「<b>期初调整</b>」表里（平时没有这张表），上日期末 + 期初调整 = 本日期初，"
+                           "不计入本日各列与损益。"),
     ("（八）推算与余额项", "料理制作份数取制作时记下的读数；材料消耗按配方展开。常规采购不逐笔记，是余额项，"
                      "等于盘点净额减去已记账与推算部分；不可购买的材料余额项应为零。推算结果只在报表里，不写回存档。"),
     ("（九）自检", "每张表都核对恒等式，结果列在页末。任何一条不成立时进通知并标红，表照样画出，便于排查。"),
@@ -409,6 +415,33 @@ def _stock_table(model, show):
     return "".join(out)
 
 
+def _adjust_table(model, show):
+    """期初调整表：只在有物品的本日期初与上日期末对不上时出现，只列对不上的那几样（U67-1、U69）。"""
+    rows = model.get("adjustments") or []
+    if not rows:
+        return ""
+    closer = model["scans"][0]
+    out = ["<section><h2>期初调整 <small>本日期初与上日期末对不上的物品</small></h2>",
+           cap(("为什么", f'上一日结账的那次盘点（{esc(show(closer["at"]))}）没读到它们，本日期初取当天第一次读到的数；'
+                          "这段差额分不出发生在哪一天，不计入本日各列与损益"),
+               ("恒等式", "上日期末 + 期初调整 = 本日期初")),
+           '<div class="tw"><table><thead><tr><th class="sticky">物品</th><th class="num">上日期末<span class="sub">上次读到的数</span></th>'
+           '<th class="num">期初调整</th><th class="num">本日期初<span class="sub">当天第一次读到的数</span></th></tr></thead><tbody>']
+    for row in rows:
+        before, unit = _unit(row.get("price_before")), _unit(row.get("price"))
+        change = (f'<span class="q">{fmt(row["delta"], sign=True)}</span><span class="amt">{amount(row["value"], sign=True)}</span>'
+                  if row.get("value") is not None else fmt(row["delta"], sign=True))
+        if None not in (before, unit) and before != unit:   # 金额差里含单价变化，数量减了金额也可能增
+            change += f'<span class="amt">含单价 {before:,} → {unit:,}</span>'
+        why = ADJUST_REASONS.get(row["reason"], "没读到它")
+        out.append(f'<tr><td class="sticky">{esc(row["name"])}</td>'
+                   f'<td class="num">{cell(row["before"], before)}<span class="amt">{esc(show(row["before_time"]))}</span></td>'
+                   f'<td class="num">{change}<span class="amt">结账那一盘{esc(why)}</span></td>'
+                   f'<td class="num"><b>{cell(row["opening"], unit)}</b><span class="amt">{esc(show(row["opening_time"]))}</span></td></tr>')
+    out.append("</tbody></table></div></section>")
+    return "".join(out)
+
+
 def _shop_table(model):
     shop = model["shop"]
     if not shop:
@@ -481,10 +514,18 @@ def _statement_table(model):
     out = ["<section><h2>四、收益与现金流量表 <small>左列口袋里的，中列仓库里按单价折的，右列两者之和</small></h2>",
            cap(("期间", f'{esc(model["game_day"])} 游戏日'), ("单位", "金币，满万以万计（金额表）")),
            '<div class="tw"><table><thead><tr><th class="sticky">项目</th><th class="num">现金<span class="sub">金币</span></th>'
-           '<th class="num">存货估值变动</th><th class="num">损益<span class="sub">= 现金 + 存货</span></th><th>依据</th></tr></thead><tbody>',
-           f'<tr><td class="sticky">期初</td><td class="num">{fmt(statement["opening"]["cash"])}</td>'
-           f'<td class="num">{wan(statement["opening"]["stock"])}</td><td class="num">{wan(statement["opening"]["total"])}</td>'
-           '<td class="note">当天第一次盘点</td></tr>']
+           '<th class="num">存货估值变动</th><th class="num">损益<span class="sub">= 现金 + 存货</span></th><th>依据</th></tr></thead><tbody>']
+    carried, adjustment = statement.get("carried"), statement.get("adjustment")
+    if carried and adjustment:
+        out.append(f'<tr><td class="sticky">上日期末</td><td class="num">{fmt(carried["cash"])}</td>'
+                   f'<td class="num">{wan(carried["stock"])}</td><td class="num">{wan(carried["total"])}</td>'
+                   '<td class="note">各物品上次读到的数</td></tr>'
+                   f'<tr class="sub"><td class="sticky">期初调整</td><td class="num">{fmt(adjustment["cash"], sign=True)}</td>'
+                   f'<td class="num">{amount(adjustment["stock"], sign=True)}</td><td class="num">{amount(adjustment["total"], sign=True)}</td>'
+                   '<td class="note">上一日结账那次盘点没读到的，补上读数后的差；不计入本日合计</td></tr>')
+    out.append(f'<tr><td class="sticky">期初</td><td class="num">{fmt(statement["opening"]["cash"])}</td>'
+               f'<td class="num">{wan(statement["opening"]["stock"])}</td><td class="num">{wan(statement["opening"]["total"])}</td>'
+               f'<td class="note">{"调整后，" if adjustment else ""}当天第一次盘点</td></tr>')
     current = None
     for row in statement["rows"]:
         if row["group"] != current:
@@ -638,7 +679,7 @@ def render_day_html(model) -> str:
     parts.append('<details class="rules"><summary>适用准则 <small>编制基础与统计口径</small></summary><div class="body">'
                  + "".join(f'<div class="rule"><b>{esc(title)}</b><p>{text}</p></div>' for title, text in RULES)
                  + "</div></details>")
-    parts += [_kpis(model), _timeline(model, show), _stock_table(model, show), _shop_table(model),
+    parts += [_kpis(model), _timeline(model, show), _adjust_table(model, show), _stock_table(model, show), _shop_table(model),
               _assets_table(model, show), _statement_table(model), _collect_section(model)]
     parts.append(_details(model, show))
     parts.append('<section><h2>自检</h2><div class="checks">' + "".join(

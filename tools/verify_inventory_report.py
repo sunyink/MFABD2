@@ -444,6 +444,48 @@ class ReportTests(unittest.TestCase):
         self.assertEqual(model["valuation"]["ingredient"]["unpriced"], ["米"])   # 一直是 0 的没有单价也不提醒
         self.assertTrue(all(check["ok"] for check in model["checks"]), model["checks"])
 
+    def test_closing_scan_that_missed_something_adjusts_the_next_opening(self):
+        """U67-1：结账那一盘没读准兽肉、没读到顶栏，次日补上读数时记成期初调整；上一日不动，不进本日各列与损益。"""
+        story = preset_run(Story()).work(0, 兽肉=-30, gold=-5000)        # 结束游戏之后手动玩
+        story.unknown = ("兽肉",)
+        next_morning(story)
+        story.events.pop()                                              # 结账那一盘的货币读数没读到
+        story.task("Mail_HomePage").work(60, 兽肉=10, gold=1000).at("begin", "daily", FULL)
+        ledger = story.ledger()
+        prices = {scan["scan_id"]: {"兽肉": {"unit": 8}, "米": {"unit": 10}, "包饭": {"unit": 7800}}
+                  for scan in ledger["scans"]}
+        prices["scan6"]["兽肉"] = {"unit": 9}
+        before = build_report(ledger, game_day="2026-11-14", as_of=iso(story.now), prices=prices, cookbook=COOKBOOK)
+        meat, gold = item(before, "兽肉"), item(before, "金币")
+        self.assertEqual((meat["closing"], meat["closing_at"], meat["spans"], meat["adjust"]), (1380, "S4", [], None))
+        self.assertEqual((gold["closing"], gold["closing_at"], gold["adjust"]), (1_192_600, "S4", None))
+        self.assertTrue(all(check["ok"] for check in before["checks"]), before["checks"])
+        model = build_report(ledger, game_day="2026-11-15", as_of=iso(story.now), prices=prices, cookbook=COOKBOOK)
+        self.assertEqual([row["name"] for row in model["items"]], [])                 # 当天本身没有变动：进销存表里不列
+        gold, meat = model["adjustments"]                                             # 期初调整表只列对不上的，货币在前
+        self.assertEqual({key: meat[key] for key in ("name", "before", "before_at", "delta", "opening", "opening_at", "reason",
+                                                     "value")},
+                         {"name": "兽肉", "before": 1380, "before_at": "S4", "delta": -20, "opening": 1360, "opening_at": "S6",
+                          "reason": "unknown", "value": 1360 * 9 - 1380 * 8})
+        self.assertEqual((gold["name"], gold["before"], gold["delta"], gold["opening"], gold["reason"]),
+                         ("金币", 1_192_600, -4000, 1_188_600, "unread"))
+        statement = model["statement"]
+        self.assertEqual(statement["adjustment"], {"cash": -4000, "stock": 1360 * 9 - 1380 * 8,
+                                                   "total": -4000 + 1360 * 9 - 1380 * 8})
+        self.assertEqual(statement["carried"]["total"], before["statement"]["closing"]["total"])   # 上日期末 = 上一日表上的期末
+        self.assertEqual(statement["totals"]["cash"], 0)                                          # 调整不进本日合计
+        self.assertTrue(all(check["ok"] for check in model["checks"]), model["checks"])
+        self.assertEqual(model["kpis"]["adjusted"], 2)
+        self.assertIn("期初调整 2 项", model["summary"])
+        self.assertTrue(any("见「期初调整」表" in notice["text"] for notice in model["notices"]))
+        page = render_day_html(model)
+        table = page[page.index("<h2>期初调整"):page.index("<h2>一、进销存表")]
+        self.assertIn("<td class=\"sticky\">兽肉</td>", table)
+        self.assertIn("结账那一盘没读准它", table)
+        self.assertIn("结账那一盘没读到顶栏", table)
+        self.assertNotIn("调整 ", page[page.index("<h2>一、进销存表"):page.index("<h2>三、资产表")])   # 进销存表不再标注
+        self.assertNotIn("<h2>期初调整", render_day_html(before))                                  # 平时没有这张表
+
     def test_first_day_and_tail_are_announced(self):
         story = Story()
         story.task("Daily_HomePage").at("begin", "daily", FULL).work(精炼石=1)
@@ -664,6 +706,39 @@ class OutputTests(unittest.TestCase):
             self.assertEqual(output.generate_reports(store, "42", agent_dir=ROOT / "agent")["days"], ["2026-11-15"])
             everything = output.generate_reports(store, "42", agent_dir=ROOT / "agent", force=True)["days"]
             self.assertEqual(everything, ["2026-11-13", "2026-11-14", "2026-11-15"])
+
+    def test_late_reading_after_settlement_matches_a_forced_rebuild(self):
+        """穿透复核第 1 条：结账那一盘没读到的东西后来补上，运行时随盘随出与强制重算的结果相同，那笔差不会丢。"""
+        story = preset_run(Story())
+        story.unknown = ("精炼石",)
+        next_morning(story)
+        story.work(0, 精炼石=-12)
+        story.task("Mail_HomePage").at("begin", "daily", FULL)
+        for number, event in enumerate(story.events):
+            event["event_id"] = f"e{number}"
+        cut = max(index for index, event in enumerate(story.events) if event.get("scan_id") == "scan5") + 1
+
+        def rows(folder):
+            out = {}
+            for day in ("2026-11-14", "2026-11-15"):
+                model = json.loads((folder / f"{day}.json").read_text(encoding="utf-8"))
+                listed = model["items"] + [{"name": row["name"], "opening": row["quantity"], "closing": row["quantity"]}
+                                           for row in model["unchanged"]]
+                stone = next(row for row in listed if row["name"] == "精炼石")
+                adjust = next((row for row in model["adjustments"] if row["name"] == "精炼石"), None)
+                out[day] = (stone["opening"], stone["closing"], adjust)
+            return out
+
+        with tempfile.TemporaryDirectory() as folder:
+            store = Path(folder)
+            output.generate_reports(store, "42", agent_dir=ROOT / "agent", hot=story.events[:cut])   # 次日第一盘：上一日定稿
+            output.generate_reports(store, "42", agent_dir=ROOT / "agent", hot=story.events)          # 补上读数
+            running = rows(output.report_dir(store, "42"))
+            output.generate_reports(store, "42", agent_dir=ROOT / "agent", hot=story.events, force=True)
+            self.assertEqual(rows(output.report_dir(store, "42")), running)
+        self.assertEqual(running["2026-11-14"], (30, 33, None))
+        self.assertEqual(running["2026-11-15"][:2], (21, 21))
+        self.assertEqual({key: running["2026-11-15"][2][key] for key in ("before", "delta")}, {"before": 33, "delta": -12})
 
     def test_entry_page_in_install_folder(self):
         story = next_morning(preset_run(Story()))
