@@ -445,6 +445,19 @@ class CookingMadeTests(unittest.TestCase):
         self.assertEqual(stock.read_cooking_page(context, PARAMS, None),
                          {"recipe": "香甜马卡龙", "owned": 20, "selected_count": 450})
 
+    def test_misread_dish_title_snaps_to_the_dish_catalog(self):
+        """试跑10：「盧戈烤山蔘串」读成「盧戈烤山蓼串」，按料理名表认回卢戈山参烤串；认不出的当没读出。"""
+        context = MadeContext([page(name="盧戈烤山蓼串 ****")])
+        self.assertEqual(stock.read_cooking_page(context, PARAMS, None)["recipe"], "卢戈山参烤串")
+        for name in ("盧戈烤山蓼蓼 *", "料理"):
+            context = MadeContext([page(name=name)])
+            self.assertIsNone(stock.read_cooking_page(context, PARAMS, None)["recipe"], name)
+        texts = {PARAMS["recipe_node"]: ["盧戈烤山蓼串 ****"], PARAMS["quantity_node"]: ["1个"]}
+        with patch.object(stock, "_match_materials", return_value=[[] for _ in PARAMS["material_nodes"]]):
+            record = stock.collect_cooking_stock(FakeContext(texts), PARAMS, object())
+        self.assertEqual(record["recipe"], "卢戈山参烤串")
+        self.assertNotIn("recipe_unreadable", record["errors"])
+
     def test_owned_increase_equal_to_selected_is_consistent(self):
         save = self.run_confirm([page(), page(owned="持有470個食物")])
         record = save.call_args[0][0]

@@ -27,6 +27,7 @@ from utils.arbitrage_store import (
 )
 from utils.arbitrage_recipe_catalog import recipe_item_names
 from utils.name_i18n import canon
+from utils.ocr_item_name import item_aliases, resolve_ocr_name
 from utils.ocr_read import NUMBER as _NUMBER, clean as _clean
 from utils.ocr_read import read_texts as _read_texts, unique_parsed as _unique_parsed
 
@@ -107,14 +108,39 @@ class CookingInventoryBoundary(CustomAction):
             return False
 
 
+_DISH_ALIASES = None
+
+
+def _dish_name(texts) -> str | None:
+    """制作页标题读到的菜名，只在料理名表里认：简繁都认，错一个字能认出唯一一道就认（同商店套利的 resolve_ocr_name）。
+
+    认不出的当没读出（None）：读错的名字记下去，会作废一道不存在的菜、真菜的旧数却留着（试跑10 盧戈烤山蓼串）。
+    """
+    global _DISH_ALIASES
+    if _DISH_ALIASES is None:
+        dishes = recipe_item_names()
+        _DISH_ALIASES = {alias: name for alias, name in item_aliases().items() if canon(name) in dishes}
+    names = set()
+    for text in texts:
+        raw = re.sub(r"[*★☆]+$", "", _clean(text))
+        if not raw:
+            continue
+        resolved = resolve_ocr_name(raw, aliases=_DISH_ALIASES)
+        if resolved["confirmed"]:
+            name = canon(resolved["name"])
+            if resolved["basis"] != "exact":
+                mfaalog.info(f"[CookingStock] 菜名「{raw}」按料理名表认作「{name}」（{resolved['basis']}）")
+            names.add(name)
+    return names.pop() if len(names) == 1 else None
+
+
 def read_cooking_page(context: Context, scan: dict, image) -> dict:
     """制作页上与「做了几个」有关的三样：菜名、左上成品持有数、选中的份数。读不到的为 None。"""
     texts, _, _ = _read_texts(context, scan["recipe_node"], image)
-    names = {canon(name) for text in texts if (name := re.sub(r"[*★☆]+$", "", _clean(text)))}
     owned = _unique_parsed(_read_texts(context, _OWNED_NODE, image)[0], _OWNED)
     selected = _unique_parsed(_read_texts(context, scan["quantity_node"], image)[0], _NUMBER + r"[个個]")
     return {
-        "recipe": names.pop() if len(names) == 1 else None,
+        "recipe": _dish_name(texts),
         "owned": owned[0] if owned else None,
         "selected_count": selected[0] if selected and selected[0] > 0 else None,
     }
@@ -339,11 +365,11 @@ def collect_cooking_stock(context: Context, params: dict, image) -> dict:
     if not material_nodes or len(material_nodes) != len(presence_nodes):
         raise ValueError("材料 OCR 与槽位检测节点数量不一致")
     record["raw_recipe"] = read("recipe", params["recipe_node"])
-    names = {canon(name) for text in record["raw_recipe"]
-             if (name := re.sub(r"[*★☆]+$", "", _clean(text)))}
-    if len(names) == 1:
-        record["recipe"] = names.pop()
-    else:
+    try:
+        record["recipe"] = _dish_name(record["raw_recipe"])
+    except Exception as exc:
+        record["errors"].append(f"recipe_catalog: {exc}")
+    if record["recipe"] is None:
         record["errors"].append("recipe_unreadable")
 
     record["raw_quantity"] = read("selected_count", params["quantity_node"])
