@@ -286,7 +286,11 @@ def save_cooking_stock_observation(record: dict) -> bool:
 
 
 def save_cooking_made(record: dict) -> bool:
-    """记一次料理制作：制作前后的成品持有数与选的份数。做后持有数读到时同时更新该料理的库存事实。"""
+    """记一次料理制作：制作前后的成品持有数与选的份数。
+
+    做后持有数 = 做前 + 份数（consistent）才同时更新该料理的库存事实；对不上的只记事件，
+    库存留着制作前的作废（未知），出售时到柜台再核对——没核过的数可能是没刷新的旧数，写成已知 0 会让 ④ 不去卖。
+    """
     observed_at = record.get("observed_at") or utc_now()
     recipe = canon(str(record.get("recipe") or "").strip())
     after = record.get("owned_after")
@@ -294,7 +298,7 @@ def save_cooking_made(record: dict) -> bool:
         data = PersistentStore.load()
         inventory = _inventory(data)
         names = []
-        if recipe and type(after) is int and after >= 0:
+        if recipe and record.get("consistent") and type(after) is int and after >= 0:
             fact = _dict_child(inventory["items"], recipe)
             fact.update({
                 "quantity": after,

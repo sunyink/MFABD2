@@ -519,6 +519,33 @@ class CookingMadeTests(unittest.TestCase):
         event = inventory["events"][-1]
         self.assertEqual((event["kind"], event["made"], event["consistent"]), ("cooking_made", 450, True))
 
+    def test_store_keeps_dish_unknown_when_reading_does_not_match(self):
+        from utils import arbitrage_store
+
+        class Memory:
+            data = {}
+            _current_account_id = "7"
+
+            @classmethod
+            def load(cls):
+                return copy.deepcopy(cls.data)
+
+            @classmethod
+            def save(cls, data):
+                cls.data = copy.deepcopy(data)
+                return True
+
+        with patch.object(arbitrage_store, "PersistentStore", Memory):
+            self.assertTrue(arbitrage_store.invalidate_inventory_quantities(["香甜马卡龙"], "cooking_attempt"))
+            self.assertTrue(arbitrage_store.save_cooking_made({   # 画面没刷新：读到的还是做前的 0
+                "recipe": "香甜马卡龙", "selected_count": 450, "owned_before": 0, "owned_after": 0,
+                "made": 0, "consistent": False, "started_at": "s", "observed_at": "2026-11-13T00:00:00+00:00"}))
+        inventory = Memory.data["arbitrage"]["inventory"]
+        self.assertEqual(inventory["items"]["香甜马卡龙"]["quantity_status"], "unknown")   # 不写成已知 0
+        self.assertNotIn("quantity", inventory["items"]["香甜马卡龙"])
+        event = inventory["events"][-1]
+        self.assertEqual((event["kind"], event["owned_after"], event["consistent"]), ("cooking_made", 0, False))
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)

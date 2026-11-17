@@ -234,7 +234,7 @@ class CookingMadeConfirm(CustomAction):
             if record["consistent"]:
                 mfaalog.info(line + " ✓" + ("" if saved else "（⚠️ 存档未写入）"))
             else:
-                mfaalog.warning(line + "，对不上" + ("" if saved else "（⚠️ 存档未写入）"))
+                mfaalog.warning(line + "，对不上，库存留作未知、出售时到柜台核对" + ("" if saved else "（⚠️ 存档未写入）"))
         except Exception as exc:
             mfaalog.error(f"[CookingMade] 制作后读数异常: {exc}")
         return True
