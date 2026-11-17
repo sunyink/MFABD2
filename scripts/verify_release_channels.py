@@ -132,6 +132,11 @@ class TagPushChecks(unittest.TestCase):
             git(origin, "commit", "-q", "--allow-empty", "-m", commit_message)
             if tag_message is None:
                 git(origin, "tag", "v4.6.5")
+            elif isinstance(tag_message, bytes):
+                # Raw bytes go in through a file, the way `git tag -F` would store a GBK-encoded note.
+                note = root / "note.txt"
+                note.write_bytes(tag_message)
+                git(origin, "tag", "-a", "v4.6.5", "-F", str(note))
             else:
                 git(origin, "tag", "-a", "v4.6.5", "-m", tag_message)
             subprocess.run(["git", "clone", "-q", str(origin), str(clone)], check=True)
@@ -146,28 +151,38 @@ class TagPushChecks(unittest.TestCase):
                                     env=env, cwd=clone, capture_output=True, text=True, encoding="utf-8")
             return result, output.read_text(encoding="utf-8") if output.exists() else None
 
-    def assert_selects(self, expected, *args, warned=False, **kwargs):
+    def assert_selects(self, expected, *args, warned="", **kwargs):
+        """`warned` is the start of the expected warning; empty means the run must not warn."""
         result, output = self.run_tag_push(*args, **kwargs)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertEqual(output, "version_type=release\nconcurrency_group=release\n"
                                  f"mfaa_commit={expected}\nmfaa_fallback=true\n")
-        self.assertEqual("::warning::" in result.stdout, warned, result.stdout)
+        if warned:
+            self.assertIn(f"::warning::{warned}", result.stdout)
+        else:
+            self.assertNotIn("::warning::", result.stdout)
 
     def test_annotated_tag_message_selects_fork_build(self):
         self.assert_selects("9aa52b", "Merge:'fix/x'| y", "[mfaa:9AA52B]")
         self.assert_selects("9aa52b", "Merge:'fix/x'| y\n\n[mfaa:7ff8c6]\n[deploy-beta]", "正式版\n\n[mfaa:9aa52b]")
 
-    def test_tag_without_marker_releases_upstream_client_and_ignores_commit(self):
-        for tag_message in ("", "正式版说明", None):
+    def test_tag_message_with_invalid_utf8_still_selects_fork_build(self):
+        # "正式版" in GBK, then the marker: the stray bytes are replaced, the ASCII marker survives.
+        self.assert_selects("9aa52b", "Merge:'fix/x'| y", "正式版".encode("gbk") + b"\n\n[mfaa:9aa52b]")
+
+    def test_tag_without_marker_warns_and_releases_upstream_client_ignoring_commit(self):
+        for tag_message in ("", "正式版说明"):
             with self.subTest(tag_message=tag_message):
-                self.assert_selects("", "Merge:'fix/x'| y\n\n[mfaa:7ff8c6]", tag_message)
+                self.assert_selects("", "Merge:'fix/x'| y\n\n[mfaa:7ff8c6]", tag_message, warned="标签说明里没写")
+        self.assert_selects("", "Merge:'fix/x'| y\n\n[mfaa:7ff8c6]", None, warned="轻量标签")
         # Some tag pushes carry no head_commit at all (v4.6.1); that changes nothing either.
-        self.assert_selects("", "Merge:'fix/x'| y", "", with_head_commit=False)
+        self.assert_selects("", "Merge:'fix/x'| y", "", with_head_commit=False, warned="标签说明里没写")
 
     def test_bad_tag_marker_warns_and_releases_upstream_client(self):
         for tag_message in ("[mfaa:六位提交号]", "[mfaa:9aa52]", "[mfaa:9aa52b]\n[mfaa:85e032]"):
             with self.subTest(tag_message=tag_message):
-                self.assert_selects("", "Merge:'fix/x'| y\n\n[mfaa:7ff8c6]", tag_message, warned=True)
+                self.assert_selects("", "Merge:'fix/x'| y\n\n[mfaa:7ff8c6]", tag_message,
+                                    warned="标签说明里的自家 UI 标记无效")
 
 
 def pushed(message):
@@ -203,9 +218,7 @@ class MfaaCommitMarkerChecks(unittest.TestCase):
 
     def test_tag_message_marker_never_fails(self):
         self.assertEqual(tag_mfaa_commit("[mfaa:9AA52B]"), ("9aa52b", ""))
-        self.assertEqual(tag_mfaa_commit(""), ("", ""))
-        self.assertEqual(tag_mfaa_commit("正式版说明"), ("", ""))
-        for message in ("[mfaa:六位提交号]", "[mfaa:]", "[mfaa:9aa52b]\n[mfaa:85e032]"):
+        for message in ("", "正式版说明", None, "[mfaa:六位提交号]", "[mfaa:]", "[mfaa:9aa52b]\n[mfaa:85e032]"):
             with self.subTest(message=message):
                 commit, warning = tag_mfaa_commit(message)
                 self.assertEqual(commit, "")

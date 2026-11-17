@@ -73,28 +73,37 @@ def resolve_mfaa_commit(event_name: str, event: dict) -> str:
     return marked_commit((event.get("head_commit") or {}).get("message") or "")
 
 
-def tag_mfaa_commit(message: str) -> tuple[str, str]:
-    """Return (fork build, warning) for an official release tag.
+def tag_mfaa_commit(message: str | None) -> tuple[str, str]:
+    """Return (fork build, warning) for an official release tag; None means a lightweight tag.
 
     Only the tag's own message counts, never the tagged commit. Without a usable marker the
-    release goes out with the requirements.txt client instead of failing.
+    release goes out with the requirements.txt client instead of failing, and says so: every
+    release is expected to carry the fork client, so a missing marker is most likely forgotten.
     """
+    fallback = "本次按 requirements.txt 的客户端发版"
+    if message is None:
+        return "", f"轻量标签没有说明，读不到自家 UI 标记；{fallback}"
     try:
-        return marked_commit(message), ""
+        commit = marked_commit(message)
     except ValueError as error:
-        return "", f"标签说明里的自家 UI 标记无效：{error}；本次按 requirements.txt 的客户端发版"
+        return "", f"标签说明里的自家 UI 标记无效：{error}；{fallback}"
+    if not commit:
+        return "", f"标签说明里没写自家 UI 标记（所标提交里的不算）；{fallback}"
+    return commit, ""
 
 
 def git(*args: str) -> str:
-    return subprocess.run(["git", *args], check=True, capture_output=True, text=True, encoding="utf-8").stdout
+    # A tag message is free text (`git tag -F` takes any bytes); a stray byte must not abort the release.
+    return subprocess.run(["git", *args], check=True, capture_output=True, text=True, encoding="utf-8",
+                          errors="replace").stdout
 
 
-def tag_message(ref: str) -> str:
-    """Return the message of the pushed annotated tag, or "" for a lightweight tag."""
+def tag_message(ref: str) -> str | None:
+    """Return the message of the pushed annotated tag, or None for a lightweight tag."""
     # actions/checkout may hold the pushed tag as a lightweight ref; fetch the real object first.
     git("fetch", "--quiet", "--no-tags", "origin", f"+{ref}:{ref}")
     if git("cat-file", "-t", ref).strip() != "tag":
-        return ""
+        return None
     return git("for-each-ref", "--format=%(contents)", ref)
 
 
