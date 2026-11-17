@@ -10,6 +10,7 @@ import copy
 import json
 import re
 import threading
+import time
 from collections import OrderedDict
 from datetime import datetime, timezone
 
@@ -21,7 +22,7 @@ from maa.custom_recognition import CustomRecognition
 from utils import mfaalog
 from utils.account_sync import sync_from_context
 from utils.arbitrage_store import (
-    save_cooking_stock_observation, get_inventory_items,
+    save_cooking_stock_observation, save_cooking_made, get_inventory_items,
     invalidate_inventory_quantities, utc_now,
 )
 from utils.name_i18n import canon
@@ -33,6 +34,11 @@ _OBSERVATIONS = OrderedDict()
 _LOCK = threading.Lock()
 _SUMMARY_NODE = "Arbitrage_Cooking_StockSummary"
 _SCAN_STARTS = OrderedDict()
+# 制作前读数，等 CookingMadeConfirm 在制作动画结束后取走；按任务只留最近一次。
+_MADE_PENDING = OrderedDict()
+_OWNED_NODE = "Agt_Cooking_Owned_Ocr"
+_OWNED = r"(?:[拥擁]有|持有)" + _NUMBER + r"[个個](?:食物)?"
+_MADE_SETTLE_SECONDS = 1.5
 
 
 def get_cooking_scan_start(task_id: int) -> str | None:
@@ -81,11 +87,100 @@ class CookingInventoryBoundary(CustomAction):
                 raise RuntimeError("制作前库存作废未能写入")
             if names:
                 mfaalog.info("[CookingStock] 制作前待更新: " + "、".join(names))
+            _remember_before_cooking(context, argv.task_detail.task_id, scan)
             result = context.run_action(params["click_node"], box=argv.box)
             return bool(result is not None and result.success)
         except Exception as exc:
             mfaalog.error(f"[CookingStock] 库存边界处理失败: {exc}")
             return False
+
+
+def read_cooking_page(context: Context, scan: dict, image) -> dict:
+    """制作页上与「做了几个」有关的三样：菜名、左上成品持有数、选中的份数。读不到的为 None。"""
+    texts, _, _ = _read_texts(context, scan["recipe_node"], image)
+    names = {canon(name) for text in texts if (name := re.sub(r"[*★☆]+$", "", _clean(text)))}
+    owned = _unique_parsed(_read_texts(context, _OWNED_NODE, image)[0], _OWNED)
+    selected = _unique_parsed(_read_texts(context, scan["quantity_node"], image)[0], _NUMBER + r"[个個]")
+    return {
+        "recipe": names.pop() if len(names) == 1 else None,
+        "owned": owned[0] if owned else None,
+        "selected_count": selected[0] if selected and selected[0] > 0 else None,
+    }
+
+
+def _remember_before_cooking(context: Context, task_id: int, scan: dict) -> None:
+    """点「料理」前读一次；失败只记日志，不影响制作。"""
+    try:
+        image = context.tasker.controller.post_screencap().wait().get()
+        if image is None or not image.size:
+            raise RuntimeError("截图失败")
+        before = read_cooking_page(context, scan, image)
+    except Exception as exc:
+        mfaalog.warning(f"[CookingMade] 制作前读数失败，本次不记做了几个: {exc}")
+        return
+    before.update(started_at=utc_now(), scan=scan)
+    with _LOCK:
+        _MADE_PENDING[task_id] = before
+        _MADE_PENDING.move_to_end(task_id)
+        while len(_MADE_PENDING) > 16:
+            _MADE_PENDING.popitem(last=False)
+
+
+def _made(before: dict, after: dict):
+    if type(before.get("owned")) is int and type(after.get("owned")) is int:
+        return after["owned"] - before["owned"]
+    return None
+
+
+@AgentServer.custom_action("CookingMadeConfirm")
+class CookingMadeConfirm(CustomAction):
+    """制作动画结束、回到详情页后读成品持有数，和制作前比得出这次做了几个，写一条 cooking_made 事件。
+
+    只读不点。持有数还没刷新时在 1.5 秒内换新帧重读，直到增量等于份数。
+    读不到、对不上、写不进都只记日志，永远返回 True，不改变原有制作链的走向。
+    """
+
+    def run(self, context: Context, argv: CustomAction.RunArg) -> bool:
+        with _LOCK:
+            before = _MADE_PENDING.pop(argv.task_detail.task_id, None)
+        if before is None:
+            return True
+        try:
+            deadline = time.monotonic() + _MADE_SETTLE_SECONDS
+            while True:
+                image = context.tasker.controller.post_screencap().wait().get()
+                if image is None or not image.size:
+                    raise RuntimeError("截图失败")
+                after = read_cooking_page(context, before["scan"], image)
+                made = _made(before, after)
+                if made == before["selected_count"] or time.monotonic() >= deadline or context.tasker.stopping:
+                    break
+                time.sleep(0.2)
+            same_recipe = before["recipe"] is not None and after["recipe"] == before["recipe"]
+            record = {
+                "started_at": before["started_at"],
+                "observed_at": utc_now(),
+                "recipe": before["recipe"] if same_recipe else (before["recipe"] or after["recipe"]),
+                "selected_count": before["selected_count"],
+                "owned_before": before["owned"],
+                "owned_after": after["owned"] if same_recipe else None,
+                "made": made if same_recipe else None,
+                "consistent": bool(same_recipe and made is not None and made == before["selected_count"]),
+                "recipe_after": None if same_recipe else after["recipe"],
+            }
+            if not sync_from_context(context, where="CookingMadeConfirm"):
+                mfaalog.warning("[CookingMade] 账号未确认，本次制作读数不写")
+                return True
+            saved = save_cooking_made(record)
+            line = (f"[CookingMade] {record['recipe'] or '?'}：选 {record['selected_count']} 份，"
+                    f"持有 {record['owned_before']} → {record['owned_after']}")
+            if record["consistent"]:
+                mfaalog.info(line + " ✓" + ("" if saved else "（⚠️ 存档未写入）"))
+            else:
+                mfaalog.warning(line + "，对不上" + ("" if saved else "（⚠️ 存档未写入）"))
+        except Exception as exc:
+            mfaalog.error(f"[CookingMade] 制作后读数异常: {exc}")
+        return True
 
 
 def get_cooking_stock(task_id: int) -> list[dict]:

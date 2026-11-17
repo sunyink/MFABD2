@@ -67,7 +67,8 @@ class AccountSession:
             return parse_injected_account(attach)
         return read_instance_account(self.project_root, self.instance_id)
 
-    def sync(self, context, where="") -> bool:
+    def sync(self, context, where="", *, stop=True) -> bool:
+        """stop=False: an optional feature asks; a missing account blocks the store but leaves the task running."""
         key = None
         try:
             job_id = context.get_task_job().job_id
@@ -105,6 +106,8 @@ class AccountSession:
             if (key, "blocked") not in self._reported:
                 logger.error(f"[Account] {reason}；已禁止本任务读写账号存档 ({where})")
                 self._reported.add((key, "blocked"))
+        if not stop:
+            return False
         # Stop this root Context, including recognition fallback candidates.
         try:
             result = context.run_action(STOP_ENTRY)
@@ -130,9 +133,16 @@ def configure_account_session(project_root: Path, *, android=False, dev=False, i
     logger.info(f"[Account] 客户端={client or '-'} 选档来源={_session.source_label}{fallback}")
 
 
-def sync_from_context(context, where: str = "") -> bool:
+def sync_from_context(context, where: str = "", *, stop: bool = True) -> bool:
     if _session is None:
         # Missing identity never silently means Android or the default account;
         # an injected client without a value is blocked the same way.
         configure_account_session(Path(__file__).resolve().parents[2])
-    return _session.sync(context, where)
+    return _session.sync(context, where, stop=stop)
+
+
+def current_session():
+    """The configured session (source, project root, instance id), creating it like sync_from_context does."""
+    if _session is None:
+        configure_account_session(Path(__file__).resolve().parents[2])
+    return _session

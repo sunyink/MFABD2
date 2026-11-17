@@ -29,6 +29,31 @@
             "account_id": ""
         }
     },
+    "Env_Ledger_Config": {
+        "desc": "任务「⚙️ 库存记账」入口：记账设置的载体，不操作游戏 | 三个选项挂在这个任务上。MFAA 直接读本实例保存的选项，本任务勾不勾、跑没跑都一样；其他客户端要跑到这里，由 Env_Ledger_Config_Apply 把本任务下发的选项记进 Agent 内存，没跑过按默认。读设置是自定义动作，通道断开时会一直卡住，所以不放在入口上。",
+        "pre_delay": 0,
+        "post_delay": 0,
+        "next": [
+            "Env_AgentLost_Stop",
+            "Env_Ledger_Config_Apply"
+        ]
+    },
+    "Env_Ledger_Config_Apply": {
+        "desc": "读取并报出当前生效的库存记账设置；非 MFAA 客户端同时把 Agt_Ledger_Inject 里的选项记进内存。永远返回成功。",
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "LedgerConfig",
+        "post_delay": 0
+    },
+    "Agt_Ledger_Inject": {
+        "desc": "py 独占，勿挂进管路：非 MFAA 客户端的库存记账选项载体。任务「⚙️ 库存记账」的三个选项各写 attach 的一个键（scan / full / report），只在那个任务里生效，由 Env_Ledger_Config_Apply 读走；MFAA 只读实例配置。空值表示没下发，按默认。",
+        "enabled": false,
+        "attach": {
+            "scan": "",
+            "full": "",
+            "report": ""
+        }
+    },
     "Fishing_NiceBoat": {
         "focus": "占位符.需要正确的资源选择."
     },

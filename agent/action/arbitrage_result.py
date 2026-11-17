@@ -626,7 +626,7 @@ class ArbitrageSellController(CustomAction):
         for idx, target in enumerate(targets_to_sell, 1):
             if context.tasker.stopping: break
             if mode == _MODE_SELL and market_day() != final_market_day:
-                mfaalog.error("[Arbitrage] 游戏日已刷新，停止使用旧日行情派发出售")
+                mfaalog.error("[Arbitrage] 价目表已换日，停止使用旧日行情派发出售")
                 return False
 
             item_name = target["name"]

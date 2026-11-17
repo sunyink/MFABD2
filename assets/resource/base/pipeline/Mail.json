@@ -2,6 +2,7 @@
     "Mail_HomePage": {
         "next": [
             "Env_AgentLost_Stop",
+            "[JumpBack]Ledger_Begin_Daily",
             "Mail_GoinMail",
             "[JumpBack]Global_ToHomePage"
         ]
