@@ -148,7 +148,8 @@ jobs:
         run: '"$AGENT_PYTHON" scripts/verify_android_runtime.py'
       - name: Check interface filtering and option types
         run: |
-          "$AGENT_PYTHON" scripts/verify_android_interface_filter.py
+          "$AGENT_PYTHON" scripts/verify_release_interface.py
+          "$AGENT_PYTHON" scripts/verify_install_targets.py
           "$AGENT_PYTHON" scripts/verify_android_apk.py --interface assets/interface.json
       - name: Check resource overlay with MaaFramework
         run: '"$AGENT_PYTHON" scripts/verify_android_overlay.py'

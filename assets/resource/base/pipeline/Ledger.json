@@ -1,0 +1,111 @@
+{
+    "Ledger_Settle_Manual": {
+        "desc": "任务「[全局]库存结账」入口：不关游戏的结账 | 先确认 Agent 通信正常，再到手动结账位置。上一次盘点之后有还没盘掉的活动就盘一次（几分钟），没有就不盘；两种情况都重出报表。排在队尾或想看账时单独跑。",
+        "pre_delay": 0,
+        "post_delay": 0,
+        "next": [
+            "Env_AgentLost_Stop",
+            "Ledger_Manual"
+        ]
+    },
+    "Ledger_Manual": {
+        "desc": "库存记账位置·手动结账 | 有还没盘掉的活动就盘，不论盘没盘都出报表。动作永远返回成功，不写 on_error。",
+        "max_hit": 1,
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "LedgerPoint",
+        "custom_action_param": {
+            "mark": "manual"
+        },
+        "post_delay": 0,
+        "focus": "库存结账"
+    },
+    "Ledger_Begin_Daily": {
+        "desc": "库存记账位置·日常任务开头 | 各日常任务入口在 next 第二位（Agent 失联检查之后）以 [JumpBack] 挂入。留始标记；上一次盘点之后跑过别的类型、或与上一次盘点不连续就补盘，同类型接着做不盘。盘不盘的规则在 agent/utils/ledger_rules.py，本节点只说明这是哪里。每个任务只到一次；动作永远返回成功，不写 on_error；记账开关关着时什么都不做。",
+        "max_hit": 1,
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "LedgerPoint",
+        "custom_action_param": {
+            "mark": "begin",
+            "type": "daily"
+        },
+        "post_delay": 0
+    },
+    "Ledger_Begin_Collect": {
+        "desc": "库存记账位置·吸取开头 | 挂在 Collect_Sandplay 里「次数已用完」检查之后：次数已满时走不到这里，不留始标记。其余同 Ledger_Begin_Daily。",
+        "max_hit": 1,
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "LedgerPoint",
+        "custom_action_param": {
+            "mark": "begin",
+            "type": "collect"
+        },
+        "post_delay": 0
+    },
+    "Ledger_Begin_Shop": {
+        "desc": "库存记账位置·商店开头 | 挂在库存位置 A（Arbitrage_Archive_Begin）的 next 上：五个阶段全关时走不到位置 A，不留始标记。其余同 Ledger_Begin_Daily。",
+        "max_hit": 1,
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "LedgerPoint",
+        "custom_action_param": {
+            "mark": "begin",
+            "type": "shop"
+        },
+        "post_delay": 0
+    },
+    "Ledger_End_Collect": {
+        "desc": "库存记账位置·吸取正常结束 | 只挂在吸取的两个正常出口（次数用完、没有要进的卡带），后面必须紧跟 StopTask：盘完任务必停，否则盘完还在干活的那部分变化没有标记，会漏进下一阶段。本任务留过吸取的始标记才留正常结束标记；有还没盘掉的活动就当场盘。",
+        "max_hit": 1,
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "LedgerPoint",
+        "custom_action_param": {
+            "mark": "end",
+            "type": "collect"
+        },
+        "post_delay": 0
+    },
+    "Ledger_End_Shop": {
+        "desc": "库存记账位置·商店正常结束 | 挂在库存位置 B（Arbitrage_Archive_End）的 next 上，自身不写 next：位置 B 是任务的栈底出口，盘完任务结束。其余同 Ledger_End_Collect。",
+        "max_hit": 1,
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "LedgerPoint",
+        "custom_action_param": {
+            "mark": "end",
+            "type": "shop"
+        },
+        "post_delay": 0
+    },
+    "Ledger_QueueEnd": {
+        "desc": "库存记账位置·结束游戏 | 结束游戏关游戏之前以 [JumpBack] 挂入：上一次盘点之后有还没盘掉的活动就盘，没有就不盘。",
+        "max_hit": 1,
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "LedgerPoint",
+        "custom_action_param": {
+            "mark": "queue_end"
+        },
+        "post_delay": 0
+    },
+    "Agt_Ledger_Config": {
+        "desc": "py 独占，勿挂进管路：库存记账的名单与阈值，由 agent/action/ledger_point.py 读取。quiet 是「没留记账标记也不算活动」的任务入口——不动库存的（多存档、启动脚本、记账设置），以及接了标记、没走到始标记就等于没干活的（吸取、商店、结束游戏、手动结账）；名单外的任务夹在两次盘点之间，一律当作动过库存、下一个位置补盘。新增不动库存的任务要加进来。gap_seconds 是两个任务之间算「连续」的最大间隔。",
+        "enabled": false,
+        "attach": {
+            "quiet": [
+                "Env_MultiSave_Config",
+                "StartGame_Start",
+                "Env_Ledger_Config",
+                "Collect_StartGame_HomePage",
+                "Collect_StartGame_HomePage_OnlyOnce",
+                "Arbitrage_Start",
+                "Close_HomePage",
+                "Ledger_Settle_Manual"
+            ],
+            "gap_seconds": 60
+        }
+    }
+}

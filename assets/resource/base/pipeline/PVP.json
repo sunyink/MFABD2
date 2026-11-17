@@ -3,9 +3,10 @@
         "anchor": {
             "QCPack": "PVP_PullUp_QuickCart_PVP"
         },
-        "timeout": 5000,
+        "timeout": 15000,
         "next": [
             "Env_AgentLost_Stop",
+            "[JumpBack]Ledger_Begin_Daily",
             "PVP_Sandplay",
             "[JumpBack]PVP_PerPetTask",
             "[JumpBack]PVP_PVPMes",

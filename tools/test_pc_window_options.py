@@ -1,7 +1,8 @@
-"""Offline contract tests; no production module outside the explicit allowlist loads."""
+"""Offline contract tests; only the startup modules load."""
 import argparse
 import importlib.abc
 import importlib.util
+import json
 from pathlib import Path
 import sys
 import types
@@ -714,9 +715,32 @@ class Contracts(unittest.TestCase):
                 self.assertEqual(adb_prepare.call_count, int(kind == 'adb'))
 
 
+class ReleaseInterface(unittest.TestCase):
+    """The source keeps the PC window options global for per-task clients.
+
+    How releases hang them on their controllers is scripts/release_interface.py's contract,
+    tested in CI by scripts/verify_release_interface.py.
+    """
+    NAMES = ('PC窗口分辨率', 'PC启动最小化')
+
+    def setUp(self):
+        self.source = json.loads((ROOT / 'assets' / 'interface.json').read_text(encoding='utf-8'), strict=False)
+
+    def test_source_keeps_global_shape_for_per_task_clients(self):
+        for name in self.NAMES:
+            self.assertIn(name, self.source['global_option'])
+        self.assertFalse(any('option' in item for item in self.source['controller']))
+
+    def test_resolution_defaults_to_1080p_even_from_the_first_case(self):
+        # A client that starts a new option at item 0 instead of default_case still lands on 1080p.
+        option = self.source['option']['PC窗口分辨率']
+        self.assertEqual((option['default_case'], option['cases'][0]['name']), ('1080p', '1080p'))
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--project-root', type=Path, default=Path(DEFAULT_ROOT))
     args, remaining = parser.parse_known_args()
     common, options, pc, guard = load_production(args.project_root.resolve())
+    ROOT = args.project_root.resolve()
     unittest.main(argv=[sys.argv[0]] + remaining)

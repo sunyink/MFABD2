@@ -26,7 +26,7 @@
         ]
     },
     "Arbitrage_Archive_Begin": {
-        "desc": "任何买卖制作前捕获库存位置A并记录本轮开始；同日只保留首次A，归档异常不阻断业务。",
+        "desc": "任何买卖制作前捕获库存位置A并记录本轮开始；同日只保留首次A，归档异常不阻断业务。随后到库存记账的商店开头位置（Ledger_Begin_Shop，留始标记、按规则决定盘不盘），它不写 next，跑完退栈回 Arbitrage_StagePrepare。五个阶段全关时走不到这里，也就不留标记。",
         "max_hit": 1,
         "pre_delay": 0,
         "action": "Custom",
@@ -37,10 +37,13 @@
             "keep": "first",
             "phase": "begin"
         },
-        "post_delay": 0
+        "post_delay": 0,
+        "next": [
+            "Ledger_Begin_Shop"
+        ]
     },
     "Arbitrage_Archive_End": {
-        "desc": "五阶段返回且确认页面已收尾后捕获库存位置B；覆盖同日上次B并记录本轮正常结束，不声称库存完整或全部交易成功。",
+        "desc": "五阶段返回且确认页面已收尾后捕获库存位置B；覆盖同日上次B并记录本轮正常结束，不声称库存完整或全部交易成功。随后到库存记账的商店正常结束位置（Ledger_End_Shop，留正常结束标记并当场盘），它不写 next，盘完任务结束。本节点是任务的栈底出口：这之后不能再接会动库存的节点，否则那部分变化没有标记。",
         "max_hit": 1,
         "recognition": "Or",
         "any_of": [
@@ -55,7 +58,10 @@
             "keep": "last",
             "phase": "end"
         },
-        "post_delay": 0
+        "post_delay": 0,
+        "next": [
+            "Ledger_End_Shop"
+        ]
     },
     "#1总控与进图寻路": {},
     "Arbitrage_HomePageOldCardMenu_Goin": {
@@ -296,6 +302,7 @@
         ]
     },
     "Arbitrage_Merchant_Entry": {
+        "desc": "点商人交互图标打开砍价页。正常点后 2.0–2.2 秒必见砍价页；若 5 秒内既无砍价页、图标也不在（角色被带离商人，2026-11-04 PC 实录一次），走寻路列表回到商人，退栈回来由自引用再点。寻路按钮次数用尽则静默退栈。",
         "recognition": "Or",
         "any_of": [
             "Arbitrage_Merchant_Ico"
@@ -305,9 +312,14 @@
             "Merchant_Bypass": ""
         },
         "post_delay": 2000,
+        "timeout": 5000,
         "next": [
             "Arbitrage_Merchant_Dialog",
             "Arbitrage_Merchant_Entry"
+        ],
+        "on_error": [
+            "[JumpBack]Arbitrage_NviGuide_Butt",
+            "Global_Null"
         ],
         "focus": "打开折扣商店..."
     },
@@ -5855,6 +5867,8 @@
         "any_of": [
             "Arbitrage_Cooking_SubMenu"
         ],
+        "action": "Custom",
+        "custom_action": "CookingMadeConfirm",
         "next": [
             "Arbitrage_Cooking_ExMax",
             "Arbitrage_Cooking_MaterialInsufficient",
@@ -8319,6 +8333,16 @@
         "expected": [
             "天赋技能",
             "天賦技能"
+        ]
+    },
+    "Agt_Cooking_Owned_Ocr": {
+        "desc": "py 独占，勿挂进管路。详情页左上「持有 N 个食物」，成品持有数；制作前后各读一次得出这次做了几个。roi 与页面判据 Arbitrage_Cooking_SubMenu 相同。",
+        "recognition": "OCR",
+        "roi": [
+            173,
+            107,
+            183,
+            80
         ]
     }
 }

@@ -14,9 +14,15 @@ guard = StartupGuard(mfaalog.info, mfaalog.error, warn=mfaalog.warning)
 # Initialize explicitly instead of depending on unrelated action import order.
 AgentServer._set_api_properties()
 
+# MFAA 在两个任务之间投递的占位任务：队列不空，Tasker 就不会在任务边界 inactive（撤销伪最小化）。
+# 它不是用户任务，不做启动准备，也不算一个任务结束。
+QUEUE_HOLD_NODE = "MFAA_QueueHold"
+
 @AgentServer.context_sink()
 class StartupSink(ContextEventSink):
     def on_node_pipeline_node(self, context, noti_type, detail):
+        if detail.name == QUEUE_HOLD_NODE:
+            return
         if noti_type == NotificationType.Starting:
             # Nested run_task events have a new task id; their cloned Context
             # still identifies the top-level task that owns this preparation.
@@ -26,6 +32,8 @@ class StartupSink(ContextEventSink):
 @AgentServer.tasker_sink()
 class StartupTaskSink(TaskerEventSink):
     def on_tasker_task(self, tasker, noti_type, detail):
+        if detail.entry == QUEUE_HOLD_NODE:
+            return
         # 任务结束后框架会自己撤销伪最小化（post_inactive），那是它的收尾，不该再被补回去。
         if noti_type in (NotificationType.Succeeded, NotificationType.Failed):
             guard.task_finished()

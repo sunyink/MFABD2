@@ -96,6 +96,22 @@
             2
         ]
     },
+    "QuickHunt_DoubleScan_GoldSelect": {
+        "target": [
+            114,
+            163,
+            2,
+            2
+        ]
+    },
+    "QuickHunt_DoubleScan_ExpSelect": {
+        "target": [
+            115,
+            234,
+            2,
+            2
+        ]
+    },
     "QuickHunt_CollectMapAdventureRouteDoubleCk1": {
         "roi": [
             348,
@@ -115,22 +131,6 @@
             73
         ]
     },
-    "QuickHunt_CollectMapAdventureRoute2_Switch_A": {
-        "target": [
-            115,
-            234,
-            2,
-            2
-        ]
-    },
-    "QuickHunt_CollectMapAdventureRoute2_Switch_B": {
-        "target": [
-            114,
-            163,
-            2,
-            2
-        ]
-    },
     "Rec_GoldGoblin_Clr": {
         "roi": [
             99,
@@ -145,14 +145,6 @@
             214,
             58,
             50
-        ]
-    },
-    "QuickHunt_CollectMapAdventureRouteDoubleCk2No_ToCentral": {
-        "target": [
-            114,
-            163,
-            2,
-            2
         ]
     },
     "QuickHunt_NoAP_Rice": {

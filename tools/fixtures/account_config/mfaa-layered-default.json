@@ -1,0 +1,18 @@
+{
+  "TaskItems": [
+    {
+      "name": "多存档",
+      "entry": "Env_MultiSave_Config",
+      "option": [
+        {
+          "name": "启用多存档",
+          "sub_options": [
+            {
+              "name": "存档名称"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

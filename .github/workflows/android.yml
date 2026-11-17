@@ -41,6 +41,10 @@ on:
       - install.py
       - configure.py
       - scripts/verify_android*.py
+      - scripts/release_interface.py
+      - scripts/verify_release_interface.py
+      - scripts/verify_install_targets.py
+      - scripts/strip_build_comments.py
       - scripts/verify_branding.py
       - scripts/android_test_support.py
       - scripts/android_build.py
@@ -153,6 +157,8 @@ jobs:
             "$BUILD_PYTHON" scripts/strip_build_comments.py install
           fi
           "$BUILD_PYTHON" check_resource.py install
+          # 打进 APK 前的最后一道：interface.json 与按源文件重算的结果一致，且满足安卓约定。
+          "$BUILD_PYTHON" scripts/release_interface.py verify install --target android --version "$PROJECT_VERSION"
       - name: Assemble Android Python dependencies
         working-directory: android-upstream
         env:
