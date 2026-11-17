@@ -194,8 +194,9 @@ class ArbitrageMarketEnsure(CustomAction):
         try:
             if not sync_from_context(context, where="ArbitrageMarketEnsure"):
                 return False
-            if store.get_market_snapshot() is not None:
-                mfaalog.info("[行情] 复用今日完整行情")
+            day = store.market_day()
+            if store.get_market_snapshot(day) is not None:
+                mfaalog.info(f"[行情] 复用今日完整行情（价目表日 {day}）")
                 return True
             # Pipeline负责全盘页面准备和计数清理；扫描退出后下一阶段自行恢复商店。
             local = context.clone()
@@ -203,9 +204,11 @@ class ArbitrageMarketEnsure(CustomAction):
                 raise RuntimeError("行情进店入口设置失败")
             ensure_shop(local)
             result = local.run_task("Arbitrage_GlobalMarket_Entry")
+            if store.market_day() != day:
+                raise RuntimeError("扫描期间价目表换日（韩国时间 0 点），本轮不用这份行情，请重新运行")
             if (result is None or not result.status.succeeded
                     or not any(node.name == "Arbitrage_PriceList_Egress" for node in result.nodes)
-                    or store.get_market_snapshot() is None):
+                    or store.get_market_snapshot(day) is None):
                 raise RuntimeError("今日完整行情未取得")
             return True
         except Exception as exc:
