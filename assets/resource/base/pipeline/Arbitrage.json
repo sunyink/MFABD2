@@ -2142,9 +2142,12 @@
         ]
     },
     "Arbitrage_Buy_Select_End": {
-        "desc": "记录已确认的常规采购并退出购买页。由Arbitrage_Favorit_Buy_GlodConfirm进入；ArbitrageBuyComplete只保存本轮最终名单的成交日期，供补买排除已购供给，不再写扫描周标记。",
+        "desc": "金币确认扣款后登记成交并退出购买页。只由Arbitrage_Favorit_Buy_GlodConfirm进入；ArbitrageBuyComplete保存本轮最终名单的成交日期供补买排除已购供给，并作废名单商品的库存旧数（U63），不写扫描周标记。",
         "action": "Custom",
         "custom_action": "ArbitrageBuyComplete",
+        "custom_action_param": {
+            "result": "bought"
+        },
         "timeout": 1005,
         "next": [
             "Arbitrage_Buy_Cleanup"
@@ -2211,7 +2214,7 @@
         ]
     },
     "Arbitrage_Favorit_Buy_Empty": {
-        "desc": "识别一键购买后的中央无商品提示，直接收尾，不登记购买成功。",
+        "desc": "识别一键购买后的中央无商品提示并收尾：今天的收藏已买过，只登记成交日期供补买排除，不作废库存旧数（U63）。",
         "recognition": "OCR",
         "roi": [
             540,
@@ -2223,9 +2226,14 @@
             "[没沒]有可以[购購][买買]的商品"
         ],
         "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "ArbitrageBuyComplete",
+        "custom_action_param": {
+            "result": "empty"
+        },
         "post_delay": 0,
         "next": [
-            "Arbitrage_Buy_Select_End"
+            "Arbitrage_Buy_Cleanup"
         ],
         "focus": "② 没有可以购买的商品，结束本轮常规采购"
     },
@@ -2313,7 +2321,12 @@
         ]
     },
     "Arbitrage_Favorit_Buy_WRN": {
-        "desc": "未确认成交时报告并收尾，不把未知成交重新提交为一笔购买。",
+        "desc": "点了确认却核不上扣款时报告并收尾：不登记成交，也不把未知成交重新提交为一笔购买；按可能买进作废名单商品的库存旧数（U63）。",
+        "action": "Custom",
+        "custom_action": "ArbitrageBuyComplete",
+        "custom_action_param": {
+            "result": "unconfirmed"
+        },
         "next": [
             "Arbitrage_Buy_Cleanup"
         ],

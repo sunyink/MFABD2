@@ -1,5 +1,7 @@
 """采购名单与扫描数据准备；扫描周期检查和打标由 Pipeline 负责。"""
 
+import json
+
 from maa.agent.agent_server import AgentServer
 from maa.custom_action import CustomAction
 from maa.custom_recognition import CustomRecognition
@@ -10,6 +12,7 @@ from utils.arbitrage_purchase_lists import (
     DATA_NODE, PREPARE_NODE, load_purchase_catalog, resolve_purchase_table,
     changed_cartridges, put_purchase_run, get_purchase_run, clear_purchase_run, node_enabled,
 )
+from utils.name_i18n import canon
 
 
 def _record_run(context, task_id, where):
@@ -152,16 +155,67 @@ class ArbitrageBuyReady(CustomAction):
             return False
 
 
+# 一键购买怎么收的尾 →（登记成交日期，作废库存旧数）。
+_OUTCOMES = {"bought": (True, True), "empty": (True, False), "unconfirmed": (False, True)}
+
+
+def _purchasable_names(run) -> list:
+    """一键购买可能买进的商品：名单上的全部，收藏没核上、名单读不出的卡带货架上的全部；没有名单就是整个目录。"""
+    catalog = load_purchase_catalog()
+    if run is None:
+        return sorted({canon(name) for row in catalog.values() for name in row["items"]})
+    names = {name for items in run["table"].values() for name in items}
+    for cartridge in run["pending"] | run["failed_cards"].keys():
+        names.update(canon(name) for name in catalog[cartridge]["items"])
+    return sorted(names)
+
+
 @AgentServer.custom_action("ArbitrageBuyComplete")
 class ArbitrageBuyComplete(CustomAction):
+    """② 一键购买收尾，result 说明怎么收的尾（U63）。
+
+    bought：金币确认扣款；empty：无商品提示，今天的收藏已买过；unconfirmed：点了确认，扣款没核上。
+    前两种登记成交日期，供补买排除已购供给；可能买进的两种作废这些商品的库存旧数，
+    ⑤ 见到未知就去柜台现读，不拿买前的数跳过柜台。不管收藏勾没勾成，按名单全部作废。
+    """
+
     def run(self, context, argv):
+        task_id = argv.task_detail.task_id
         try:
-            run = _record_run(context, argv.task_detail.task_id, "ArbitrageBuyComplete")
-            if run is None:
-                raise ValueError("常规采购完成时缺少本轮最终名单")
-            # 本节点只由一键购买的金币确认出口进入；收藏对齐本身不证明已买。
-            run["completed_day"] = store.market_day()
-            return True
+            raw = argv.custom_action_param
+            params = raw if isinstance(raw, dict) else json.loads(str(raw))
+            result = str(params.get("result") if isinstance(params, dict) else None)
+            record, invalidate = _OUTCOMES[result]
         except Exception as exc:
-            mfaalog.warning(f"[②采购] 成交依据未保存：{exc}；继续收尾")
+            mfaalog.error(f"[②采购] 收尾参数无效({exc})，按可能买进处理、不登记成交")
+            result, record, invalidate = "unknown", False, True
+        try:
+            if not sync_from_context(context, where="ArbitrageBuyComplete"):
+                clear_purchase_run(task_id)
+                mfaalog.warning("[②采购] 存档未同步，成交依据与库存作废都没写；继续收尾")
+                return True
+            try:
+                run = get_purchase_run(task_id)
+            except ValueError as exc:
+                mfaalog.warning(f"[②采购] {exc}")
+                run = None
+        except Exception as exc:
+            mfaalog.warning(f"[②采购] 存档读不到：{exc}；继续收尾")
             return True
+        if invalidate:
+            try:
+                names = _purchasable_names(run)
+                if not store.invalidate_inventory_quantities(names, f"purchase_{result}", {"task_id": task_id}):
+                    raise RuntimeError("写入失败")
+                scope = "整个商店目录" if run is None else "名单上"
+                mfaalog.info(f"[②采购] {scope} {len(names)} 样商品的库存旧数已作废，⑤ 到柜台现读")
+            except Exception as exc:
+                mfaalog.error(f"[②采购] 库存旧数未能作废：{exc}；继续收尾")
+        if record:
+            try:
+                if run is None:
+                    raise ValueError("常规采购完成时缺少本轮最终名单")
+                run["completed_day"] = store.market_day()
+            except Exception as exc:
+                mfaalog.warning(f"[②采购] 成交依据未保存：{exc}；继续收尾")
+        return True

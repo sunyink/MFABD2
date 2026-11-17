@@ -1,4 +1,4 @@
-"""④ 卖料理前用库存记录跳过确定没货的柜台（U62）：只认这一段里读到的 0。
+"""出售派发前用库存记录跳过没得卖的柜台（U62、U63）：只认这一段里读到的数，①④ 料理读到 0、⑤ 材料不超过保留量。
 
 不连接游戏、不加载资源；出售主控只跑到派发为止，派发本身被替换。
 运行：python -B tools/verify_arbitrage_sale_skip.py -v
@@ -64,8 +64,8 @@ class TrustSinceTests(unittest.TestCase):
         self.assertEqual(skip.trust_since([scan(5, session="old")], RUNNING, "s1"), T0)
 
 
-class KnownEmptyTests(unittest.TestCase):
-    def test_only_fresh_known_zero(self):
+class KnownWithinTests(unittest.TestCase):
+    def test_only_fresh_known_zero_when_reserve_is_zero(self):
         items = {
             "鸡肉卷": zero(6),
             "蘑菇汤": zero(4),                                  # 盘点之前读到的
@@ -75,11 +75,30 @@ class KnownEmptyTests(unittest.TestCase):
             "香甜马卡龙": zero(7, source="sale_confirmed"),
         }
         names = ["鸡肉卷", "蘑菇汤", "炒蘑菇", "草药三明治", "烤蜂蜜苹果", "雞肉捲", "香甜马卡龙", "没记过的"]
-        result = skip.known_empty(names, items, T0 + timedelta(minutes=5))
+        reserves = dict.fromkeys(names, 0)
+        result = skip.known_within(reserves, items, T0 + timedelta(minutes=5))
         self.assertEqual(set(result), {"鸡肉卷", "雞肉捲", "香甜马卡龙"})
         self.assertEqual(result["鸡肉卷"][0], "盘点判 0")
-        self.assertEqual(result["香甜马卡龙"][0], "卖光了")
-        self.assertEqual(skip.known_empty(names, items, None), {})
+        self.assertEqual(result["香甜马卡龙"][0], "卖后余量")
+        self.assertEqual(result["鸡肉卷"][2], 0)
+        self.assertEqual(skip.known_within(reserves, items, None), {})
+
+    def test_fresh_reading_at_or_below_reserve(self):
+        items = {
+            "白糖": dict(zero(6, source="bag_detail"), quantity=300),
+            "奶酪": dict(zero(6, source="bag_detail"), quantity=400),
+            "黄油": dict(zero(6, source="bag_detail"), quantity=401),
+            "土豆": dict(zero(4, source="bag_detail"), quantity=10),   # 盘点之前读到的
+            "盐": dict(zero(6, source="replenish_purchase"), quantity=50),
+            "面粉": dict(zero(6), quantity=-1),
+            "牛奶": {"quantity_status": "unknown", "quantity_source": "invalidated:purchase_bought"},
+        }
+        reserves = {"白糖": 400, "奶酪": 400, "黄油": 400, "土豆": 400, "盐": 50, "面粉": 400, "牛奶": 400,
+                    "鸡蛋": None}
+        result = skip.known_within(reserves, items, T0 + timedelta(minutes=5))
+        self.assertEqual(set(result), {"白糖", "奶酪", "盐"})
+        self.assertEqual(result["白糖"][0::2], ("盘点读数", 300))
+        self.assertEqual(result["盐"][0], "补买后读数")
 
 
 def peak(name, cart):
@@ -139,15 +158,31 @@ class SellDispatchTests(unittest.TestCase):
                 self.assertFalse(any("没去柜台" in line for line in logs))
         self.assertIn("[Arbitrage] 库存记录读不到(存档坏了)，照旧逐家柜台核对", logs)
 
-    def test_material_sale_is_not_filtered(self):
-        policy = SimpleNamespace(sale_eligible={"鸡肉卷", "蘑菇汤"}, reserve_for=lambda name: 0,
-                                 describe=lambda: "测试保留")
-        ok, sent, _ = self.run_sell(
-            {"鸡肉卷": zero(1), "蘑菇汤": zero(2)}, params={"mode": "sell", "sale_scope": "materials"},
+    def run_materials(self, items, reserves):
+        policy = SimpleNamespace(sale_eligible=set(reserves), reserve_for=reserves.get, describe=lambda: "测试保留")
+        return self.run_sell(
+            items, params={"mode": "sell", "sale_scope": "materials"},
             extra=[patch.object(controller, "read_material_reserve_policy", return_value=policy),
                    patch.object(controller, "_load_recipe_names", return_value=set())])
+
+    def test_material_within_reserve_is_not_visited(self):
+        held = dict(zero(2, source="bag_detail"), quantity=300)
+        ok, sent, logs = self.run_materials({"鸡肉卷": zero(1), "蘑菇汤": held}, {"鸡肉卷": 0, "蘑菇汤": 300})
         self.assertTrue(ok)
-        self.assertEqual(sent, ["鸡肉卷", "蘑菇汤"])
+        self.assertEqual(sent, [])
+        self.assertTrue(any(line.startswith("[Arbitrage] [蘑菇汤] 库存记录 300（盘点读数，") and
+                            line.endswith("），不超过保留 300，不去柜台") for line in logs))
+        self.assertEqual(logs[-1], "[Arbitrage] 💤 今日峰值材料库存都不超过保留量，不去柜台：鸡肉卷, 蘑菇汤")
+
+    def test_material_above_reserve_or_unknown_still_goes(self):
+        held = dict(zero(2, source="bag_detail"), quantity=301)
+        for record in (held, {"quantity_status": "unknown", "quantity_source": "invalidated:purchase_bought"}):
+            with self.subTest(record=record):
+                ok, sent, logs = self.run_materials({"鸡肉卷": zero(1), "蘑菇汤": record},
+                                                    {"鸡肉卷": 0, "蘑菇汤": 300})
+                self.assertTrue(ok)
+                self.assertEqual(sent, ["蘑菇汤"])
+                self.assertEqual(logs[-1], "[Arbitrage] 本轮实际售出 1 项：蘑菇汤，1项库存不超过保留量、没去柜台")
 
 
 if __name__ == "__main__":

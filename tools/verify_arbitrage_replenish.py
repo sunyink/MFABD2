@@ -74,12 +74,14 @@ class PurchaseSupplyTests(unittest.TestCase):
     def setUp(self):
         self.context = Reader()
         self.argv = NS(task_detail=NS(task_id=99), node_name="Arbitrage_Buy_Select_End",
-                       custom_action_param={})
+                       custom_action_param={"result": "bought"})
+        self.invalidate = Mock(return_value=True)
         for p in (patch.dict(lists._RUNS, clear=True),
                   patch.object(PersistentStore, "_current_account_id", "test"),
                   patch.object(buy, "sync_from_context", return_value=True),
                   patch.object(buy.store, "get_purchase_alignments", return_value={}),
                   patch.object(buy.store, "market_day", return_value=DAY),
+                  patch.object(buy.store, "invalidate_inventory_quantities", self.invalidate),
                   patch.object(buy.mfaalog, "info")):
             p.start()
             self.addCleanup(p.stop)
@@ -196,6 +198,81 @@ class PurchaseSupplyTests(unittest.TestCase):
         with patch.object(buy, "sync_from_context", return_value=False):
             self.assertTrue(buy.ArbitrageBuyComplete().run(self.context, self.argv))
         self.assertEqual(lists.completed_purchase_items(99, DAY), set())
+
+    def complete(self, result):
+        argv = NS(task_detail=NS(task_id=99), node_name="test", custom_action_param={"result": result})
+        self.assertTrue(buy.ArbitrageBuyComplete().run(self.context, argv))
+
+    def invalidated(self):
+        self.invalidate.assert_called_once()
+        return set(self.invalidate.call_args.args[0])
+
+    def test_bought_or_unconfirmed_invalidate_every_listed_item(self):
+        """U63：不管收藏勾没勾成，名单上的全部作废；扣款没核上不登记成交。"""
+        for outcome, recorded in (("bought", True), ("unconfirmed", False)):
+            with self.subTest(outcome=outcome):
+                self.invalidate.reset_mock()
+                run = self.prepare(complete=False)
+                self.complete(outcome)
+                self.assertEqual(self.invalidated(), {item for items in run["table"].values() for item in items})
+                self.assertIn("盐", self.invalidated())
+                self.assertEqual(self.invalidate.call_args.args[1], f"purchase_{outcome}")
+                self.assertEqual(bool(lists.completed_purchase_items(99, DAY)), recorded)
+
+    def test_empty_shop_records_day_but_keeps_stock(self):
+        self.prepare(complete=False)
+        self.complete("empty")
+        self.invalidate.assert_not_called()
+        self.assertIn(("三国同盟", "盐"), lists.completed_purchase_items(99, DAY))
+
+    def test_unverified_or_unreadable_cards_invalidate_their_whole_shelf(self):
+        catalog = lists.load_purchase_catalog()
+        self.custom("S16:三国同盟", set())
+        run = self.prepare(complete=False)
+        run["pending"].add("S16:三国同盟")                       # 收藏没核上：游戏里可能还留着旧星
+        run["failed_cards"]["S5:沙漠之花"] = "unreadable"        # 名单读不出：沿用游戏里现有的收藏
+        self.complete("bought")
+        for card in ("S16:三国同盟", "S5:沙漠之花"):
+            self.assertTrue({buy.canon(name) for name in catalog[card]["items"]} <= self.invalidated())
+
+    def test_missing_list_invalidates_whole_catalog_and_bad_param_is_treated_as_bought(self):
+        self.complete("bought")                                 # 名单准备失败后走了容错购买
+        catalog = {buy.canon(name) for row in lists.load_purchase_catalog().values() for name in row["items"]}
+        self.assertEqual(self.invalidated(), catalog)
+        self.assertEqual(lists.completed_purchase_items(99, DAY), set())
+        self.prepare(complete=False)
+        self.invalidate.reset_mock()
+        self.complete("typo")
+        self.invalidated()
+        self.assertEqual(lists.completed_purchase_items(99, DAY), set())
+
+    def test_unsynced_store_is_not_written_and_write_failure_still_records(self):
+        self.prepare(complete=False)
+        with patch.object(buy, "sync_from_context", return_value=False):
+            self.complete("bought")
+        self.invalidate.assert_not_called()
+        self.invalidate.return_value = False
+        self.prepare(complete=False)
+        self.complete("bought")
+        self.assertIn(("三国同盟", "盐"), lists.completed_purchase_items(99, DAY))
+
+    def test_pipeline_outcomes_and_only_gold_confirm_reaches_bought(self):
+        nodes = {"Arbitrage_Buy_Select_End": "bought", "Arbitrage_Favorit_Buy_Empty": "empty",
+                 "Arbitrage_Favorit_Buy_WRN": "unconfirmed"}
+        for name, outcome in nodes.items():
+            node = PIPE[name]
+            self.assertEqual((node["custom_action"], node["custom_action_param"], node["next"]),
+                             ("ArbitrageBuyComplete", {"result": outcome}, ["Arbitrage_Buy_Cleanup"]), name)
+        self.assertEqual(sorted(name for name, node in PIPE.items()
+                                if node.get("custom_action") == "ArbitrageBuyComplete"), sorted(nodes))
+        callers = [name for name, node in PIPE.items()
+                   if "Arbitrage_Buy_Select_End" in node.get("next", []) + node.get("on_error", [])]
+        self.assertEqual(callers, ["Arbitrage_Favorit_Buy_GlodConfirm"])
+        self.assertEqual(PIPE[callers[0]]["custom_recognition_param"]["direction"], "decrease")
+        self.assertIn("Arbitrage_Favorit_Buy_WRN", PIPE["Arbitrage_Favorit_Buy_SubMenu_BuyAction"]["next"])
+        pc = json.loads((ROOT / "assets/resource/pc/pipeline/Arbitrage.json").read_text(encoding="utf-8"))
+        for name in nodes:
+            self.assertFalse({"next", "action", "custom_action", "custom_action_param"} & set(pc.get(name, {})))
 
     def test_ready_exception_reports_unverified_for_pipeline(self):
         with patch.object(buy, "get_purchase_run", side_effect=ValueError("bad state")):

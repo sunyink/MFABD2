@@ -14,7 +14,7 @@ from utils.arbitrage_store import (
     market_day,
     save_market_snapshot,
 )
-from utils.arbitrage_sale_skip import known_empty, trust_since
+from utils.arbitrage_sale_skip import known_within, trust_since
 from utils.name_i18n import canon
 from utils.arbitrage_sale_state import LOCKED_REASON
 from utils.arbitrage_pricelist import (
@@ -499,12 +499,13 @@ class ArbitrageSellController(CustomAction):
             mfaalog.info("[Arbitrage] 💤 今日无符合条件的最高价商品，收工！")
             return True
 
-        known_empty_names = []
-        if mode == _MODE_SELL and params.get("sale_scope", "recipes") == "recipes":
-            targets_to_sell, known_empty_names = self._drop_known_empty(targets_to_sell)
+        skipped_names = []
+        skipped_label = "库存记录为0" if params.get("sale_scope", "recipes") == "recipes" else "库存不超过保留量"
+        if mode == _MODE_SELL:
+            targets_to_sell, skipped_names = self._drop_nothing_to_sell(targets_to_sell)
             if not targets_to_sell:
-                mfaalog.info(f"[Arbitrage] 💤 今日峰值料理库存都记录为 0，不去柜台："
-                             f"{', '.join(known_empty_names)}")
+                what = "料理库存都记录为 0" if skipped_label == "库存记录为0" else "材料库存都不超过保留量"
+                mfaalog.info(f"[Arbitrage] 💤 今日峰值{what}，不去柜台：{', '.join(skipped_names)}")
                 return True
 
         # 🌟 优化日志 3：列出最终交集的执行清单
@@ -600,8 +601,8 @@ class ArbitrageSellController(CustomAction):
             parts.append(f"{len(sold_skipped)}项无可卖数量")
         if sold_locked:
             parts.append(f"{len(sold_locked)}项{LOCKED_REASON}，已跳过")  # noqa: RUF001
-        if known_empty_names:
-            parts.append(f"{len(known_empty_names)}项库存记录为0、没去柜台")
+        if skipped_names:
+            parts.append(f"{len(skipped_names)}项{skipped_label}、没去柜台")
         if parts:
             mfaalog.info(f"[Arbitrage] 本轮{'，'.join(parts)}")  # noqa: RUF001
         else:
@@ -609,17 +610,25 @@ class ArbitrageSellController(CustomAction):
         return True
 
     @staticmethod
-    def _drop_known_empty(targets: list) -> tuple[list, list]:
-        """①④ 卖料理：本轮已读到 0 的不去柜台（U62）。记录读不到就照旧每家都去。"""
+    def _drop_nothing_to_sell(targets: list) -> tuple[list, list]:
+        """本轮读到的数不超过保留量的不去柜台：①④ 料理保留 0，⑤ 材料按保留量（U62、U63）。
+
+        记录读不到就照旧每家都去。
+        """
+        reserves = {t["name"]: t["reserve"] for t in targets}
         try:
             since = trust_since()
-            empty = known_empty([t["name"] for t in targets], get_inventory_items(), since) if since else {}
+            skipped = known_within(reserves, get_inventory_items(), since) if since else {}
         except Exception as exc:
             mfaalog.warning(f"[Arbitrage] 库存记录读不到({exc})，照旧逐家柜台核对")
             return targets, []
-        for name, (source, seen) in empty.items():
-            mfaalog.info(f"[Arbitrage] [{name}] 库存记录为 0（{source}，{seen.astimezone():%H:%M:%S}），不去柜台")
-        return [t for t in targets if t["name"] not in empty], list(empty)
+        for name, (source, seen, quantity) in skipped.items():
+            basis = f"（{source}，{seen.astimezone():%H:%M:%S}）"
+            if quantity == 0:
+                mfaalog.info(f"[Arbitrage] [{name}] 库存记录为 0{basis}，不去柜台")
+            else:
+                mfaalog.info(f"[Arbitrage] [{name}] 库存记录 {quantity}{basis}，不超过保留 {reserves[name]}，不去柜台")
+        return [t for t in targets if t["name"] not in skipped], list(skipped)
 
     def _scan_price_list(self, context: Context, max_scan_pages: int, stop_at_non_max: bool) -> dict:
         """扫描价目表，翻到与上一页内容相同即判到底。"""
