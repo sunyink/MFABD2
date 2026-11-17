@@ -4343,7 +4343,6 @@
         "next": [
             "[JumpBack]Arbitrage_Cooking_MateProtec_B17",
             "[JumpBack]Arbitrage_Cooking_MateProtec_B14",
-            "[JumpBack]Arbitrage_Cooking_MateProtec_B10",
             "[JumpBack]Arbitrage_Cooking_MateProtec_A2",
             "[JumpBack]Arbitrage_Cooking_Swip_Page2"
         ]
@@ -4436,31 +4435,6 @@
         "custom_action_param": {
             "target": [
                 "Arbitrage_Cooking_A5_Entry"
-            ],
-            "patch": {
-                "enabled": false
-            }
-        }
-    },
-    "Arbitrage_Cooking_MateProtec_B10": {
-        "desc": "辣椒素：地狱火紫菜包饭已解锁时，禁用火烤鱼板棒。",
-        "max_hit": 1,
-        "recognition": "TemplateMatch",
-        "roi": [
-            592,
-            103,
-            596,
-            598
-        ],
-        "template": [
-            "Shop/RecipeList/料理_地狱火紫菜包饭.png"
-        ],
-        "green_mask": true,
-        "action": "Custom",
-        "custom_action": "PatchPipeline",
-        "custom_action_param": {
-            "target": [
-                "Arbitrage_Cooking_A7_Entry"
             ],
             "patch": {
                 "enabled": false
