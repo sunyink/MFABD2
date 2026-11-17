@@ -2,6 +2,7 @@
 
 from collections import OrderedDict
 from dataclasses import replace
+from datetime import datetime
 from uuid import uuid4
 
 from maa.agent.agent_server import AgentServer
@@ -18,6 +19,7 @@ from utils.arbitrage_purchase_lists import node_enabled
 from utils.arbitrage_recipe_catalog import discover_recipe_entries
 from utils.arbitrage_replenish_data import load_replenish_data
 from utils.arbitrage_replenish_profit import DEFAULT_PROFIT_SURRENDER_PERCENT, validate_profit_surrender_percent
+from utils.arbitrage_sale_skip import trust_since
 from utils.persistent_store import PersistentStore
 
 
@@ -29,6 +31,26 @@ _NORMAL_COMPLETED = OrderedDict()
 
 def cooking_stage_active(task_id):
     return task_id in _COOKING_RUNS and _COOKING_RUNS[task_id] == PersistentStore._current_account_id
+
+
+def _reuse_since(task_id):
+    """③ 补查认哪之后读到的数：本次运行最近一次记账盘点的开始，没开记账就本任务开始（同 ①④⑤ 的出售跳过）。
+
+    做菜前已作废这道配方用到的材料，② 买后已作废名单商品（U66），这之后还标着已知的数就是准的；
+    没做菜时不必把配方材料全部重读（试跑10）。拿不到（任务起止没接上）时退回这轮做菜的开始。
+    """
+    try:
+        since = trust_since()
+    except Exception as exc:
+        mfaalog.warning(f"[③仓检] 本轮盘点时刻读不到({exc})，只认做菜开始之后的读数")
+        since = None
+    if since is not None:
+        return since
+    try:
+        started = datetime.fromisoformat(str(get_cooking_scan_start(task_id)))
+    except ValueError:
+        return None
+    return started if started.tzinfo is not None else None
 
 
 def replenishment_entries(context, task_id):
@@ -154,10 +176,11 @@ class ArbitrageBagScan(CustomAction):
             required = {name for entry in entries if entry.name in data["recipes"]
                         for name in data["recipes"][entry.name]["ingredients"]}
             catalog = bag_catalog(context)
-            pending = pending_materials(dict.fromkeys(sorted(required)), store.get_inventory_items(),
-                                        get_cooking_scan_start(task_id))
+            since = _reuse_since(task_id)
+            pending = pending_materials(dict.fromkeys(sorted(required)), store.get_inventory_items(), since)
             scan = sorted(set(pending) & catalog.keys())
-            mfaalog.info(f"[③仓检] 配方需要{len(required)}项，需进背包核对{len(scan)}项")
+            basis = f"（沿用 {since.astimezone():%H:%M:%S} 之后的读数）" if since is not None else "（没有可沿用的读数）"
+            mfaalog.info(f"[③仓检] 配方需要{len(required)}项，需进背包核对{len(scan)}项{basis}")
         except Exception as exc:
             mfaalog.error(f"[③仓检] 准备失败：{exc}")
             return False

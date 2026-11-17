@@ -2,6 +2,7 @@
 再按旧形状写本轮汇总 latest.bag，补买补做照常经 get_bag_scan_run / get_replenish_inventory 读取。"""
 
 from collections import OrderedDict
+from datetime import datetime
 
 from .bag_scan import profile_names
 
@@ -30,15 +31,27 @@ def bag_catalog(context) -> dict[str, str]:
     return dict.fromkeys(profile_names("ingredients"), "")
 
 
-def pending_materials(catalog: dict, items: dict, started_at: str | None) -> list[str]:
-    """只复用本轮观测且未被后续制作作废的精确量；单独运行背包则全部重查。"""
+def _moment(text) -> datetime | None:
+    try:
+        value = datetime.fromisoformat(str(text))
+    except (TypeError, ValueError):
+        return None
+    return value if value.tzinfo is not None else None
+
+
+def pending_materials(catalog: dict, items: dict, since: datetime | None) -> list[str]:
+    """只复用 since 之后读到、还没被作废的精确量；since 为 None（单独运行背包）就全部重查。
+
+    since 由调用方定。没时区的读数时刻不猜，当作要重查。
+    """
     pending = []
     for name in catalog:
         fact = items.get(name, {})
         quantity = fact.get("quantity")
-        if not (started_at and fact.get("quantity_status") == "known"
+        seen = _moment(fact.get("quantity_observed_at"))
+        if not (since is not None and fact.get("quantity_status") == "known"
                 and isinstance(quantity, int) and not isinstance(quantity, bool) and quantity >= 0
-                and fact.get("quantity_observed_at", "") > started_at):
+                and seen is not None and seen > since):
             pending.append(name)
     return pending
 
