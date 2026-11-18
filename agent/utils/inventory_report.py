@@ -99,6 +99,10 @@ def _items(ledger, first, last, close, prices, closers):
             adjust = {"before": carried["open"], "before_at": scans[carried["from"]]["id"],
                       "before_time": scans[carried["from"]]["at"], "price_before": before, "delta": carried["delta"],
                       "reason": carried.get("reason"), "missing_at": carried.get("missing_at") or [], "value": worth}
+        # 疑似漏读的 0 是按全部历史认的；只报落在本日各段（含期初调整那一段）中间的，别的日子不再带出。
+        inside = {scans[index]["id"] for piece in pieces + ([carried] if carried else [])
+                  for index in range(piece["from"] + 1, piece["to"])}
+        suspect = [miss for miss in entry.get("suspect") or [] if miss["scan"] in inside]
         # 一大笔库存在一段里清零、这一段又没有它的出售或制作记录：多半是盘点漏读，提醒但不改数。
         emptied = next((piece["open"] for piece in pieces
                         if piece["to"] - piece["from"] == 1 and piece["open"] >= SUSPECT_MIN and piece["close"] == 0
@@ -109,7 +113,7 @@ def _items(ledger, first, last, close, prices, closers):
             "scope": entry.get("scope"), "opening": opening, "closing": closing, "total": closing - opening,
             "opening_at": scans[opening_at]["id"], "closing_at": scans[closing_at]["id"],
             "deltas": deltas, "spans": spans, "price": price, "price_open": price_open, "value": value,
-            "unpriced": valued and not priced, "emptied": emptied, "suspect": entry.get("suspect") or [],
+            "unpriced": valued and not priced, "emptied": emptied, "suspect": suspect,
             "adjust": adjust})
     return rows, sorted(unread)
 

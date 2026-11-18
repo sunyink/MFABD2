@@ -355,6 +355,25 @@ class ReportTests(unittest.TestCase):
         self.assertEqual(item(model, "米")["deltas"], {"daily": 0, "collect": 50})
         self.assertTrue(all(check["ok"] for check in model["checks"]), model["checks"])
 
+    def test_missed_read_is_noticed_only_on_its_own_day(self):
+        """11-18 实机：11-14 那次把鸡蛋判成 0 的提醒，跟着鸡蛋进了 11-15、11-18 的报表。只报在漏读那天。"""
+        story = Story()
+        story.task("Daily_HomePage").at("begin", "daily", FULL).work(精炼石=3)
+        story.lost = ("兽肉",)
+        story.task("Collect_StartGame_HomePage").at("begin", "collect", FULL).work(300, 米=50)
+        story.at("end", "collect", ("A",))
+        next_morning(story)
+        story.task("Collect_StartGame_HomePage").at("begin", "collect", FULL).work(300, 兽肉=40)
+        story.at("end", "collect", ("A",))
+        first = story.end().report()
+        self.assertTrue(any("S2 那次盘点把「兽肉」判成了 0" in notice["text"] for notice in first["notices"]))
+        model = story.report(day="2026-11-15")
+        meat = item(model, "兽肉")
+        self.assertEqual((meat["deltas"].get("collect"), meat["suspect"]), (40, []))
+        self.assertFalse(any("判成了 0" in notice["text"] for notice in model["notices"]), model["notices"])
+        self.assertEqual(model["kpis"]["warnings"], 0)
+        self.assertTrue(all(check["ok"] for check in model["checks"]), model["checks"])
+
     def test_small_or_sold_out_items_may_really_hit_zero(self):
         story = Story()
         story.task("Daily_HomePage").at("begin", "daily", FULL).work(抽抽乐券=-2)   # 两张券用光
