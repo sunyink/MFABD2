@@ -308,7 +308,8 @@ def _run(context: Context, argv: CustomAction.RunArg) -> None:
             record = run_bag_scan(context, label=label, scope=decision["scopes"], origin=origin)
             executed = bool(record.get("executed"))
             if not executed:
-                mfaalog.warning(f"[Ledger] ⚠️ {label}：盘点没执行（{record.get('error')}），留给下一个位置")
+                mfaalog.warning(f"[Ledger] ⚠️ {label}：盘点没执行（{record.get('error')}），留给下一个位置；"
+                                "这个任务里出售与补查不认更早的库存读数")
             else:
                 closing = mark != "begin"   # 收尾位置：任务的最后一步，后面没有下一盘，可以换页面去把货币读到
                 record["returned"], filled = _retry(context, label, record, origin, closing=closing)
@@ -331,6 +332,9 @@ def _run(context: Context, argv: CustomAction.RunArg) -> None:
         # 「未正常结束」，这一段的活动也没人收尾盘。出错的那次按没盘算，未盘掉的活动原样留给下一个位置。
         with _LOCK:
             ledger_rules.settle(state, mark=mark, kind=kind, task_id=task_id, entry=entry, now=time.time(), scan=scan)
+        # 该盘而没执行＝最近那次盘点之后的活动还没盘掉：记在任务行上，出售与补查看到就不认更早的读数
+        # （utils/arbitrage_sale_skip.trust_since，穿透复核第 4 条）。半路断了的留有盘点记录，读到的那部分照认。
+        task_journal.note(task_id, stock_current=not decision["scan"] or executed)
     # 盘了就出报表（半路断了的也出：读到的那部分已经进了凭证）；结束游戏与手动结账即使规则说不用盘也出一次：
     # 收个尾，把最后几个任务的起止补进去。只有手动结账出完自己打开（U61）。
     if options["report"] and (executed or mark in ("queue_end", "manual")):

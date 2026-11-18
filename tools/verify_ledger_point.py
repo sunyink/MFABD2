@@ -504,6 +504,34 @@ class LedgerPointTests(unittest.TestCase):
         self.assertEqual([mark["mark"] for mark in self.events("ledger_mark")], ["begin", "end"])
         self.assertEqual(self.scans[-1]["label"], "记账·商店结束")
 
+    def test_position_tells_the_task_whether_stock_readings_still_connect(self):
+        """穿透复核第 4 条：该盘而没执行，任务行上记 stock_current=False，出售与补查就不认更早的读数。"""
+        def current(task_id):
+            return next(row for row in task_journal.rows() if row["task_id"] == task_id).get("stock_current")
+
+        self.task("Collect_StartGame_HomePage", 101)
+        self.run_point("begin", "collect", 101, "Collect_StartGame_HomePage")     # 盘了
+        self.assertIs(current(101), True)
+        self.scan_result = {"executed": False, "returned": False}
+        self.run_point("end", "collect", 101, "Collect_StartGame_HomePage")       # 收尾那盘没执行
+        self.assertIs(current(101), False)
+        self.task("Arbitrage_Start", 102)
+        self.assertIsNone(current(102))                                            # 还没走到记账位置
+        self.run_point("begin", "shop", 102, "Arbitrage_Start")                   # 开头的补盘也没执行
+        self.assertIs(current(102), False)
+        self.scan_result = {"executed": True, "returned": True}
+        self.task("Arbitrage_Start", 103)
+        self.run_point("begin", "shop", 103, "Arbitrage_Start")                   # 这回补上了
+        self.assertIs(current(103), True)
+        self.run_point("end", "shop", 103, "Arbitrage_Start")
+        self.task("Arbitrage_Start", 104)
+        self.run_point("begin", "shop", 104, "Arbitrage_Start")                   # 不用盘：上一次一盘两用
+        self.assertEqual((len(self.scans), current(104)), (5, True))
+        with patch.object(point, "run_bag_scan", side_effect=RuntimeError("进包失败")):
+            self.task("Mail_HomePage", 105)
+            self.run_point("begin", "daily", 105, "Mail_HomePage")                # 该盘、盘点那段出错：一样记没接上
+        self.assertIs(current(105), False)
+
     def test_list_and_gap_come_from_the_node_and_stay_for_the_report(self):
         """穿透复核第 5 条：免记名单与连续阈值取自节点，读成一次就留着——之后节点读不到、出报表，用的都是这一份。"""
         class Config:

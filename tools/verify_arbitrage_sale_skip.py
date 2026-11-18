@@ -45,7 +45,8 @@ def zero(minutes, source="bag_absent"):
             "quantity_source": source}
 
 
-RUNNING = [{"entry": "Arbitrage_Start", "start": T0.timestamp(), "end": None}]
+# stock_current：这个任务最近走过的记账位置认库存读数接得上（不用盘，或盘了），记账位置留在任务行上。
+RUNNING = [{"entry": "Arbitrage_Start", "start": T0.timestamp(), "end": None, "stock_current": True}]
 
 
 class TrustSinceTests(unittest.TestCase):
@@ -53,6 +54,15 @@ class TrustSinceTests(unittest.TestCase):
         finished = [dict(RUNNING[0], end=T0.timestamp() + 60)]
         self.assertIsNone(skip.trust_since([scan(5)], finished, "s1"))
         self.assertIsNone(skip.trust_since([scan(5)], [], "s1"))
+
+    def test_a_scan_that_was_due_but_never_ran_makes_older_scans_untrusted(self):
+        """穿透复核第 4 条：上一阶段收尾那盘没执行，本任务开头的补盘也没执行——最近那次盘点之后的活动没盘掉，只认本任务里读到的。"""
+        events = [scan(-30)]                                # 更早那次盘点还在，但它之后吸取过
+        missed = [dict(RUNNING[0], stock_current=False)]
+        self.assertEqual(skip.trust_since(events, missed, "s1"), T0)
+        unvisited = [{"entry": "Arbitrage_Start", "start": T0.timestamp(), "end": None}]   # 本任务没走过记账位置
+        self.assertEqual(skip.trust_since(events, unvisited, "s1"), T0)
+        self.assertEqual(skip.trust_since(events, RUNNING, "s1"), T0 - timedelta(minutes=30))   # 位置点过头：照认
 
     def test_latest_ledger_scan_of_this_session_is_the_floor(self):
         events = [scan(-30), scan(5), scan(9, retry_of="x"), scan(20, session="old"),

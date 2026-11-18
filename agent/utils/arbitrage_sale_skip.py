@@ -1,8 +1,9 @@
 """出售派发前，用库存记录挑掉确定没得卖的目标，不再每家柜台都去试（U62、U63）。
 
 没得卖＝读到的数不超过保留量：①④ 料理保留 0，即读到 0；⑤ 材料按材料保留量。
-只认这一段里读到的数：本次 Agent 会话里最近一次记账盘点开始之后；没开记账、或那次盘点
-已滚出热档时，只认当前任务开始之后。更早的数可能被别的任务或手动游玩改过。
+只认这一段里读到的数：本次 Agent 会话里最近一次记账盘点开始之后——前提是本任务最近走过的记账位置
+认这次盘点接得上（不用再盘，或当场盘了）。该盘没盘成、本任务没走过记账位置、没开记账、
+那次盘点已滚出热档时，只认当前任务开始之后。更早的数可能被别的任务或手动游玩改过。
 ② 一键购买可能买进的商品在买后作废（ArbitrageBuyComplete），这里见到的已知数不会是买前的旧数。
 数量未知、超过保留量的照旧去柜台，由出售子页重新读数核对。宁可多跑一趟，不误跳一个峰值。
 """
@@ -25,13 +26,17 @@ SOURCES = {
 def trust_since(events=None, rows=None, session=None) -> datetime | None:
     """库存读数最早可以是什么时刻读到的；None 表示这次一个都不认。
 
-    没有正在跑的任务（任务起止没接上）时不认；有本会话的记账盘点时取最近一次的开始时刻
-    （重扫并进原盘点，不另算）；没有就取当前任务的开始时刻。
+    没有正在跑的任务（任务起止没接上）时不认。当前任务的行上有 stock_current（记账位置留的，task_journal.note）：
+    是 True 才认本会话最近一次记账盘点的开始时刻（重扫并进原盘点，不另算）；是 False（该盘没盘成，
+    最近那次盘点之后还有没盘掉的活动）或没有（本任务没走过记账位置），以及找不到盘点时，取当前任务的开始时刻。
     """
     rows = task_journal.rows() if rows is None else rows
     running = [row for row in rows if row.get("end") is None and isinstance(row.get("start"), (int, float))]
     if not running:
         return None
+    task_start = datetime.fromtimestamp(running[-1]["start"], timezone.utc)
+    if running[-1].get("stock_current") is not True:
+        return task_start
     session = task_journal.SESSION if session is None else session
     events = inventory_store.get_events() if events is None else events
     starts = []
@@ -44,9 +49,7 @@ def trust_since(events=None, rows=None, session=None) -> datetime | None:
             moment = moment_of(event.get("started_at"))
             if moment is not None:
                 starts.append(moment)
-    if starts:
-        return max(starts)
-    return datetime.fromtimestamp(running[-1]["start"], timezone.utc)
+    return max(starts) if starts else task_start
 
 
 def known_within(reserves: dict, items: dict, since: datetime | None) -> dict:
