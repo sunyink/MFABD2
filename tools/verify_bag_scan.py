@@ -22,7 +22,7 @@ from utils import inventory_store
 from utils import bag_pictures
 from utils.bag_cells import Cell, Grid, Icon, Page, color_count, hsv, icon_pack, item_table, match_picture, read_page
 from utils.bag_corner import CornerLayout, corner_box, parse_corner
-from utils.bag_detail import DetailLayout, FadeWatch, anchor_of, split_quantity, stitch, text_box
+from utils.bag_detail import DetailLayout, FadeWatch, anchor_of, plain_quantity, split_quantity, stitch, text_box
 from utils.bag_scan_engine import BagScanEngine, Reading, Section, estimate_shift, joining_kinds
 from utils.ocr_item_name import item_aliases
 
@@ -917,6 +917,24 @@ class DetailTests(unittest.TestCase):
         for text, expected in cases.items():
             with self.subTest(text=text):
                 self.assertEqual(split_quantity(text), expected)
+
+    def test_thousands_marks_are_dropped_only_when_the_grouping_is_regular(self):
+        """穿透复核第 8 条：「1,23」多半是漏读了一位，不能去掉分隔符当 123 收下——原样交给扫描核心，它解析不了就放大重读。"""
+        def parsed(quantity_text):                    # 扫描核心拿到这段数量文字后认出的数；认不出是 None
+            return BagScanEngine._parse(Reading(quantities=[(quantity_text, 0.9, [0, 0, 1, 1])]))[0]
+
+        regular = {"拥有2876个": 2876, "拥有2,876个": 2876, "擁有99.999個": 99999, "持有2,166,297個": 2166297,
+                   "拥有1。234个": 1234, "拥有12 , 345 个": 12345, "拥有0个": 0}
+        for text, value in regular.items():
+            with self.subTest(text=text):
+                self.assertEqual(parsed(plain_quantity(text)), value)             # 单读那条路
+                self.assertEqual(parsed(split_quantity("白糖" + text)[1]), value)  # 拼读那条路
+        for text in ("拥有1,23个", "拥有12,34个", "擁有1,234,56個", "持有1234,567個", "拥有1,,234个", "拥有,234个",
+                     "拥有1,234.个", "拥有01,234个"):
+            with self.subTest(text=text):
+                self.assertEqual(plain_quantity(text), text)                      # 一个字不动
+                self.assertEqual(split_quantity("白糖" + text), ("白糖", text))
+                self.assertIsNone(parsed(text))
 
 
 class FakeResult:
