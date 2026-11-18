@@ -2,7 +2,6 @@ import json
 import re
 import unicodedata
 from datetime import datetime, timezone
-from pathlib import Path
 from maa.custom_action import CustomAction
 from maa.context import Context
 from maa.agent.agent_server import AgentServer
@@ -14,6 +13,7 @@ from utils.arbitrage_store import (
     market_day,
     save_market_snapshot,
 )
+from utils.arbitrage_recipe_catalog import recipe_item_names
 from utils.arbitrage_sale_skip import known_within, trust_since
 from utils.name_i18n import canon
 from utils.arbitrage_sale_state import LOCKED_REASON
@@ -177,8 +177,6 @@ _MODE_SELL = "sell"
 _MODE_PREVIEW_ALL = "preview_all"
 _VALID_MODES = {_MODE_SELL, _MODE_PREVIEW_ALL}
 
-_ITEM_DATA_FILE = Path(__file__).resolve().parent.parent / "data" / "bd2_item_names_i18n.json"
-_RECIPE_NAMES = None
 
 def _tail_num(s: str) -> str:
     """整串尾部连续数字(尾号);无则空串。"""
@@ -327,24 +325,17 @@ def _action_params(argv) -> dict:
     return params
 
 
-def _load_recipe_names() -> set[str]:
-    """加载料理类别名录；失败时返回空集，①④宁可不卖也不猜类别。"""
-    global _RECIPE_NAMES
-    if _RECIPE_NAMES is not None:
-        return _RECIPE_NAMES
+def _load_recipe_names() -> frozenset:
+    """料理类别名录（utils.arbitrage_recipe_catalog 那一份，这里不另读文件）；读不到时返回空集。
+
+    空集对 ①④ 是没东西可卖——宁可不卖也不猜类别；对 ⑤ 只是少了「不是料理」这层排除，材料直卖资格表照常把关。
+    读不成不记住，下一次出售再读；每次出售只调一次，报错也只报一行。
+    """
     try:
-        with open(_ITEM_DATA_FILE, "r", encoding="utf-8") as handle:
-            records = json.load(handle)
-        _RECIPE_NAMES = {
-            canon(str(item.get("cn", "")).strip())
-            for item in records
-            if isinstance(item, dict) and item.get("category") == "Recipe" and item.get("cn")
-        }
-        mfaalog.info(f"[Arbitrage] 📖 料理类别名录加载 {len(_RECIPE_NAMES)} 项")
+        return recipe_item_names()
     except Exception as exc:
-        _RECIPE_NAMES = set()
-        mfaalog.error(f"[Arbitrage] ❌ 料理类别名录加载失败({exc})，①④本轮不卖料理")
-    return _RECIPE_NAMES
+        mfaalog.error(f"[Arbitrage] ❌ 料理类别名录加载失败({exc})：①④本轮不卖料理，⑤不再按名录排除料理")
+        return frozenset()
 
 def _new_scan() -> dict:
     """创建带明确覆盖语义的价目表观察。"""
@@ -421,13 +412,14 @@ class ArbitrageSellController(CustomAction):
         final_market = None
         final_market_day = None
         if mode == _MODE_SELL:
+            recipes = _load_recipe_names()
             if params.get("sale_scope", "recipes") == "recipes":
-                final_reserves = {name: 0 for name in _load_recipe_names()}
+                final_reserves = {name: 0 for name in recipes}
             else:
                 try:
                     policy = read_material_reserve_policy(context)
                     final_reserves = {name: policy.reserve_for(name) for name in policy.sale_eligible
-                                      if name not in _load_recipe_names() and policy.reserve_for(name) >= 0}
+                                      if name not in recipes and policy.reserve_for(name) >= 0}
                     mfaalog.info(f"[⑤材料] {policy.describe()}；仅峰值出售超过保留量的部分")
                 except Exception as exc:
                     mfaalog.error(f"[⑤材料] 保留配置不可用({exc})，停止材料出售")

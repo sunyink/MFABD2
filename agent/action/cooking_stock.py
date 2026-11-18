@@ -170,19 +170,6 @@ def _remember(task_id: int, before: dict, scan: dict) -> None:
             _MADE_PENDING.popitem(last=False)
 
 
-def _remember_before_cooking(context: Context, task_id: int, scan: dict) -> None:
-    """点「料理」前读一次；失败只记日志，不影响制作。"""
-    try:
-        image = context.tasker.controller.post_screencap().wait().get()
-        if image is None or not image.size:
-            raise RuntimeError("截图失败")
-        before = read_cooking_page(context, scan, image)
-    except Exception as exc:
-        mfaalog.warning(f"[CookingMade] 制作前读数失败，本次不记做了几个: {exc}")
-        return
-    _remember(task_id, before, scan)
-
-
 def _made(before: dict, after: dict):
     if type(before.get("owned")) is int and type(after.get("owned")) is int:
         return after["owned"] - before["owned"]

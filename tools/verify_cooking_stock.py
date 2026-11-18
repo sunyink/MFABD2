@@ -434,7 +434,9 @@ class CookingMadeTests(unittest.TestCase):
 
     def run_confirm(self, frames, task_id=101):
         context = MadeContext(frames)
-        stock._remember_before_cooking(context, task_id, PARAMS)
+        # 制作前那一帧：照 CookingInventoryBoundary 的做法截图、读制作页、记下。
+        image = context.tasker.controller.post_screencap().wait().get()
+        stock._remember(task_id, stock.read_cooking_page(context, PARAMS, image), PARAMS)
         argv = SimpleNamespace(task_detail=SimpleNamespace(task_id=task_id))
         with patch.object(stock, "sync_from_context", return_value=True),                 patch.object(stock, "save_cooking_made", return_value=True) as save:
             self.assertTrue(stock.CookingMadeConfirm().run(context, argv))
@@ -488,10 +490,21 @@ class CookingMadeTests(unittest.TestCase):
         save.assert_not_called()
 
     def test_unreadable_before_page_still_cooks(self):
-        context = MadeContext([page()])
-        context.tasker.controller.post_screencap = lambda: (_ for _ in ()).throw(RuntimeError("截图坏了"))
-        stock._remember_before_cooking(context, 9, PARAMS)
+        """制作前截图坏了：这次不记做了几个，「料理」照样点（走 CookingInventoryBoundary 本身）。"""
+        context = Mock()
+        context.get_node_object.side_effect = lambda name: (
+            SimpleNamespace(action=SimpleNamespace(param=SimpleNamespace(custom_action_param=PARAMS)))
+            if name == ENTRY else SimpleNamespace(attach=PIPELINE[name]["attach"]))
+        context.tasker.controller.post_screencap.side_effect = RuntimeError("截图坏了")
+        context.run_action.return_value = SimpleNamespace(success=True)
+        argv = SimpleNamespace(custom_action_param=PIPELINE["Arbitrage_Cooking_NubMenu_Doing"]["custom_action_param"],
+                               task_detail=SimpleNamespace(task_id=9), box=[1, 2, 3, 4])
+        with patch.object(stock, "sync_from_context", return_value=True), \
+                patch.object(stock, "get_inventory_items", return_value={}), \
+                patch.object(stock, "invalidate_inventory_quantities", return_value=True):
+            self.assertTrue(stock.CookingInventoryBoundary().run(context, argv))
         self.assertNotIn(9, stock._MADE_PENDING)
+        context.run_action.assert_called_once_with("Agt_Cooking_Commit_Click", box=argv.box)
 
     def test_store_updates_recipe_fact_and_appends_event(self):
         from utils import arbitrage_store

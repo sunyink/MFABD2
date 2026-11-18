@@ -10,6 +10,7 @@
 from datetime import datetime, timezone
 
 from . import inventory_store, task_journal
+from .inventory_store import moment_of
 from .name_i18n import canon
 
 
@@ -19,14 +20,6 @@ SOURCES = {
     "sale_confirmed": "卖后余量",
     "replenish_purchase": "补买后读数",
 }
-
-
-def _moment(text) -> datetime | None:
-    try:
-        value = datetime.fromisoformat(str(text))
-    except (TypeError, ValueError):
-        return None
-    return value if value.tzinfo is not None else None
 
 
 def trust_since(events=None, rows=None, session=None) -> datetime | None:
@@ -48,7 +41,7 @@ def trust_since(events=None, rows=None, session=None) -> datetime | None:
         origin = event.get("origin")
         if (event.get("kind") == "inventory_scan" and isinstance(origin, dict)
                 and origin.get("session") == session and not origin.get("retry_of")):
-            moment = _moment(event.get("started_at"))
+            moment = moment_of(event.get("started_at"))
             if moment is not None:
                 starts.append(moment)
     if starts:
@@ -71,7 +64,7 @@ def known_within(reserves: dict, items: dict, since: datetime | None) -> dict:
         quantity = fact.get("quantity")
         if type(quantity) is not int or type(reserve) is not int or not 0 <= quantity <= reserve:
             continue
-        seen = _moment(fact.get("quantity_observed_at"))
+        seen = moment_of(fact.get("quantity_observed_at"))
         if seen is None or seen < since:
             continue
         source = str(fact.get("quantity_source") or "?")

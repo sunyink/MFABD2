@@ -3,7 +3,6 @@
 from collections import OrderedDict
 from dataclasses import replace
 import json
-from datetime import datetime
 from uuid import uuid4
 
 from maa.agent.agent_server import AgentServer
@@ -48,11 +47,7 @@ def _reuse_since(task_id):
         since = None
     if since is not None:
         return since
-    try:
-        started = datetime.fromisoformat(str(get_cooking_scan_start(task_id)))
-    except ValueError:
-        return None
-    return started if started.tzinfo is not None else None
+    return store.moment_of(get_cooking_scan_start(task_id))
 
 
 def replenishment_entries(context, task_id):

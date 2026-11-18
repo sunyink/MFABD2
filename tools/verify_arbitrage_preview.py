@@ -105,7 +105,6 @@ class ArbitragePreviewTests(unittest.TestCase):
             self.assertEqual(name_i18n.name_variants("鮭魚"), ["鮭魚"])
 
     def setUp(self):
-        ar._RECIPE_NAMES = None
         self.sync = patch.object(ar, "sync_from_context", return_value=True)
         self.sync.start()
 
@@ -193,6 +192,19 @@ class ArbitragePreviewTests(unittest.TestCase):
         completed, execute, _ = self.presell(None, {})
         self.assertFalse(completed)
         execute.assert_not_called()
+
+    def test_recipe_names_have_one_reader_and_a_failed_read_is_not_remembered(self):
+        """料理名录只有 arbitrage_recipe_catalog 一份；读不到时出售拿到空集（①④ 不卖），读不成不记住、下次再读。"""
+        from utils import arbitrage_recipe_catalog as catalog
+
+        self.assertIs(ar._load_recipe_names(), catalog.recipe_item_names())
+        self.assertIn("烤蜂蜜苹果", ar._load_recipe_names())
+        catalog.recipe_item_names.cache_clear()
+        with patch.object(catalog, "_ITEM_NAMES", ROOT / "没有这个文件.json"), \
+                patch.object(ar.mfaalog, "error") as error:
+            self.assertEqual(ar._load_recipe_names(), frozenset())
+        error.assert_called_once()
+        self.assertIn("烤蜂蜜苹果", ar._load_recipe_names())
 
     def test_invalid_mode_fails_closed(self):
         context = Context()

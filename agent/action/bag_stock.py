@@ -4,6 +4,8 @@
 from collections import OrderedDict
 from datetime import datetime
 
+from utils.inventory_store import moment_of
+
 from .bag_scan import profile_names
 
 
@@ -31,14 +33,6 @@ def bag_catalog(context) -> dict[str, str]:
     return dict.fromkeys(profile_names("ingredients"), "")
 
 
-def _moment(text) -> datetime | None:
-    try:
-        value = datetime.fromisoformat(str(text))
-    except (TypeError, ValueError):
-        return None
-    return value if value.tzinfo is not None else None
-
-
 def pending_materials(catalog: dict, items: dict, since: datetime | None) -> list[str]:
     """只复用 since 之后读到、还没被作废的精确量；since 为 None（单独运行背包）就全部重查。
 
@@ -48,7 +42,7 @@ def pending_materials(catalog: dict, items: dict, since: datetime | None) -> lis
     for name in catalog:
         fact = items.get(name, {})
         quantity = fact.get("quantity")
-        seen = _moment(fact.get("quantity_observed_at"))
+        seen = moment_of(fact.get("quantity_observed_at"))
         if not (since is not None and fact.get("quantity_status") == "known"
                 and isinstance(quantity, int) and not isinstance(quantity, bool) and quantity >= 0
                 and seen is not None and seen > since):

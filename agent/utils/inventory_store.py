@@ -11,6 +11,7 @@ from . import arbitrage_store as _base
 from .arbitrage_store import (  # noqa: F401  通用读写原样转出
     get_inventory_items,
     invalidate_inventory_quantities,
+    moment_of,
     set_inventory_quantities,
 )
 

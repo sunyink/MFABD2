@@ -24,6 +24,15 @@ def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def moment_of(text) -> datetime | None:
+    """utc_now 写下的时刻文字 → 带时区的 datetime；解析不了、没有时区的返回 None（没时区的时刻不猜）。"""
+    try:
+        value = datetime.fromisoformat(str(text))
+    except (TypeError, ValueError):
+        return None
+    return value if value.tzinfo is not None else None
+
+
 def market_day(at: str | None = None) -> str:
     """价目表日：收购价 00:00 KST 换日（游戏日是 09:00 KST，即 UTC 日期）；交易仍须子页核价。
 
