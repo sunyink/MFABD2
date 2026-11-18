@@ -491,6 +491,19 @@ class LedgerPointTests(unittest.TestCase):
             self.assertTrue(self.run_point("begin", "daily", 101, "Mail_HomePage"))
         self.assertEqual(self.scans, [])
 
+    def test_scan_crash_still_settles_so_the_mark_pair_survives(self):
+        """穿透复核第 7 条：始标记已经落盘，盘点那一段抛了错——内存里的状态照样跟上，
+        同一任务到结束位置照留结束标记（这一对标记不变成「未正常结束」）、照收尾盘。"""
+        self.task("Arbitrage_Start", 101)
+        with patch.object(point, "run_bag_scan", side_effect=RuntimeError("进包失败")):
+            self.assertTrue(self.run_point("begin", "shop", 101, "Arbitrage_Start"))
+        state = point._STATES["7"]
+        self.assertEqual((state.begun, [item["kind"] for item in state.pending], state.last_scan),
+                         ({(101, "shop")}, ["shop"], None))
+        self.run_point("end", "shop", 101, "Arbitrage_Start")
+        self.assertEqual([mark["mark"] for mark in self.events("ledger_mark")], ["begin", "end"])
+        self.assertEqual(self.scans[-1]["label"], "记账·商店结束")
+
     def test_list_and_gap_come_from_the_node_and_stay_for_the_report(self):
         """穿透复核第 5 条：免记名单与连续阈值取自节点，读成一次就留着——之后节点读不到、出报表，用的都是这一份。"""
         class Config:

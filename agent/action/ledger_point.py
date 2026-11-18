@@ -301,31 +301,36 @@ def _run(context: Context, argv: CustomAction.RunArg) -> None:
             _CURSORS[account] = now
 
     scan, executed = None, False
-    if decision["scan"]:
-        mfaalog.info(f"[Ledger] {label}：盘点（{'+'.join(decision['scopes'])}）——{decision['reason']}")
-        origin = {"mark": mark, "type": kind, "node": argv.node_name, "task": task, "session": task_journal.SESSION}
-        record = run_bag_scan(context, label=label, scope=decision["scopes"], origin=origin)
-        executed = bool(record.get("executed"))
-        if not executed:
-            mfaalog.warning(f"[Ledger] ⚠️ {label}：盘点没执行（{record.get('error')}），留给下一个位置")
+    try:
+        if decision["scan"]:
+            mfaalog.info(f"[Ledger] {label}：盘点（{'+'.join(decision['scopes'])}）——{decision['reason']}")
+            origin = {"mark": mark, "type": kind, "node": argv.node_name, "task": task, "session": task_journal.SESSION}
+            record = run_bag_scan(context, label=label, scope=decision["scopes"], origin=origin)
+            executed = bool(record.get("executed"))
+            if not executed:
+                mfaalog.warning(f"[Ledger] ⚠️ {label}：盘点没执行（{record.get('error')}），留给下一个位置")
+            else:
+                closing = mark != "begin"   # 收尾位置：任务的最后一步，后面没有下一盘，可以换页面去把货币读到
+                record["returned"], filled = _retry(context, label, record, origin, closing=closing)
+                if record.get("returned") or closing:
+                    if not record.get("returned"):
+                        mfaalog.warning(f"[Ledger] ⚠️ {label}：盘点后没能回到原位，去箱庭读货币")
+                    _read_currency(context, label, record["scan_id"], roam=closing, here=bool(record.get("returned")))
+                else:
+                    mfaalog.warning(f"[Ledger] ⚠️ {label}：盘点后没能回到原位，货币没读，页面由所在流程自行恢复")
+                # 读到的数照样留在凭证里、做账照用；断了的只是不当作盘过，下一个位置还能补。
+                if _finished(record, filled):
+                    scan = {"scan_id": record["scan_id"], "scopes": record["scope"]}
+                else:
+                    mfaalog.warning(f"[Ledger] ⚠️ {label}：盘点半路断了（{record.get('termination')}），不算盘过，留给下一个位置")
         else:
-            closing = mark != "begin"   # 收尾位置：任务的最后一步，后面没有下一盘，可以换页面去把货币读到
-            record["returned"], filled = _retry(context, label, record, origin, closing=closing)
-            if record.get("returned") or closing:
-                if not record.get("returned"):
-                    mfaalog.warning(f"[Ledger] ⚠️ {label}：盘点后没能回到原位，去箱庭读货币")
-                _read_currency(context, label, record["scan_id"], roam=closing, here=bool(record.get("returned")))
-            else:
-                mfaalog.warning(f"[Ledger] ⚠️ {label}：盘点后没能回到原位，货币没读，页面由所在流程自行恢复")
-            # 读到的数照样留在凭证里、做账照用；断了的只是不当作盘过，下一个位置还能补。
-            if _finished(record, filled):
-                scan = {"scan_id": record["scan_id"], "scopes": record["scope"]}
-            else:
-                mfaalog.warning(f"[Ledger] ⚠️ {label}：盘点半路断了（{record.get('termination')}），不算盘过，留给下一个位置")
-    else:
-        mfaalog.debug(f"[Ledger] {label}：不盘——{decision['reason']}")
-    with _LOCK:
-        ledger_rules.settle(state, mark=mark, kind=kind, task_id=task_id, entry=entry, now=time.time(), scan=scan)
+            mfaalog.debug(f"[Ledger] {label}：不盘——{decision['reason']}")
+    finally:
+        # 标记这时已经落盘，盘点这一段不管出什么错，内存里的状态都要跟上（穿透复核第 7 条）：
+        # 不跟上的话，同一任务走到结束位置时认不出自己留过始标记——结束标记不留，这一对标记在账上成了
+        # 「未正常结束」，这一段的活动也没人收尾盘。出错的那次按没盘算，未盘掉的活动原样留给下一个位置。
+        with _LOCK:
+            ledger_rules.settle(state, mark=mark, kind=kind, task_id=task_id, entry=entry, now=time.time(), scan=scan)
     # 盘了就出报表（半路断了的也出：读到的那部分已经进了凭证）；结束游戏与手动结账即使规则说不用盘也出一次：
     # 收个尾，把最后几个任务的起止补进去。只有手动结账出完自己打开（U61）。
     if options["report"] and (executed or mark in ("queue_end", "manual")):
