@@ -2785,6 +2785,7 @@
     },
     "Arbitrage_PreSell_Run": {
         "desc": "执行①开局料理出售。由Arbitrage_PreSell_GlobalMarket_Reset进入；agent/action/arbitrage_result.py的ArbitrageSellController使用sell模式及recipes范围，与④同一套逻辑：按今日行情挑峰值料理，本轮库存记录为0的不去柜台，其余到柜台核价成交，结束后退出商店。失败走默认退栈，跳过①继续后续阶段。",
+        "pre_delay": 0,
         "action": "Custom",
         "custom_action": "ArbitrageSellController",
         "custom_action_param": {
@@ -2792,6 +2793,7 @@
             "sale_scope": "recipes",
             "stage": "①开局变现"
         },
+        "post_delay": 0,
         "next": [
             "Arbitrage_ShopOut"
         ],

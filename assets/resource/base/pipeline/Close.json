@@ -10,8 +10,10 @@
         ]
     },
     "Close_StopApp": {
-        "desc": "关闭游戏。",
+        "desc": "关闭游戏：按包名停掉安卓应用（ADB 一类控制器的 StopApp）。PC 没有这个动作，PC 包在 Close_HomePage 里把末位换成 Close_PCStopApp 关游戏窗口。不看画面、后面没有节点，延迟写 0。",
+        "pre_delay": 0,
         "action": "StopApp",
-        "package": "com.neowizgames.game.browndust2"
+        "package": "com.neowizgames.game.browndust2",
+        "post_delay": 0
     }
 }
