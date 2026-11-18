@@ -19,7 +19,7 @@ import re
 from .inventory_ledger import build_ledger, ts
 from .inventory_report import SCHEMA, VALUED, build_report
 from .inventory_report_render import clock, render_day_html, render_entry_html, render_index_html
-from .ledger_rules import QUIET
+from .ledger_rules import GAP_SECONDS, QUIET
 
 ENTRY_NAME = "库存报表.html"
 
@@ -189,8 +189,11 @@ def write_entry(store_dir, entry_dir) -> Path | None:
 
 
 def generate_reports(store_dir, account, *, agent_dir, as_of: str | None = None, days=None, force=False, hot=None,
-                     quiet=QUIET, alias=None, entry_dir=None) -> dict:
+                     quiet=QUIET, gap=GAP_SECONDS, alias=None, entry_dir=None) -> dict:
     """重算还没结账的游戏日（days 给了就只算这些天，force 连已定稿的也重算），并更新总览与 latest。
+
+    quiet、gap：做账划段用的免记名单与连续阈值，调用方从节点 Agt_Ledger_Config 取来传入（ledger_rules.settings），
+    与运行时判盘不盘的是同一份；不传就是内置值。
 
     entry_dir：给了就顺手在那里更新入口页（安装目录）；写不进去只是没有入口，报表照出。
     返回 {"days": 写了哪几天, "folder": 报表目录, "latest": 最近一天页面的路径, "summary": 最近一天的摘要,
@@ -204,7 +207,7 @@ def generate_reports(store_dir, account, *, agent_dir, as_of: str | None = None,
     # 定稿的日子不会再变：只读最后一个定稿日起的冷档就够重算其后的日子。
     vouchers = load_vouchers(store_dir, account, since=settled[-1] if partial else None, hot=hot)
     catalog, cookbook = load_catalog(agent_dir), load_cookbook(agent_dir)
-    ledger = build_ledger(vouchers, catalog=catalog, quiet=quiet)
+    ledger = build_ledger(vouchers, catalog=catalog, quiet=quiet, gap=gap)
     prices = load_prices(store_dir, ledger["scans"], cookbook)
     if not any(name in row for row in prices.values() for name, entry in ledger["items"].items()
                if entry["category"] in VALUED):

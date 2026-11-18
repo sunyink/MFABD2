@@ -29,8 +29,7 @@ from .bag_scan import run_bag_scan, scope_names
 from .currency_read import read_currency
 
 
-CONFIG = "Agt_Ledger_Config"
-QUIET = ledger_rules.QUIET   # 没留标记也不算活动的任务入口；Agt_Ledger_Config.attach.quiet 读不到时用这份
+CONFIG = "Agt_Ledger_Config"   # 免记名单与连续阈值所在的节点，见 _settings
 KIND_NAMES = {"daily": "日常", "collect": "吸取", "shop": "商店"}
 # 只有存货（商店套利的食材与料理）没盘全才退出背包、再进来重扫一次（U61）；票券、养成、装备材料没盘全照旧跨过去。
 RETRY_SCOPE = "A"
@@ -46,6 +45,7 @@ CURRENCY_PLACES = (("Global_ToSandBox", "回箱庭"), ("Global_ToHomePage", "回
 _LOCK = threading.Lock()
 _STATES: dict = {}    # 账号 → LedgerState。键是账号编号，不是对象地址。
 _CURSORS: dict = {}   # 账号 → 上一条标记的时刻（秒）
+_SETTINGS: dict = {}  # 本进程从节点 Agt_Ledger_Config 读成过的名单与阈值；空着表示还没读成过
 
 
 def _label(mark: str, kind) -> str:
@@ -60,15 +60,28 @@ def _iso(seconds):
     return None if seconds is None else datetime.fromtimestamp(seconds, timezone.utc).isoformat(timespec="seconds")
 
 
+def _held_settings() -> dict:
+    """本进程留着的名单与阈值；还没从节点读成过就是内置值。出报表手上没有 context，用的就是这份。"""
+    with _LOCK:
+        return dict(_SETTINGS) if _SETTINGS else ledger_rules.settings(None)
+
+
 def _settings(context) -> dict:
+    """免记名单与连续阈值，以节点 Agt_Ledger_Config.attach 为准（资源包、选项对它的覆盖都落在节点上）。
+
+    读成一次就留在进程里：盘不盘的判定和之后出的报表用同一份；哪次节点读不到就沿用上一次读成的，
+    本进程从没读成过才用 ledger_rules 里的内置值。
+    """
     try:
-        attach = dict(context.get_node_object(CONFIG).attach or {})
+        attach = context.get_node_object(CONFIG).attach
     except Exception:
-        attach = {}
-    quiet = attach.get("quiet")
-    gap = attach.get("gap_seconds")
-    return {"quiet": tuple(quiet) if isinstance(quiet, list) and quiet else QUIET,
-            "gap": float(gap) if isinstance(gap, (int, float)) and gap > 0 else ledger_rules.GAP_SECONDS}
+        attach = None
+    if isinstance(attach, dict) and attach:
+        fresh = ledger_rules.settings(attach)
+        with _LOCK:
+            _SETTINGS.clear()
+            _SETTINGS.update(fresh)
+    return _held_settings()
 
 
 def _shown(value) -> str:
@@ -230,9 +243,10 @@ def _report(label: str, *, show: bool = False) -> None:
         started = time.perf_counter()
         # 入口页放安装目录（桌面才有；安卓与宿主指定存档目录时没有这个位置）。
         root = getattr(getattr(PersistentStore, "_storage_policy", None), "portable_root", None)
+        held = _held_settings()   # 做账划段用的名单与阈值，和运行时判盘不盘的是同一份
         result = inventory_report_output.generate_reports(
             folder, PersistentStore._current_account_id, agent_dir=Path(__file__).resolve().parents[1], hot=get_events(),
-            entry_dir=root)
+            quiet=held["quiet"], gap=held["gap"], entry_dir=root)
         if result["summary"]:
             mfaalog.info(f"[Ledger] 库存日报：{result['summary']}")
             where = f"安装目录的「{result['entry'].name}」可直接打开；原件在 {result['latest']}" if result.get("entry") \

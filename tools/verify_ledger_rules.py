@@ -4,13 +4,15 @@
     python -B tools/verify_ledger_rules.py -v
 """
 
+import json
 from pathlib import Path
 import sys
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "agent"))
-from utils.ledger_rules import ALL_SCOPES, LedgerState, decide, game_day, settle  # noqa: E402
+from utils import ledger_rules  # noqa: E402
+from utils.ledger_rules import ALL_SCOPES, LedgerState, decide, game_day, settings, settle  # noqa: E402
 
 QUIET = ("Env_MultiSave_Config", "StartGame_Start", "Env_Ledger_Config",
          "Collect_StartGame_HomePage", "Arbitrage_Start", "Close_HomePage", "Ledger_Settle_Manual")
@@ -211,6 +213,18 @@ class LedgerRuleTests(unittest.TestCase):
         again = play.at("begin", "shop")                   # 同一任务里的第二段
         self.assertFalse(again["scan"])
         self.assertEqual(play.at("end", "shop")["scopes"], ["A"])
+
+    def test_settings_come_from_the_node_and_fall_back_item_by_item(self):
+        """免记名单与连续阈值以节点 Agt_Ledger_Config.attach 为准；内置值只是节点读不到时的替身，两边要一致。"""
+        built_in = {"quiet": ledger_rules.QUIET, "gap": ledger_rules.GAP_SECONDS}
+        nodes = json.loads((ROOT / "assets/resource/base/pipeline/Ledger.json").read_text(encoding="utf-8"))
+        self.assertEqual(settings(nodes["Agt_Ledger_Config"]["attach"]), built_in)
+        self.assertEqual(settings({"quiet": ["甲", "乙"], "gap_seconds": 5}), {"quiet": ("甲", "乙"), "gap": 5.0})
+        self.assertEqual(settings({"quiet": ["甲"]}), {"quiet": ("甲",), "gap": ledger_rules.GAP_SECONDS})
+        for broken in (None, {}, {"quiet": [], "gap_seconds": 0}, {"quiet": "甲", "gap_seconds": "60"},
+                       {"quiet": ["甲", 3], "gap_seconds": True}):
+            with self.subTest(attach=broken):
+                self.assertEqual(settings(broken), built_in)
 
     def test_bad_arguments_are_rejected(self):
         state = LedgerState()

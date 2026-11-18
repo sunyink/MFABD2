@@ -13,10 +13,22 @@ MARKS = ("begin", "end", "queue_end", "manual")
 NEEDS = {"daily": ("B", "C"), "collect": ("A",), "shop": ("A",)}
 ALL_SCOPES = ("A", "B", "C")
 GAP_SECONDS = 60.0
-# 没留标记也不算活动的任务入口：不动库存的，以及接了标记、没走到始标记就等于没干活的。
-# 运行时以 Agt_Ledger_Config.attach.quiet 为准，读不到时用这份；做账用同一份。名单外的任务夹在中间一律当作动过库存。
+# 没留标记也不算活动的任务入口：不动库存的，以及接了标记、没走到始标记就等于没干活的。名单外的任务夹在中间一律当作动过库存。
+# 这份名单与上面的阈值以节点 Agt_Ledger_Config.attach 为准：运行时、出报表、离线重算都经 settings() 从节点取，
+# 这里写的只是节点读不到时的内置值（tools/verify_ledger_rules.py 守着两边一致）。
 QUIET = ("Env_MultiSave_Config", "StartGame_Start", "Env_Ledger_Config", "Collect_StartGame_HomePage",
          "Collect_StartGame_HomePage_OnlyOnce", "Arbitrage_Start", "Close_HomePage", "Ledger_Settle_Manual")
+
+
+def settings(attach) -> dict:
+    """节点 Agt_Ledger_Config.attach → {"quiet": 名单, "gap": 秒}。只管认格式：缺的、格式不对的那一项用内置值。"""
+    attach = attach if isinstance(attach, dict) else {}
+    quiet, gap = attach.get("quiet"), attach.get("gap_seconds")
+    if not (isinstance(quiet, list) and quiet and all(isinstance(name, str) and name for name in quiet)):
+        quiet = QUIET
+    if isinstance(gap, bool) or not isinstance(gap, (int, float)) or gap <= 0:
+        gap = GAP_SECONDS
+    return {"quiet": tuple(quiet), "gap": float(gap)}
 
 
 @dataclass

@@ -83,6 +83,7 @@ class LedgerPointTests(unittest.TestCase):
         task_journal.reset()
         point._STATES.clear()
         point._CURSORS.clear()
+        point._SETTINGS.clear()
         point.loot_cards.reset()
         self.scans, self.clock, self.reports, self.shown = [], [T0], [], []
         self.scan_result, self.queued = {"executed": True, "returned": True}, []
@@ -489,6 +490,30 @@ class LedgerPointTests(unittest.TestCase):
         with patch.object(point, "run_bag_scan", side_effect=RuntimeError("进包失败")):
             self.assertTrue(self.run_point("begin", "daily", 101, "Mail_HomePage"))
         self.assertEqual(self.scans, [])
+
+    def test_list_and_gap_come_from_the_node_and_stay_for_the_report(self):
+        """穿透复核第 5 条：免记名单与连续阈值取自节点，读成一次就留着——之后节点读不到、出报表，用的都是这一份。"""
+        class Config:
+            def get_node_object(self, name):
+                return SimpleNamespace(attach={"quiet": ["Fishing_Start"], "gap_seconds": 5})
+
+        def passed(generate):
+            return generate.call_args.kwargs["quiet"], generate.call_args.kwargs["gap"]
+
+        result = {"days": [], "latest": None, "summary": "", "entry": None}
+        with patch.object(point, "_report", REAL_REPORT), \
+                patch.object(MemoryAccountStore, "CONFIG_DIR", "Z:/存档", create=True), \
+                patch.object(point.inventory_report_output, "generate_reports", return_value=result) as generate:
+            self.task("Arbitrage_Start", 101)
+            self.run_point("begin", "shop", 101, "Arbitrage_Start")               # 节点读不到、也没读成过：内置值
+            self.assertEqual(passed(generate), (point.ledger_rules.QUIET, point.ledger_rules.GAP_SECONDS))
+            self.run_point("end", "shop", 101, "Arbitrage_Start")
+            self.task("Fishing_Start", 102)                                        # 没接记账的任务，夹在中间
+            self.task("Arbitrage_Start", 103)
+            self.run_point("begin", "shop", 103, "Arbitrage_Start", Config())     # 节点说它不算活动：不用补盘
+            self.assertEqual(len(self.scans), 2)
+            self.run_point("end", "shop", 103, "Arbitrage_Start")                 # 这回节点读不到：沿用上一次读成的
+            self.assertEqual(passed(generate), (("Fishing_Start",), 5.0))
 
     def test_accounts_do_not_share_state(self):
         self.task("Mail_HomePage", 101)
