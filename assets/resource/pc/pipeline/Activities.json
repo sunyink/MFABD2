@@ -214,6 +214,26 @@
             "Sub_Ocr_Enable_Clr"
         ]
     },
+    "Activities_Roulette_PayOne_CkIn": {
+        "desc": "[PC覆盖] 「旋转1次」按钮挪到 PC 布局。坐标取自 2026-11-16 PC 日志的 OCR 框 [822,491,47,23]，PC 上 OCR 读作「轉1次」。",
+        "all_of": [
+            {
+                "sub_name": "OCR",
+                "recognition": "OCR",
+                "roi": [
+                    790,
+                    481,
+                    136,
+                    63
+                ],
+                "expected": [
+                    "旋转1次",
+                    "^轉1次$"
+                ]
+            },
+            "Sub_Ocr_Enable_Clr"
+        ]
+    },
     "Activities_FreeClothing": {
         "desc": "[PC覆盖·2026-09-14] 0911 联动活动「Chained Soldier 2」免费+5强化服装页 PC 首次出现。base target[1047,204] 按安卓布局,PC 紧凑面板的「完成/领取」钮实测在(998,236)(on_error 帧 06:01:59);位移量与同页 GetRoll(-77)/GetPinTu(-52) 覆盖同族。",
         "roi": [
