@@ -542,11 +542,59 @@ class LedgerConfigTests(unittest.TestCase):
         self.assertEqual(parse(self.task({"name": "记账盘点范围", "selected_case": "每次全盘"},
                                          {"name": "记账报表", "selected_case": "No"}), self.INTERFACE),
                          {"scan": True, "full": True, "report": False})
-        # 没有这个任务、读不到 interface、选项里是已经不存在的 case：都跟默认
+        # 没有这个任务、选项里是已经不存在的 case、什么都读不到：都跟默认
         self.assertEqual(parse({"TaskItems": []}, self.INTERFACE), ledger_config.DEFAULTS)
-        self.assertEqual(parse(self.task({"name": "记账盘点", "selected_case": "No"}), None)["scan"], True)
         self.assertEqual(parse(self.task({"name": "记账盘点", "selected_case": "也许"}), self.INTERFACE)["scan"], True)
         self.assertEqual(parse(None, None), ledger_config.DEFAULTS)
+
+    def test_saved_choices_do_not_need_the_interface(self):
+        """穿透复核第 6 条：interface.json 读不到时，存下的「No」照样算数；它只用来查没存过的选项默认是哪个。"""
+        parse = ledger_config.parse_instance
+        saved = self.task({"name": "记账盘点", "selected_case": "No"}, {"name": "记账盘点范围", "index": 1},
+                          {"name": "记账报表", "index": 1, "selected_case": "No"})
+        chosen = {"scan": False, "full": True, "report": False}
+        self.assertEqual(parse(saved, None), chosen)
+        self.assertEqual(parse(saved, lambda: self.fail("都存过了，不该去读 interface")), chosen)
+        asked = []
+        partly = self.task({"name": "记账盘点", "selected_case": "No"})
+        self.assertEqual(parse(partly, lambda: asked.append(1)), {"scan": False, "full": False, "report": True})
+        self.assertEqual(asked, [1])                                              # 有没存过的才去读，只读一次
+        flipped = {"option": {"记账盘点范围": {"default_case": "每次全盘",
+                                          "cases": [{"name": "按规则"}, {"name": "每次全盘"}]}}}
+        self.assertEqual(parse(partly, flipped), {"scan": False, "full": True, "report": True})   # 没存过的跟 interface 的默认
+
+    def test_instance_file_without_an_interface_beside_it(self):
+        """开发时项目根没有 interface.json（它在 assets/ 下），发布包里它在安装根：哪种放法，存下的「No」都算数。"""
+        import tempfile
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            (root / "config" / "instances").mkdir(parents=True)
+            (root / "config" / "instances" / "dev.json").write_text(
+                json.dumps(self.task({"name": "记账盘点", "selected_case": "No"}), ensure_ascii=False), encoding="utf-8")
+            session = SimpleNamespace(source="mfaa", project_root=root, instance_id="dev")
+            self.assertEqual(ledger_config.ledger_options(session), {"scan": False, "full": False, "report": True})
+            (root / "interface.json").write_text("{ 半截", encoding="utf-8")       # 在，但读不成
+            self.assertEqual(ledger_config.ledger_options(session), {"scan": False, "full": False, "report": True})
+
+    def test_cases_match_the_source_and_every_released_interface(self):
+        """存下的 case 名与序号对着 ledger_config.CASES 认：源文件与各平台发布出去的 interface 都得是这个顺序、这个默认，
+        三个选项都挂在记账任务上（MFAA 按任务把选择存进实例配置）。"""
+        sys.path.insert(0, str(ROOT / "scripts"))
+        import release_interface
+
+        source = release_interface.load_source()
+        documents = {"源文件": source}
+        for platform in release_interface.PLATFORMS:
+            documents[platform] = release_interface.build(source, release_interface.target_for(platform, announce=False))
+        for label, document in documents.items():
+            with self.subTest(interface=label):
+                for key, name in ledger_config.OPTIONS.items():
+                    option = document["option"][name]
+                    self.assertEqual(tuple(case["name"] for case in option["cases"]), ledger_config.CASES[key])
+                    self.assertEqual(ledger_config._default_case(document, key), option["default_case"])
+                    self.assertEqual(option["default_case"] == ledger_config._ON[key], ledger_config.DEFAULTS[key])
+                task, = [task for task in document["task"] if task.get("entry") == ledger_config.TASK_ENTRY]
+                self.assertEqual(task["option"], list(ledger_config.OPTIONS.values()))
 
     def test_k20_other_clients_follow_the_config_task_or_defaults(self):
         ledger_config.remember_injected({})
