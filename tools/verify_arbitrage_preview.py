@@ -118,11 +118,23 @@ class ArbitragePreviewTests(unittest.TestCase):
         controller._parse_current_page = lambda ctx: [item("烤蜂蜜苹果"), item("蜂蜜", False)]
         saved = []
         with patch.object(ar, "get_market_snapshot", return_value=None), \
-                patch.object(ar, "save_market_snapshot", side_effect=lambda scan: saved.append(scan) or True):
+                patch.object(ar, "save_market_snapshot", side_effect=lambda scan, day=None: saved.append(scan) or True):
             self.assertTrue(controller.run(context, Argv('{"mode":"preview_all"}')))
         self.assertEqual([entry["name"] for entry in saved[0]["items"]], ["烤蜂蜜苹果", "蜂蜜"])
         self.assertTrue(saved[0]["complete"])
         self.assertFalse(any(name == "Arbitrage_Sell_HUB" for name, _ in context.calls))
+
+    def test_preview_all_keys_the_market_to_the_day_the_shop_was_entered(self):
+        """店里的价目表过了 00:00 KST 不退店不换（游戏 bug）：ArbitrageMarketEnsure 带来进店那天，复用与保存都按它。"""
+        context = Context()
+        controller = ar.ArbitrageSellController()
+        controller._parse_current_page = lambda ctx: [item("烤蜂蜜苹果")]
+        saved = []
+        with patch.object(ar, "get_market_snapshot", return_value=None) as get, \
+                patch.object(ar, "save_market_snapshot", side_effect=lambda scan, day=None: saved.append(day) or True):
+            self.assertTrue(controller.run(context, Argv('{"mode":"preview_all","market_day":"2026-11-17"}')))
+        get.assert_called_once_with("2026-11-17")
+        self.assertEqual(saved, ["2026-11-17"])
 
     def test_preview_all_reuses_complete_daily_cache(self):
         context = Context()
@@ -348,7 +360,11 @@ class MarketEnsureDayTests(unittest.TestCase):
     def setUp(self):
         self.scan = SimpleNamespace(status=SimpleNamespace(succeeded=True),
                                     nodes=[SimpleNamespace(name="Arbitrage_PriceList_Egress")])
-        local = SimpleNamespace(set_anchor=lambda *a: True, run_task=lambda name: self.scan)
+        self.overrides = []
+        param = PIPELINE["Arbitrage_GlobalMarket_Scan"]["custom_action_param"]
+        node = SimpleNamespace(action=SimpleNamespace(param=SimpleNamespace(custom_action_param=param)))
+        local = SimpleNamespace(set_anchor=lambda *a: True, get_node_object=lambda name: node,
+                                run_task=lambda name, override=None: self.overrides.append(override) or self.scan)
         self.context = SimpleNamespace(clone=lambda: local)
         self.mocks = [patch.object(flow, "sync_from_context", return_value=True),
                       patch.object(flow, "ensure_shop"),
@@ -368,10 +384,22 @@ class MarketEnsureDayTests(unittest.TestCase):
         get.assert_called_once_with("2026-11-08")
 
     def test_scan_crossing_market_day_is_rejected(self):
-        with patch.object(flow.store, "market_day", side_effect=["2026-11-07", "2026-11-08"]), \
+        # 查缓存、进店之后、扫完各取一次价目表日：进店后才跨 0 点，这份行情记在进店那天，本段不用
+        with patch.object(flow.store, "market_day", side_effect=["2026-11-07", "2026-11-07", "2026-11-08"]), \
                 patch.object(flow.store, "get_market_snapshot", side_effect=[None, {"complete": True}]):
             self.assertFalse(flow.ArbitrageMarketEnsure().run(self.context, None))
         self.assertIn("换日", flow.mfaalog.error.call_args.args[0])
+        scan_param = self.overrides[0]["Arbitrage_GlobalMarket_Scan"]["custom_action_param"]
+        self.assertEqual(scan_param, {**PIPELINE["Arbitrage_GlobalMarket_Scan"]["custom_action_param"],
+                                      "market_day": "2026-11-07"})          # 原有参数保留，只加进店那天
+
+    def test_crossing_before_entering_the_shop_scans_the_new_day(self):
+        # 在箱庭查缓存时还是旧的一天、进店时已过 0 点：店里是新表，按新的一天扫、照常使用
+        with patch.object(flow.store, "market_day", side_effect=["2026-11-07", "2026-11-08", "2026-11-08"]), \
+                patch.object(flow.store, "get_market_snapshot", side_effect=[None, {"complete": True}]) as get:
+            self.assertTrue(flow.ArbitrageMarketEnsure().run(self.context, None))
+        self.assertEqual(self.overrides[0]["Arbitrage_GlobalMarket_Scan"]["custom_action_param"]["market_day"], "2026-11-08")
+        self.assertEqual(get.call_args.args, ("2026-11-08",))
 
 
 if __name__ == "__main__":

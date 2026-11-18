@@ -163,7 +163,7 @@ def save_market_snapshot(scan: dict, day: str | None = None) -> bool:
     """保存所有物品视图里的当天行情；完整缓存不会被失败重扫覆盖。"""
     observed_at = scan.get("observed_at") or utc_now()
     snapshot = {
-        # 跨 0 点的扫描混有换价前后的价格，归到开扫那天，新的一天按缺失重扫。
+        # day：进店那一刻的价目表日（店里的表过了 0 点不退出重进就不换，游戏 bug）。没给时按开扫时刻；新的一天按缺失重扫。
         "day": day or market_day(observed_at),
         "parser_version": MARKET_PARSER_VERSION,
         "observed_at": observed_at,

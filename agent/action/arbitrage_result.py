@@ -401,9 +401,11 @@ class ArbitrageSellController(CustomAction):
             mfaalog.error("[Arbitrage] ❌ max_scan_pages 必须是正整数，为避免无界翻页已中止")
             return False
 
+        # 全量价目表扫描：ArbitrageMarketEnsure 带来进店那一刻的价目表日（店里的表过了 0 点不退店不换），复用与保存都按它。
+        scan_day = params.get("market_day") if mode == _MODE_PREVIEW_ALL else None
         if mode == _MODE_PREVIEW_ALL:
             try:
-                cached = get_market_snapshot()
+                cached = get_market_snapshot(scan_day)
             except Exception as exc:
                 cached = None
                 mfaalog.error(f"[Arbitrage] ⚠️ 共享行情缓存读取失败({exc})，本轮重新扫描")
@@ -457,7 +459,7 @@ class ArbitrageSellController(CustomAction):
 
         if mode == _MODE_PREVIEW_ALL:
             try:
-                stored = save_market_snapshot(scan)
+                stored = save_market_snapshot(scan, day=scan_day)
             except Exception as exc:
                 stored = False
                 mfaalog.error(f"[Arbitrage] ❌ 共享行情快照写入异常({exc})")
