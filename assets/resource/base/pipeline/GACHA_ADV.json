@@ -4,6 +4,7 @@
         "timeout": 1,
         "next": [
             "Env_AgentLost_Stop",
+            "[JumpBack]Ledger_Begin_Daily",
             "GachaADV_Daily_Switch"
         ]
     },

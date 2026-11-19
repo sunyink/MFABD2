@@ -12,5 +12,18 @@
         "post_delay": 0,
         "rate_limit": 0,
         "focus": "测试背包仓检：扫描全部已配置食材"
+    },
+    "test_currency_read": {
+        "desc": "货币读数测试入口：在主界面或箱庭启动，读顶栏钻石、金币、天赋神药，并点开钻石弹窗读免费 / 付费后关闭。需启动Agent；PC端加载base+pc资源。会写一条读数事件到当前账号存档。",
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "CurrencyRead",
+        "custom_action_param": {
+            "label": "测试货币读数",
+            "diamond_detail": true
+        },
+        "post_delay": 0,
+        "rate_limit": 0,
+        "focus": "测试货币读数：顶栏三项与钻石免费 / 付费"
     }
 }

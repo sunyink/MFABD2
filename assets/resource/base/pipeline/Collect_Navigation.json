@@ -1527,9 +1527,22 @@
     "Collect_PackEnd_Ck": {
         "desc": "整卡正常完成的写档入口；具名卡注入 MarkComplete，成功后禁用本轮当前卡，再退回选卡。失败返回不得接入。",
         "next": [
-            "Collect_PackEnd_Disable"
+            "Collect_PackEnd_FeedCard"
         ],
         "focus": "CM.卡带内流程结束-执行完成打标记"
+    },
+    "Collect_PackEnd_FeedCard": {
+        "desc": "[读掉落·按卡落盘]整卡正常完成：这一张的掉落落盘 | 跟在完成写档 Collect_PackEnd_Ck 后面、禁用当前卡（会清锚 CurrentCollectPack）之前，动作 LootFeedCard 还读得到卡名。没开「记录吸取掉落」时什么都不写。",
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "LootFeedCard",
+        "custom_action_param": {
+            "event": "complete"
+        },
+        "post_delay": 0,
+        "next": [
+            "Collect_PackEnd_Disable"
+        ]
     },
     "Collect_QuickCart_TargetMapEnd": {
         "desc": "通用卡带结束判定 | 恢复列表并进入统一成功收尾。",

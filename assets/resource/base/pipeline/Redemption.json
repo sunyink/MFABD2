@@ -4,6 +4,7 @@
         "timeout": 1,
         "next": [
             "Env_AgentLost_Stop",
+            "[JumpBack]Ledger_Begin_Daily",
             "Redemption_Daily_Switch"
         ]
     },

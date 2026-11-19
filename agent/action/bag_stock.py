@@ -3,7 +3,7 @@
 
 from collections import OrderedDict
 
-from .bag_scan import PROFILES
+from .bag_scan import profile_names
 
 
 _BAG_RUNS = OrderedDict()
@@ -26,9 +26,8 @@ def register_bag_run(task_id, run_id):
 
 
 def bag_catalog(context) -> dict[str, str]:
-    """通用仓检「食材」档案的目录：规范名 → 背包模板。资源包缺图的物品不在其中。"""
-    profile = context.get_node_object(PROFILES["ingredients"]).attach
-    return dict(context.get_node_object(profile["catalog_node"]).attach["templates"])
+    """通用仓检能盘点的食材：规范名 → 空串（沿用旧的字典形状）。物品表里的食材都能盘点，没有图标的靠点开读名。"""
+    return dict.fromkeys(profile_names("ingredients"), "")
 
 
 def pending_materials(catalog: dict, items: dict, started_at: str | None) -> list[str]:

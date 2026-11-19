@@ -3,6 +3,7 @@
         "desc": "主页按钮区,任务奖励领取",
         "next": [
             "Env_AgentLost_Stop",
+            "[JumpBack]Ledger_Begin_Daily",
             "RewardsDaily_DailyReward",
             "[JumpBack]Global_ToHomePage"
         ]

@@ -109,6 +109,18 @@
             "description": "账号选择只看下方「启用多存档」开关，与左侧任务勾选、全选/全不选无关；本任务无需先执行。<br>关闭使用默认档；开启使用填写的号码。修改从下一任务生效，建议停止队列后修改。<br><b>升级或应用预设后默认为 0，多账号用户请重新确认号码。</b>"
         },
         {
+            "name": "库存记账",
+            "label": "⚙️ 库存记账",
+            "entry": "Env_Ledger_Config",
+            "default_check": true,
+            "option": [
+                "记账盘点",
+                "记账盘点范围",
+                "记账报表"
+            ],
+            "description": "开启后，脚本在各任务之间自动盘点背包与货币，记下每天的收支。<br>使用 MFA 时只看下方选项，与左侧任务勾选无关，本任务无需先执行；其他客户端请保持勾选并排在前面。<br>按预设顺序跑一轮会盘 4 次，每次几分钟。<b>不想多花这些时间，把「库存盘点与记账」关掉即可。</b>"
+        },
+        {
             "name": "[全局]启动脚本(置顶)",
             "entry": "StartGame_Start",
             "default_check": true,
@@ -130,6 +142,7 @@
         },
         {
             "name": "[执行]快速狩猎扫荡",
+            "label": "[日常]快速狩猎扫荡",
             "entry": "QuickHunt_Start",
             "controller": [
                 "Adb",
@@ -156,16 +169,18 @@
                 "PlayCover"
             ],
             "default_check": true,
-            "description": "<地图采集[完整]>的单卡带模式，满足日常任务所需即停止。",
+            "description": "<地图采集[完整]>的单卡带模式，满足日常任务所需即停止。<br>游戏更新后已不需要每天进一张卡带来解锁每日奖励，一般不必再勾选；两个日常预设里已不包含它。",
             "option": [
                 "采集卡带指定",
                 "采集卡带屏蔽",
                 "采集卡带调试直采",
-                "第三图采集额外等待"
+                "第三图采集额外等待",
+                "采集掉落记录"
             ]
         },
         {
             "name": "[执行]装备制作&炼制日常",
+            "label": "[日常]装备制作&炼制",
             "entry": "Equip_HomePage",
             "controller": [
                 "Adb",
@@ -185,6 +200,7 @@
         },
         {
             "name": "[执行]白嫖抽卡",
+            "label": "[日常]白嫖抽卡",
             "entry": "GachaADV_Start",
             "controller": [
                 "Adb",
@@ -201,6 +217,7 @@
         },
         {
             "name": "[执行]竞技场",
+            "label": "[日常]竞技场",
             "entry": "PVP_TaskStart",
             "controller": [
                 "Adb",
@@ -216,6 +233,7 @@
         },
         {
             "name": "[执行]赛季活动快速战斗",
+            "label": "[日常]赛季活动快速战斗",
             "entry": "Event_HomePage",
             "controller": [
                 "Adb",
@@ -231,6 +249,7 @@
         },
         {
             "name": "[执行]肉鸽塔每日快速战斗",
+            "label": "[日常]肉鸽塔每日快速战斗",
             "entry": "Redemption_HomePage",
             "controller": [
                 "Adb",
@@ -243,6 +262,7 @@
         },
         {
             "name": "[执行]周常任务",
+            "label": "[日常]周常任务",
             "entry": "Weekly_Start",
             "controller": [
                 "Adb",
@@ -330,6 +350,7 @@
         },
         {
             "name": "[执行]地图采集[完整]",
+            "label": "[执行]①地图采集[完整]",
             "entry": "Collect_StartGame_HomePage",
             "default_check": true,
             "controller": [
@@ -338,17 +359,18 @@
                 "PC客户端(Cursor)",
                 "PlayCover"
             ],
-            "description": "进入卡带，对含传送阵的地图依次执行探查、吸取、召集。<br><span style=\"background-color:rgba(255,160,0,0.2)\"><b>前提：</b>传送阵须已激活，且周围箱庭迷雾已探明，使区域地图能完整显示传送阵图标。</span><br><b>选卡：</b>按剧情→角色→活动推进。某类允许采集的卡带本周均有完成记录时，跳过整类；进入类别后，普通模式只采集徽章彩色亮起且能识别身份的卡带，未知或未识别卡带跳过。成功采集后记录进度并在本轮跳过该卡；扫描结束不代表整类已采完。",
+            "description": "进入卡带，对含传送阵的地图依次执行探查、吸取、召集。<br>建议排在各日常任务之后、商店套利之前：先拿到材料再做料理；开着库存记账时，这个顺序盘点次数也最少。<br><span style=\"background-color:rgba(255,160,0,0.2)\"><b>前提：</b>传送阵须已激活，且周围箱庭迷雾已探明，使区域地图能完整显示传送阵图标。</span><br><b>选卡：</b>按剧情→角色→活动推进。某类允许采集的卡带本周均有完成记录时，跳过整类；进入类别后，普通模式只采集徽章彩色亮起且能识别身份的卡带，未知或未识别卡带跳过。成功采集后记录进度并在本轮跳过该卡；扫描结束不代表整类已采完。",
             "option": [
                 "采集卡带指定",
                 "采集卡带屏蔽",
                 "采集卡带调试直采",
-                "第三图采集额外等待"
+                "第三图采集额外等待",
+                "采集掉落记录"
             ]
         },
         {
             "name": "[执行]商店套利",
-            "label": "✨商店套利 Opus",
+            "label": "[执行]②商店套利",
             "entry": "Arbitrage_Start",
             "controller": [
                 "Adb",
@@ -377,6 +399,12 @@
                 "目标次数"
             ],
             "description": "自动导航至指定钓鱼点，持续钓鱼至目标条数后结束。<br>注意：受鱼类判定复杂度影响，成功率因鱼种而异。适合挂机刷普通鱼类经验与兑换币。<br><span style=\"color:Crimson;font-size:12px\">钓鱼模块重构进行中，当前为先行版，行为与参数可能随后续版本调整。</span>"
+        },
+        {
+            "name": "[全局]库存结账",
+            "entry": "Ledger_Settle_Manual",
+            "default_check": false,
+            "description": "不关游戏的结账：上一次盘点之后还有没盘掉的任务就盘一次（几分钟），刚盘过就不盘。<br>队列末尾没排「结束游戏」时把它排在最后，或想看账时单独跑。需要先开启「⚙️ 库存记账」。"
         },
         {
             "name": "[全局]结束游戏",
@@ -1480,6 +1508,25 @@
                     "post_delay": "{第三次采集额外等待时间(ms)}"
                 }
             }
+        },
+        "采集掉落记录": {
+            "label": "记录吸取掉落",
+            "type": "switch",
+            "default_case": "Yes",
+            "description": "放技能时读取屏幕左侧的「获得物品」列表，按卡带记下每张卡吸到了什么，库存日报据此把吸取的产出分到各张卡带上（总数仍以盘点为准）；每个采集点放完也在日志里报一次。<br><b>只在「⚙️ 库存记账」开着时生效</b>：记账关掉时，这里开着也不读。<br>放技能期间只连续截图、不做识别，所以读得全不全与电脑快慢无关；每个采集点多花约 1–2 秒做识别。不想多花这些时间可以单独关掉，日报里的吸取产出就不分卡。",
+            "cases": [
+                {
+                    "name": "No"
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "Collect_Skill_FeedCollect": {
+                            "enabled": true
+                        }
+                    }
+                }
+            ]
         },
         "精炼装备阶级": {
             "type": "select",
@@ -8023,6 +8070,90 @@
                 }
             ]
         },
+        "记账盘点": {
+            "type": "switch",
+            "label": "库存盘点与记账",
+            "default_case": "Yes",
+            "description": "开启后在各任务之间自动盘点并记账；关闭后不盘点、不记账，也不出报表。",
+            "cases": [
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "Agt_Ledger_Inject": {
+                            "attach": {
+                                "scan": "Yes"
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "No",
+                    "pipeline_override": {
+                        "Agt_Ledger_Inject": {
+                            "attach": {
+                                "scan": "No"
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        "记账盘点范围": {
+            "type": "select",
+            "label": "盘点范围",
+            "default_case": "按规则",
+            "description": "按规则：每次运行第一次全盘，之后只盘前后两类任务用得到的类别，省时间。<br>每次全盘：每次都把存货、票券与养成材料、装备制作材料盘一遍，更慢。",
+            "cases": [
+                {
+                    "name": "按规则",
+                    "pipeline_override": {
+                        "Agt_Ledger_Inject": {
+                            "attach": {
+                                "full": "按规则"
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "每次全盘",
+                    "pipeline_override": {
+                        "Agt_Ledger_Inject": {
+                            "attach": {
+                                "full": "每次全盘"
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        "记账报表": {
+            "type": "switch",
+            "label": "生成报表",
+            "default_case": "Yes",
+            "description": "关闭后只记录盘点结果，不生成报表。",
+            "cases": [
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "Agt_Ledger_Inject": {
+                            "attach": {
+                                "report": "Yes"
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "No",
+                    "pipeline_override": {
+                        "Agt_Ledger_Inject": {
+                            "attach": {
+                                "report": "No"
+                            }
+                        }
+                    }
+                }
+            ]
+        },
         "启用多存档": {
             "type": "switch",
             "label": "启用多存档",
@@ -8058,6 +8189,10 @@
                     "enabled": true
                 },
                 {
+                    "name": "库存记账",
+                    "enabled": true
+                },
+                {
                     "name": "[全局]启动脚本(置顶)",
                     "enabled": true
                 },
@@ -8079,10 +8214,6 @@
                 },
                 {
                     "name": "[执行]白嫖抽卡",
-                    "enabled": true
-                },
-                {
-                    "name": "[执行]地图采集[单章]",
                     "enabled": true
                 },
                 {
@@ -8148,6 +8279,10 @@
                     "enabled": true
                 },
                 {
+                    "name": "库存记账",
+                    "enabled": true
+                },
+                {
                     "name": "[全局]启动脚本(置顶)",
                     "enabled": true
                 },
@@ -8174,10 +8309,6 @@
                         "一键速抽": "No",
                         "5星必出保留": "Yes"
                     }
-                },
-                {
-                    "name": "[执行]地图采集[单章]",
-                    "enabled": true
                 },
                 {
                     "name": "[执行]竞技场",
@@ -8248,6 +8379,10 @@
                     "enabled": true
                 },
                 {
+                    "name": "库存记账",
+                    "enabled": true
+                },
+                {
                     "name": "[半自动]自动钓鱼",
                     "enabled": false
                 },
@@ -8257,6 +8392,10 @@
                 },
                 {
                     "name": "[手动]生活技能刷级",
+                    "enabled": false
+                },
+                {
+                    "name": "[全局]库存结账",
                     "enabled": false
                 }
             ]
@@ -8273,7 +8412,7 @@
     },
     "interface_version": 2,
     "name": "MFABD2",
-    "title": "MFABD2 | 棕色尘埃2自动化助手(sunyink/MFABD2)v0.0.20 | 游戏版本：20260910 ( Chained Soldier2 )",
+    "title": "MFABD2 | 棕色尘埃2自动化助手(sunyink/MFABD2)v0.0.20 | 游戏版本：20261119 ( Cheer On! )",
     "github": "https://github.com/sunyink/MFABD2",
     "mirrorchyan_rid": "MFABD2",
     "mirrorchyan_multiplatform": true,

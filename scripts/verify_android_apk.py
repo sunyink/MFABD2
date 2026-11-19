@@ -8,6 +8,7 @@ import sys
 import zipfile
 from pathlib import Path
 
+import release_interface
 from verify_branding import verify_archive
 
 
@@ -16,22 +17,9 @@ def verify_options(interface: dict) -> None:
 
     MaaFwApp discards options with an omitted/unknown type before resolving
     references. Merely checking that their names exist in JSON misses this.
+    The rule itself lives with the rest of the release contract in release_interface.py.
     """
-    options = interface.get("option", {})
-    invalid = [name for name, value in options.items()
-               if value.get("type") not in {"select", "switch", "checkbox", "input"}]
-    if invalid:
-        raise ValueError(f"Android UI cannot parse option types: {invalid}")
-    references = [("global_option", interface.get("global_option", []))]
-    for section in ("task", "resource", "controller"):
-        for item in interface.get(section, []):
-            references.append((f"{section}:{item.get('name')}", item.get("option", [])))
-    for name, option in options.items():
-        for case in option.get("cases", []):
-            references.append((f"option:{name}/{case.get('name')}", case.get("option", [])))
-    missing = [(owner, name) for owner, names in references for name in names if name not in options]
-    if missing:
-        raise ValueError(f"Android option references are missing: {missing}")
+    release_interface.check_options(interface, android=True)
 
 
 def verify_identity(metadata: dict, badging: str, signature: str) -> None:
@@ -69,30 +57,12 @@ def verify(path: Path, metadata: dict | None = None, maafw: str | None = None) -
         with zipfile.ZipFile(io.BytesIO(apk.read("assets/pi.zip"))) as payload:
             verify_archive(payload)
             interface = json.loads(payload.read("interface.json"))
-            verify_options(interface)
-            controllers = interface.get("controller", [])
-            if len(controllers) != 1 or controllers[0].get("type") != "Adb":
-                raise ValueError("Android payload must expose only its Adb controller declaration")
-            resources = interface.get("resource", [])
-            if not resources or any(
-                resource.get("controller") and controllers[0]["name"] not in resource["controller"]
-                for resource in resources
-            ):
-                raise ValueError("Android payload contains incompatible resource choices")
-            if any(resource.get("path", [])[-1:] != ["./resource/android_native"] for resource in resources):
-                raise ValueError("Android native overlay is not the last resource layer")
-            # An overlay with no base under it still loads, and then has almost no nodes.
-            if any(resource.get("path", [])[:1] != ["./resource/base"] for resource in resources):
-                raise ValueError("Android payload lost its base resource layer")
-            # The released identity gets its RID from the PI profile; one here would also
-            # point CI builds at MirrorChyan, which only ever serves the released APK.
-            if "mirrorchyan_rid" in interface:
-                raise ValueError("Android payload must not advertise a MirrorChyan RID")
+            # The same contract the build checked before packing: Adb only, base then the
+            # native overlay, no RID, option types MaaFwApp parses, version, agent declared.
+            target = release_interface.target_for(
+                "android", metadata["version_name"] if metadata else None, announce=False)
+            release_interface.verify(interface, target, on_disk=False)
             payload.getinfo("resource/android_native/pipeline/StartGame.json")
-            if metadata and interface.get("version") != metadata["version_name"]:
-                raise ValueError("Resource and APK display versions differ")
-            if not interface.get("agent"):
-                raise ValueError("PI does not declare its required agent")
             payload.getinfo("agent/main.py")
             payload.getinfo("agent/utils/runtime_environment.py")
             if any(name.startswith("config/") or "agent_save_data" in name for name in payload.namelist()):

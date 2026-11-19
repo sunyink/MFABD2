@@ -3,6 +3,7 @@
         "desc": "起始节点-分流",
         "next": [
             "Env_AgentLost_Stop",
+            "[JumpBack]Ledger_Begin_Daily",
             "Activities_HomePageHub",
             "[JumpBack]Global_ToHomePage"
         ]
@@ -122,6 +123,7 @@
             "Activities_GetBingo",
             "Activities_Roulette",
             "Activities_Roulette_Pay_CkIn",
+            "Activities_Roulette_PayOne_CkIn",
             "Activities_FreeClothing",
             "Activities_GetAll",
             "Activities_PaidDiamonds"
@@ -376,6 +378,32 @@
             "Activities_GetAllRe"
         ],
         "focus": "GA.发现活动-轮盘(代币抽) V.02509"
+    },
+    "Activities_Roulette_PayOne_CkIn": {
+        "desc": "轮盘代币不足 10 个时单抽，把零头用完。|「旋转10次」灰掉后上一个节点不中，改点左边的「旋转1次」；代币够 10 个时两个按钮都亮，排在前面的十连先中。坐标取自 2026-11-18 ADB 日志的 OCR 框 [852,517,72,29]。",
+        "recognition": "And",
+        "all_of": [
+            {
+                "sub_name": "OCR",
+                "recognition": "OCR",
+                "roi": [
+                    810,
+                    493,
+                    150,
+                    81
+                ],
+                "expected": [
+                    "旋转1次"
+                ]
+            },
+            "Sub_Ocr_Enable_Clr"
+        ],
+        "action": "Click",
+        "post_delay": 4000,
+        "next": [
+            "Activities_GetAllRe"
+        ],
+        "focus": "GA.发现活动-轮盘(代币单抽)"
     },
     "Activities_FreeClothing": {
         "desc": "免费+5",
