@@ -2803,7 +2803,7 @@
         ]
     },
     "Collect_Pack_Click": {
-        "desc": "可复用地点击已决定卡带",
+        "desc": "可复用地点击已决定卡带 | 进卡时清两个路由锚点：ExplorationBoard_Arrived（寻路回阵告示板分支）；AreaMap_Return（套利借选图传送时由 Arbitrage_OperationsMain_Sandplay 设、Collect_TargetMap1-2 消费，采集从不设，这里在流程开头再清一次作双保险）。",
         "recognition": "Or",
         "any_of": [
             "Collect_QuickCart_Menu"
@@ -2817,7 +2817,8 @@
             0
         ],
         "anchor": {
-            "ExplorationBoard_Arrived": ""
+            "ExplorationBoard_Arrived": "",
+            "AreaMap_Return": ""
         },
         "post_delay": 5000,
         "next": [
