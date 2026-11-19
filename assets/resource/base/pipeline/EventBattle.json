@@ -105,7 +105,8 @@
             "node_name": [
                 "SeasonEvent_MamonoFollow_UnChallenged",
                 "SeasonEvent_MamonoFollow_ChallengePassed",
-                "Even_MamonoFollowUp_lvdown"
+                "Even_MamonoFollowUp_lvdown",
+                "SeasonEvent_MamonoFollow_Team_Troubleshoot"
             ]
         },
         "anchor": {
@@ -167,7 +168,8 @@
         "custom_action_param": {
             "node_name": [
                 "SeasonEvent_MamonoFollow_UnChallenged",
-                "SeasonEvent_MamonoFollow_ChallengePassed"
+                "SeasonEvent_MamonoFollow_ChallengePassed",
+                "SeasonEvent_MamonoFollow_Team_Troubleshoot"
             ]
         },
         "anchor": {
@@ -1534,7 +1536,8 @@
         "focus": "EM.MF.常规战斗-不可用"
     },
     "SeasonEvent_MamonoFollow_Team_Troubleshoot": {
-        "desc": "有队伍漏配",
+        "desc": "有队伍漏配,套一次推荐部署。max_hit限一次:推荐部署填不满时不再重配,免得配完回到去战斗仍灰又绕回来。计数由两个入口的Switch清",
+        "max_hit": 1,
         "recognition": "OCR",
         "roi": [
             609,
@@ -1557,9 +1560,9 @@
     "SeasonEvent_MamonoFollow_Team_Edit": {
         "recognition": "OCR",
         "roi": [
-            644,
+            630,
             617,
-            141,
+            200,
             68
         ],
         "expected": "编辑队伍",
@@ -1605,9 +1608,12 @@
         "focus": "使用推荐部署覆盖本地部署"
     },
     "SeasonEvent_MamonoFollow_Team_End": {
-        "desc": "队伍调整结束",
+        "desc": "队伍调整结束,回到去战斗按钮开打",
         "recognition": "And",
         "all_of": [
+            "SeasonEvent_MamonoFollow_NormalBattle"
+        ],
+        "next": [
             "SeasonEvent_MamonoFollow_NormalBattle"
         ],
         "focus": "队伍调整结束"

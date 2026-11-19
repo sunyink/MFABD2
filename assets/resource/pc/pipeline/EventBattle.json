@@ -427,11 +427,12 @@
         ]
     },
     "SeasonEvent_MamonoFollow_Team_Troubleshoot": {
+        "desc": "|[PC覆盖·2026-11-19] ROI只框「? ? ?」一行:连上方TEAM1一起框时OCR只出TEAM1、问号读不到(11-16实录)。只对本赛季版面,回归魔兽旧版面问号偏上约30px不在框内",
         "roi": [
             502,
-            219,
+            252,
             102,
-            88
+            50
         ]
     },
     "SeasonEvent_MamonoFollow_Team_Edit": {
