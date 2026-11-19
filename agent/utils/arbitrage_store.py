@@ -24,6 +24,15 @@ def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def moment_of(text) -> datetime | None:
+    """utc_now 写下的时刻文字 → 带时区的 datetime；解析不了、没有时区的返回 None（没时区的时刻不猜）。"""
+    try:
+        value = datetime.fromisoformat(str(text))
+    except (TypeError, ValueError):
+        return None
+    return value if value.tzinfo is not None else None
+
+
 def market_day(at: str | None = None) -> str:
     """价目表日：收购价 00:00 KST 换日（游戏日是 09:00 KST，即 UTC 日期）；交易仍须子页核价。
 
@@ -163,7 +172,7 @@ def save_market_snapshot(scan: dict, day: str | None = None) -> bool:
     """保存所有物品视图里的当天行情；完整缓存不会被失败重扫覆盖。"""
     observed_at = scan.get("observed_at") or utc_now()
     snapshot = {
-        # 跨 0 点的扫描混有换价前后的价格，归到开扫那天，新的一天按缺失重扫。
+        # day：进店那一刻的价目表日（店里的表过了 0 点不退出重进就不换，游戏 bug）。没给时按开扫时刻；新的一天按缺失重扫。
         "day": day or market_day(observed_at),
         "parser_version": MARKET_PARSER_VERSION,
         "observed_at": observed_at,
@@ -221,61 +230,6 @@ def _save_inventory(data: dict, names=(), *, force=False) -> bool:
     inventory = _inventory(data)
     inventory["events"][-1]["item_facts"] = inventory_facts(inventory["items"], names)
     return commit_inventory(data, inventory, PersistentStore, force=force)
-
-
-def save_possession_snapshot(scan: dict) -> bool:
-    """记录价目表证明存在的物品；该页面没有数量，绝不补零或抹掉精确数量。"""
-    observed_at = scan.get("observed_at") or utc_now()
-    items = _normalized_market_items(scan.get("items") or [])
-    with _LOCK:
-        data = PersistentStore.load()
-        inventory = _inventory(data)
-        current = inventory["items"]
-        for item in items:
-            if not item.get("name_confirmed", True):
-                continue
-            fact = _dict_child(current, item["name"])
-            fact["present"] = True
-            fact["presence_observed_at"] = observed_at
-            fact["presence_source"] = "sell_price_list"
-        item_names = [item["name"] for item in items if item.get("name_confirmed", True)]
-        peak_names = [item["name"] for item in items
-                      if item.get("is_max_price") and item.get("name_confirmed", True)]
-        coverage = {
-            "observed_at": observed_at,
-            "complete": bool(scan.get("complete")),
-            "sale_candidates_complete": bool(scan.get(
-                "sale_candidates_complete", scan.get("complete")
-            )),
-            "full_list_complete": bool(scan.get("full_list_complete", False)),
-            "cartridges_complete": bool(scan.get("cartridges_complete", False)),
-            "unconfirmed_cartridges": list(scan.get("unconfirmed_cartridges") or []),
-            "names_complete": bool(scan.get("names_complete", True)),
-            "prices_complete": bool(scan.get("prices_complete", True)),
-            "unconfirmed_names": list(scan.get("unconfirmed_names") or []),
-            "unconfirmed_prices": list(scan.get("unconfirmed_prices") or []),
-            "termination_reason": scan.get("termination_reason", "unknown"),
-            "pages_scanned": int(scan.get("pages_scanned", 0)),
-            "target_rate_floor": scan.get("target_rate_floor"),
-            "lowest_observed_rate": scan.get("lowest_observed_rate"),
-            "rate_order_safe": scan.get("rate_order_safe"),
-            "item_names": item_names,
-            "peak_item_names": peak_names,
-        }
-        _dict_child(inventory, "latest")["possession"] = coverage
-        inventory["events"].append({
-            "kind": "possession_scan",
-            "observed_at": observed_at,
-            "complete": coverage["complete"],
-            "sale_candidates_complete": coverage["sale_candidates_complete"],
-            "full_list_complete": coverage["full_list_complete"],
-            "termination_reason": coverage["termination_reason"],
-            "pages_scanned": coverage["pages_scanned"],
-            "target_rate_floor": coverage["target_rate_floor"],
-            "item_count": len(item_names),
-            "peak_item_count": len(peak_names),
-        })
-        return _save_inventory(data, item_names)
 
 
 def save_cooking_stock_observation(record: dict) -> bool:
@@ -341,7 +295,11 @@ def save_cooking_stock_observation(record: dict) -> bool:
 
 
 def save_cooking_made(record: dict) -> bool:
-    """记一次料理制作：制作前后的成品持有数与选的份数。做后持有数读到时同时更新该料理的库存事实。"""
+    """记一次料理制作：制作前后的成品持有数与选的份数。
+
+    做后持有数 = 做前 + 份数（consistent）才同时更新该料理的库存事实；对不上的只记事件，
+    库存留着制作前的作废（未知），出售时到柜台再核对——没核过的数可能是没刷新的旧数，写成已知 0 会让 ④ 不去卖。
+    """
     observed_at = record.get("observed_at") or utc_now()
     recipe = canon(str(record.get("recipe") or "").strip())
     after = record.get("owned_after")
@@ -349,7 +307,7 @@ def save_cooking_made(record: dict) -> bool:
         data = PersistentStore.load()
         inventory = _inventory(data)
         names = []
-        if recipe and type(after) is int and after >= 0:
+        if recipe and record.get("consistent") and type(after) is int and after >= 0:
             fact = _dict_child(inventory["items"], recipe)
             fact.update({
                 "quantity": after,

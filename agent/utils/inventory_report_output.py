@@ -6,6 +6,7 @@
 报表放在 <存档目录>/inventory_reports/<sha256(账号)>/：
     <游戏日>.json / .html   当日报表模型与页面；结账定稿后不再重写
     index.html              多日总览      latest.html   最近一个游戏日的页面副本
+另在安装目录放一个入口页 库存报表.html（ENTRY_NAME），指向各存档的 latest.html：存档目录藏得太深，用户找不到（U60）。
 """
 
 from datetime import datetime, timedelta, timezone
@@ -16,9 +17,11 @@ from pathlib import Path
 import re
 
 from .inventory_ledger import build_ledger, ts
-from .inventory_report import SCHEMA, VALUED, build_report
-from .inventory_report_render import clock, render_day_html, render_index_html
-from .ledger_rules import QUIET
+from .inventory_report import VALUED, build_report
+from .inventory_report_render import clock, render_day_html, render_entry_html, render_index_html
+from .ledger_rules import GAP_SECONDS, QUIET
+
+ENTRY_NAME = "库存报表.html"
 
 # 物品表（agent/data/bag_item_names.json）里的档案 → 背包仓检的扫描类型（Agt_BagScan_Config.attach.scopes）。
 PROFILE_SCOPE = {"ingredients": "A", "dishes": "A", "growth": "B", "craft": "C"}
@@ -161,48 +164,104 @@ def _snapshots(folder: Path) -> dict:
     return result
 
 
+def _balance(model) -> dict | None:
+    """一张定稿的表上的期末余额 {物品: {"quantity", "at", "unit"}}；不是定稿的表、或是没有余额块的旧表，返回 None。"""
+    balance = model.get("balance") if model.get("status") == "final" else None
+    rows = balance.get("items") if isinstance(balance, dict) else None
+    if not isinstance(rows, dict):
+        return None
+    return {name: row for name, row in rows.items() if isinstance(row, dict) and type(row.get("quantity")) is int}
+
+
+def _carry(saved, day) -> dict | None:
+    """day 之前最近一张定稿表的期末余额：这一天的上日期末以它为准。没有定稿的表、或那张是旧表，返回 None（改从账里推）。"""
+    earlier = [other for other, model in saved.items() if other < day and model.get("status") == "final"]
+    return _balance(saved[max(earlier)]) if earlier else None
+
+
+def write_entry(store_dir, entry_dir) -> Path | None:
+    """在 entry_dir 写入口页，列出存档目录里每个存档最近一天的报表（最近更新的在前）。一份报表都没有时不写。"""
+    base = Path(store_dir) / "inventory_reports"
+    accounts = []
+    for folder in sorted(base.iterdir()) if base.is_dir() else ():
+        latest = folder / "latest.html"
+        days = sorted(path.stem for path in folder.glob("*.json") if _DAY.fullmatch(path.stem))
+        model = _read_json(folder / f"{days[-1]}.json") if days else None
+        if not latest.is_file() or not isinstance(model, dict):
+            continue
+        alias = (model.get("account") or {}).get("alias")
+        index = folder / "index.html"
+        accounts.append({"name": f"存档 {alias}" if alias else "默认存档", "day": model.get("game_day") or days[-1],
+                         "status": model.get("status"), "summary": model.get("summary"), "as_of": model.get("as_of"),
+                         "latest": latest.resolve().as_uri(), "index": index.resolve().as_uri() if index.is_file() else None,
+                         "touched": latest.stat().st_mtime})
+    if not accounts:
+        return None
+    accounts.sort(key=lambda account: -account["touched"])
+    path = Path(entry_dir) / ENTRY_NAME
+    _write(path, render_entry_html(accounts, base.resolve().as_uri()))
+    return path
+
+
 def generate_reports(store_dir, account, *, agent_dir, as_of: str | None = None, days=None, force=False, hot=None,
-                     quiet=QUIET, alias=None) -> dict:
+                     quiet=QUIET, gap=GAP_SECONDS, alias=None, entry_dir=None) -> dict:
     """重算还没结账的游戏日（days 给了就只算这些天，force 连已定稿的也重算），并更新总览与 latest。
 
-    返回 {"days": 写了哪几天, "folder": 报表目录, "latest": 最近一天页面的路径, "summary": 最近一天的摘要}。
+    结转：每一天的上日期末取它之前最近一张定稿表的期末余额，对不上的记成期初调整；定稿的表运行时不再重写。
+    离线强制重算某一天会改掉它的期末余额，之后的日子要一起重算（--from/--to），否则那几天的上日期末还是旧的。
+
+    quiet、gap：做账划段用的免记名单与连续阈值，调用方从节点 Agt_Ledger_Config 取来传入（ledger_rules.settings），
+    与运行时判盘不盘的是同一份；不传就是内置值。
+
+    entry_dir：给了就顺手在那里更新入口页（安装目录）；写不进去只是没有入口，报表照出。
+    返回 {"days": 写了哪几天, "folder": 报表目录, "latest": 最近一天页面的路径, "summary": 最近一天的摘要,
+          "entry": 入口页路径或 None}。
     """
     folder = report_dir(store_dir, account)
     as_of = as_of or datetime.now(timezone.utc).isoformat(timespec="seconds")
     saved = _snapshots(folder)
-    settled = sorted(day for day, model in saved.items() if model.get("status") == "final" and model.get("schema") == SCHEMA)
-    partial = not force and not days and bool(settled)
-    # 定稿的日子不会再变：只读最后一个定稿日起的冷档就够重算其后的日子。
-    vouchers = load_vouchers(store_dir, account, since=settled[-1] if partial else None, hot=hot)
+    # 定稿的表是固定值：运行时不再重写，报表格式的版本变了也不重算（U75）。
+    settled = sorted(day for day, model in saved.items() if model.get("status") == "final")
+    frozen = settled[-1] if settled and not force and not days else None   # 这一天及更早的不碰
+    # 下一日的期初以最后一张定稿表的期末余额为准，所以只读它那天起的冷档就够。
+    # 那张还是没有余额块的旧表时，这一回把冷档读全，从账里把余额推出来；之后定稿的表都带着，就不用再读全了。
+    partial = frozen is not None and _balance(saved[frozen]) is not None
+    vouchers = load_vouchers(store_dir, account, since=frozen if partial else None, hot=hot)
     catalog, cookbook = load_catalog(agent_dir), load_cookbook(agent_dir)
-    ledger = build_ledger(vouchers, catalog=catalog, quiet=quiet)
+    ledger = build_ledger(vouchers, catalog=catalog, quiet=quiet, gap=gap)
     prices = load_prices(store_dir, ledger["scans"], cookbook)
     if not any(name in row for row in prices.values() for name, entry in ledger["items"].items()
                if entry["category"] in VALUED):
         prices = None   # 一样有价的存货都没有，就只出数量
     labels = load_labels(agent_dir)
     present = sorted({scan["day"] for scan in ledger["scans"]})
-    # 只读了近期凭证时，最后一个定稿日之前的日子凭证不全（只剩热档里那几条），不碰。
+    # 最后一个定稿日及更早的日子不碰：定稿的不重写；没出过表的，凭证也多半不全（只读了近期的、或只剩热档里那几条）。
     wanted = [day for day in present if (day in days if days else force or day not in settled)
-              and not (partial and day <= settled[-1])]
+              and not (frozen and day <= frozen)]
     written = []
-    for day in wanted:
+    for day in wanted:   # 从早到晚：这一回刚定稿的表，就是下一天的上日期末
         model = build_report(ledger, game_day=day, as_of=as_of, prices=prices, cookbook=cookbook, labels=labels,
-                             kst=clock(day), history_before=any(other < day for other in saved),
+                             kst=clock(day), history_before=any(other < day for other in saved), prior=_carry(saved, day),
                              account={"hash": folder.name, "alias": alias or (None if str(account) == "0" else str(account))})
         if model is None:
             continue
         folder.mkdir(parents=True, exist_ok=True)
-        _write(folder / f"{day}.json", json.dumps(model, ensure_ascii=False, separators=(",", ":")))
+        # 先页面后快照：快照在就算数（定稿的不再重写），页面必须先于它落盘，免得中途断掉留下一张期中的页面改不回来。
         _write(folder / f"{day}.html", render_day_html(model))
+        _write(folder / f"{day}.json", json.dumps(model, ensure_ascii=False, separators=(",", ":")))
         saved[day] = model
         written.append(day)
-    result = {"days": written, "folder": folder, "latest": None, "summary": None}
+    result = {"days": written, "folder": folder, "latest": None, "summary": None, "entry": None}
     if saved and written:
         recent = sorted(saved)[-INDEX_DAYS:]
         _write(folder / "index.html", render_index_html([saved[day] for day in recent]))
         _write(folder / "latest.html", (folder / f"{recent[-1]}.html").read_text(encoding="utf-8"))
         result.update(latest=folder / "latest.html", summary=saved[recent[-1]].get("summary"))
+        if entry_dir is not None:
+            try:
+                result["entry"] = write_entry(store_dir, entry_dir)
+            except OSError:
+                pass   # 安装目录不可写（装在只读位置）：没有入口而已
     return result
 
 
@@ -211,5 +270,5 @@ def game_days_between(first: str, last: str) -> list:
     return [(start + timedelta(days=offset)).isoformat() for offset in range((end - start).days + 1)]
 
 
-__all__ = ["generate_reports", "load_vouchers", "load_catalog", "load_cookbook", "load_prices", "report_dir",
+__all__ = ["ENTRY_NAME", "generate_reports", "write_entry", "load_vouchers", "load_catalog", "load_cookbook", "load_prices", "report_dir",
            "history_dir", "save_file", "game_days_between", "ts"]

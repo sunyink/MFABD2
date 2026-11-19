@@ -167,19 +167,36 @@ def crop(image, box):
 
 _SPLIT = re.compile(r"^(.*?)((?:[拥擁]有|持有)[0-9,，.．。、·]+[个個])$")
 _SEPARATORS = re.compile(r"[,，.．。、·]")
+# 「拥有 N 个」里的 N，以及 N 分组规整的样子：纯数字，或 1–3 位开头、之后每组正好 3 位。
+# 分隔符游戏里是逗号，识别也会读成句点等（模拟器上常见，字挤的时候更是）；物品数量没有小数，一律当千分位。
+_COUNT = re.compile(r"(?:[拥擁]有|持有)([0-9,，.．。、·]+)[个個]")
+_GROUPED = re.compile(r"[0-9]+|[1-9][0-9]{0,2}(?:[,，.．。、·][0-9]{3})+")
+
+
+def _ungroup(text: str) -> str:
+    """去掉数量文字里的千分位——只在「拥有 N 个」的 N 分组规整时去；不规整的整段原样留着。
+
+    「1,23」这种多半是漏读了一位，去掉分隔符就成了一个像模像样的错数。原样留着，扫描核心解析不了
+    （它只认纯数字或规整的逗号分组，ocr_read.NUMBER），会当作数量没读清：放大重读两次、两次一致才收。
+    角标（bag_corner）与出售子页读数本来就要求分组规整，这里与它们对齐。
+    """
+    count = _COUNT.search(text)
+    if count and not _GROUPED.fullmatch(count.group(1)):
+        return text
+    return _SEPARATORS.sub("", text)
 
 
 def split_quantity(text: str):
-    """拼读的结果拆成（名称, 数量文字）；数量文字去掉千分位（句点、逗号都可能读到）。拆不开返回 None。
+    """拼读的结果拆成（名称, 数量文字）；数量文字去掉千分位（见 _ungroup，分组不规整的不去）。拆不开返回 None。
 
     只在结尾找「拥有/持有…个」：名称里可能本来就有句点（1.5周年…），所以只对数量那一段去分隔符。
     """
     match = _SPLIT.match(re.sub(r"\s+", "", text))
     if not match or not match.group(1):
         return None
-    return match.group(1), _SEPARATORS.sub("", match.group(2))
+    return match.group(1), _ungroup(match.group(2))
 
 
 def plain_quantity(text: str) -> str:
-    """单独读到的数量文字去掉空白与千分位。"""
-    return _SEPARATORS.sub("", re.sub(r"\s+", "", text))
+    """单独读到的数量文字去掉空白与千分位（见 _ungroup，分组不规整的不去）。"""
+    return _ungroup(re.sub(r"\s+", "", text))

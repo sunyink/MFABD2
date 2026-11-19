@@ -15,7 +15,10 @@ from datetime import datetime, timezone
 
 from .ledger_rules import GAP_SECONDS, _connected, game_day
 
-RULE_VERSION = 3   # 3：吸取分卡产出
+RULE_VERSION = 7   # 3：吸取分卡产出；4：存货没盘全时退出重扫，重扫的读数并进原来那次盘点；5：回读库存确认的出售按报价记金币，取不到记未知
+                   # 6：跨过开始那天结账盘点的一笔变化，记成补上读数那天的期初调整（inventory_report，U67-1）
+                   # 7：一日的账只算到当天最后一盘，定稿等于最后一次记账；定稿的表带期末余额，下一日第一盘与它的差额
+                   #    全部记成期初调整，隔夜那一段不再归上一日（inventory_report，U75、U76）
 # 顶栏货币在账里的名字 → 货币读数里的字段。
 CURRENCY = (("金币", "gold"), ("钻石", "diamond"), ("钻石（免费）", "diamond_free"),
             ("钻石（付费）", "diamond_paid"), ("天赋神药", "tonic"))
@@ -71,15 +74,46 @@ def dedupe(vouchers) -> list:
     return result
 
 
+def _counted(event) -> dict:
+    """一条盘点记录读到的数（判 0 的记 0）。"""
+    readings = {name: quantity for name, quantity in (event.get("quantities") or {}).items()
+                if type(quantity) is int and quantity >= 0}
+    readings.update(dict.fromkeys(event.get("absent") or (), 0))
+    return readings
+
+
+def _duration(event) -> float:
+    at, started = ts(event.get("finished_at")), ts(event.get("started_at"))
+    return 0.0 if at is None or started is None else max(at - started, 0.0)
+
+
 def _scan_rows(events, currencies) -> list:
+    """记账盘点，按时刻排。存货没盘全时同一位置会退出背包重扫（origin.retry_of 指回原来那次）：
+    重扫补上的读数并进原来那次，它不另算一次盘点——两次之间什么也没干，分成两个边界只会让补上的东西跨进一个空区间。"""
+    scans = [event for event in events if event.get("kind") == "inventory_scan" and isinstance(event.get("origin"), dict)
+             and ts(event.get("finished_at")) is not None]
+    parents = {event.get("scan_id") for event in scans if not event["origin"].get("retry_of")}
+    retries = {}
+    for event in scans:
+        if event["origin"].get("retry_of") in parents:
+            retries.setdefault(event["origin"]["retry_of"], []).append(event)
     rows = []
-    for event in events:
-        at = ts(event.get("finished_at"))
-        if event.get("kind") != "inventory_scan" or not isinstance(event.get("origin"), dict) or at is None:
+    for event in scans:
+        if event["origin"].get("retry_of") in parents:
             continue
-        readings = {name: quantity for name, quantity in (event.get("quantities") or {}).items()
-                    if type(quantity) is int and quantity >= 0}
-        readings.update(dict.fromkeys(event.get("absent") or (), 0))
+        at = ts(event.get("finished_at")) or 0.0   # 上面已滤掉没有时刻的
+        readings, unknown = _counted(event), set(event.get("unknown") or ())
+        read, absent = len(event.get("quantities") or {}), len(event.get("absent") or ())
+        pages, extra = event.get("pages") or 0, 0.0
+        again = sorted(retries.get(event.get("scan_id"), ()), key=lambda retry: ts(retry["finished_at"]) or 0.0)
+        for retry in again:
+            filled = {name: quantity for name, quantity in _counted(retry).items() if name not in readings}
+            readings.update(filled)
+            unknown -= set(filled)
+            read += sum(quantity > 0 for quantity in filled.values())
+            absent += sum(quantity == 0 for quantity in filled.values())
+            pages += retry.get("pages") or 0
+            extra += _duration(retry)
         currency = currencies.get(event.get("scan_id")) or {}
         for name, field in CURRENCY:
             if type(currency.get(field)) is int:
@@ -88,11 +122,11 @@ def _scan_rows(events, currencies) -> list:
         rows.append({
             "scan_id": event.get("scan_id"), "seq": event.get("seq"), "at": at, "started": min(started, at),
             "day": game_day(at), "label": event.get("label"), "origin": event["origin"],
-            "scope": list(event.get("scope") or ()), "complete": bool(event.get("complete")),
-            "termination": event.get("termination"), "pages": event.get("pages") or 0,
-            "seconds": round(at - min(started, at)), "read": len(event.get("quantities") or {}),
-            "absent": len(event.get("absent") or ()), "unknown": sorted(event.get("unknown") or ()),
-            "currency_read": bool(currency), "readings": readings})
+            "scope": list(event.get("scope") or ()),
+            "complete": bool(event.get("complete")) or (bool(again) and not unknown),
+            "termination": event.get("termination"), "pages": pages,
+            "seconds": round(at - min(started, at) + extra), "read": read, "absent": absent,
+            "unknown": sorted(unknown), "retried": len(again), "currency_read": bool(currency), "readings": readings})
     rows.sort(key=lambda row: (row["at"], row["seq"] or 0))
     for number, row in enumerate(rows, 1):
         row["id"] = f"S{number}"
@@ -187,6 +221,28 @@ def _visits_between(visits, lower, upper) -> list:
             for visit in visits if lower < visit["first"] <= upper]
 
 
+def _sale_gold(proofs):
+    """一笔出售凭证的金币：(核对过的金币差, 按报价带上的, 金币未知的几段)。
+
+    quoted_gold：成交时金币差与报价核对过。inventory_delta：金币没核上、回读库存确认成交——
+    库存正好少了这一批的选量，就是按开窗时核对过的整行报价成交（用户 11-16：去卖说明当天就是这个价，直接带）；
+    少的不是选量那么多、或凭证里没有报价（11-16 之前的凭证），就老老实实记金币未知，不拿 0 充数。
+    """
+    measured = carried = unknown = 0
+    for proof in proofs:
+        if not isinstance(proof, dict) or not proof.get("quantity", 1):
+            continue
+        gold = proof.get("gold")
+        if isinstance(gold, dict) and type(gold.get("delta")) is int:
+            measured += gold["delta"]
+        elif (proof.get("basis") == "inventory_delta" and type(proof.get("quoted_total")) is int
+              and proof.get("quantity") == proof.get("selected")):
+            carried += proof["quoted_total"]
+        else:
+            unknown += 1
+    return measured, carried, unknown
+
+
 def _book(events, lower, upper) -> dict:
     """区间里逐笔记下的事实：出售、补买、料理制作。"""
     book = {"sales": {}, "replenish": {}, "cooked": {}, "unconfirmed": 0, "first": None, "last": None}
@@ -196,12 +252,13 @@ def _book(events, lower, upper) -> dict:
         if at is None or not lower < at <= upper:
             continue
         if kind == "inventory_set" and reason == _SALE:
-            gold = [proof["gold"].get("delta") for proof in reference.get("proofs") or ()
-                    if isinstance(proof, dict) and isinstance(proof.get("gold"), dict)]
+            measured, carried, unknown = _sale_gold(reference.get("proofs") or ())
             for name in event.get("quantities") or ():
-                row = book["sales"].setdefault(name, {"quantity": 0, "gold": 0})
+                row = book["sales"].setdefault(name, {"quantity": 0, "gold": 0, "carried": 0, "unknown": 0})
                 row["quantity"] += reference.get("actual_quantity") or 0
-                row["gold"] += sum(value for value in gold if type(value) is int)
+                row["gold"] += measured + carried
+                row["carried"] += carried
+                row["unknown"] += unknown
         elif kind == "inventory_set" and reason == _BUY:
             for name in event.get("quantities") or ():
                 row = book["replenish"].setdefault(name, {"quantity": 0, "spent": 0})
@@ -379,6 +436,17 @@ def _chains(scans, catalog, intervals) -> dict:
                         "kind": entry.get("kind"), "scope": scope, "suspect": suspect,
                         "readings": [[index, quantity] for index, quantity in readings], "pieces": pieces}
     return result
+
+
+def items_until(ledger, last: int) -> dict:
+    """只看到第 last 次盘点（下标）为止的物品读数链：一日的表只算到当天最后一盘，之后的读数不拿来改它（U76）。
+
+    后来的读数会让「夹在两次相同读数之间的 0」被当成漏读丢掉；截到当天最后一盘，那个 0 在这一天的表上照旧算数，
+    读回原数的差额由次日的期初调整接住。
+    """
+    catalog = {name: {"category": entry["category"], "kind": entry.get("kind"), "scope": entry.get("scope")}
+               for name, entry in ledger["items"].items()}
+    return _chains(ledger["scans"][:last + 1], catalog, ledger["intervals"][:last])
 
 
 def build_ledger(vouchers, *, catalog=None, quiet=(), gap: float = GAP_SECONDS) -> dict:

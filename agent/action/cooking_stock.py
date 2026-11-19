@@ -25,7 +25,9 @@ from utils.arbitrage_store import (
     save_cooking_stock_observation, save_cooking_made, get_inventory_items,
     invalidate_inventory_quantities, utc_now,
 )
+from utils.arbitrage_recipe_catalog import recipe_item_names
 from utils.name_i18n import canon
+from utils.ocr_item_name import item_aliases, resolve_ocr_name
 from utils.ocr_read import NUMBER as _NUMBER, clean as _clean
 from utils.ocr_read import read_texts as _read_texts, unique_parsed as _unique_parsed
 
@@ -71,11 +73,19 @@ class CookingInventoryBoundary(CustomAction):
             items = get_inventory_items()
             known = {canon(name) for name in catalog
                      if items.get(canon(name), {}).get("quantity_status") == "known"}
+            image, before = None, None
+            try:
+                image = context.tasker.controller.post_screencap().wait().get()
+                if image is None or not image.size:
+                    image = None
+                    raise RuntimeError("制作前截图失败")
+                before = read_cooking_page(context, scan, image)
+            except Exception as exc:
+                mfaalog.warning(f"[CookingMade] 制作前读数失败，本次不记做了几个: {exc}")
             names = []
             if known:
                 try:
-                    image = context.tasker.controller.post_screencap().wait().get()
-                    if image is None or not image.size:
+                    if image is None:
                         raise RuntimeError("制作前截图失败")
                     recipe_names = _current_recipe_materials(context, scan, image)
                     names = sorted(known.intersection(recipe_names))
@@ -83,11 +93,14 @@ class CookingInventoryBoundary(CustomAction):
                     # 不能确定配方时仍允许原制作流程继续，但不能保留可能被消耗的旧量。
                     names = sorted(known)
                     mfaalog.warning(f"[CookingStock] 当前配方未核实，全部 {len(names)} 项旧数量待补查: {exc}")
+            # 料理自己的旧数也作废：做完读不到「拥有」时留着旧数，出售会把刚做出来的当成没货（U62）。
+            names += _dishes_to_invalidate(before, items)
             if not invalidate_inventory_quantities(names, "cooking_attempt"):
                 raise RuntimeError("制作前库存作废未能写入")
             if names:
                 mfaalog.info("[CookingStock] 制作前待更新: " + "、".join(names))
-            _remember_before_cooking(context, argv.task_detail.task_id, scan)
+            if before is not None:
+                _remember(argv.task_detail.task_id, before, scan)
             result = context.run_action(params["click_node"], box=argv.box)
             return bool(result is not None and result.success)
         except Exception as exc:
@@ -95,30 +108,61 @@ class CookingInventoryBoundary(CustomAction):
             return False
 
 
+_DISH_ALIASES = None
+
+
+def _dish_name(texts) -> str | None:
+    """制作页标题读到的菜名，只在料理名表里认：简繁都认，错一个字能认出唯一一道就认（同商店套利的 resolve_ocr_name）。
+
+    认不出的当没读出（None）：读错的名字记下去，会作废一道不存在的菜、真菜的旧数却留着（试跑10 盧戈烤山蓼串）。
+    """
+    global _DISH_ALIASES
+    if _DISH_ALIASES is None:
+        dishes = recipe_item_names()
+        _DISH_ALIASES = {alias: name for alias, name in item_aliases().items() if canon(name) in dishes}
+    names = set()
+    for text in texts:
+        raw = re.sub(r"[*★☆]+$", "", _clean(text))
+        if not raw:
+            continue
+        resolved = resolve_ocr_name(raw, aliases=_DISH_ALIASES)
+        if resolved["confirmed"]:
+            name = canon(resolved["name"])
+            if resolved["basis"] != "exact":
+                mfaalog.info(f"[CookingStock] 菜名「{raw}」按料理名表认作「{name}」（{resolved['basis']}）")
+            names.add(name)
+    return names.pop() if len(names) == 1 else None
+
+
 def read_cooking_page(context: Context, scan: dict, image) -> dict:
     """制作页上与「做了几个」有关的三样：菜名、左上成品持有数、选中的份数。读不到的为 None。"""
     texts, _, _ = _read_texts(context, scan["recipe_node"], image)
-    names = {canon(name) for text in texts if (name := re.sub(r"[*★☆]+$", "", _clean(text)))}
     owned = _unique_parsed(_read_texts(context, _OWNED_NODE, image)[0], _OWNED)
     selected = _unique_parsed(_read_texts(context, scan["quantity_node"], image)[0], _NUMBER + r"[个個]")
     return {
-        "recipe": names.pop() if len(names) == 1 else None,
+        "recipe": _dish_name(texts),
         "owned": owned[0] if owned else None,
         "selected_count": selected[0] if selected and selected[0] > 0 else None,
     }
 
 
-def _remember_before_cooking(context: Context, task_id: int, scan: dict) -> None:
-    """点「料理」前读一次；失败只记日志，不影响制作。"""
+def _dishes_to_invalidate(before: dict | None, items: dict) -> list[str]:
+    """这次要做的那道料理；菜名没读出来就是所有记着数量的料理——不知道做的是哪道，哪道的旧数都不能留。"""
+    if before and before.get("recipe"):
+        return [before["recipe"]]
     try:
-        image = context.tasker.controller.post_screencap().wait().get()
-        if image is None or not image.size:
-            raise RuntimeError("截图失败")
-        before = read_cooking_page(context, scan, image)
+        dishes = recipe_item_names()
     except Exception as exc:
-        mfaalog.warning(f"[CookingMade] 制作前读数失败，本次不记做了几个: {exc}")
-        return
-    before.update(started_at=utc_now(), scan=scan)
+        mfaalog.warning(f"[CookingStock] 料理名录读不到({exc})，菜名又没读出，料理旧数量无法作废")
+        return []
+    names = sorted(name for name in dishes if items.get(name, {}).get("quantity_status") == "known")
+    if names:
+        mfaalog.warning(f"[CookingStock] 制作前菜名没读出，{len(names)} 道料理的旧数量一起作废")
+    return names
+
+
+def _remember(task_id: int, before: dict, scan: dict) -> None:
+    before = dict(before, started_at=utc_now(), scan=scan)
     with _LOCK:
         _MADE_PENDING[task_id] = before
         _MADE_PENDING.move_to_end(task_id)
@@ -177,7 +221,7 @@ class CookingMadeConfirm(CustomAction):
             if record["consistent"]:
                 mfaalog.info(line + " ✓" + ("" if saved else "（⚠️ 存档未写入）"))
             else:
-                mfaalog.warning(line + "，对不上" + ("" if saved else "（⚠️ 存档未写入）"))
+                mfaalog.warning(line + "，对不上，库存留作未知、出售时到柜台核对" + ("" if saved else "（⚠️ 存档未写入）"))
         except Exception as exc:
             mfaalog.error(f"[CookingMade] 制作后读数异常: {exc}")
         return True
@@ -308,11 +352,11 @@ def collect_cooking_stock(context: Context, params: dict, image) -> dict:
     if not material_nodes or len(material_nodes) != len(presence_nodes):
         raise ValueError("材料 OCR 与槽位检测节点数量不一致")
     record["raw_recipe"] = read("recipe", params["recipe_node"])
-    names = {canon(name) for text in record["raw_recipe"]
-             if (name := re.sub(r"[*★☆]+$", "", _clean(text)))}
-    if len(names) == 1:
-        record["recipe"] = names.pop()
-    else:
+    try:
+        record["recipe"] = _dish_name(record["raw_recipe"])
+    except Exception as exc:
+        record["errors"].append(f"recipe_catalog: {exc}")
+    if record["recipe"] is None:
         record["errors"].append("recipe_unreadable")
 
     record["raw_quantity"] = read("selected_count", params["quantity_node"])

@@ -2,18 +2,19 @@ import json
 import re
 import unicodedata
 from datetime import datetime, timezone
-from pathlib import Path
 from maa.custom_action import CustomAction
 from maa.context import Context
 from maa.agent.agent_server import AgentServer
 from utils import mfaalog
 from utils.account_sync import sync_from_context
 from utils.arbitrage_store import (
+    get_inventory_items,
     get_market_snapshot,
     market_day,
     save_market_snapshot,
-    save_possession_snapshot,
 )
+from utils.arbitrage_recipe_catalog import recipe_item_names
+from utils.arbitrage_sale_skip import known_within, trust_since
 from utils.name_i18n import canon
 from utils.arbitrage_sale_state import LOCKED_REASON
 from utils.arbitrage_pricelist import (
@@ -174,11 +175,8 @@ _MAX_SCAN_PAGES_DEFAULT = 30
 
 _MODE_SELL = "sell"
 _MODE_PREVIEW_ALL = "preview_all"
-_MODE_PREVIEW_POSSESS = "preview_possess"
-_VALID_MODES = {_MODE_SELL, _MODE_PREVIEW_ALL, _MODE_PREVIEW_POSSESS}
+_VALID_MODES = {_MODE_SELL, _MODE_PREVIEW_ALL}
 
-_ITEM_DATA_FILE = Path(__file__).resolve().parent.parent / "data" / "bd2_item_names_i18n.json"
-_RECIPE_NAMES = None
 
 def _tail_num(s: str) -> str:
     """整串尾部连续数字(尾号);无则空串。"""
@@ -327,26 +325,19 @@ def _action_params(argv) -> dict:
     return params
 
 
-def _load_recipe_names() -> set[str]:
-    """加载料理类别名录；失败时返回空集，预览模式宁可不卖也不猜类别。"""
-    global _RECIPE_NAMES
-    if _RECIPE_NAMES is not None:
-        return _RECIPE_NAMES
-    try:
-        with open(_ITEM_DATA_FILE, "r", encoding="utf-8") as handle:
-            records = json.load(handle)
-        _RECIPE_NAMES = {
-            canon(str(item.get("cn", "")).strip())
-            for item in records
-            if isinstance(item, dict) and item.get("category") == "Recipe" and item.get("cn")
-        }
-        mfaalog.info(f"[Arbitrage] 📖 料理类别名录加载 {len(_RECIPE_NAMES)} 项")
-    except Exception as exc:
-        _RECIPE_NAMES = set()
-        mfaalog.error(f"[Arbitrage] ❌ 料理类别名录加载失败({exc})，预览模式将不执行出售")
-    return _RECIPE_NAMES
+def _load_recipe_names() -> frozenset:
+    """料理类别名录（utils.arbitrage_recipe_catalog 那一份，这里不另读文件）；读不到时返回空集。
 
-def _new_scan(target_rate_floor: int | None = None) -> dict:
+    空集对 ①④ 是没东西可卖——宁可不卖也不猜类别；对 ⑤ 只是少了「不是料理」这层排除，材料直卖资格表照常把关。
+    读不成不记住，下一次出售再读；每次出售只调一次，报错也只报一行。
+    """
+    try:
+        return recipe_item_names()
+    except Exception as exc:
+        mfaalog.error(f"[Arbitrage] ❌ 料理类别名录加载失败({exc})：①④本轮不卖料理，⑤不再按名录排除料理")
+        return frozenset()
+
+def _new_scan() -> dict:
     """创建带明确覆盖语义的价目表观察。"""
     return {
         "observed_at": datetime.now(timezone.utc).isoformat(),
@@ -357,53 +348,7 @@ def _new_scan(target_rate_floor: int | None = None) -> dict:
         "sale_candidates_complete": False,
         "full_list_complete": False,
         "termination_reason": "stopped",
-        "target_rate_floor": target_rate_floor,
-        "lowest_observed_rate": None,
-        "rate_order_safe": True if target_rate_floor is not None else None,
     }
-
-
-def _possession_scan_plan(snapshot: dict | None, recipe_names: set[str]) -> dict:
-    """从完整公共行情生成已有物扫描计划；证据不足时要求全量扫描。"""
-    unavailable = {
-        "usable": False,
-        "skip": False,
-        "target_rate_floor": None,
-        "target_names": [],
-    }
-    if not snapshot or not snapshot.get("complete") or not recipe_names:
-        return unavailable
-
-    targets = []
-    for item in snapshot.get("items") or []:
-        if not isinstance(item, dict) or not item.get("is_max_price"):
-            continue
-        if not item.get("name_confirmed", True):
-            # 峰值行的名字没认出来，无法判断它是不是料理，不能据此跳过持有物扫描。
-            return unavailable
-        name = canon(str(item.get("name") or "").strip())
-        if name not in recipe_names:
-            continue
-        rate = item.get("current_rate")
-        targets.append((name, rate))
-
-    if not targets:
-        return {
-            "usable": True,
-            "skip": True,
-            "target_rate_floor": None,
-            "target_names": [],
-        }
-    if any(not isinstance(rate, int) or isinstance(rate, bool) for _, rate in targets):
-        return unavailable
-
-    return {
-        "usable": True,
-        "skip": False,
-        "target_rate_floor": min(rate for _, rate in targets),
-        "target_names": [name for name, _ in targets],
-    }
-
 
 
 @AgentServer.custom_action("ArbitrageSellController")
@@ -416,7 +361,8 @@ class ArbitrageSellController(CustomAction):
             return False
 
         mode = params["mode"]
-        mfaalog.info(f"[Arbitrage] 🚀 商店套利-出售主控器启动(mode={mode})")
+        stage = f"，{params['stage']}" if params.get("stage") else ""
+        mfaalog.info(f"[Arbitrage] 🚀 商店套利-出售主控器启动(mode={mode}{stage})")
         if not sync_from_context(context, where=f"ArbitrageSellController/{mode}"):
             return False
         selling = mode != _MODE_PREVIEW_ALL
@@ -446,9 +392,11 @@ class ArbitrageSellController(CustomAction):
             mfaalog.error("[Arbitrage] ❌ max_scan_pages 必须是正整数，为避免无界翻页已中止")
             return False
 
+        # 全量价目表扫描：ArbitrageMarketEnsure 带来进店那一刻的价目表日（店里的表过了 0 点不退店不换），复用与保存都按它。
+        scan_day = params.get("market_day") if mode == _MODE_PREVIEW_ALL else None
         if mode == _MODE_PREVIEW_ALL:
             try:
-                cached = get_market_snapshot()
+                cached = get_market_snapshot(scan_day)
             except Exception as exc:
                 cached = None
                 mfaalog.error(f"[Arbitrage] ⚠️ 共享行情缓存读取失败({exc})，本轮重新扫描")
@@ -460,19 +408,18 @@ class ArbitrageSellController(CustomAction):
                 )
                 return True
 
-        preview_recipe_names = None
-        possession_plan = None
         final_reserves = {}
         final_market = None
         final_market_day = None
         if mode == _MODE_SELL:
+            recipes = _load_recipe_names()
             if params.get("sale_scope", "recipes") == "recipes":
-                final_reserves = {name: 0 for name in _load_recipe_names()}
+                final_reserves = {name: 0 for name in recipes}
             else:
                 try:
                     policy = read_material_reserve_policy(context)
                     final_reserves = {name: policy.reserve_for(name) for name in policy.sale_eligible
-                                      if name not in _load_recipe_names() and policy.reserve_for(name) >= 0}
+                                      if name not in recipes and policy.reserve_for(name) >= 0}
                     mfaalog.info(f"[⑤材料] {policy.describe()}；仅峰值出售超过保留量的部分")
                 except Exception as exc:
                     mfaalog.error(f"[⑤材料] 保留配置不可用({exc})，停止材料出售")
@@ -488,63 +435,15 @@ class ArbitrageSellController(CustomAction):
             if not final_market or not final_market.get("complete"):
                 mfaalog.error("[Arbitrage] 今日完整行情存档缺失，最终出售停止；请检查共享行情准备步骤")
                 return False
-        if mode == _MODE_PREVIEW_POSSESS:
-            # ①有独立开关；完整料理目录与④共用，均不依赖③制作选择。
-            try:
-                sell_node = context.get_node_data("Arbitrage_PreSell_Entry")
-                if not isinstance(sell_node, dict):
-                    raise ValueError("开局出售节点不可读")
-            except Exception as exc:
-                mfaalog.error(f"[Arbitrage] 无法确认出售开关({exc})，跳过开局变现")
-                return False
-            if not sell_node.get("enabled", True) or sell_node.get("max_hit") == 0:
-                mfaalog.info("[Arbitrage] ①已关闭，跳过开局变现")
-                return True
-            preview_recipe_names = _load_recipe_names()
-            try:
-                possession_market = get_market_snapshot()
-            except Exception as exc:
-                possession_market = None
-                mfaalog.warning(f"[Arbitrage] ⚠️ 无法读取公共行情以计算已有物边界({exc})，改为全量扫描")
-            possession_plan = _possession_scan_plan(possession_market, preview_recipe_names)
-            if possession_plan["usable"] and possession_plan["skip"]:
-                mfaalog.info("[Arbitrage] 💤 今日公共行情没有峰值料理，已有物列表无需扫描")
-            elif possession_plan["usable"]:
-                target_names = "、".join(possession_plan["target_names"])
-                mfaalog.info(
-                    f"[Arbitrage] 🎯 已有物动态边界={possession_plan['target_rate_floor']}%，"
-                    f"覆盖今日峰值料理：{target_names}"
-                )
-            else:
-                mfaalog.warning(
-                    "[Arbitrage] ⚠️ 公共行情或料理峰值倍率不足以证明安全边界，已有物改为全量扫描"
-                )
 
         if mode == _MODE_SELL:
-            # 全量行情只决定卖什么、去哪卖；库存和选量在商品子窗口重新读取。
+            # 全量行情只决定卖什么、去哪卖；有没有货先看库存记录，库存和选量在商品子窗口重新读取。
             scan = final_market
-        elif possession_plan and possession_plan["usable"] and possession_plan["skip"]:
-            scan = _new_scan()
-            scan.update({
-                "complete": True,
-                "sale_candidates_complete": True,
-                "termination_reason": "no_peak_recipe" if mode == _MODE_PREVIEW_POSSESS else "no_peak_target",
-                "rate_order_safe": True,
-            })
         else:
-            rate_floor = (
-                possession_plan["target_rate_floor"]
-                if possession_plan and possession_plan["usable"]
-                else None
-            )
-            scan = self._scan_price_list(
-                context, max_scan_pages, stop_at_non_max=False,
-                stop_below_rate=rate_floor,
-            )
+            scan = self._scan_price_list(context, max_scan_pages, stop_at_non_max=False)
         peak_items = [item for item in scan["items"] if item.get("is_max_price")]
         peak_names = [item["name"] for item in peak_items]
-        scope_label = ("今日完整行情存档" if mode == _MODE_SELL else
-                       "全量价目表" if mode == _MODE_PREVIEW_ALL else "已有物品价目表")
+        scope_label = "今日完整行情存档" if mode == _MODE_SELL else "全量价目表"
         mfaalog.info(
             f"[Arbitrage] 📈 {scope_label}·今日峰值商品总览: "
             f"{', '.join(peak_names) if peak_names else '无'}"
@@ -552,7 +451,7 @@ class ArbitrageSellController(CustomAction):
 
         if mode == _MODE_PREVIEW_ALL:
             try:
-                stored = save_market_snapshot(scan)
+                stored = save_market_snapshot(scan, day=scan_day)
             except Exception as exc:
                 stored = False
                 mfaalog.error(f"[Arbitrage] ❌ 共享行情快照写入异常({exc})")
@@ -561,33 +460,9 @@ class ArbitrageSellController(CustomAction):
                 mfaalog.info(f"[Arbitrage] 💾 今日共享行情{state}观察已保存")
             return True
 
-        if mode == _MODE_PREVIEW_POSSESS:
-            try:
-                stored = save_possession_snapshot(scan)
-            except Exception as exc:
-                stored = False
-                mfaalog.error(f"[Arbitrage] ❌ 当前存档持有物观察写入异常({exc})")
-            if stored:
-                mfaalog.info(
-                    f"[Arbitrage] 💾 当前存档可售持有物观察已保存"
-                    f"({len(scan['items'])}项，其中峰值{len(peak_items)}项，数量未知，"
-                    f"覆盖={'完整' if scan['complete'] else '未完成'})"
-                )
-            if context.tasker.stopping:
-                mfaalog.info("[Arbitrage] 扫描已停止，已观察结果保留")
-                return True
-            whitelist_set = preview_recipe_names if preview_recipe_names is not None else _load_recipe_names()
-            mfaalog.info("[Arbitrage] 🍳 启动变现只允许料理类别，材料与其他物品一律不卖")
-        else:
-            whitelist_set = set(final_reserves)
-            mfaalog.info(f"[Arbitrage] 📋 期望售卖清单 ({len(whitelist_set)}项): {', '.join(whitelist_set)}")
-
-        # ①④使用完整料理目录；⑤单独使用材料资格与保留量。
-        recipe_names = preview_recipe_names if preview_recipe_names is not None else _load_recipe_names()
-        reserves = final_reserves if mode == _MODE_SELL else {name: 0 for name in whitelist_set & recipe_names}
-        excluded = whitelist_set - reserves.keys()
-        if excluded:
-            mfaalog.info(f"[Arbitrage] 未取得本次出售许可或需无限保留，跳过: {', '.join(sorted(excluded))}")
+        # ①④使用完整料理目录、保留 0；⑤单独使用材料资格与保留量。
+        reserves = final_reserves
+        mfaalog.info(f"[Arbitrage] 📋 期望售卖清单 ({len(reserves)}项): {', '.join(reserves)}")
 
         targets_to_sell = [
             {
@@ -617,6 +492,15 @@ class ArbitrageSellController(CustomAction):
                                 f"{', '.join(scan.get('unconfirmed_names') or [])}")
             mfaalog.info("[Arbitrage] 💤 今日无符合条件的最高价商品，收工！")
             return True
+
+        skipped_names = []
+        skipped_label = "库存记录为0" if params.get("sale_scope", "recipes") == "recipes" else "库存不超过保留量"
+        if mode == _MODE_SELL:
+            targets_to_sell, skipped_names = self._drop_nothing_to_sell(targets_to_sell)
+            if not targets_to_sell:
+                what = "料理库存都记录为 0" if skipped_label == "库存记录为0" else "材料库存都不超过保留量"
+                mfaalog.info(f"[Arbitrage] 💤 今日峰值{what}，不去柜台：{', '.join(skipped_names)}")
+                return True
 
         # 🌟 优化日志 3：列出最终交集的执行清单
         final_sell_names = [t["name"] for t in targets_to_sell]
@@ -711,35 +595,45 @@ class ArbitrageSellController(CustomAction):
             parts.append(f"{len(sold_skipped)}项无可卖数量")
         if sold_locked:
             parts.append(f"{len(sold_locked)}项{LOCKED_REASON}，已跳过")  # noqa: RUF001
+        if skipped_names:
+            parts.append(f"{len(skipped_names)}项{skipped_label}、没去柜台")
         if parts:
             mfaalog.info(f"[Arbitrage] 本轮{'，'.join(parts)}")  # noqa: RUF001
         else:
             mfaalog.info(f"[Arbitrage] ➖ 本轮 {len(targets_to_sell)} 项待售,一项都未及处理(多半是收到停止指令)。")
         return True
 
-    def _scan_price_list(self, context: Context, max_scan_pages: int, stop_at_non_max: bool,
-                         stop_below_rate: int | None = None) -> dict:
-        """扫描价目表；已有物可在公共行情推导出的安全倍率边界处提前结束。"""
-        scan = _new_scan(stop_below_rate)
+    @staticmethod
+    def _drop_nothing_to_sell(targets: list) -> tuple[list, list]:
+        """本轮读到的数不超过保留量的不去柜台：①④ 料理保留 0，⑤ 材料按保留量（U62、U63）。
+
+        记录读不到就照旧每家都去。
+        """
+        reserves = {t["name"]: t["reserve"] for t in targets}
+        try:
+            since = trust_since()
+            skipped = known_within(reserves, get_inventory_items(), since) if since else {}
+        except Exception as exc:
+            mfaalog.warning(f"[Arbitrage] 库存记录读不到({exc})，照旧逐家柜台核对")
+            return targets, []
+        for name, (source, seen, quantity) in skipped.items():
+            basis = f"（{source}，{seen.astimezone():%H:%M:%S}）"
+            if quantity == 0:
+                mfaalog.info(f"[Arbitrage] [{name}] 库存记录为 0{basis}，不去柜台")
+            else:
+                mfaalog.info(f"[Arbitrage] [{name}] 库存记录 {quantity}{basis}，不超过保留 {reserves[name]}，不去柜台")
+        return [t for t in targets if t["name"] not in skipped], list(skipped)
+
+    def _scan_price_list(self, context: Context, max_scan_pages: int, stop_at_non_max: bool) -> dict:
+        """扫描价目表，翻到与上一页内容相同即判到底。"""
+        scan = _new_scan()
         seen_items = {}
         prev_page_key = None
         page_count = 1
-        boundary_safe = stop_below_rate is not None
         nudges_left = PAGE_NUDGES
-        last_new_rate = None
-
-        def disable_rate_boundary(reason: str) -> None:
-            nonlocal boundary_safe
-            if not boundary_safe:
-                return
-            boundary_safe = False
-            scan["rate_order_safe"] = False
-            mfaalog.warning(
-                f"[Arbitrage] ⚠️ 已有物倍率顺序证据不完整({reason})，取消提前终止并改为扫到底"
-            )
 
         while not context.tasker.stopping:
-            # 前两层(动态边界/内容指纹)失灵会无限翻页，硬上界把代价收敛成一次不完整观察。
+            # 内容指纹失灵会无限翻页，硬上界把代价收敛成一次不完整观察。
             if page_count > max_scan_pages:
                 scan["termination_reason"] = "max_pages"
                 mfaalog.warning(
@@ -773,19 +667,10 @@ class ArbitrageSellController(CustomAction):
                 scan["complete"] = True
                 scan["sale_candidates_complete"] = True
                 scan["full_list_complete"] = True
-                if stop_below_rate is not None:
-                    scan["rate_order_safe"] = boundary_safe
                 scan["termination_reason"] = "repeated_page"
                 mfaalog.info("[Arbitrage] 🛑 本页与上一页内容一致，判定价目表已到底，结束扫描。")
                 break
             prev_page_key = page_key
-
-            page_rates = [item.get("current_rate") for item in page_results]
-            if stop_below_rate is not None and boundary_safe:
-                if any(not isinstance(rate, int) or isinstance(rate, bool) for rate in page_rates):
-                    disable_rate_boundary(f"第{page_count}页存在未读出的当前倍率")
-                elif any(left < right for left, right in zip(page_rates, page_rates[1:])):
-                    disable_rate_boundary(f"第{page_count}页倍率不是从高到低")
 
             reached_boundary = False
             for item in page_results:
@@ -798,39 +683,12 @@ class ArbitrageSellController(CustomAction):
                     mfaalog.info(f"[Arbitrage] 🛑 扫描到非最高价商品 [{name}]，已触及利润边界，停止向下扫描。")
                     break
 
-                rate = item.get("current_rate")
-                if isinstance(rate, int) and not isinstance(rate, bool):
-                    lowest = scan["lowest_observed_rate"]
-                    scan["lowest_observed_rate"] = rate if lowest is None else min(lowest, rate)
                 item_key = _scan_key(item)
                 if item_key not in seen_items:
-                    if stop_below_rate is not None and boundary_safe:
-                        if last_new_rate is not None and rate > last_new_rate:
-                            disable_rate_boundary(
-                                f"跨页新增商品 [{name}] 的 {rate}% 高于上一新增商品 {last_new_rate}%"
-                            )
-                        else:
-                            last_new_rate = rate
                     seen_items[item_key] = item
                     scan["items"].append(item)
 
             if reached_boundary:
-                break
-
-            crossed_rate_boundary = (
-                stop_below_rate is not None
-                and boundary_safe
-                and any(rate < stop_below_rate for rate in page_rates)
-            )
-            if crossed_rate_boundary:
-                scan["complete"] = True
-                scan["sale_candidates_complete"] = True
-                scan["termination_reason"] = "target_rate_boundary"
-                scan["rate_order_safe"] = True
-                mfaalog.info(
-                    f"[Arbitrage] 🛑 本页已从高到低越过 {stop_below_rate}% 动态边界，"
-                    "今日峰值料理候选已全部覆盖"
-                )
                 break
 
             mfaalog.info("[Arbitrage] ⏬ 下滑翻页...")

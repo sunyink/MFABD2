@@ -499,3 +499,5 @@ config.json
 /android-upstream/
 /android-build/
 .playwright-mcp/
+# 库存记账出报表时写在安装目录的入口页（开发时安装目录就是仓库根）
+/库存报表.html

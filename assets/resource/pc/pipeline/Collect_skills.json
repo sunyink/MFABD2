@@ -139,9 +139,9 @@
                 "sub_name": "ColorMatch",
                 "recognition": "ColorMatch",
                 "roi": [
-                    1009,
+                    1007,
                     583,
-                    5,
+                    7,
                     11
                 ],
                 "lower": [
@@ -158,7 +158,7 @@
                         158
                     ]
                 ],
-                "count": 50
+                "count": 45
             }
         ]
     },

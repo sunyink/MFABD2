@@ -1,6 +1,7 @@
 """零制作时的仓检/补买候选回归；使用内存状态和空白控制器，不连接游戏。"""
 
 from copy import deepcopy
+from datetime import datetime
 import json
 from pathlib import Path
 import sys
@@ -32,6 +33,20 @@ SELECTOR = next(name for name, node in PIPE.items()
                        for child in node.get("all_of", []) if isinstance(child, dict)))
 ENTRY = SELECTOR + "_Entry"
 RECIPE = RecipeEntry(ENTRY, (SELECTOR,), "香草牛排", True, (ENTRY,))
+MATERIALS = {"兽肉", "香草", "盐", "黄油", "胡椒"}
+
+
+def at(clock):
+    return f"2026-10-28T{clock}:00+00:00"
+
+
+def moment(clock):
+    return datetime.fromisoformat(at(clock))
+
+
+def known(quantity, clock):
+    return {"quantity": quantity, "quantity_status": "known", "quantity_observed_at": at(clock),
+            "quantity_source": "bag_detail"}
 
 
 class CandidateTests(unittest.TestCase):
@@ -96,6 +111,7 @@ class CandidateTests(unittest.TestCase):
              patch.object(flow.store, "invalidate_inventory_quantities", return_value=True) as invalidate, \
              patch.object(flow.store, "save_bag_stock_summary", return_value=True) as save, \
              patch.object(flow, "get_cooking_scan_start", return_value=None), \
+             patch.object(flow, "trust_since", return_value=None), \
              patch.object(flow, "run_bag_scan", return_value=scan) as run_scan, \
              patch.object(flow.mfaalog, "info") as log:
             argv = NS(node_name="Arbitrage_BagStockScan", task_detail=NS(task_id=99))
@@ -114,23 +130,55 @@ class CandidateTests(unittest.TestCase):
         self.assertEqual(get_bag_scan_run(99), summary["run_id"])
         self.assertIn("配方需要5项", log.call_args_list[0].args[0])
 
-    def test_nothing_to_scan_still_records_reuse_without_entering_bag(self):
+    def bag_check(self, items, *, since=None, cooking_start=None):
+        """跑一次 ③ 补查（香草牛排 5 样材料都有图标），返回（进背包查的、作废的、汇总）。"""
         self.finish()
-        items = {name: {"quantity": 3, "quantity_status": "known", "quantity_observed_at": "2026-10-28T01:00:00"}
-                 for name in ("兽肉", "香草", "盐", "黄油", "胡椒")}
+        trust = {"side_effect": since} if isinstance(since, Exception) else {"return_value": since}
+        scan = {"executed": True, "returned": True, "scan_id": "s1", "pages": 1, "quantities": {}, "absent": [],
+                "unknown": {}}
         with patch.object(flow, "discover_recipe_entries", return_value=(RECIPE,)), \
-             patch.object(flow, "bag_catalog", return_value=dict.fromkeys(items)), \
+             patch.object(flow, "bag_catalog", return_value=dict.fromkeys(MATERIALS)), \
              patch.object(flow.store, "get_inventory_items", return_value=items), \
-             patch.object(flow.store, "invalidate_inventory_quantities", return_value=True), \
+             patch.object(flow.store, "invalidate_inventory_quantities", return_value=True) as invalidate, \
              patch.object(flow.store, "save_bag_stock_summary", return_value=True) as save, \
-             patch.object(flow, "get_cooking_scan_start", return_value="2026-10-28T00:00:00"), \
-             patch.object(flow, "run_bag_scan") as run_scan:
+             patch.object(flow, "get_cooking_scan_start", return_value=cooking_start), \
+             patch.object(flow, "trust_since", **trust), \
+             patch.object(flow, "run_bag_scan", return_value=scan) as run_scan, \
+             patch.object(flow.mfaalog, "warning"):
             argv = NS(node_name="Arbitrage_BagStockScan", task_detail=NS(task_id=99))
             self.assertTrue(flow.ArbitrageBagScan().run(self.context, argv))
-        run_scan.assert_not_called()
-        summary = save.call_args.args[0]
+        scanned = run_scan.call_args.kwargs["targets"] if run_scan.called else []
+        return scanned, invalidate.call_args.args[0], save.call_args.args[0]
+
+    def test_nothing_to_scan_still_records_reuse_without_entering_bag(self):
+        items = {name: known(3, "01:00") for name in MATERIALS}
+        scanned, _, summary = self.bag_check(items, cooking_start=at("00:00"))
+        self.assertEqual(scanned, [])
         self.assertTrue(summary["complete"])
-        self.assertEqual(summary["reused_item_names"], sorted(items))
+        self.assertEqual(summary["reused_item_names"], sorted(MATERIALS))
+
+    def test_readings_since_the_ledger_scan_are_reused_when_nothing_was_cooked(self):
+        """试跑10 第 2、3 轮：没做菜，开头那盘读的数都还准，不再全部进背包。"""
+        items = {name: known(3, "00:30") for name in MATERIALS}
+        scanned, pending, _ = self.bag_check(items, since=moment("00:10"), cooking_start=at("01:00"))
+        self.assertEqual((scanned, pending), ([], []))
+
+    def test_readings_before_the_ledger_scan_or_invalidated_are_checked(self):
+        items = {name: known(3, "00:30") for name in MATERIALS}
+        items["兽肉"] = known(3, "00:05")                                                   # 盘点之前
+        items["盐"] = {"quantity_status": "unknown", "quantity_source": "invalidated:cooking_attempt"}
+        items["黄油"] = {"quantity_status": "unknown", "quantity_source": "invalidated:purchase_bought"}
+        items["胡椒"] = dict(known(3, "00:30"), quantity_observed_at="2026-10-28T00:30:00")   # 没时区，不猜
+        scanned, _, _ = self.bag_check(items, since=moment("00:10"), cooking_start=at("01:00"))
+        self.assertEqual(scanned, sorted({"兽肉", "盐", "黄油", "胡椒"}))
+
+    def test_without_ledger_floor_falls_back_to_cooking_start(self):
+        items = {name: known(3, "00:30") for name in MATERIALS}
+        items["香草"] = known(3, "01:30")
+        for since in (None, RuntimeError("事件读不到")):
+            with self.subTest(since=since):
+                scanned, _, _ = self.bag_check(items, since=since, cooking_start=at("01:00"))
+                self.assertEqual(scanned, sorted(MATERIALS - {"香草"}))
 
     def test_new_cooking_attempt_clears_old_completion_even_for_empty_selection(self):
         self.finish()

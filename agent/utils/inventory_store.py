@@ -11,6 +11,7 @@ from . import arbitrage_store as _base
 from .arbitrage_store import (  # noqa: F401  通用读写原样转出
     get_inventory_items,
     invalidate_inventory_quantities,
+    moment_of,
     set_inventory_quantities,
 )
 
@@ -18,7 +19,7 @@ from .arbitrage_store import (  # noqa: F401  通用读写原样转出
 _RECORD_FIELDS = (
     "scan_id", "label", "note", "started_at", "finished_at", "job_id", "profile", "scope", "target_count",
     "complete", "termination", "continuity", "pages", "quantities", "absent", "unknown", "cells", "timing_ms",
-    "origin",
+    "origin", "corner",
 )
 
 

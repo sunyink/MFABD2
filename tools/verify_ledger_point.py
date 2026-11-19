@@ -56,6 +56,21 @@ class NoConfig:
         raise KeyError(name)
 
 
+class Roaming(NoConfig):
+    """收尾位置读货币时会换页面：记下跑了哪些复位任务。"""
+
+    def __init__(self, stopping=False):
+        self.tasker = SimpleNamespace(stopping=stopping)
+        self.ran = []
+
+    def clone(self):
+        return self
+
+    def run_task(self, entry, override=None):
+        self.ran.append(entry)
+        return SimpleNamespace(status=SimpleNamespace(succeeded=True))
+
+
 def argv(mark, kind, task_id, entry, node="Ledger_Node"):
     param = {"mark": mark} if kind is None else {"mark": mark, "type": kind}
     return SimpleNamespace(custom_action_param=json.dumps(param, ensure_ascii=False), node_name=node,
@@ -68,9 +83,11 @@ class LedgerPointTests(unittest.TestCase):
         task_journal.reset()
         point._STATES.clear()
         point._CURSORS.clear()
+        point._SETTINGS.clear()
         point.loot_cards.reset()
-        self.scans, self.clock, self.reports = [], [T0], []
-        self.scan_result = {"executed": True, "returned": True}
+        self.scans, self.clock, self.reports, self.shown = [], [T0], [], []
+        self.scan_result, self.queued = {"executed": True, "returned": True}, []
+        self.currency_calls, self.currency_queue, self.sleeps = [], [], []
         ledger_config.remember_injected({})
         for target, attribute, value in (
                 (store, "PersistentStore", MemoryAccountStore),
@@ -79,20 +96,33 @@ class LedgerPointTests(unittest.TestCase):
                 (point, "sync_from_context", lambda context, where="", stop=True: True),
                 (point, "run_bag_scan", self.fake_scan),
                 (point, "read_currency", self.fake_currency),
-                (point, "_report", lambda label: self.reports.append(label)),
-                (point.time, "time", lambda: self.clock[0])):
+                (point, "_report", self.fake_report),
+                (point.time, "time", lambda: self.clock[0]),
+                (point.time, "sleep", self.sleeps.append)):
             patcher = patch.object(target, attribute, value)
             patcher.start()
             self.addCleanup(patcher.stop)
 
-    def fake_scan(self, context, *, label, scope, origin):
-        self.scans.append({"label": label, "scope": list(scope), "origin": origin})
+    def fake_scan(self, context, *, label, scope, origin, targets="all"):
+        self.scans.append({"label": label, "scope": list(scope), "origin": origin, "targets": targets})
         self.clock[0] += 100
-        if not self.scan_result["executed"]:
+        result = self.queued.pop(0) if self.queued else self.scan_result
+        if not result["executed"]:
             return {"executed": False, "returned": False, "error": "scan_not_reached"}
-        return {**self.scan_result, "scan_id": f"scan{len(self.scans)}", "scope": list(scope)}
+        return {"termination": "list_bottom", **result, "scan_id": f"scan{len(self.scans)}", "scope": list(scope)}
 
-    def fake_currency(self, context):
+    def fake_report(self, label, show=False):
+        self.reports.append(label)
+        self.shown.append(show)
+
+    def fake_currency(self, context, diamond_detail=None):
+        self.currency_calls.append(diamond_detail)
+        if self.currency_queue:
+            return {**self.currency_full(), **self.currency_queue.pop(0)}
+        return self.currency_full()
+
+    @staticmethod
+    def currency_full():
         return {"observed_at": "2025-11-15T12:02:00+00:00", "gold": 12345, "diamond": 678, "tonic": 9,
                 "diamond_free": None, "diamond_paid": None, "diamond_paid_source": None,
                 "icons_found": ["diamond", "gold", "tonic"], "detail_error": None, "detail_closed": None}
@@ -105,8 +135,8 @@ class LedgerPointTests(unittest.TestCase):
         task_journal.record(entry, task_id, "start", now=self.clock[0])
         self.clock[0] += 20
 
-    def run_point(self, mark, kind, task_id, entry):
-        ok = point.LedgerPoint().run(NoConfig(), argv(mark, kind, task_id, entry))
+    def run_point(self, mark, kind, task_id, entry, context=None):
+        ok = point.LedgerPoint().run(context or NoConfig(), argv(mark, kind, task_id, entry))
         self.clock[0] += 30
         return ok
 
@@ -244,6 +274,65 @@ class LedgerPointTests(unittest.TestCase):
         self.task("Ledger_Settle_Manual", 102)
         self.run_point("manual", None, 102, "Ledger_Settle_Manual")               # 没有没盘掉的活动：不盘，但出一次报表
         self.assertEqual((len(self.scans), self.reports[-1], len(self.reports)), (2, "记账·手动结账", 3))
+        self.task("Close_HomePage", 103)
+        self.run_point("queue_end", None, 103, "Close_HomePage")
+        self.assertEqual(self.shown, [False, False, True, False])               # 只有手动结账出完自己打开（U61）
+
+    def test_manual_settle_opens_the_report_on_desktop_only(self):
+        opened = []
+        result = {"days": ["2026-11-15"], "latest": Path("Z:/报表/latest.html"), "summary": "摘要", "entry": None}
+        with patch.object(point, "_report", REAL_REPORT), patch.object(point, "_open", opened.append), \
+                patch.object(MemoryAccountStore, "CONFIG_DIR", "Z:/存档", create=True), \
+                patch.object(point.inventory_report_output, "generate_reports", return_value=result) as generate:
+            with patch.object(MemoryAccountStore, "_storage_policy", SimpleNamespace(portable_root=Path("Z:/装")),
+                              create=True):
+                point._report("记账·商店结束")
+                point._report("记账·手动结账", show=True)
+                self.assertEqual(generate.call_args.kwargs["entry_dir"], Path("Z:/装"))
+            with patch.object(MemoryAccountStore, "_storage_policy", SimpleNamespace(portable_root=None), create=True):
+                point._report("记账·手动结账", show=True)                          # 安卓、指定存档目录：不开
+        self.assertEqual(opened, [Path("Z:/报表/latest.html")])
+
+    def test_stock_not_fully_read_is_rescanned_once(self):
+        self.queued = [{"executed": True, "returned": True,
+                        "unknown": {"兽肉": "state_lost", "精炼石": "state_lost", "鸡蛋": "template_missing"}},
+                       {"executed": True, "returned": True, "unknown": {}}]
+        with patch.object(point, "scope_names", lambda context, scope: {"兽肉", "米", "鸡蛋"}):
+            self.task("Mail_HomePage", 101)
+            self.run_point("begin", "daily", 101, "Mail_HomePage")
+        first, again = self.scans
+        self.assertEqual((again["label"], again["scope"], again["targets"]), ("记账·日常开头·重扫", ["A"], ["兽肉"]))
+        self.assertEqual(again["origin"], {**first["origin"], "retry_of": "scan1"})
+        currency, = self.events("currency_reading")                              # 货币只读一次，记在原来那次名下
+        self.assertEqual(currency["scan_id"], "scan1")
+        self.assertEqual(point._STATES["7"].last_scan["scan_id"], "scan1")
+
+    def test_rescan_only_for_stock_and_only_once(self):
+        with patch.object(point, "scope_names", lambda context, scope: {"兽肉", "米"}):
+            self.queued = [{"executed": True, "returned": True, "unknown": {"精炼石": "state_lost"}}]   # 只有养成材料没读准
+            self.task("Mail_HomePage", 101)
+            self.run_point("begin", "daily", 101, "Mail_HomePage")
+            self.assertEqual(len(self.scans), 1)
+            self.queued = [{"executed": True, "returned": True, "unknown": {"兽肉": "stopped"}}]       # 任务被停：不重扫
+            self.task("Arbitrage_Start", 102)
+            self.run_point("begin", "shop", 102, "Arbitrage_Start")
+            self.assertEqual(len(self.scans), 2)
+            self.queued = [{"executed": True, "returned": True, "unknown": {"兽肉": "state_lost"}},
+                           {"executed": True, "returned": False, "unknown": {"兽肉": "state_lost"}}]
+            self.run_point("end", "shop", 102, "Arbitrage_Start")
+        self.assertEqual(len(self.scans), 4)                                       # 重扫还不全也只扫一次
+        self.assertEqual(len(self.events("currency_reading")), 3)                  # 重扫没回到原位：收尾位置换到箱庭照样读
+
+    def test_rescan_that_did_not_run_decides_where_we_are(self):
+        """重扫没走到扫描核心（进包半路失败）时页面可能已离开原位：位置看这一趟，不沿用首趟的「已回原位」（PR #605 机审第 4 条）。"""
+        self.queued = [{"executed": True, "returned": True, "unknown": {"兽肉": "state_lost"}},
+                       {"executed": False}]                                         # 假盘点：没执行的一律 returned=False
+        with patch.object(point, "scope_names", lambda context, scope: {"兽肉", "米"}):
+            self.task("Mail_HomePage", 101)
+            self.assertTrue(self.run_point("begin", "daily", 101, "Mail_HomePage"))
+        self.assertEqual(len(self.scans), 2)
+        self.assertEqual(self.events("currency_reading"), [])                      # 开头位置：不在原地读货币，页面交给所在流程恢复
+        self.assertEqual(point._STATES["7"].last_scan["scan_id"], "scan1")          # 首趟照算盘过
 
     def test_report_failure_is_only_logged(self):
         with patch.object(point, "_report", REAL_REPORT), \
@@ -265,6 +354,146 @@ class LedgerPointTests(unittest.TestCase):
         self.assertEqual(self.events("currency_reading"), [])
         self.assertEqual(point._STATES["7"].last_scan["scan_id"], "scan2")
 
+    def test_scan_cut_off_midway_is_not_counted(self):
+        self.queued = [{"executed": True, "returned": True, "termination": "state_lost",
+                        "unknown": {"精炼石": "state_lost", "金矿石": "corner_unconfirmed"}}]
+        with patch.object(point, "scope_names", lambda context, scope: {"兽肉", "米"}):
+            self.task("Mail_HomePage", 101)
+            self.run_point("begin", "daily", 101, "Mail_HomePage")
+            state = point._STATES["7"]
+            self.assertIsNone(state.last_scan)                                     # 不算盘过
+            self.assertEqual([item["kind"] for item in state.pending], ["daily"])  # 日常的活动还挂着
+            self.assertEqual(len(self.events("currency_reading")), 1)              # 回到了原位：货币照读
+            self.assertEqual(self.reports, ["记账·日常开头"])                        # 读到的那部分进了凭证：报表照出
+            self.task("Collect_StartGame_HomePage", 102)
+            self.run_point("begin", "collect", 102, "Collect_StartGame_HomePage")
+        self.assertEqual(self.scans[-1]["scope"], list(ALL_SCOPES))                # 下一个位置接着补：全盘
+        self.assertEqual(point._STATES["7"].last_scan["scan_id"], "scan2")
+
+    def test_every_cut_off_reason_counts_as_not_scanned(self):
+        for termination in ("stopped", "timeout", "state_lost", "error", "page_limit", None):
+            with self.subTest(termination=termination):
+                point._STATES.clear()
+                self.queued = [{"executed": True, "returned": True, "termination": termination, "unknown": {}}]
+                self.task("Mail_HomePage", 101)
+                self.run_point("begin", "daily", 101, "Mail_HomePage")
+                self.assertIsNone(point._STATES["7"].last_scan)
+        for termination in ("all_found", "list_bottom", "section_end"):
+            with self.subTest(termination=termination):
+                point._STATES.clear()
+                self.queued = [{"executed": True, "returned": True, "termination": termination,
+                                "unknown": {"兽肉": "detail_unreadable"}}]               # 有没读准的照样算盘过
+                self.task("Mail_HomePage", 101)
+                self.run_point("begin", "daily", 101, "Mail_HomePage")
+                self.assertIsNotNone(point._STATES["7"].last_scan)
+
+    def test_stock_only_scan_cut_off_but_refilled_by_rescan_counts(self):
+        with patch.object(point, "scope_names", lambda context, scope: {"兽肉", "米", "鸡蛋"}):
+            self.task("Collect_StartGame_HomePage", 101)
+            self.run_point("begin", "collect", 101, "Collect_StartGame_HomePage")
+            self.queued = [{"executed": True, "returned": True, "termination": "state_lost",
+                            "unknown": {"兽肉": "state_lost", "米": "corner_unconfirmed", "鸡蛋": "template_missing"}},
+                           {"executed": True, "returned": True, "unknown": {}}]
+            self.run_point("end", "collect", 101, "Collect_StartGame_HomePage")
+            self.assertEqual(self.scans[-1]["targets"], ["兽肉", "米"])
+            self.assertEqual(point._STATES["7"].last_scan["scan_id"], "scan2")    # 断掉的都补上了：算盘过
+            self.task("Arbitrage_Start", 102)
+            self.run_point("begin", "shop", 102, "Arbitrage_Start")
+            self.assertEqual(len(self.scans), 3)                                   # 商店开头一盘两用
+            self.queued = [{"executed": True, "returned": True, "termination": "state_lost",
+                            "unknown": {"兽肉": "state_lost"}},
+                           {"executed": True, "returned": True, "unknown": {"兽肉": "detail_unreadable"}}]
+            self.run_point("end", "shop", 102, "Arbitrage_Start")
+        self.assertEqual(point._STATES["7"].last_scan["scan_id"], "scan2")        # 重扫也没补上：不算
+        self.assertEqual([item["kind"] for item in point._STATES["7"].pending], ["shop"])
+
+    def test_closing_scan_cut_off_is_rescanned_across_all_scopes(self):
+        """U69：收尾那一盘半路断了，后面没有下一盘——没走到的各类当场一起重扫一次；补齐了就算盘过。"""
+        self.clock[0] = T0 + 12 * 3600 - 400                                       # 08:53 KST 进店
+        with patch.object(point, "scope_names", lambda context, scope: {"兽肉", "米"}):
+            self.task("Arbitrage_Start", 101)
+            self.run_point("begin", "shop", 101, "Arbitrage_Start")
+            self.clock[0] += 900                                                   # 收尾跨过 09:00 KST：全盘
+            self.queued = [{"executed": True, "returned": True, "termination": "state_lost",
+                            "unknown": {"精炼石": "state_lost", "兽肉": "state_lost", "鸡蛋": "template_missing"}},
+                           {"executed": True, "returned": True, "unknown": {}}]
+            self.run_point("end", "shop", 101, "Arbitrage_Start")
+        whole, again = self.scans[-2:]
+        self.assertEqual(whole["scope"], list(ALL_SCOPES))
+        self.assertEqual((again["scope"], again["targets"]), (list(ALL_SCOPES), ["兽肉", "精炼石"]))
+        self.assertEqual(again["origin"]["retry_of"], "scan2")
+        self.assertEqual(point._STATES["7"].last_scan["scan_id"], "scan2")        # 补齐了：算盘过
+        self.assertEqual(point._STATES["7"].pending, [])
+
+    def test_begin_scan_cut_off_rescans_only_stock(self):
+        with patch.object(point, "scope_names", lambda context, scope: {"兽肉", "米"}):
+            self.queued = [{"executed": True, "returned": True, "termination": "state_lost",
+                            "unknown": {"精炼石": "state_lost", "兽肉": "state_lost"}},
+                           {"executed": True, "returned": True, "unknown": {}}]
+            self.task("Mail_HomePage", 101)
+            self.run_point("begin", "daily", 101, "Mail_HomePage")
+        self.assertEqual((self.scans[-1]["scope"], self.scans[-1]["targets"]), (["A"], ["兽肉"]))   # 开头位置后面还有盘点
+        self.assertIsNone(point._STATES["7"].last_scan)                             # B 没补上：不算
+
+    def test_stopped_stock_scan_is_not_rescued_by_other_rescans(self):
+        with patch.object(point, "scope_names", lambda context, scope: {"兽肉", "米"}):
+            self.task("Collect_StartGame_HomePage", 101)
+            self.run_point("begin", "collect", 101, "Collect_StartGame_HomePage")
+            self.queued = [{"executed": True, "returned": True, "termination": "stopped",
+                            "unknown": {"兽肉": "stopped", "米": "detail_unreadable"}},
+                           {"executed": True, "returned": True, "unknown": {}}]
+            self.run_point("end", "collect", 101, "Collect_StartGame_HomePage")
+        self.assertEqual(self.scans[-1]["targets"], ["米"])                         # 被停的不重扫
+        self.assertEqual(point._STATES["7"].last_scan["scan_id"], "scan1")        # 补上的不是断掉的那几样：不算
+
+    def test_currency_missing_is_read_again_in_place(self):
+        self.currency_queue = [{"gold": None, "tonic": None}, {"tonic": None, "diamond": None}]
+        self.task("Mail_HomePage", 101)
+        self.run_point("begin", "daily", 101, "Mail_HomePage")
+        currency, = self.events("currency_reading")                               # 拼成一条，挂在这次盘点名下
+        self.assertEqual((currency["gold"], currency["diamond"], currency["tonic"]), (12345, 678, 9))
+        self.assertEqual((self.currency_calls, self.sleeps), ([None, False, False], [1.0, 1.0]))
+
+    def test_begin_position_never_leaves_the_page_for_currency(self):
+        self.currency_queue = [{"gold": None}] * 5
+        context = Roaming()
+        self.task("Mail_HomePage", 101)
+        self.run_point("begin", "daily", 101, "Mail_HomePage", context)
+        self.assertEqual(context.ran, [])                                          # 后面还有流程：不换页面
+        currency, = self.events("currency_reading")
+        self.assertIsNone(currency["gold"])
+        self.assertEqual(len(self.currency_calls), point.CURRENCY_TRIES)
+
+    def test_closing_position_goes_to_sandbox_then_home_until_currency_is_read(self):
+        context = Roaming()
+        self.task("Arbitrage_Start", 101)
+        self.run_point("begin", "shop", 101, "Arbitrage_Start", context)
+        self.currency_queue = [{"gold": None}] * (point.CURRENCY_TRIES * 2) + [{"tonic": None}]
+        self.run_point("end", "shop", 101, "Arbitrage_Start", context)
+        self.assertEqual(context.ran, ["Global_ToSandBox", "Global_ToHomePage"])  # 原地、箱庭都没读到金币，再回主界面
+        currency = self.events("currency_reading")[-1]
+        self.assertEqual((currency["scan_id"], currency["gold"], currency["tonic"]), ("scan2", 12345, 9))
+        self.assertEqual(len(self.currency_calls), 1 + point.CURRENCY_TRIES * 2 + 1)
+
+    def test_closing_scan_that_did_not_return_reads_currency_in_the_sandbox(self):
+        context = Roaming()
+        self.task("Arbitrage_Start", 101)
+        self.run_point("begin", "shop", 101, "Arbitrage_Start", context)
+        self.scan_result = {"executed": True, "returned": False}
+        self.run_point("end", "shop", 101, "Arbitrage_Start", context)
+        self.assertEqual(context.ran, ["Global_ToSandBox"])                       # 页面不明：不在原地读
+        self.assertEqual(self.events("currency_reading")[-1]["scan_id"], "scan2")
+        self.assertEqual(len(self.currency_calls), 2)
+
+    def test_stopping_task_does_not_roam_for_currency(self):
+        context = Roaming(stopping=True)
+        self.task("Arbitrage_Start", 101)
+        self.currency_queue = [{"gold": None}] * 10
+        self.run_point("begin", "shop", 101, "Arbitrage_Start", context)
+        self.run_point("end", "shop", 101, "Arbitrage_Start", context)
+        self.assertEqual(context.ran, [])
+        self.assertIsNone(self.events("currency_reading")[-1]["gold"])
+
     def test_errors_never_break_the_host_flow(self):
         self.task("Mail_HomePage", 101)
         self.assertTrue(point.LedgerPoint().run(NoConfig(), argv("pause", None, 101, "Mail_HomePage")))
@@ -272,6 +501,71 @@ class LedgerPointTests(unittest.TestCase):
         with patch.object(point, "run_bag_scan", side_effect=RuntimeError("进包失败")):
             self.assertTrue(self.run_point("begin", "daily", 101, "Mail_HomePage"))
         self.assertEqual(self.scans, [])
+
+    def test_scan_crash_still_settles_so_the_mark_pair_survives(self):
+        """穿透复核第 7 条：始标记已经落盘，盘点那一段抛了错——内存里的状态照样跟上，
+        同一任务到结束位置照留结束标记（这一对标记不变成「未正常结束」）、照收尾盘。"""
+        self.task("Arbitrage_Start", 101)
+        with patch.object(point, "run_bag_scan", side_effect=RuntimeError("进包失败")):
+            self.assertTrue(self.run_point("begin", "shop", 101, "Arbitrage_Start"))
+        state = point._STATES["7"]
+        self.assertEqual((state.begun, [item["kind"] for item in state.pending], state.last_scan),
+                         ({(101, "shop")}, ["shop"], None))
+        self.run_point("end", "shop", 101, "Arbitrage_Start")
+        self.assertEqual([mark["mark"] for mark in self.events("ledger_mark")], ["begin", "end"])
+        self.assertEqual(self.scans[-1]["label"], "记账·商店结束")
+
+    def test_position_tells_the_task_whether_stock_readings_still_connect(self):
+        """穿透复核第 4 条：该盘而没执行，任务行上记 stock_current=False，出售与补查就不认更早的读数。"""
+        def current(task_id):
+            return next(row for row in task_journal.rows() if row["task_id"] == task_id).get("stock_current")
+
+        self.task("Collect_StartGame_HomePage", 101)
+        self.run_point("begin", "collect", 101, "Collect_StartGame_HomePage")     # 盘了
+        self.assertIs(current(101), True)
+        self.scan_result = {"executed": False, "returned": False}
+        self.run_point("end", "collect", 101, "Collect_StartGame_HomePage")       # 收尾那盘没执行
+        self.assertIs(current(101), False)
+        self.task("Arbitrage_Start", 102)
+        self.assertIsNone(current(102))                                            # 还没走到记账位置
+        self.run_point("begin", "shop", 102, "Arbitrage_Start")                   # 开头的补盘也没执行
+        self.assertIs(current(102), False)
+        self.scan_result = {"executed": True, "returned": True}
+        self.task("Arbitrage_Start", 103)
+        self.run_point("begin", "shop", 103, "Arbitrage_Start")                   # 这回补上了
+        self.assertIs(current(103), True)
+        self.run_point("end", "shop", 103, "Arbitrage_Start")
+        self.task("Arbitrage_Start", 104)
+        self.run_point("begin", "shop", 104, "Arbitrage_Start")                   # 不用盘：上一次一盘两用
+        self.assertEqual((len(self.scans), current(104)), (5, True))
+        with patch.object(point, "run_bag_scan", side_effect=RuntimeError("进包失败")):
+            self.task("Mail_HomePage", 105)
+            self.run_point("begin", "daily", 105, "Mail_HomePage")                # 该盘、盘点那段出错：一样记没接上
+        self.assertIs(current(105), False)
+
+    def test_list_and_gap_come_from_the_node_and_stay_for_the_report(self):
+        """穿透复核第 5 条：免记名单与连续阈值取自节点，读成一次就留着——之后节点读不到、出报表，用的都是这一份。"""
+        class Config:
+            def get_node_object(self, name):
+                return SimpleNamespace(attach={"quiet": ["Fishing_Start"], "gap_seconds": 5})
+
+        def passed(generate):
+            return generate.call_args.kwargs["quiet"], generate.call_args.kwargs["gap"]
+
+        result = {"days": [], "latest": None, "summary": "", "entry": None}
+        with patch.object(point, "_report", REAL_REPORT), \
+                patch.object(MemoryAccountStore, "CONFIG_DIR", "Z:/存档", create=True), \
+                patch.object(point.inventory_report_output, "generate_reports", return_value=result) as generate:
+            self.task("Arbitrage_Start", 101)
+            self.run_point("begin", "shop", 101, "Arbitrage_Start")               # 节点读不到、也没读成过：内置值
+            self.assertEqual(passed(generate), (point.ledger_rules.QUIET, point.ledger_rules.GAP_SECONDS))
+            self.run_point("end", "shop", 101, "Arbitrage_Start")
+            self.task("Fishing_Start", 102)                                        # 没接记账的任务，夹在中间
+            self.task("Arbitrage_Start", 103)
+            self.run_point("begin", "shop", 103, "Arbitrage_Start", Config())     # 节点说它不算活动：不用补盘
+            self.assertEqual(len(self.scans), 2)
+            self.run_point("end", "shop", 103, "Arbitrage_Start")                 # 这回节点读不到：沿用上一次读成的
+            self.assertEqual(passed(generate), (("Fishing_Start",), 5.0))
 
     def test_accounts_do_not_share_state(self):
         self.task("Mail_HomePage", 101)
@@ -300,11 +594,59 @@ class LedgerConfigTests(unittest.TestCase):
         self.assertEqual(parse(self.task({"name": "记账盘点范围", "selected_case": "每次全盘"},
                                          {"name": "记账报表", "selected_case": "No"}), self.INTERFACE),
                          {"scan": True, "full": True, "report": False})
-        # 没有这个任务、读不到 interface、选项里是已经不存在的 case：都跟默认
+        # 没有这个任务、选项里是已经不存在的 case、什么都读不到：都跟默认
         self.assertEqual(parse({"TaskItems": []}, self.INTERFACE), ledger_config.DEFAULTS)
-        self.assertEqual(parse(self.task({"name": "记账盘点", "selected_case": "No"}), None)["scan"], True)
         self.assertEqual(parse(self.task({"name": "记账盘点", "selected_case": "也许"}), self.INTERFACE)["scan"], True)
         self.assertEqual(parse(None, None), ledger_config.DEFAULTS)
+
+    def test_saved_choices_do_not_need_the_interface(self):
+        """穿透复核第 6 条：interface.json 读不到时，存下的「No」照样算数；它只用来查没存过的选项默认是哪个。"""
+        parse = ledger_config.parse_instance
+        saved = self.task({"name": "记账盘点", "selected_case": "No"}, {"name": "记账盘点范围", "index": 1},
+                          {"name": "记账报表", "index": 1, "selected_case": "No"})
+        chosen = {"scan": False, "full": True, "report": False}
+        self.assertEqual(parse(saved, None), chosen)
+        self.assertEqual(parse(saved, lambda: self.fail("都存过了，不该去读 interface")), chosen)
+        asked = []
+        partly = self.task({"name": "记账盘点", "selected_case": "No"})
+        self.assertEqual(parse(partly, lambda: asked.append(1)), {"scan": False, "full": False, "report": True})
+        self.assertEqual(asked, [1])                                              # 有没存过的才去读，只读一次
+        flipped = {"option": {"记账盘点范围": {"default_case": "每次全盘",
+                                          "cases": [{"name": "按规则"}, {"name": "每次全盘"}]}}}
+        self.assertEqual(parse(partly, flipped), {"scan": False, "full": True, "report": True})   # 没存过的跟 interface 的默认
+
+    def test_instance_file_without_an_interface_beside_it(self):
+        """开发时项目根没有 interface.json（它在 assets/ 下），发布包里它在安装根：哪种放法，存下的「No」都算数。"""
+        import tempfile
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            (root / "config" / "instances").mkdir(parents=True)
+            (root / "config" / "instances" / "dev.json").write_text(
+                json.dumps(self.task({"name": "记账盘点", "selected_case": "No"}), ensure_ascii=False), encoding="utf-8")
+            session = SimpleNamespace(source="mfaa", project_root=root, instance_id="dev")
+            self.assertEqual(ledger_config.ledger_options(session), {"scan": False, "full": False, "report": True})
+            (root / "interface.json").write_text("{ 半截", encoding="utf-8")       # 在，但读不成
+            self.assertEqual(ledger_config.ledger_options(session), {"scan": False, "full": False, "report": True})
+
+    def test_cases_match_the_source_and_every_released_interface(self):
+        """存下的 case 名与序号对着 ledger_config.CASES 认：源文件与各平台发布出去的 interface 都得是这个顺序、这个默认，
+        三个选项都挂在记账任务上（MFAA 按任务把选择存进实例配置）。"""
+        sys.path.insert(0, str(ROOT / "scripts"))
+        import release_interface
+
+        source = release_interface.load_source()
+        documents = {"源文件": source}
+        for platform in release_interface.PLATFORMS:
+            documents[platform] = release_interface.build(source, release_interface.target_for(platform, announce=False))
+        for label, document in documents.items():
+            with self.subTest(interface=label):
+                for key, name in ledger_config.OPTIONS.items():
+                    option = document["option"][name]
+                    self.assertEqual(tuple(case["name"] for case in option["cases"]), ledger_config.CASES[key])
+                    self.assertEqual(ledger_config._default_case(document, key), option["default_case"])
+                    self.assertEqual(option["default_case"] == ledger_config._ON[key], ledger_config.DEFAULTS[key])
+                task, = [task for task in document["task"] if task.get("entry") == ledger_config.TASK_ENTRY]
+                self.assertEqual(task["option"], list(ledger_config.OPTIONS.values()))
 
     def test_k20_other_clients_follow_the_config_task_or_defaults(self):
         ledger_config.remember_injected({})

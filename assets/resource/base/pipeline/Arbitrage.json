@@ -111,13 +111,16 @@
         ]
     },
     "Arbitrage_OperationsMain_Sandplay": {
-        "desc": "中断：章节内主要操作开始。找到图钉，确认进入箱庭",
+        "desc": "中断：章节内主要操作开始。找到图钉，确认进入箱庭 | 设两个锚点，每次进箱庭都重设（补买、出售再次寻路同样经过这里）：SandBox_Bypass 指向本节点，借采集选图传送后由采集的点阵节点交回这里；AreaMap_Return 指向 Arbitrage_Merchant_Locate_AreaMapReturn——那次交回发生在 Collect_TargetMap1-2 的单图回跳里，寻路到商人后 Egress 退栈先落到 TargetMap1-2，由它消费此锚点再退回调用方。",
         "recognition": "Or",
         "any_of": [
             "Rec_SandBox_Pin_Tpl",
             "Rec_SandBox_Run_Tpl"
         ],
-        "anchor": "SandBox_Bypass",
+        "anchor": {
+            "SandBox_Bypass": "Arbitrage_OperationsMain_Sandplay",
+            "AreaMap_Return": "Arbitrage_Merchant_Locate_AreaMapReturn"
+        },
         "post_delay": 1000,
         "next": [
             "[JumpBack]PVP_PerPetTask",
@@ -270,12 +273,24 @@
         "green_mask": true
     },
     "Arbitrage_Merchant_Locate_Egress": {
-        "desc": "寻路到商人的公共出口。由卡带5箱庭导航链进入；仅引用商人交互识别（钱袋或名牌），空next退回总入口或出售恢复调用方，不进入Action_Hub。",
+        "desc": "寻路到商人的公共出口。由卡带5箱庭导航链进入；仅引用商人交互识别（钱袋或名牌），空next退回总入口或出售恢复调用方，不进入Action_Hub。 | 借采集选图传送过来时，最近一层回跳在 Collect_TargetMap1-2，这里退栈先落到那里，由锚点 AreaMap_Return 接到 Arbitrage_Merchant_Locate_AreaMapReturn 再退一层。",
         "recognition": "Or",
         "any_of": [
             "Arbitrage_Merchant_Ico"
         ],
         "pre_delay": 0,
+        "post_delay": 0
+    },
+    "Arbitrage_Merchant_Locate_AreaMapReturn": {
+        "desc": "借采集选图传送后，寻路到商人的第二道出口：再认一次商人交互，清锚点 AreaMap_Return，空 next 退回总入口或出售恢复调用方 | 由 Collect_TargetMap1-2 的 next 经锚点进入（Arbitrage_OperationsMain_Sandplay 设）。Egress 那次退栈只退出采集的单图回跳，落在 TargetMap1-2；这里再退一层才回到套利。认不到商人时不命中，TargetMap1-2 照旧往后走、退卡重进兜底，锚点留到下次进箱庭重设。 | 清理：这里用完即清；采集每张卡点卡时 Collect_Pack_Click 再清一次。",
+        "recognition": "Or",
+        "any_of": [
+            "Arbitrage_Merchant_Ico"
+        ],
+        "pre_delay": 0,
+        "anchor": {
+            "AreaMap_Return": ""
+        },
         "post_delay": 0
     },
     "#2商人交互与分支总枢纽": {},
@@ -2142,9 +2157,12 @@
         ]
     },
     "Arbitrage_Buy_Select_End": {
-        "desc": "记录已确认的常规采购并退出购买页。由Arbitrage_Favorit_Buy_GlodConfirm进入；ArbitrageBuyComplete只保存本轮最终名单的成交日期，供补买排除已购供给，不再写扫描周标记。",
+        "desc": "金币确认扣款后登记成交并退出购买页。只由Arbitrage_Favorit_Buy_GlodConfirm进入；ArbitrageBuyComplete保存本轮最终名单的成交日期供补买排除已购供给，并作废名单商品的库存旧数（U63），不写扫描周标记。",
         "action": "Custom",
         "custom_action": "ArbitrageBuyComplete",
+        "custom_action_param": {
+            "result": "bought"
+        },
         "timeout": 1005,
         "next": [
             "Arbitrage_Buy_Cleanup"
@@ -2211,7 +2229,7 @@
         ]
     },
     "Arbitrage_Favorit_Buy_Empty": {
-        "desc": "识别一键购买后的中央无商品提示，直接收尾，不登记购买成功。",
+        "desc": "识别一键购买后的中央无商品提示并收尾：今天的收藏已买过，只登记成交日期供补买排除，不作废库存旧数（U63）。",
         "recognition": "OCR",
         "roi": [
             540,
@@ -2223,9 +2241,14 @@
             "[没沒]有可以[购購][买買]的商品"
         ],
         "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "ArbitrageBuyComplete",
+        "custom_action_param": {
+            "result": "empty"
+        },
         "post_delay": 0,
         "next": [
-            "Arbitrage_Buy_Select_End"
+            "Arbitrage_Buy_Cleanup"
         ],
         "focus": "② 没有可以购买的商品，结束本轮常规采购"
     },
@@ -2313,7 +2336,12 @@
         ]
     },
     "Arbitrage_Favorit_Buy_WRN": {
-        "desc": "未确认成交时报告并收尾，不把未知成交重新提交为一笔购买。",
+        "desc": "点了确认却核不上扣款时报告并收尾：不登记成交，也不把未知成交重新提交为一笔购买；按可能买进作废名单商品的库存旧数（U63）。",
+        "action": "Custom",
+        "custom_action": "ArbitrageBuyComplete",
+        "custom_action_param": {
+            "result": "unconfirmed"
+        },
         "next": [
             "Arbitrage_Buy_Cleanup"
         ],
@@ -2480,7 +2508,7 @@
         "focus": "④ 收尾出售料理"
     },
     "Arbitrage_PreSell_Entry": {
-        "desc": "①开局出售料理以回笼金币。由Arbitrage_Action_Hub调用；先确保今日完整行情，再经Arbitrage_PreSell_GlobalMarket_Reset进入仅拥有扫描及出售。",
+        "desc": "①开局出售料理以回笼金币。由Arbitrage_Action_Hub调用；与④走同一条出售路：先确保今日完整行情、恢复出售页，再经Arbitrage_PreSell_GlobalMarket_Reset清计数后按今日行情与库存记录出售。",
         "enabled": true,
         "max_hit": 1,
         "anchor": {
@@ -2489,6 +2517,7 @@
         },
         "next": [
             "[JumpBack]Arbitrage_GlobalMarket_Ensure",
+            "[JumpBack]Arbitrage_Sale_EnsureShop",
             "Arbitrage_PreSell_GlobalMarket_Reset"
         ],
         "focus": "① 开局出售料理，回笼金币"
@@ -2561,7 +2590,7 @@
         ]
     },
     "Arbitrage_PriceList_Open_Egress": {
-        "desc": "确认价目表已打开并退栈。由Arbitrage_PriceList_Open_Entry点击后进入，不派发扫描；全盘和拥有准备链同时复用此节点的识别条件。",
+        "desc": "确认价目表已打开并退栈。由Arbitrage_PriceList_Open_Entry点击后进入，不派发扫描；全盘准备链复用此节点的识别条件。",
         "recognition": "OCR",
         "roi": [
             165,
@@ -2575,7 +2604,7 @@
         ]
     },
     "Arbitrage_PriceList_Sort_Entry": {
-        "desc": "全盘和拥有准备链共用的价目表排序入口；仅在价目表已打开且首项识别到非120%时回跳调整，本次最多4次。",
+        "desc": "全盘准备链的价目表排序入口；仅在价目表已打开且首项识别到非120%时回跳调整，本次最多4次。",
         "max_hit": 4,
         "recognition": "And",
         "all_of": [
@@ -2669,37 +2698,6 @@
             43
         ]
     },
-    "Arbitrage_PriceList_Owned_Enable": {
-        "desc": "拥有准备链按需回跳：确认价目表已打开且仅拥有为灰色关闭时点击勾选；变黄后不再命中。",
-        "max_hit": 4,
-        "recognition": "And",
-        "all_of": [
-            {
-                "sub_name": "Clr",
-                "recognition": "ColorMatch",
-                "roi": [
-                    1039,
-                    572,
-                    16,
-                    15
-                ],
-                "lower": [
-                    0,
-                    0,
-                    0
-                ],
-                "upper": [
-                    255,
-                    255,
-                    255
-                ]
-            },
-            "Rec_SliderSwitch_GryOff_Clr",
-            "Arbitrage_PriceList_Open_Egress"
-        ],
-        "action": "Click",
-        "post_delay": 1500
-    },
     "Arbitrage_PriceList_Owned_Disable": {
         "desc": "全盘准备链按需回跳：确认价目表已打开且仅拥有为黄色开启时点击取消；变灰后不再命中。",
         "max_hit": 4,
@@ -2732,7 +2730,7 @@
         "post_delay": 1500
     },
     "Arbitrage_PriceList_Calibrate": {
-        "desc": "价目表已打开时执行本次首次校准，将4行价格纵向对齐。由全盘和拥有准备链回跳调用，入口清除max_hit:1计数，回跳后跳过。",
+        "desc": "价目表已打开时执行本次首次校准，将4行价格纵向对齐。由全盘准备链回跳调用，入口清除max_hit:1计数，回跳后跳过。",
         "max_hit": 1,
         "recognition": "Or",
         "any_of": [
@@ -2748,7 +2746,8 @@
         "custom_action": "ArbitrageSellController",
         "custom_action_param": {
             "mode": "sell",
-            "sale_scope": "recipes"
+            "sale_scope": "recipes",
+            "stage": "④收尾出售"
         },
         "timeout": 3000,
         "next": [
@@ -2800,24 +2799,23 @@
         "focus": "Arb.M.观察今日共享行情"
     },
     "Arbitrage_PreSell_Run": {
-        "desc": "确认价目表已打开后，扫描已有物品价目表，随后尝试出售达到今日峰值的料理。由Arbitrage_PreSell_Prepare调用；agent/action/arbitrage_result.py的ArbitrageSellController使用preview_possess模式完成①开局变现，再进入Arbitrage_PriceList_Egress。",
-        "recognition": "Or",
-        "any_of": [
-            "Arbitrage_PriceList_Open_Egress"
-        ],
+        "desc": "执行①开局料理出售。由Arbitrage_PreSell_GlobalMarket_Reset进入；agent/action/arbitrage_result.py的ArbitrageSellController使用sell模式及recipes范围，与④同一套逻辑：按今日行情挑峰值料理，本轮库存记录为0的不去柜台，其余到柜台核价成交，结束后退出商店。失败走默认退栈，跳过①继续后续阶段。",
+        "pre_delay": 0,
         "action": "Custom",
         "custom_action": "ArbitrageSellController",
         "custom_action_param": {
-            "mode": "preview_possess",
-            "max_scan_pages": 80
+            "mode": "sell",
+            "sale_scope": "recipes",
+            "stage": "①开局变现"
         },
+        "post_delay": 0,
         "next": [
-            "Arbitrage_PriceList_Egress"
+            "Arbitrage_ShopOut"
         ],
         "focus": "Arb.M.启动变现:仅出售料理"
     },
     "Arbitrage_PriceList_Egress": {
-        "desc": "全盘扫描与①拥有扫描出售的共同出口。清除首次校准计数后退出商店，返回各自调用方，不串接另一种扫描。",
+        "desc": "全盘扫描的出口。清除首次校准计数后退出商店，返回调用方。",
         "pre_delay": 0,
         "action": "Custom",
         "custom_action": "ClearNodeHitCount",
@@ -7998,34 +7996,14 @@
         ]
     },
     "Arbitrage_PreSell_GlobalMarket_Reset": {
-        "desc": "①行情准备返回后清除Arbitrage_GlobalMarket_Ensure计数，供后续阶段复用。由Arbitrage_PreSell_Entry普通next进入，再普通next进入Arbitrage_PreSell_Prepare；页面打开和扫描由下游完成。",
+        "desc": "①行情与出售页准备好后清除Arbitrage_GlobalMarket_Ensure计数，供③补买计划等后续阶段复用。由Arbitrage_PreSell_Entry普通next进入，再普通next进入Arbitrage_PreSell_Run。",
         "action": "Custom",
         "custom_action": "ClearNodeHitCount",
         "custom_action_param": {
             "node_name": "Arbitrage_GlobalMarket_Ensure"
         },
         "next": [
-            "Arbitrage_PreSell_Prepare"
-        ]
-    },
-    "Arbitrage_PreSell_Prepare": {
-        "desc": "准备仅拥有价目表并启动①扫描及出售。由Arbitrage_PreSell_GlobalMarket_Reset进入；ClearNodeHitCount清除本次勾选、校准和排序计数，依次按需回跳处理，页面未打开时复用出售页及无折扣进店链。",
-        "action": "Custom",
-        "custom_action": "ClearNodeHitCount",
-        "custom_action_param": {
-            "node_name": [
-                "Arbitrage_PriceList_Owned_Enable",
-                "Arbitrage_PriceList_Calibrate",
-                "Arbitrage_PriceList_Sort_Entry"
-            ]
-        },
-        "next": [
-            "[JumpBack]Arbitrage_PriceList_Owned_Enable",
-            "[JumpBack]Arbitrage_PriceList_Calibrate",
-            "[JumpBack]Arbitrage_PriceList_Sort_Entry",
-            "Arbitrage_PreSell_Run",
-            "[JumpBack]Arbitrage_Sell_Type_Ocr",
-            "[JumpBack]Arbitrage_Merchant_NoDiscount_Entry"
+            "Arbitrage_PreSell_Run"
         ]
     },
     "Arbitrage_SellMaterials": {
@@ -8064,7 +8042,8 @@
         "custom_action": "ArbitrageSellController",
         "custom_action_param": {
             "mode": "sell",
-            "sale_scope": "materials"
+            "sale_scope": "materials",
+            "stage": "⑤材料出售"
         },
         "post_delay": 0,
         "timeout": 3000,
@@ -8151,7 +8130,7 @@
         }
     },
     "Arbitrage_Sale_EnsureShop": {
-        "desc": "为④料理出售和⑤材料出售准备出售页及卡带列表顶部。由阶段入口JumpBack调用；仅使用ClearNodeHitCount清本次局部计数，按next顺序修复页面，成功出口退栈后继续各自出售；恢复失败停止当前套利任务。max_hit:1由总调度及④⑤入口清理，内部回跳不重做本入口动作。",
+        "desc": "为①④料理出售和⑤材料出售准备出售页及卡带列表顶部。由阶段入口JumpBack调用；仅使用ClearNodeHitCount清本次局部计数，按next顺序修复页面，成功出口退栈后继续各自出售；恢复失败停止当前套利任务。max_hit:1由总调度及④⑤入口清理，内部回跳不重做本入口动作。",
         "max_hit": 1,
         "pre_delay": 0,
         "action": "Custom",
@@ -8184,7 +8163,7 @@
         ]
     },
     "Arbitrage_Sale_Shop_Egress": {
-        "desc": "④⑤出售准备确认：出售页签亮色且卡带列表顶部出现血骑士。仅确认卡带列表回顶，不代表选中卡带1；继续等待商品列表加载后退回阶段入口。",
+        "desc": "①④⑤出售准备确认：出售页签亮色且卡带列表顶部出现血骑士。仅确认卡带列表回顶，不代表选中卡带1；继续等待商品列表加载后退回阶段入口。",
         "recognition": "And",
         "all_of": [
             "Arbitrage_Sell_Type_Clr",
@@ -8197,7 +8176,7 @@
         ]
     },
     "Arbitrage_Sale_Shop_PostOcr": {
-        "desc": "④⑤出售准备的加载等待出口：借用商品列表OCR并等待商品区域稳定，空next退栈，不进入单件出售扫描。",
+        "desc": "①④⑤出售准备的加载等待出口：借用商品列表OCR并等待商品区域稳定，空next退栈，不进入单件出售扫描。",
         "recognition": "Or",
         "any_of": [
             "Arbitrage_Sell_Item_ListReset_PostOcr"
@@ -8216,7 +8195,7 @@
         "post_delay": 0
     },
     "Arbitrage_Sale_Shop_Switch": {
-        "desc": "④⑤出售准备按需切页：购买页签亮色且出售文字可见时，点击出售文字；空next返回准备入口。每次准备最多3次，入口清计数。",
+        "desc": "①④⑤出售准备按需切页：购买页签亮色且出售文字可见时，点击出售文字；空next返回准备入口。每次准备最多3次，入口清计数。",
         "max_hit": 3,
         "recognition": "And",
         "all_of": [
@@ -8228,7 +8207,7 @@
         "post_delay": 2000
     },
     "Arbitrage_Sale_Shop_Reset": {
-        "desc": "④⑤出售准备按需回顶：确认出售页签亮色后滑动卡带列表；成功出口优先确认血骑士已在顶部。每次准备最多8次，入口清计数，空next返回。",
+        "desc": "①④⑤出售准备按需回顶：确认出售页签亮色后滑动卡带列表；成功出口优先确认血骑士已在顶部。每次准备最多8次，入口清计数，空next返回。",
         "max_hit": 8,
         "recognition": "And",
         "all_of": [
@@ -8257,7 +8236,7 @@
         }
     },
     "Arbitrage_Sale_Shop_Navigate": {
-        "desc": "④⑤出售准备的寻路入口：主页或箱庭可识别时借用对应导航链，到Arbitrage_Merchant_Locate_Egress退回准备入口。每次准备最多进入1次，入口清计数；不调用Arbitrage_Start及总调度。",
+        "desc": "①④⑤出售准备的寻路入口：主页或箱庭可识别时借用对应导航链，到Arbitrage_Merchant_Locate_Egress退回准备入口。每次准备最多进入1次，入口清计数；不调用Arbitrage_Start及总调度。",
         "max_hit": 1,
         "recognition": "Or",
         "any_of": [
@@ -8276,7 +8255,7 @@
         ]
     },
     "Arbitrage_Sale_SubMenu_Close": {
-        "desc": "④⑤出售准备关闭已知料理或出售子菜单。Or只引用子菜单识别，命中后点击左上空白处，空next返回；排在通用返回之前，每次准备最多3次，入口清计数。",
+        "desc": "①④⑤出售准备关闭已知料理或出售子菜单。Or只引用子菜单识别，命中后点击左上空白处，空next返回；排在通用返回之前，每次准备最多3次，入口清计数。",
         "max_hit": 3,
         "recognition": "Or",
         "any_of": [

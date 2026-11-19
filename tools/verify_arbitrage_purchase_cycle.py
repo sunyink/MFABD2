@@ -12,7 +12,7 @@ import tempfile
 import threading
 from types import SimpleNamespace as NS
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import numpy as np
 from maa.controller import CustomController
@@ -120,7 +120,10 @@ class PurchaseCycleTests(unittest.TestCase):
         self.controller.swipes = 0
         self.context = MemoryContext()
         self.argv = NS(task_detail=NS(task_id=99), custom_action_param={})
+        # 买后作废库存旧数（U63）走库存自己的入口，测试在 verify_arbitrage_replenish；这里只看采购周期。
+        self.invalidate = Mock(return_value=True)
         for mocked in (
+            patch.object(store, "invalidate_inventory_quantities", self.invalidate),
             patch.object(PersistentStore, "load", side_effect=lambda: deepcopy(self.data)),
             patch.object(PersistentStore, "save", side_effect=self.save),
             patch.object(PersistentStore, "_current_account_id", "cycle-test"),
@@ -409,9 +412,11 @@ class PurchaseCycleTests(unittest.TestCase):
     def test_purchase_confirmation_only_records_in_memory_evidence(self):
         self.assertTrue(buy.ArbitrageBuyListPrepare().run(self.context, self.argv))
         lists.get_purchase_run(99)["pending"].clear()
-        self.assertTrue(buy.ArbitrageBuyComplete().run(self.context, self.argv))
+        argv = NS(task_detail=NS(task_id=99), custom_action_param={"result": "bought"})
+        self.assertTrue(buy.ArbitrageBuyComplete().run(self.context, argv))
         self.assertTrue(lists.completed_purchase_items(99, store.market_day()))
         self.assertEqual(self.writes, [])
+        self.invalidate.assert_called_once()
 
     def test_old_alignment_timestamp_is_not_a_second_cycle_clock(self):
         records = {FIRST: {"items": sorted(TABLE[FIRST]), "name_version": lists.PURCHASE_NAME_VERSION,
