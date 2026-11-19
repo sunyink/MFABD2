@@ -2390,7 +2390,7 @@
         "focus": "CTB.优先通过寻路列表返回传送阵"
     },
     "Collect_WayPoint_Entry": {
-        "desc": "打开左上寻路列表，按狩猎场、艾琳、探索告示板、旅馆的顺序选择目的地返回传送阵 | max_hit 4限制恢复重入；通用箱庭入口与C3返程调用前会清零本节点、两个寻路按钮及Board、Arrived的计数。S18/M14仍由OnFoot_Entry调用，普通卡带成功收尾不经这里。后续识别超时先尝试纯步行，纯步行入口也不命中时退回调用方。",
+        "desc": "打开左上寻路列表，按狩猎场、艾琳、探索告示板、旅馆的顺序选择目的地返回传送阵 | max_hit 4限制恢复重入；通用箱庭入口与C3返程调用前会清零本节点、两个寻路按钮及Board、Arrived、Arrived_OnFoot的计数。S18/M14仍由OnFoot_Entry调用，普通卡带成功收尾不经这里。后续识别超时先尝试纯步行，纯步行入口也不命中时退回调用方。",
         "max_hit": 4,
         "recognition": "Or",
         "any_of": [
@@ -2494,7 +2494,7 @@
         "focus": "CTB.选择狩猎场"
     },
     "Collect_WayPoint_Eileen": {
-        "desc": "快速移动到艾琳后，从导航地图步行返回传送阵 | 排在探索告示板前（用户 11-06）：告示板分支到达后放传送技能，没阵或禁用技能的图会挂；艾琳与旅馆一样到达后开导航地图步行。识别区与旅馆、告示板共用（PC 另有覆盖），艾琳简繁同字。子菜单失效时退出地图并回到 Arrived 重开。",
+        "desc": "快速移动到艾琳后，从导航地图步行返回传送阵 | 排在探索告示板前（用户 11-06）：告示板分支到达后放传送技能，没阵或禁用技能的图会挂；艾琳与旅馆一样到达后开导航地图步行。识别区与旅馆、告示板共用（PC 另有覆盖），艾琳简繁同字。到达交 Collect_WayPoint_Arrived_OnFoot，不经 Arrived 的点开核验；子菜单失效时退出地图，回到 Arrived_OnFoot 同层重开。",
         "recognition": "OCR",
         "roi": [
             247,
@@ -2507,15 +2507,14 @@
         ],
         "action": "Click",
         "anchor": {
-            "ExplorationBoard_Arrived": "Collect_WayPoint_ExplorationBoard_Arrived",
-            "IntSubMenu_ErrReturn": "Collect_WayPoint_Arrived"
+            "IntSubMenu_ErrReturn": "Collect_WayPoint_Arrived_OnFoot"
         },
         "post_delay": 1000,
         "next": [
             "[JumpBack]Collect_IM_Move_MGS",
             "[JumpBack]Collect_IM_OnFoot_Moveing",
             "[JumpBack]Global_WaitingForLoading",
-            "Collect_WayPoint_Arrived"
+            "Collect_WayPoint_Arrived_OnFoot"
         ],
         "focus": "CTB.选择艾琳"
     },
@@ -2547,7 +2546,7 @@
         "focus": "CTB.选择探索告示板"
     },
     "Collect_WayPoint_Inn": {
-        "desc": "快速移动到旅馆后，从导航地图步行返回传送阵 | 子菜单失效时退出地图并回到Arrived重开，沿用其3次上限，不重新快速移动到旅馆。",
+        "desc": "快速移动到旅馆后，从导航地图步行返回传送阵 | 到达交 Collect_WayPoint_Arrived_OnFoot；子菜单失效时退出地图，回到 Arrived_OnFoot 同层重开，沿用其3次上限，不重新快速移动到旅馆。",
         "recognition": "OCR",
         "roi": [
             247,
@@ -2561,20 +2560,40 @@
         ],
         "action": "Click",
         "anchor": {
-            "ExplorationBoard_Arrived": "Collect_WayPoint_ExplorationBoard_Arrived",
-            "IntSubMenu_ErrReturn": "Collect_WayPoint_Arrived"
+            "IntSubMenu_ErrReturn": "Collect_WayPoint_Arrived_OnFoot"
         },
         "post_delay": 1000,
         "next": [
             "[JumpBack]Collect_IM_Move_MGS",
             "[JumpBack]Collect_IM_OnFoot_Moveing",
             "[JumpBack]Global_WaitingForLoading",
-            "Collect_WayPoint_Arrived"
+            "Collect_WayPoint_Arrived_OnFoot"
         ],
         "focus": "CTB.选择旅馆"
     },
+    "Collect_WayPoint_Arrived_OnFoot": {
+        "desc": "艾琳、旅馆分支确认快速移动已结束，开导航地图步行回阵 | 判据同 Collect_WayPoint_Arrived（箱庭静止或旅馆休息图标）。以普通 next 交 Collect_WayPoint_ExplorationBoard_Arrived，不压回跳、不做点开核验：走到阵上由 Collect_ForceTelepor_FindTeleporCircle 空 next 直接退回寻路调用方，调用方自己用 Collect_FindTeleporCircle0.9 点手标开面板，点不开有各自的 on_error（11-15 复盘：原先经 Arrived 的 Verify 开一次面板再关上，调用方又开一次）。 | 子菜单失效时经 IntSubMenu_ErrReturn 回到本节点同层重开，不叠层；max_hit 3 即到达一次加重开两次，与 Arrived 一起由通用箱庭入口和 C3 返程清零。",
+        "max_hit": 3,
+        "recognition": "Or",
+        "any_of": [
+            {
+                "recognition": "And",
+                "all_of": [
+                    "Rec_SandBox_Pin3_Tpl",
+                    "Sub_SandBox_Pin3_Bright_Clr"
+                ]
+            },
+            "Rec_Ico_ReClock"
+        ],
+        "pre_delay": 1500,
+        "timeout": 5000,
+        "next": [
+            "Collect_WayPoint_ExplorationBoard_Arrived"
+        ],
+        "focus": "CTB.快速移动已到达，步行回传送阵"
+    },
     "Collect_WayPoint_Arrived": {
-        "desc": "确认快速移动已结束，执行目的地安排的返程步骤 | 原箱庭静止判据或旅馆休息图标均可进入；这只表示已到目的地，不表示已经站上传送阵。沿用本任务3次上限，并为本次到达重置TryFix和Fail_1。",
+        "desc": "确认快速移动已结束，执行目的地安排的返程步骤 | 狩猎场、探索告示板分支用（艾琳、旅馆走 Collect_WayPoint_Arrived_OnFoot）。原箱庭静止判据或旅馆休息图标均可进入；这只表示已到目的地，不表示已经站上传送阵。沿用本任务3次上限，并为本次到达重置TryFix和Fail_1。",
         "max_hit": 3,
         "recognition": "Or",
         "any_of": [
@@ -2674,7 +2693,7 @@
         ]
     },
     "Collect_WayPoint_ExplorationBoard_Arrived": {
-        "desc": "到达旅馆后打开导航地图，调用已有步行返程 | 首次子菜单点击无效时，由公共错误链退出地图，按旅馆设置的IntSubMenu_ErrReturn回Arrived再开；探索告示板分支仍用原技能复位。",
+        "desc": "到达艾琳或旅馆后打开导航地图，调用已有步行返程 | 由 Collect_WayPoint_Arrived_OnFoot 以普通 next 进入。首次子菜单点击无效时，由公共错误链退出地图，按艾琳、旅馆设置的IntSubMenu_ErrReturn回Arrived_OnFoot再开；探索告示板分支仍用原技能复位。",
         "recognition": "Or",
         "any_of": [
             "Collect_TeleporCircle_OnFoot_GoinNviMap",
@@ -2705,7 +2724,7 @@
         "focus": "CTOB.确认导航地图界面打开"
     },
     "Collect_WayPoint_Arrived_SkillReset": {
-        "desc": "到达告示板后放快捷栏的传送技能复位，也供UseLegendary换角色失败后重新放技能 | Board的ExplorationBoard_Arrived锚点指向本节点（Inn的同名锚点指向Collect_WayPoint_ExplorationBoard_Arrived）。判据为Skill3-1.png加亮色核，灰态不命中；面板打开后交Collect_ForceTelepor_MapCk。不用Collect_Skill3_4：它没有亮灰色核判据，灰态也会空点，且next自引用无max_hit。第三项用灰态判据Collect_ForceTeleporCircle_No而非恒命中的OnFoot_Start：复位成功退栈后再评估候选时，恒命中项会重入整条步行兜底链（2026-10-07实测卡死的一环）；只有技能真的灰着才步行。",
+        "desc": "到达告示板后放快捷栏的传送技能复位，也供UseLegendary换角色失败后重新放技能 | Board的ExplorationBoard_Arrived锚点指向本节点（艾琳、旅馆已不设这个锚点，到达后走Collect_WayPoint_Arrived_OnFoot）。判据为Skill3-1.png加亮色核，灰态不命中；面板打开后交Collect_ForceTelepor_MapCk。不用Collect_Skill3_4：它没有亮灰色核判据，灰态也会空点，且next自引用无max_hit。第三项用灰态判据Collect_ForceTeleporCircle_No而非恒命中的OnFoot_Start：复位成功退栈后再评估候选时，恒命中项会重入整条步行兜底链（2026-10-07实测卡死的一环）；只有技能真的灰着才步行。",
         "recognition": "And",
         "all_of": [
             {
