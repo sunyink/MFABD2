@@ -53,10 +53,10 @@ class IconTests(unittest.TestCase):
         self.root = Path(self.temporary.name)
         self.install = self.root / "install"
         self.install.mkdir()
-        self.interface = self.install / "interface.json"
-        self.original = (b'{"name":"fixture","icon":"old.png","task":[],"resource":'
-                         b'[{"name":"base","path":["./resource/base"]}]}')
-        self.interface.write_bytes(self.original)
+        # The runtime icon in interface.json is release_interface.py's; see verify_release_interface.py.
+        self.existing = self.install / "existing.bin"
+        self.original = b"existing contents"
+        self.existing.write_bytes(self.original)
         self.branding = icons.ROOT / "release" / "branding"
         self.executable = self.install / "MFAAvalonia.exe"
         self.executable.write_bytes(b"original executable")
@@ -64,33 +64,6 @@ class IconTests(unittest.TestCase):
         self.profile.parent.mkdir()
         self.profile.write_text('app:\n  id: mfabd2.ci\n  label: MFABD2-CI\n  icon: ../ReadMe/logo.png\n')
         self.work = self.root / "android-build"
-
-    def test_runtime_copies_only_ui_png_and_preserves_task_resources(self):
-        existing_resource = self.install / "resource/base/existing.txt"
-        existing_resource.parent.mkdir(parents=True)
-        existing_resource.write_bytes(b"existing task resource")
-        icons.apply_runtime(self.install, self.branding)
-        interface = json.loads(self.interface.read_text())
-        self.assertEqual(interface["icon"], "resource/ui/title.png")
-        self.assertEqual(interface["task"], [])
-        self.assertEqual(interface["resource"], json.loads(self.original)["resource"])
-        self.assertEqual(existing_resource.read_bytes(), b"existing task resource")
-        self.assertEqual((self.install / interface["icon"]).read_bytes(), (self.branding / "title.png").read_bytes())
-        self.assertEqual(
-            {path.relative_to(self.install).as_posix() for path in self.install.rglob("*") if path.is_file()},
-            {"interface.json", "MFAAvalonia.exe", "resource/base/existing.txt", "resource/ui/title.png"},
-        )
-
-    def test_missing_runtime_art_leaves_interface_untouched(self):
-        with self.assertRaises(FileNotFoundError):
-            icons.apply_runtime(self.install, self.root / "absent")
-        self.assertEqual(self.interface.read_bytes(), self.original)
-
-    def test_failed_image_copy_never_changes_interface(self):
-        with patch.object(icons, "atomic_write", side_effect=OSError("copy failed")):
-            with self.assertRaises(OSError):
-                icons.apply_runtime(self.install, self.branding)
-        self.assertEqual(self.interface.read_bytes(), self.original)
 
     def test_partial_write_failure_cleans_up_temporary_file(self):
         factory = icons.tempfile.NamedTemporaryFile
@@ -109,29 +82,9 @@ class IconTests(unittest.TestCase):
         before = set(self.install.iterdir())
         with patch.object(icons.tempfile, "NamedTemporaryFile", side_effect=failing_file):
             with self.assertRaisesRegex(OSError, "partial write failed"):
-                icons.atomic_write(self.interface, b"new interface contents")
-        self.assertEqual(self.interface.read_bytes(), self.original)
+                icons.atomic_write(self.existing, b"new contents")
+        self.assertEqual(self.existing.read_bytes(), self.original)
         self.assertEqual(set(self.install.iterdir()), before)
-
-    def test_failed_interface_write_removes_new_or_restores_existing_image(self):
-        title = self.install / "resource/ui/title.png"
-        title.parent.mkdir(parents=True)
-        write = icons.atomic_write
-
-        def fail_interface(path, data):
-            if path == self.interface:
-                raise OSError("interface write failed")
-            write(path, data)
-
-        for previous in (None, b"previous image"):
-            with self.subTest(previous=previous):
-                if previous is not None:
-                    title.write_bytes(previous)
-                with patch.object(icons, "atomic_write", side_effect=fail_interface):
-                    with self.assertRaisesRegex(OSError, "interface write failed"):
-                        icons.apply_runtime(self.install, self.branding)
-                self.assertEqual(self.interface.read_bytes(), self.original)
-                self.assertEqual(title.read_bytes() if title.exists() else None, previous)
 
     @staticmethod
     def png_chunks(*chunks):
@@ -327,20 +280,6 @@ class IconTests(unittest.TestCase):
         self.assertFalse(output.exists())
         self.assertNotIn("kept default/previous icon", log.getvalue())
 
-    def test_check_rejects_a_runtime_icon_that_did_not_land(self):
-        icons.apply_runtime(self.install, self.branding)
-        icons.check_runtime(self.install, self.branding)
-        title = self.install / icons.RUNTIME_ICON
-        title.write_bytes(b"not the branding image")
-        with self.assertRaisesRegex(ValueError, "not the branding image"):
-            icons.check_runtime(self.install, self.branding)
-        title.unlink()
-        with self.assertRaises(ValueError):
-            icons.check_runtime(self.install, self.branding)
-        self.interface.write_bytes(self.original)
-        with self.assertRaisesRegex(ValueError, "interface.json icon"):
-            icons.check_runtime(self.install, self.branding)
-
     def test_check_rejects_an_android_icon_that_did_not_land(self):
         icons.apply_android(self.profile, self.work, self.branding)
         icons.check_android(self.profile, self.work, self.branding)
@@ -363,7 +302,7 @@ class IconTests(unittest.TestCase):
         with patch.dict(icons.os.environ, {"GITHUB_STEP_SUMMARY": str(summary)}):
             with patch("sys.stdout", new_callable=io.StringIO) as output:
                 icons.optional("first", lambda: icons.validate_png(self.root / "absent"))
-                icons.optional("next", lambda: icons.apply_runtime(self.install, self.branding))
+                icons.optional("next", lambda: icons.validate_png(self.branding / "title.png"))
         self.assertIn("::warning", output.getvalue())
         self.assertIn("kept default", summary.read_text())
         self.assertIn("next: applied", summary.read_text())

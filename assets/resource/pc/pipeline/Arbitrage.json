@@ -2458,5 +2458,13 @@
             "Global_BackToPve_Anc"
         ],
         "focus": "Arb.PC.进图链超时!重回复位整链重试"
+    },
+    "Agt_Cooking_Owned_Ocr": {
+        "roi": [
+            136,
+            89,
+            173,
+            66
+        ]
     }
 }

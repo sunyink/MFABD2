@@ -216,6 +216,7 @@
         ]
     },
     "Collect_IM_OnFoot_NviMap_E01_A2_Move_Sub": {
+        "desc": "[PC覆盖] 点「戰鬥區域」后等移动开始的窗口缩到 3 秒：成功时確認框约 1.2 秒出现（11-01 实测）；点不动（游戏 bug）时少等 5 秒再重开地图。",
         "roi": [
             276,
             247,
@@ -224,7 +225,8 @@
         ],
         "expected": [
             "戰鬥區域"
-        ]
+        ],
+        "timeout": 3000
     },
     "Collect_IM_OnFoot_NviMap_E01_B2_Move": {
         "target": [
@@ -241,6 +243,14 @@
         ]
     },
     "Collect_IM_GoinNviMap": {
+        "target": [
+            132,
+            103,
+            10,
+            10
+        ]
+    },
+    "Collect_IM_Locate": {
         "target": [
             132,
             103,
@@ -281,6 +291,7 @@
         ]
     },
     "Collect_IM_OnFoot_NviMap_E03_A2_Move_Sub": {
+        "desc": "[PC覆盖] 点完选项后等移动开始的窗口缩到 3 秒：本节点先等 post_delay 3 秒，成功时確認框此时已出现（11-06 实测约 3.5 秒）；点不动时少等 5 秒再重开地图。",
         "roi": [
             303,
             395,
@@ -296,7 +307,8 @@
             457,
             5,
             5
-        ]
+        ],
+        "timeout": 3000
     },
     "Collect_IM_OnFoot_NviMap_E03_B2_Move": {
         "target": [
@@ -513,7 +525,7 @@
             42
         ]
     },
-    "Collect_TeleporCircle_OnFoot_Skirmish": {
+    "Collect_Skirmish_Escape": {
         "roi": [
             144,
             69,
@@ -521,7 +533,7 @@
             307
         ]
     },
-    "Collect_TeleporCircle_OnFoot_Skirmish_Tpause": {
+    "Collect_Skirmish_Escape_Pause": {
         "target": [
             1189,
             29,
@@ -529,7 +541,7 @@
             11
         ]
     },
-    "Collect_TeleporCircle_OnFoot_Skirmish_TRun": {
+    "Collect_Skirmish_Escape_Run": {
         "roi": [
             488,
             654,
@@ -537,7 +549,7 @@
             33
         ]
     },
-    "Collect_TeleporCircle_OnFoot_Skirmish_TRun_Ty2": {
+    "Collect_Skirmish_Escape_Confirm": {
         "roi": [
             665,
             419,
@@ -612,16 +624,21 @@
         ]
     },
     "Collect_WayPoint_Board": {
-        "desc": "[PC] 寻路下拉列表在 PC 上更长且更靠上。roi 取自 #466 已删节点的 PC 实测值。",
+        "desc": "[PC] 寻路下拉列表在 PC 上更长且更靠上。roi 取自 #466 已删节点的 PC 实测值。繁体名「任務布告欄」已写进 base，这里不再覆盖 expected。",
         "roi": [
             205,
             25,
             180,
             600
-        ],
-        "expected": [
-            "探索告示板",
-            "任務布告欄"
+        ]
+    },
+    "Collect_WayPoint_Eileen": {
+        "desc": "[PC] 同 Collect_WayPoint_Board 的下拉列表,与旅馆、告示板共用同一 roi。",
+        "roi": [
+            205,
+            25,
+            180,
+            600
         ]
     },
     "Collect_WayPoint_Inn": {

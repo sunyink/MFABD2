@@ -89,7 +89,7 @@
 
 第 2 步不能省：maa-support-extension 是拿 `child_exec` 的**原始字面值**（不是解析后的绝对路径）去查这张表的，对不上就静默退回非调试路径——不报错，只是你的断点不生效。
 
-只有本地要这么改。**发布包不受影响**：`install.py` 打包时按目标平台无条件覆写这两个字段（Windows 用内嵌 Python、macOS 用便携版、Linux/Android 用系统 `python3`）。
+只有本地要这么改。**发布包不受影响**：打包时 `scripts/release_interface.py` 按目标平台无条件覆写这两个字段（Windows 用内嵌 Python、macOS 用便携版、Linux/Android 用系统 `python3`）。发布 interface 的所有改写都在这个文件里，平台差异只写在它的 `PLATFORMS` 表中。
 
 **别拿 MFAAvalonia 当测试环境。** MFAA 是发给终端用户的**构建物**（打包好的 GUI），人手一份；它不是开发调试用的。想用它验改动，得开调试模式、或手动替换包里的资源文件，很折腾。开发阶段用上面的调试器，别从 MFAA 起步。
 

@@ -2,6 +2,7 @@
     "Pass_HomePage": {
         "next": [
             "Env_AgentLost_Stop",
+            "[JumpBack]Ledger_Begin_Daily",
             "Pass_InToPass",
             "[JumpBack]Global_ToHomePage"
         ]

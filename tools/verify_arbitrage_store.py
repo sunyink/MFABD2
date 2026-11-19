@@ -74,6 +74,26 @@ class ArbitrageStoreTests(unittest.TestCase):
         self.assertTrue(store.save_market_snapshot(self.scan(False, "蜂蜜"), day))
         self.assertEqual(store.get_market_snapshot(day)["items"][0]["name"], "烤蜂蜜苹果")
 
+    def test_market_day_turns_at_kst_midnight_not_game_day(self):
+        # 价目表 00:00 KST（UTC 15:00）换日；09:00 KST（UTC 0 点）的游戏日刷新不换价目表日。
+        self.assertEqual(store.market_day("2026-11-07T14:59:59+00:00"), "2026-11-07")
+        self.assertEqual(store.market_day("2026-11-07T15:00:00+00:00"), "2026-11-08")
+        self.assertEqual(store.market_day("2026-11-07T23:59:59+00:00"), "2026-11-08")
+        self.assertEqual(store.market_day("2026-11-08T00:00:01+00:00"), "2026-11-08")
+
+    def test_snapshot_before_kst_midnight_is_not_reused_after(self):
+        before = self.scan()
+        before["observed_at"] = "2026-11-07T14:00:00+00:00"
+        self.assertTrue(store.save_market_snapshot(before))
+        self.assertIsNotNone(store.get_market_snapshot("2026-11-07"))
+        self.assertIsNone(store.get_market_snapshot(store.market_day("2026-11-07T15:30:00+00:00")))
+        # 0 点前开扫、0 点后才存：混有换价前后的价格，按开扫时刻归前一天。
+        crossing = self.scan(name="蜂蜜")
+        crossing["observed_at"] = "2026-11-07T14:59:00+00:00"
+        self.assertTrue(store.save_market_snapshot(crossing))
+        self.assertEqual(store.get_market_snapshot("2026-11-07")["items"][0]["name"], "蜂蜜")
+        self.assertIsNone(store.get_market_snapshot("2026-11-08"))
+
     def test_market_keeps_coverage_separate_from_cartridge_quality(self):
         scan = self.scan()
         scan.update(cartridges_complete=False, unconfirmed_cartridges=["烤蜂蜜苹果"])
