@@ -224,6 +224,23 @@ def _finished(record: dict, filled: set) -> bool:
     return bool(lost) and lost <= filled
 
 
+def _resume(state, label: str, *, task_id: int, now: float, gap: float) -> None:
+    """本进程还没盘过：上一次运行刚在收尾位置盘完（不超过连续阈值）就接着它，当作本任务开头刚盘过。
+    条件见 ledger_rules.resume_from；读凭证出错就按没接上处理，照常全盘。"""
+    try:
+        resumed = ledger_rules.resume_from(get_events(), now=now, gap=gap, finished=FINISHED)
+    except Exception as exc:
+        mfaalog.warning(f"[Ledger] ⚠️ {label}：上一次运行的盘点没读成（{exc}），照常盘")
+        return
+    if resumed is None:
+        return
+    with _LOCK:
+        if state.last_scan is None:
+            state.last_scan = {"scan_id": resumed["scan_id"], "at": resumed["at"], "scopes": resumed["scopes"],
+                               "game_day": resumed["game_day"], "task_id": task_id}
+    mfaalog.info(f"[Ledger] {label}：接着上一次运行的「{resumed['label']}」（{round(resumed['age'])} 秒前盘完）")
+
+
 def _open(path) -> None:
     """用系统默认浏览器打开报表。手动结账后与商店收尾盘后调（U61、11-19 用户定：跑完出个结果）。"""
     try:
@@ -283,6 +300,9 @@ def _run(context: Context, argv: CustomAction.RunArg) -> None:
     with _LOCK:
         state = _STATES.setdefault(account, ledger_rules.LedgerState())
         since = _CURSORS.get(account, 0.0)
+        fresh = state.last_scan is None
+    if fresh:
+        _resume(state, label, task_id=task_id, now=now, gap=settings["gap"])
     decision = ledger_rules.decide(mark, kind, state, task_id=task_id, rows=rows, now=now,
                                    quiet=settings["quiet"], gap=settings["gap"])
     if decision["scan"] and options["full"]:
