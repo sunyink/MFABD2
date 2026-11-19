@@ -570,7 +570,7 @@ def build_report(ledger, *, game_day: str, as_of: str, prices=None, cookbook=Non
                or any(value for value in item["deltas"].values())]
     # 期初调整表：只列期初与上日期末对不上的；货币在前，其余按科目、调整量大小。
     order = {key: position for position, (key, _) in enumerate(GROUPS)}
-    adjustments = [{"name": item["name"], "group": item["group"], "before": item["adjust"]["before"],
+    adjustments = [{"name": item["name"], "group": item["group"], "kind": item.get("kind"), "before": item["adjust"]["before"],
                     "before_at": item["adjust"]["before_at"], "before_time": item["adjust"]["before_time"],
                     "price_before": item["adjust"]["price_before"], "delta": item["adjust"]["delta"],
                     "reason": item["adjust"]["reason"], "value": item["adjust"]["value"], "opening": item["opening"],

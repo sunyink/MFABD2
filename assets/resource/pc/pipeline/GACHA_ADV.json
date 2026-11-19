@@ -307,8 +307,7 @@
     },
     "GachaADV_TouchFreeGacha": {
         "expected": [
-            "免费1次",
-            "免費1次"
+            "免[费費].?次"
         ]
     },
     "GachaADV_TouchFreeGachaConfirmMenu": {

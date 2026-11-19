@@ -121,6 +121,58 @@ def decide(mark: str, kind: str | None, state: LedgerState, *, task_id: int, row
     return result(_union(kinds), "收尾")
 
 
+# 收尾位置之后、下一次运行之前，只许出现收尾盘点自己留下的凭证：读数、盘点（含重扫）、货币。
+_AFTER_CLOSE = frozenset({"inventory_set", "inventory_scan", "currency_reading"})
+
+
+def _when(text) -> float | None:
+    try:
+        return datetime.fromisoformat(str(text).replace("Z", "+00:00")).timestamp()
+    except (TypeError, ValueError):
+        return None
+
+
+def _origin_key(origin) -> tuple:
+    origin = origin if isinstance(origin, dict) else {}
+    return origin.get("session"), (origin.get("task") or {}).get("task_id"), origin.get("node"), origin.get("mark")
+
+
+def resume_from(events, *, now: float, gap: float = GAP_SECONDS, finished=frozenset()) -> dict | None:
+    """本次运行的第一个位置能不能接着上一次运行的收尾盘、不再全盘（11-19 用户定：刚收尾就重跑才不盘；
+    隔久了照盘，中间玩家可能自己动过库存）。events 是该账号的凭证（热档即可）。条件全满足才接：
+    - 最后一条记账标记是收尾位置（end / queue_end / manual），它之后只有这个位置自己的读数、盘点与货币；
+    - 这个位置的盘点正常走完（结束原因在 finished 里），没盘准的都被它的重扫补上了；
+    - 与盘点同一游戏日，最后一条凭证离现在不超过连续阈值 gap 秒。
+    返回 {"scan_id", "at", "scopes", "game_day", "label", "age"}；接不上返回 None。"""
+    rows = sorted(((when, event) for event in events or () if isinstance(event, dict)
+                   for when in (_when(event.get("recorded_at")),) if when is not None), key=lambda row: row[0])
+    marks = [row for row in rows if row[1].get("kind") == "ledger_mark"]
+    if not marks:
+        return None
+    marked_at, mark = marks[-1]
+    if mark.get("mark") not in ("end", "queue_end", "manual"):
+        return None
+    after = [event for when, event in rows if when > marked_at]
+    if not after or any(event.get("kind") not in _AFTER_CLOSE for event in after):
+        return None
+    key = _origin_key(mark)
+    scans = [event for event in after if event.get("kind") == "inventory_scan" and _origin_key(event.get("origin")) == key]
+    first = next((scan for scan in scans if not (scan.get("origin") or {}).get("retry_of")), None)
+    if first is None or first.get("termination") not in finished:
+        return None
+    unknown = set(first.get("unknown") or ())
+    for retry in scans:
+        if (retry.get("origin") or {}).get("retry_of") == first.get("scan_id"):
+            unknown -= set(retry.get("quantities") or ()) | set(retry.get("absent") or ())
+            unknown |= set(retry.get("unknown") or ())
+    last_at = rows[-1][0]
+    at = _when(first.get("finished_at")) or last_at
+    if unknown or not 0 <= now - last_at <= gap or game_day(at) != game_day(now):
+        return None
+    return {"scan_id": first.get("scan_id"), "at": at, "scopes": frozenset(first.get("scope") or ()),
+            "game_day": game_day(at), "label": first.get("label"), "age": now - last_at}
+
+
 def settle(state: LedgerState, *, mark: str, kind: str | None, task_id: int, entry: str, now: float,
            scan: dict | None = None) -> None:
     """一个位置处理完之后更新状态。scan：盘点执行了就给 {"scan_id", "scopes"}；没盘、或盘点没执行，给 None。

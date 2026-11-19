@@ -4,6 +4,7 @@
     python -B tools/verify_ledger_rules.py -v
 """
 
+from datetime import datetime, timezone
 import json
 from pathlib import Path
 import sys
@@ -18,6 +19,8 @@ QUIET = ("Env_MultiSave_Config", "StartGame_Start", "Env_Ledger_Config",
          "Collect_StartGame_HomePage", "Arbitrage_Start", "Close_HomePage", "Ledger_Settle_Manual")
 FULL = list(ALL_SCOPES)
 NOON = 1_763_208_000.0   # 2025-11-15 12:00 UTC，离游戏日分界远
+
+
 
 
 class Play:
@@ -225,6 +228,51 @@ class LedgerRuleTests(unittest.TestCase):
                        {"quiet": ["甲", 3], "gap_seconds": True}):
             with self.subTest(attach=broken):
                 self.assertEqual(settings(broken), built_in)
+
+    def test_rerun_right_after_a_closing_scan_resumes_it(self):
+        """11-19 用户定：上一次运行刚在收尾位置盘完就重跑，第一个位置接着那次盘点；隔久了、没盘准、之后还有别的动静都照常全盘。"""
+        def stamp(seconds):
+            return datetime.fromtimestamp(seconds, timezone.utc).isoformat()
+
+        def closing(unknown=None, termination="section_end", retry=None, extra=(), base=NOON):
+            mark = {"kind": "ledger_mark", "mark": "end", "type": "shop", "session": "s1", "task": {"task_id": 7},
+                    "node": "Ledger_End_Shop", "recorded_at": stamp(base)}
+            origin = {key: mark[key] for key in ("mark", "type", "session", "task", "node")}
+            scan = {"kind": "inventory_scan", "scan_id": "x1", "label": "记账·商店结束", "scope": ["A"],
+                    "termination": termination, "unknown": unknown or {}, "origin": origin,
+                    "finished_at": stamp(base + 70), "recorded_at": stamp(base + 70)}
+            events = [{"kind": "ledger_mark", "mark": "begin", "recorded_at": stamp(base - 600)}, mark,
+                      {"kind": "inventory_set", "recorded_at": stamp(base + 70)}, scan]
+            if retry is not None:
+                events.append({"kind": "inventory_scan", "scan_id": "x2", "origin": dict(origin, retry_of="x1"),
+                               "recorded_at": stamp(base + 90), **retry})
+            return events + [{"kind": "currency_reading", "recorded_at": stamp(base + 95)}, *extra]
+
+        finished = frozenset({"section_end", "list_bottom", "all_found"})
+        resume = ledger_rules.resume_from(closing(), now=NOON + 95 + 40, gap=60, finished=finished)
+        self.assertEqual((resume["scan_id"], resume["scopes"], resume["at"]), ("x1", frozenset({"A"}), NOON + 70))
+        filled = closing(unknown={"大蒜": "cell_unverified"}, retry={"quantities": {}, "absent": ["大蒜"], "unknown": {}})
+        self.assertIsNotNone(ledger_rules.resume_from(filled, now=NOON + 130, gap=60, finished=finished))
+        late = NOON + 12 * 3600 - 80    # 盘在游戏日最后一分多钟，重跑时已是下一个游戏日
+        for name, events, now in (
+                ("隔久了", closing(), NOON + 95 + 61),
+                ("重扫没补上", closing(unknown={"大蒜": "x"}, retry={"absent": [], "unknown": {"大蒜": "x"}}), NOON + 130),
+                ("没重扫", closing(unknown={"大蒜": "x"}), NOON + 130),
+                ("盘点半路断了", closing(termination="stopped"), NOON + 130),
+                ("收尾之后还有别的凭证", closing(extra=[{"kind": "inventory_invalidate", "recorded_at": stamp(NOON + 100)}]),
+                 NOON + 130),
+                ("最后是始标记", closing()[:1], NOON - 590),
+                ("跨过游戏日", closing(base=late), late + 95 + 30)):
+            with self.subTest(name):
+                self.assertIsNone(ledger_rules.resume_from(events, now=now, gap=60, finished=finished))
+
+        play = Play(start=NOON + 200)   # 接上之后：同类型不盘；换成日常只补它要的那几类
+        play.task("Arbitrage_Start")
+        play.state.last_scan = {"scan_id": "x1", "at": resume["at"], "scopes": resume["scopes"],
+                                "game_day": resume["game_day"], "task_id": play.rows[-1]["task_id"]}
+        self.assertFalse(play.at("begin", "shop")["scan"])
+        self.assertEqual(play.at("end", "shop")["scopes"], ["A"])
+        self.assertEqual(play.daily()["scopes"], ["B", "C"])
 
     def test_bad_arguments_are_rejected(self):
         state = LedgerState()

@@ -6,6 +6,7 @@
 """
 
 import copy
+from datetime import datetime, timezone
 import json
 from pathlib import Path
 import sys
@@ -267,6 +268,29 @@ class LedgerPointTests(unittest.TestCase):
         self.run_point("end", "shop", 103, "Arbitrage_Start")                     # 报表开关关着 → 照盘、不出
         self.assertEqual((len(self.scans), len(self.reports)), (3, 1))
 
+    def test_rerun_right_after_shop_end_resumes_the_last_run(self):
+        """11-19 用户定：上一次运行刚在商店收尾盘完就重跑，本次第一个位置不再全盘；隔了一分钟以上照常全盘。"""
+        def stamp(seconds):
+            return datetime.fromtimestamp(seconds, timezone.utc).isoformat()
+
+        origin = {"mark": "end", "type": "shop", "session": "old", "task": {"task_id": 9}, "node": "Ledger_End_Shop"}
+        last_run = [{"kind": "ledger_mark", **origin, "recorded_at": stamp(T0 - 100)},
+                    {"kind": "inventory_scan", "scan_id": "old1", "label": "记账·商店结束", "scope": ["A"],
+                     "termination": "section_end", "unknown": {}, "origin": origin,
+                     "finished_at": stamp(T0 - 30), "recorded_at": stamp(T0 - 30)},
+                    {"kind": "currency_reading", "recorded_at": stamp(T0 - 25)}]
+        with patch.object(point, "get_events", lambda: last_run):
+            self.task("Arbitrage_Start", 201)
+            self.run_point("begin", "shop", 201, "Arbitrage_Start")
+            self.assertEqual(self.scans, [])                                         # 接着上一次的收尾盘
+            self.run_point("end", "shop", 201, "Arbitrage_Start")
+            self.assertEqual([scan["scope"] for scan in self.scans], [["A"]])
+            point._STATES.clear()                                                    # 又一次运行，但隔得久了
+            self.clock[0] += 300
+            self.task("Arbitrage_Start", 301)
+            self.run_point("begin", "shop", 301, "Arbitrage_Start")
+            self.assertEqual(self.scans[-1]["scope"], list(ALL_SCOPES))
+
     def test_closing_positions_refresh_the_report_even_without_a_scan(self):
         self.task("Arbitrage_Start", 101)
         self.run_point("begin", "shop", 101, "Arbitrage_Start")
@@ -276,7 +300,7 @@ class LedgerPointTests(unittest.TestCase):
         self.assertEqual((len(self.scans), self.reports[-1], len(self.reports)), (2, "记账·手动结账", 3))
         self.task("Close_HomePage", 103)
         self.run_point("queue_end", None, 103, "Close_HomePage")
-        self.assertEqual(self.shown, [False, False, True, False])               # 只有手动结账出完自己打开（U61）
+        self.assertEqual(self.shown, [False, True, True, False])                # 商店收尾盘与手动结账出完自己打开（U61、11-19）
 
     def test_manual_settle_opens_the_report_on_desktop_only(self):
         opened = []

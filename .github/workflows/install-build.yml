@@ -846,6 +846,13 @@ jobs:
             --jq '.workflow_run_id')
           [[ "$run_id" =~ ^[0-9]+$ ]] || { echo "Missing Android workflow run ID"; exit 1; }
           echo "Android build: https://github.com/$GITHUB_REPOSITORY/actions/runs/$run_id" >> "$GITHUB_STEP_SUMMARY"
+          # 派发接口交回 run ID 时，这条 run 不一定马上查得到：run 44462327172 紧接着 watch
+          # 就拿到 404，安卓那边照常建完，这一步却判了失败。先等它查得到（至多约 1 分钟），
+          # 仍查不到就交给 watch 照常报错。
+          for _ in $(seq 12); do
+            gh run view "$run_id" --repo "$GITHUB_REPOSITORY" --json status > /dev/null 2>&1 && break
+            sleep 5
+          done
           gh run watch "$run_id" --repo "$GITHUB_REPOSITORY" --exit-status --interval 10
           echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
           echo "identity=$identity" >> "$GITHUB_OUTPUT"
@@ -1100,7 +1107,9 @@ jobs:
   notify:
     needs: [meta, install, release]
     # fork 没有上游通知密文；构建可继续，但不要让预期中的空密文把运行标红。
+    # QQ 推送暂停（2026-11-19）：NapCat 中继已停用，换上新中继之前不发。恢复时去掉下面的 `false &&`。
     if: >-
+      false &&
       always() &&
       github.repository == 'sunyink/MFABD2' &&
       needs.install.result == 'success' &&
