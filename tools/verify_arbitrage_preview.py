@@ -405,13 +405,14 @@ class MarketEnsureDayTests(unittest.TestCase):
         self.assertEqual(scan_param, {**PIPELINE["Arbitrage_GlobalMarket_Scan"]["custom_action_param"],
                                       "market_day": "2026-11-07"})          # 原有参数保留，只加进店那天
 
-    def test_crossing_before_entering_the_shop_scans_the_new_day(self):
-        # 在箱庭查缓存时还是旧的一天、进店时已过 0 点：店里是新表，按新的一天扫、照常使用
-        with patch.object(flow.store, "market_day", side_effect=["2026-11-07", "2026-11-08", "2026-11-08"]), \
-                patch.object(flow.store, "get_market_snapshot", side_effect=[None, {"complete": True}]) as get:
-            self.assertTrue(flow.ArbitrageMarketEnsure().run(self.context, None))
-        self.assertEqual(self.overrides[0]["Arbitrage_GlobalMarket_Scan"]["custom_action_param"]["market_day"], "2026-11-08")
-        self.assertEqual(get.call_args.args, ("2026-11-08",))
+    def test_crossing_while_entering_the_shop_is_rejected(self):
+        # 查缓存时还是旧的一天、进店流程走完已过 0 点：0 点落在点进店之前还是之后分不清，店里是哪天的表说不准，不扫
+        # （PR #605 机审第 2 条；原先按新的一天扫，点进店之后才跨 0 点的那种会把旧表记成新一天）
+        with patch.object(flow.store, "market_day", side_effect=["2026-11-07", "2026-11-08"]), \
+                patch.object(flow.store, "get_market_snapshot", return_value=None):
+            self.assertFalse(flow.ArbitrageMarketEnsure().run(self.context, None))
+        self.assertIn("进店途中", flow.mfaalog.error.call_args.args[0])
+        self.assertEqual(self.overrides, [])
 
 
 if __name__ == "__main__":

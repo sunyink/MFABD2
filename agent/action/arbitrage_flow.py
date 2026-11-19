@@ -225,7 +225,9 @@ class ArbitrageMarketEnsure(CustomAction):
             ensure_shop(local)
             # 店里的价目表是进店那一刻的：过了 00:00 KST 不退出商店再进就不换（游戏 bug，柜台已是新价，用户 11-17）。
             # 各阶段都从箱庭进店、做完退回箱庭，所以只剩「进店之后才跨 0 点」：行情归进店那天，不按开扫时刻。
-            day = store.market_day()
+            # 进店那一刻落在 ensure_shop 里面（点完还要等页面）：前后两头日子不同，就说不准店里是哪天的表，不扫。
+            if store.market_day() != day:
+                raise RuntimeError("进店途中价目表换日（韩国时间 0 点），店里是哪天的表说不准；新的一天由下一段开头重扫")
             raw = local.get_node_object(_MARKET_SCAN_NODE).action.param.custom_action_param
             param = dict(raw if isinstance(raw, dict) else json.loads(str(raw or "{}")), market_day=day)
             result = local.run_task("Arbitrage_GlobalMarket_Entry", {_MARKET_SCAN_NODE: {"custom_action_param": param}})
