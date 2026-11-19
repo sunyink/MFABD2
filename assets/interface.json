@@ -160,25 +160,6 @@
             "description": "消耗每日免费米饭与火把。米饭先按<b>①双倍时先打</b>查看冒险航线有没有双倍，没有就按<b>②平时打</b>投到狩猎场或冒险航线；火把打圣石洞穴。<br><span style=\"background-color:rgba(255,160,0,0.2)\"><b>注意：</b>请确认目标狩猎场已通关，且冒险航线<哥布林遗迹>已完成。</span>"
         },
         {
-            "name": "[执行]地图采集[单章]",
-            "entry": "Collect_StartGame_HomePage_OnlyOnce",
-            "controller": [
-                "Adb",
-                "PC客户端",
-                "PC客户端(Cursor)",
-                "PlayCover"
-            ],
-            "default_check": true,
-            "description": "<地图采集[完整]>的单卡带模式，满足日常任务所需即停止。<br>游戏更新后已不需要每天进一张卡带来解锁每日奖励，一般不必再勾选；两个日常预设里已不包含它。",
-            "option": [
-                "采集卡带指定",
-                "采集卡带屏蔽",
-                "采集卡带调试直采",
-                "第三图采集额外等待",
-                "采集掉落记录"
-            ]
-        },
-        {
             "name": "[执行]装备制作&炼制日常",
             "label": "[日常]装备制作&炼制",
             "entry": "Equip_HomePage",
