@@ -523,6 +523,10 @@ class ReportTests(unittest.TestCase):
         self.assertIn("<td class=\"sticky\">兽肉</td>", table)
         self.assertIn("本日第一盘没读准它", table)
         self.assertIn("本日第一盘没读到顶栏", table)
+        pinned, folded = table.split("<details", 1)                       # 三大货币与抽抽乐券常驻，其余按科目折叠（11-19）
+        self.assertIn("<td class=\"sticky\">金币</td>", pinned)
+        self.assertNotIn("兽肉", pinned)
+        self.assertIn("存货 · 食材 <small>1 项：增 0、减 1；折合 +1,200</small>", folded)
         self.assertNotIn("调整 ", page[page.index("<h2>一、进销存表"):page.index("<h2>三、资产表")])   # 进销存表不再标注
         self.assertNotIn("<h2>期初调整", render_day_html(before))                                  # 平时没有这张表
 

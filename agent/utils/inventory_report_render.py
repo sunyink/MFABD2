@@ -24,6 +24,7 @@ ADJUST_REASONS = {"overnight": "上日最后一次读到它之后、本日第一
                   "missed": "本日第一盘没盘完，连同之后到第一次读到它为止的变化",
                   "suspect_zero": "有一次盘点把它判成了 0、前后读数又相同：按漏读更正"}
 BASIS_LABEL = {"counted": "盘点差", "booked": "已记账", "derived": "推算"}
+PINNED_MONEY = (GOLD, "钻石", "天赋神药")   # 期初调整里常驻的三大货币；「钻石（免费）」只是钻石的拆分，随其余折叠
 
 CSS = r"""
 :root{
@@ -423,8 +424,14 @@ def _stock_table(model, show):
     return "".join(out)
 
 
+def _pinned(row) -> bool:
+    """期初调整里常驻显示的：三大货币与抽抽乐券（物品表里 kind 为「票券」的）；其余按科目折叠（11-19 用户定）。"""
+    return row["name"] in PINNED_MONEY or row.get("kind") == "票券"
+
+
 def _adjust_table(model, show):
-    """期初调整表：只在有物品的本日期初与上日期末不同时出现，只列不同的那几样（U67-1、U69、U76）。"""
+    """期初调整表：只在有物品的本日期初与上日期末不同时出现，只列不同的那几样（U67-1、U69、U76）。
+    隔了几天才跑时会有上百行：三大货币与抽抽乐券常驻，其余按科目各折成一块，折起来只看项数、增减与折合金额。"""
     rows = model.get("adjustments") or []
     if not rows:
         return ""
@@ -434,24 +441,45 @@ def _adjust_table(model, show):
         ran = "、".join(dict.fromkeys(gap["tasks"])) if gap["tasks"] else ""
         between = (f'上日最后一次盘点（{esc(show(gap["from"]))}）到本日第一次盘点（{esc(show(gap["to"]))}）之间'
                    + (f'跑过：{esc(ran)}，没有当场盘' if ran else "没有记到任务，多半是手动操作") + "；")
-    out = ["<section><h2>期初调整 <small>本日期初与上日期末不同的物品</small></h2>",
+    head = ('<div class="tw"><table><thead><tr><th class="sticky">物品</th><th class="num">上日期末<span class="sub">上次读到的数</span></th>'
+            '<th class="num">期初调整</th><th class="num">本日期初<span class="sub">当天第一次读到的数</span></th></tr></thead><tbody>')
+
+    def table(part):
+        body = [head]
+        for row in part:
+            before, unit = _unit(row.get("price_before")), _unit(row.get("price"))
+            change = (f'<span class="q">{fmt(row["delta"], sign=True)}</span><span class="amt">{amount(row["value"], sign=True)}</span>'
+                      if row.get("value") is not None else fmt(row["delta"], sign=True))
+            if None not in (before, unit) and before != unit:   # 金额差里含单价变化，数量减了金额也可能增
+                change += f'<span class="amt">含单价 {before:,} → {unit:,}</span>'
+            why = ADJUST_REASONS.get(row["reason"], ADJUST_REASONS["overnight"])
+            body.append(f'<tr><td class="sticky">{esc(row["name"])}</td>'
+                        f'<td class="num">{cell(row["before"], before)}<span class="amt">{esc(show(row["before_time"]))}</span></td>'
+                        f'<td class="num">{change}<span class="amt">{esc(why)}</span></td>'
+                        f'<td class="num"><b>{cell(row["opening"], unit)}</b><span class="amt">{esc(show(row["opening_time"]))}</span></td></tr>')
+        body.append("</tbody></table></div>")
+        return "".join(body)
+
+    pinned = [row for row in rows if _pinned(row)]
+    folded = [row for row in rows if not _pinned(row)]
+    out = [f"<section><h2>期初调整 <small>本日期初与上日期末不同的 {len(rows)} 项"
+           + ("；货币与抽抽乐券常驻，其余按科目折叠" if folded else "") + "</small></h2>",
            cap(("为什么", "上日期末是上一张定稿的表上的数，本日期初是当天第一次读到的数；" + between
                           + "这段差额不归任何一天的各列，不计入本日各列与损益"),
-               ("恒等式", "上日期末 + 期初调整 = 本日期初")),
-           '<div class="tw"><table><thead><tr><th class="sticky">物品</th><th class="num">上日期末<span class="sub">上次读到的数</span></th>'
-           '<th class="num">期初调整</th><th class="num">本日期初<span class="sub">当天第一次读到的数</span></th></tr></thead><tbody>']
-    for row in rows:
-        before, unit = _unit(row.get("price_before")), _unit(row.get("price"))
-        change = (f'<span class="q">{fmt(row["delta"], sign=True)}</span><span class="amt">{amount(row["value"], sign=True)}</span>'
-                  if row.get("value") is not None else fmt(row["delta"], sign=True))
-        if None not in (before, unit) and before != unit:   # 金额差里含单价变化，数量减了金额也可能增
-            change += f'<span class="amt">含单价 {before:,} → {unit:,}</span>'
-        why = ADJUST_REASONS.get(row["reason"], ADJUST_REASONS["overnight"])
-        out.append(f'<tr><td class="sticky">{esc(row["name"])}</td>'
-                   f'<td class="num">{cell(row["before"], before)}<span class="amt">{esc(show(row["before_time"]))}</span></td>'
-                   f'<td class="num">{change}<span class="amt">{esc(why)}</span></td>'
-                   f'<td class="num"><b>{cell(row["opening"], unit)}</b><span class="amt">{esc(show(row["opening_time"]))}</span></td></tr>')
-    out.append("</tbody></table></div></section>")
+               ("恒等式", "上日期末 + 期初调整 = 本日期初"))]
+    if pinned:
+        out.append(table(pinned))
+    titles = dict(GROUPS, money="货币票券 · 其余")
+    for key in [key for key, _ in GROUPS] + sorted({row["group"] for row in folded} - {key for key, _ in GROUPS}):
+        part = [row for row in folded if row["group"] == key]
+        if not part:
+            continue
+        up, down = sum(row["delta"] > 0 for row in part), sum(row["delta"] < 0 for row in part)
+        values = [row["value"] for row in part if row.get("value") is not None]
+        worth = f"；折合 {amount(sum(values), sign=True)}" if values else ""
+        out.append(f'<details class="plain"><summary>{esc(titles.get(key, key))} <small>{len(part)} 项：'
+                   f'增 {up}、减 {down}{worth}</small></summary><div class="body">{table(part)}</div></details>')
+    out.append("</section>")
     return "".join(out)
 
 
