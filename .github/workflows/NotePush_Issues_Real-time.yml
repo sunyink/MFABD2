@@ -9,6 +9,8 @@ env:
 
 jobs:
   issue-notification:
+    # QQ 推送暂停（2026-11-19）：NapCat 中继已停用，换上新中继之前不发，免得每次都标红。恢复时删掉这两行。
+    if: false
     runs-on: ubuntu-latest
     
     steps:
