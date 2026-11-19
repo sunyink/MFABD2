@@ -225,7 +225,7 @@ def _finished(record: dict, filled: set) -> bool:
 
 
 def _open(path) -> None:
-    """用系统默认浏览器打开报表。只在手动结账后调：那时人就在电脑前，别处弹窗会抢游戏的前台。"""
+    """用系统默认浏览器打开报表。手动结账后与商店收尾盘后调（U61、11-19 用户定：跑完出个结果）。"""
     try:
         import webbrowser
         if not webbrowser.open(Path(path).resolve().as_uri()):
@@ -337,9 +337,10 @@ def _run(context: Context, argv: CustomAction.RunArg) -> None:
         # （utils/arbitrage_sale_skip.trust_since，穿透复核第 4 条）。半路断了的留有盘点记录，读到的那部分照认。
         task_journal.note(task_id, stock_current=not decision["scan"] or executed)
     # 盘了就出报表（半路断了的也出：读到的那部分已经进了凭证）；结束游戏与手动结账即使规则说不用盘也出一次：
-    # 收个尾，把最后几个任务的起止补进去。只有手动结账出完自己打开（U61）。
+    # 收个尾，把最后几个任务的起止补进去。手动结账（U61）与商店收尾盘（11-19 用户定：商店一般排在最后，跑完出个结果）
+    # 出完自己打开。
     if options["report"] and (executed or mark in ("queue_end", "manual")):
-        _report(label, show=mark == "manual")
+        _report(label, show=mark == "manual" or (mark == "end" and kind == "shop" and executed))
 
 
 @AgentServer.custom_action("LedgerConfig")

@@ -276,7 +276,7 @@ class LedgerPointTests(unittest.TestCase):
         self.assertEqual((len(self.scans), self.reports[-1], len(self.reports)), (2, "记账·手动结账", 3))
         self.task("Close_HomePage", 103)
         self.run_point("queue_end", None, 103, "Close_HomePage")
-        self.assertEqual(self.shown, [False, False, True, False])               # 只有手动结账出完自己打开（U61）
+        self.assertEqual(self.shown, [False, True, True, False])                # 商店收尾盘与手动结账出完自己打开（U61、11-19）
 
     def test_manual_settle_opens_the_report_on_desktop_only(self):
         opened = []
