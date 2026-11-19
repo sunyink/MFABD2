@@ -1,11 +1,13 @@
 """库存记账：从账制表——某一个游戏日的报表模型。
 
 纯函数，只吃账（inventory_ledger.build_ledger 的结果），不回头看凭证、不读写文件。
-归日：区间归到它开始那次盘点所在的游戏日；一日的期初是当天第一盘，期末是下一个游戏日第一盘的读数，
-隔夜那一段记在上一日。下一个游戏日的盘点还没来时只能记账（期中），来了才结账（期末）。
+归日：一日的账只算到当天最后一盘——期初是当天第一盘，期末是当天最后一盘，各列只收这两盘之间的区间。
+下一个游戏日的盘点还没来时只能记账（期中）；来了就结账（期末），结账用的就是最后一次记账的数，不拿次日的读数改它（U76）。
+结转：结账定稿的表带一份期末余额（balance），每样东西一行，当天没读到的沿用上一张表的数。下一日的期初是它自己第一盘
+读到的数，与上日期末的差额（隔夜那一段的变化、没读准后来补上的）全部记成期初调整，定稿的表不回头改（U75）。
 """
 
-from .inventory_ledger import SUSPECT_MIN
+from .inventory_ledger import CURRENCY_SCOPE, SUSPECT_MIN, items_until, ts
 
 SCHEMA = "ledger-report/2"
 KIND_LABEL = {"daily": "日常", "collect": "吸取", "shop": "商店", "outside": "期间外", "mixed": "混合", "later": "次日以后"}
@@ -26,38 +28,69 @@ def _unit(prices, scan, name):
     return row if isinstance(row, dict) and type(row.get("unit")) is int else None
 
 
-def _closers(scans) -> list:
-    """每次盘点所在那天由哪次盘点结账：之后第一次落在更晚游戏日的盘点（下标）；还没结账的为 None。"""
-    result, upcoming = [None] * len(scans), None
-    for index in range(len(scans) - 1, -1, -1):
-        if index + 1 < len(scans) and scans[index + 1]["day"] != scans[index]["day"]:
-            upcoming = index + 1
-        result[index] = upcoming
+def _balance_row(quantity, at, price=None) -> dict:
+    """期末余额里的一行：数量、读到它的那次盘点的时刻，有单价时带上单价。"""
+    row = {"quantity": quantity, "at": at}
+    if price:
+        row["unit"] = price["unit"]
+    return row
+
+
+def _ledger_prior(ledger, first, prices) -> dict:
+    """手上没有上一张定稿的表时，从账里推它会写的期末余额：上一日最后一盘为止，每样东西最后一次读到的数。
+
+    只看到上一日最后一盘为止的账（items_until），与那张表定稿时看到的一样。
+    """
+    scans = ledger["scans"]
+    if first <= 0:
+        return {}
+    result = {}
+    for name, entry in items_until(ledger, first - 1).items():
+        index, quantity = entry["readings"][-1]
+        valued = prices is not None and GROUP_OF.get(entry["category"], "other") in VALUED
+        result[name] = _balance_row(quantity, scans[index]["at"], _unit(prices, scans[index], name) if valued else None)
     return result
 
 
-def _items(ledger, first, last, close, prices, closers):
+def _gap_reason(name, entry, origin, today) -> str:
+    """上日期末与本日第一次读到的数不一样，是哪一种。today：本日里排在它第一次读数之前、没读到它的那几次盘点。
+
+    本日第一盘就读到了（today 为空）是最平常的一种：差额就是隔夜那一段的变化。否则还并进了本日开头的一截，
+    按没读到的原因分，口径同 inventory_ledger._chains。
+    """
+    doubted = {miss["scan"] for miss in entry.get("suspect") or ()}
+    scope = entry.get("scope")
+    if origin in doubted or any(scan["id"] in doubted for scan in today):
+        return "suspect_zero"   # 上一张表上的 0（或本日开头的 0）夹在两次相同的读数之间：漏读
+    if not today:
+        return "overnight"
+    if any(name in scan["unknown"] for scan in today):
+        return "unknown"
+    if scope == CURRENCY_SCOPE:
+        return "unread"
+    return "out_of_scope" if all(scope not in scan["scope"] for scan in today) else "missed"
+
+
+def _items(ledger, chains, first, prices, prior):
     """逐物品：当天的期初、各列变动、跨区间合并、期末，以及（给了单价时）量价分解。
 
-    一笔变化跨过了它开始那天的结账盘点（那一盘没读到它），开始那天在那一盘就定稿了，这一笔不归开始那天，
-    记在补上读数的这天当期初调整（U67-1）：期初取当天第一次读到的数，与上次读数的差单列，不进各列与损益。
+    chains：只看到当天最后一盘为止的读数链（items_until）。期初是当天第一次读到的数，期末是当天最后一次读到的数。
+    上日期末看 prior——上一张定稿表的期末余额 {物品: {"quantity", "at", "unit"}}，不回头翻更早的凭证（U75）；
+    它与本日期初的差额记成期初调整，单列，不进各列与损益（U67-1、U76）。
     """
     scans, intervals = ledger["scans"], ledger["intervals"]
-
-    def crossing(piece):
-        closer = closers[piece["from"]]
-        return closer is not None and piece["to"] > closer
-
+    by_time = {scan["at"]: index for index, scan in enumerate(scans)}
     rows, unread = [], []
-    for name, entry in ledger["items"].items():
-        readings = [(index, quantity) for index, quantity in entry["readings"] if first <= index <= last]
+    for name, entry in chains.items():
+        readings = [(index, quantity) for index, quantity in entry["readings"] if index >= first]
         if not readings:
             unread.append(name)
             continue
-        pieces = [piece for piece in entry["pieces"] if first <= piece["from"] <= last and not crossing(piece)]
+        pieces = [piece for piece in entry["pieces"] if piece["from"] >= first]
         opening_at, opening = readings[0]
-        carried = next((piece for piece in entry["pieces"] if piece["to"] == opening_at and piece["from"] < first
-                        and crossing(piece) and piece["delta"]), None)
+        carried = prior.get(name)   # 上日期末；与本日期初对得上就没有要调整的
+        if carried is not None and carried["quantity"] == opening:
+            carried = None
         closing_at, closing = (pieces[-1]["to"], pieces[-1]["close"]) if pieces else readings[-1]
         group = GROUP_OF.get(entry["category"], "other")
         valued = group in VALUED and prices is not None
@@ -65,15 +98,14 @@ def _items(ledger, first, last, close, prices, closers):
         price = _unit(prices, scans[closing_at], name) if valued else None
         deltas, spans, flows, reval, priced = {}, [], {}, 0, valued and price_open is not None and price is not None
         for piece in pieces:
-            kinds = list(dict.fromkeys(intervals[index]["kind"] if index < close else "later"
-                                       for index in range(piece["from"], piece["to"])))
+            kinds = list(dict.fromkeys(intervals[index]["kind"] for index in range(piece["from"], piece["to"])))
             before, after = (_unit(prices, scans[piece["from"]], name), _unit(prices, scans[piece["to"]], name)) \
                 if valued else (None, None)
             priced = priced and before is not None and after is not None
             flow = piece["delta"] * after["unit"] if priced else None
             if priced:
                 reval += piece["open"] * (after["unit"] - before["unit"])
-            if len(kinds) == 1 and kinds[0] != "later":
+            if len(kinds) == 1:
                 deltas[kinds[0]] = deltas.get(kinds[0], 0) + piece["delta"]
                 if priced:
                     flows[kinds[0]] = flows.get(kinds[0], 0) + flow
@@ -85,23 +117,32 @@ def _items(ledger, first, last, close, prices, closers):
         if priced:
             value = {"opening": opening * price_open["unit"], "closing": closing * price["unit"], "flows": flows,
                      "spans": sum(span["flow"] for span in spans), "reval": reval, "adjust": 0}
-        elif valued and not opening and not closing and not carried \
+        elif valued and not opening and not closing and carried is None \
                 and not any(piece["open"] or piece["close"] for piece in pieces):
             priced = True   # 一直是 0 的东西没有单价也不碍事：估值就是 0，不必提醒
             value = {"opening": 0, "closing": 0, "flows": {}, "spans": 0, "reval": 0, "adjust": 0}
-        adjust = None
+        adjust, gaps, origin = None, [], None
         if carried is not None:
-            worth, before = None, None
+            # 上次读到它的那一盘：还在这次装载的凭证里就按下标取中间的盘点，否则按时刻取。
+            source = by_time.get(carried.get("at"))
+            if source is not None:
+                origin, gaps = scans[source]["id"], scans[source + 1:opening_at]
+            else:
+                since = ts(carried.get("at"))
+                gaps = [scan for scan in scans[:opening_at] if since is None or scan["ts"] > since]
+            today = scans[first:opening_at]   # 本日里排在它第一次读数之前的盘点
+            worth, unit_before = None, None
             if value is not None and price_open is not None:
-                # 期初的估值按调整后的期初；与上次读数那一盘的估值之差就是调整的金额（含两次单价之差）。
-                before = _unit(prices, scans[carried["from"]], name) or price_open
-                worth = value["adjust"] = value["opening"] - carried["open"] * before["unit"]
-            adjust = {"before": carried["open"], "before_at": scans[carried["from"]]["id"],
-                      "before_time": scans[carried["from"]]["at"], "price_before": before, "delta": carried["delta"],
-                      "reason": carried.get("reason"), "missing_at": carried.get("missing_at") or [], "value": worth}
+                # 期初的估值按调整后的期初；与上日期末的估值之差就是调整的金额（含两次单价之差）。
+                unit_before = {"unit": carried["unit"]} if type(carried.get("unit")) is int else price_open
+                worth = value["adjust"] = value["opening"] - carried["quantity"] * unit_before["unit"]
+            adjust = {"before": carried["quantity"], "before_at": origin, "before_time": carried.get("at"),
+                      "price_before": unit_before, "delta": opening - carried["quantity"],
+                      "reason": _gap_reason(name, entry, origin, today),
+                      "missing_at": [scan["id"] for scan in gaps], "value": worth}
         # 疑似漏读的 0 是按全部历史认的；只报落在本日各段（含期初调整那一段）中间的，别的日子不再带出。
-        inside = {scans[index]["id"] for piece in pieces + ([carried] if carried else [])
-                  for index in range(piece["from"] + 1, piece["to"])}
+        inside = {scans[index]["id"] for piece in pieces for index in range(piece["from"] + 1, piece["to"])}
+        inside |= {scan["id"] for scan in gaps} | ({origin} if origin else set())
         suspect = [miss for miss in entry.get("suspect") or [] if miss["scan"] in inside]
         # 一大笔库存在一段里清零、这一段又没有它的出售或制作记录：多半是盘点漏读，提醒但不改数。
         emptied = next((piece["open"] for piece in pieces
@@ -207,14 +248,14 @@ def _shop(items, book, cookbook):
             "mismatch": [row["name"] for row in rows if row["mismatch"]]}
 
 
-def _by_card(ledger, first, day_intervals, prices):
+def _by_card(ledger, chains, first, day_intervals, prices):
     """吸取分卡产出：各张卡带列它自己那几次进卡读到的数量，盘点与读数的差单列「卡带未知」；同一天同一张卡合成一行。
 
     一样东西在吸取段里的一笔变化（它物品链上的一段，可能跨几段吸取）：各卡照读到的数列，多了少了都不缩放；
     这笔减去各卡读数之和归「卡带未知」，可正可负——走路碰到的、没读到的、吸完却没记录的卡，说不清是哪张卡的就不替它分（U60）。
     盘点没给出变化的东西（不扫、没读准、跨到别的段）只有读数，单列、不估值。当天没有吸取段返回 None。
     """
-    scans, chains = ledger["scans"], ledger["items"]
+    scans = ledger["scans"]
     collects = {first + offset: interval for offset, interval in enumerate(day_intervals) if interval["kind"] == "collect"}
     if not collects:
         return None
@@ -444,10 +485,11 @@ def _notices(status, first_ever, day_intervals, day_scans, tail, checks, shop, v
             notices.append({"level": "warn", "text": f"{span} 之间有一次盘点盘到一半就断了，没有当作边界。"})
     for position, scan in enumerate(day_scans):
         if scan["unknown"]:
-            if status == "final" and position == len(day_scans) - 1:
-                how = "这是结账的那一盘：它们本日的期末取更早的读数，之后补上的差记在补上那天的期初调整。"
-            elif position == 0 and not first_ever:
-                how = "它们本日的期初取当天第一次读到的数，与上日期末的差记为期初调整。"
+            if position == 0 and not first_ever:
+                how = "它们本日的期初取当天第一次读到的数，之前的变化并进期初调整。"
+            elif position == len(day_scans) - 1:
+                how = ("这是当天最后一盘：它们本日的期末取更早的读数，之后的变化记在下一日的期初调整。" if status == "final"
+                       else "这是到目前为止最后一盘：它们的期末先取更早的读数，今天再盘到会补上。")
             else:
                 how = "它们前后两段合并显示。"
             notices.append({"level": "warn", "text": f"{kst(scan['at'])} 的盘点有 {len(scan['unknown'])} 项没读准："
@@ -460,30 +502,43 @@ def _notices(status, first_ever, day_intervals, day_scans, tail, checks, shop, v
                                                      f"{miss['value']:,}：按漏读处理，没有计入变动。"})
         if item["emptied"]:
             notices.append({"level": "warn", "text": f"「{item['name']}」从 {item['emptied']:,} 变成了 0，这一段没有它的出售或制作记录，"
-                                                     "可能是盘点漏读；下一次盘点读到它时会自动更正。"})
-    adjusted = [item["name"] for item in items if item["adjust"]]
+                                                     "可能是盘点漏读；当天再读到它会自动更正，隔天才读回来的记成那天的期初调整。"})
+    adjusted = [item for item in items if item["adjust"]]
     if adjusted:
-        notices.append({"level": "warn", "text": f"{len(adjusted)} 项的本日期初与上日期末对不上（{'、'.join(adjusted[:6])}"
-                                                 + ("等" if len(adjusted) > 6 else "") + "）：上一日结账的那次盘点没读到它们，"
-                                                 "差额见「期初调整」表，不计入本日各列与损益。"})
+        # 隔夜那一段的变化是平常事；本日第一盘没读到、或上一张表上是漏读的 0，才值得提醒。
+        late = [item["name"] for item in adjusted if item["adjust"]["reason"] != "overnight"]
+        names = [item["name"] for item in adjusted]
+        notices.append({"level": "warn" if late else "info",
+                        "text": f"{len(names)} 项的本日期初与上日期末不同（{'、'.join(names[:6])}" + ("等" if len(names) > 6 else "")
+                                + "）：上日最后一次读到它们之后、本日第一次读到之前的变化，差额见「期初调整」表，不计入本日各列与损益。"
+                                + (f"其中 {len(late)} 项本日第一盘没读到或是漏读更正（{'、'.join(late[:6])}"
+                                   + ("等" if len(late) > 6 else "") + "）。" if late else "")})
     if shop and shop["mismatch"]:
         notices.append({"level": "warn", "text": "商店推算失配：" + "、".join(shop["mismatch"][:8]) + "（见表二）。"})
     if valuation is not None:
         missing = [name for group in VALUED for name in valuation[group]["unpriced"]]
         if missing:
             notices.append({"level": "warn", "text": f"{len(missing)} 项存货没有单价，未计入估值：{'、'.join(missing[:6])}。"})
+    pending = "、".join(dict.fromkeys(KIND_LABEL.get(kind, kind) for kind in tail["types"]))
     if status == "interim":
-        pending = "、".join(dict.fromkeys(KIND_LABEL.get(kind, kind) for kind in tail["types"]))
-        notices.append({"level": "info", "text": "本日尚未结账：下一个游戏日的第一次盘点到来时结账。"
-                        + (f"最后一次盘点之后还有没盘掉的活动（{pending}）。" if pending else "")})
+        notices.append({"level": "info", "text": "本日尚未结账：下一个游戏日的第一次盘点到来时结账，结账用的就是到那时为止最后一次记账的数。"
+                        + (f"最后一次盘点之后还有没盘掉的活动（{pending}）：今天再盘到才进本日的表，否则记在下一日的期初调整。"
+                           if pending else "")})
+    elif pending:
+        notices.append({"level": "warn", "text": f"当天最后一次盘点之后还跑过{pending}，没有再盘：这部分变化不在本日的表里，"
+                                                 "记在下一日的期初调整。"})
     if first_ever:
         notices.append({"level": "info", "text": "这是有记账盘点的第一天：期初就是当天第一次盘点，此前的变化无从算起。"})
     return notices
 
 
 def build_report(ledger, *, game_day: str, as_of: str, prices=None, cookbook=None, account=None, labels=None,
-                 kst=None, history_before=False) -> dict | None:
+                 kst=None, history_before=False, prior=None) -> dict | None:
     """账 → 某一个游戏日的报表模型；当天没有任何记账盘点返回 None。
+
+    prior：上一张定稿表的期末余额（它的 balance["items"]）。本日期初与它对不上的差额记成期初调整；
+    不给就从账里更早的读数推（没有定稿的表可用时：头一天、离线拿整本账单算某一天）。
+    结账定稿的表自己也带 balance，供下一日结转。
 
     prices：{盘点编号: {物品名: {"unit", "basis", "price_day"}}}，不给就只出数量。
     cookbook：{"recipes": {料理: {材料: 用量}}, "purchasable": 可在商店买到的材料}，用于商店账实核对的推算。
@@ -496,15 +551,18 @@ def build_report(ledger, *, game_day: str, as_of: str, prices=None, cookbook=Non
     if not indexes:
         return None
     first, last = indexes[0], indexes[-1]
+    # 之后有更晚游戏日的盘点＝已结账。结账用的就是当天最后一盘为止的数，不拿那一盘来改它（U76）：
+    # 那一盘是次日自己的期初，它与本日期末的差额记在次日的期初调整。
     final = last + 1 < len(scans)
-    close = last + 1 if final else last
-    day_scans = scans[first:close + 1]
-    day_intervals = [dict(interval) for interval in ledger["intervals"][first:close]]
+    day_scans = scans[first:last + 1]
+    day_intervals = [dict(interval) for interval in ledger["intervals"][first:last]]
     for interval in day_intervals:
         interval["tasks"] = [{**task, "label": (labels or {}).get(task["entry"], task["entry"])} for task in interval["tasks"]]
     scans_by_id = {scan["id"]: scan for scan in scans}
     cols = _columns(day_intervals, scans_by_id)
-    items, unread = _items(ledger, first, last, close, prices, _closers(scans))
+    carried_in = _ledger_prior(ledger, first, prices) if prior is None else prior
+    chains = items_until(ledger, last)   # 只看到当天最后一盘为止
+    items, unread = _items(ledger, chains, first, prices, carried_in)
     for item in items:   # 该列的区间两头都不扫它的科目 → 「不扫」
         item["gaps"] = [col["key"] for col in cols if item["deltas"].get(col["key"]) is None
                         and item["scope"] not in (None, "$") and item["scope"] not in col["scopes"]]
@@ -529,13 +587,20 @@ def build_report(ledger, *, game_day: str, as_of: str, prices=None, cookbook=Non
     shop = _shop(items, book, cookbook) if has_shop else None
     statement = _statement(items, cols, valuation, shop)
     checks = _checks(items, statement, shop, day_intervals, stray, valuation)
-    by_card = _by_card(ledger, first, day_intervals, prices)
+    by_card = _by_card(ledger, chains, first, day_intervals, prices)
     if by_card and by_card["recorded"]:
         checks.append(_by_card_check(items, by_card))
     status = "final" if final else "interim"
     first_ever = first == 0 and not history_before
-    notices = _notices(status, first_ever, day_intervals, day_scans, ledger["tail"] if not final else {"types": []},
-                       checks, shop, valuation, kst, items)
+    # 当天最后一盘之后：期中是账尾（还没盘掉的活动）；已结账的是它到次日第一盘之间那一段，不在本日的表里。
+    after = ledger["intervals"][last] if final else None
+    tail = {"types": list(after["types"]) + (["mixed"] if after["strangers"] else [])} if after else ledger["tail"]
+    notices = _notices(status, first_ever, day_intervals, day_scans, tail, checks, shop, valuation, kst, items)
+    # 上日最后一盘到本日第一盘之间那一段（期初调整吞掉的主要就是它）：跑过什么，给期初调整表做说明。
+    before = ledger["intervals"][first - 1] if first > 0 else None
+    overnight = None if before is None else {
+        "from": scans[first - 1]["at"], "to": scans[first]["at"], "minutes": before["minutes"], "kind": before["kind"],
+        "tasks": [(labels or {}).get(task["entry"], task["entry"]) for task in before["tasks"]]}
     gold = next((item for item in items if item["name"] == GOLD), None)
     collected = [item for item in items if item["group"] in VALUED and (item["deltas"].get("collect") or 0) > 0]
     kpis = {"gold_delta": gold["total"] if gold else None,
@@ -563,6 +628,14 @@ def build_report(ledger, *, game_day: str, as_of: str, prices=None, cookbook=Non
                          for key, label in GROUPS if key != "money" and any(item["group"] == key for item in items)],
               "total": {"opening": statement["opening"]["total"], "closing": statement["closing"]["total"],
                         "valued": valuation is not None}}
+    # 期末余额（结转）：定稿才有。当天读到过的取它的期末；当天没读到的沿用上一张表的那一行（时刻不变，看得出是沿用）。
+    balance = None
+    if final:
+        rows = {item["name"]: _balance_row(item["closing"], scans_by_id[item["closing_at"]]["at"], item["price"])
+                for item in items}
+        for name, row in carried_in.items():
+            rows.setdefault(name, dict(row))
+        balance = {"as_of": scans[last]["at"], "items": dict(sorted(rows.items()))}
     cards = [card for interval in day_intervals for card in interval["cards"] or ()]
     collects = [interval for interval in day_intervals if interval["kind"] == "collect"]
     model = {
@@ -576,6 +649,7 @@ def build_report(ledger, *, game_day: str, as_of: str, prices=None, cookbook=Non
         "unchanged": [{"name": item["name"], "group": item["group"], "quantity": item["closing"],
                        "value": item["value"]["closing"] if item["value"] else None} for item in unchanged],
         "unread": unread, "shop": shop, "valuation": valuation, "assets": assets, "statement": statement,
+        "balance": balance, "overnight": overnight,
         "collect": {"runs": len(collects), "cards": cards if any(interval["cards"] is not None for interval in collects)
                     else None, "abnormal": sum("abnormal_end" in interval["flags"] for interval in collects),
                     "by_card": by_card},

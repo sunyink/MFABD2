@@ -15,9 +15,14 @@ KST = timezone(timedelta(hours=9))
 FLAG_LABEL = {"abnormal_end": "未正常结束", "unsettled": "未当场结清", "cross_day": "跨日", "partial_scan": "有一次盘点中断"}
 STATUS_LABEL = {"interim": "期中（未结账）", "final": "期末（已结账）"}
 GROUP_TITLE = {"operating": "经营活动", "valuation": "估值调整", "outside": "未入账"}
-# 期初调整的那一笔跨过的结账盘点为什么没有它的读数（inventory_ledger 物品区间的 reason）。
-ADJUST_REASONS = {"unknown": "没读准它", "unread": "没读到顶栏", "out_of_scope": "不扫这一科目", "missed": "没盘完",
-                  "suspect_zero": "把它判成了 0、前后读数又相同，按漏读处理"}
+# 期初调整的差额是哪一种（inventory_report._gap_reason）：隔夜那一段的变化最平常；其余几种是本日开头的盘点没读到它，
+# 还并进了本日开头的一截；suspect_zero 是上一张表上的 0（或本日开头的 0）其实是漏读。
+ADJUST_REASONS = {"overnight": "上日最后一次读到它之后、本日第一盘之前的变化",
+                  "unknown": "本日第一盘没读准它，连同之后到第一次读到它为止的变化",
+                  "unread": "本日第一盘没读到顶栏，连同之后到第一次读到它为止的变化",
+                  "out_of_scope": "本日开头的盘点不扫这一科目，连同之后到第一次读到它为止的变化",
+                  "missed": "本日第一盘没盘完，连同之后到第一次读到它为止的变化",
+                  "suspect_zero": "有一次盘点把它判成了 0、前后读数又相同：按漏读更正"}
 BASIS_LABEL = {"counted": "盘点差", "booked": "已记账", "derived": "推算"}
 
 CSS = r"""
@@ -176,9 +181,11 @@ JS = r"""
 RULES = (
     ("（一）编制基础", "本表只用四类事实编制：背包盘点读数、顶栏货币读数、流程走到各个位置时留的标记、商店逐笔记下的补买、出售与料理制作。"
                     "报表在生成时现场计算，重新生成不改动任何记录。"),
-    ("（二）会计期间与结账", "游戏日从 09:00 KST 起算。相邻两次盘点之间是一段，归到它<b>开始</b>那次盘点所在的游戏日："
-                       "一日的期初是当天第一次盘点，期末是下一个游戏日第一次盘点的读数，隔夜那一段记在上一日。"
-                       "下一个游戏日的盘点到来之前只能记账，按期中列报，期末暂取当天最后一次盘点；到来之后结账定稿，按期末列报。"),
+    ("（二）会计期间与结账", "游戏日从 09:00 KST 起算。一日的账只算到当天最后一次盘点："
+                       "期初是当天第一次盘点，期末是当天最后一次盘点，各列只收这两次盘点之间的各段。"
+                       "下一个游戏日的盘点到来之前只能记账，按期中列报；到来之后结账定稿，按期末列报——"
+                       "结账用的就是最后一次记账的数，定稿之后不再改。上日最后一次盘点到本日第一次盘点之间的变化"
+                       "（没当场结清的任务、夜里的手动操作）不归任何一天的各列，记成本日的<b>期初调整</b>。"),
     ("（三）单位与写法", "数量以「个」计，金额以金币计；满一万以「万」计，保留一位小数。负数以括号表示并着红色。"
                     "「–」为零，「·」为这一段两头的盘点没读到它，「不扫」为这一列的盘点不盘这一科目。"),
     ("（四）科目", "分货币票券、存货、养成材料三类。金币按面值；钻石、天赋神药、票券与养成材料不估值，只报数量。"
@@ -190,9 +197,10 @@ RULES = (
                     "任务没有当场结清（收尾的盘点隔了很久才来）时，变化仍记在它那一列，列头注明，其中混有期间外。"),
     ("（七）扫描范围与跨区间合并", "每类任务只盘它会动的科目。某次盘点不盘、或没读准某样东西时，它前后的几段合成一笔，"
                            "列在「跨区间」一栏并注明原因；当天最后一次读到它的盘点即为它的期末。"
-                           "结账的那次盘点没读到某样东西时，上一日已定稿、不再改：这一天的期初取当天第一次读到的数，"
-                           "与上次读数的差单列在「<b>期初调整</b>」表里（平时没有这张表），上日期末 + 期初调整 = 本日期初，"
-                           "不计入本日各列与损益。"),
+                           "本日的期初是每样东西当天第一次读到的数；它与上日期末不同的，差额单列在「<b>期初调整</b>」表里"
+                           "（没有不同就没有这张表），上日期末 + 期初调整 = 本日期初，不计入本日各列与损益。"
+                           "结账定稿的表是固定的，页末折叠着一份「期末余额」：每样东西一行，当天没读到的沿用上一张表的数，"
+                           "下一日的上日期末就取自它。"),
     ("（八）推算与余额项", "料理制作份数取制作时记下的读数；材料消耗按配方展开。常规采购不逐笔记，是余额项，"
                      "等于盘点净额减去已记账与推算部分；不可购买的材料余额项应为零。推算结果只在报表里，不写回存档。"),
     ("（九）自检", "每张表都核对恒等式，结果列在页末。任何一条不成立时进通知并标红，表照样画出，便于排查。"),
@@ -416,14 +424,19 @@ def _stock_table(model, show):
 
 
 def _adjust_table(model, show):
-    """期初调整表：只在有物品的本日期初与上日期末对不上时出现，只列对不上的那几样（U67-1、U69）。"""
+    """期初调整表：只在有物品的本日期初与上日期末不同时出现，只列不同的那几样（U67-1、U69、U76）。"""
     rows = model.get("adjustments") or []
     if not rows:
         return ""
-    closer = model["scans"][0]
-    out = ["<section><h2>期初调整 <small>本日期初与上日期末对不上的物品</small></h2>",
-           cap(("为什么", f'上一日结账的那次盘点（{esc(show(closer["at"]))}）没读到它们，本日期初取当天第一次读到的数；'
-                          "这段差额分不出发生在哪一天，不计入本日各列与损益"),
+    gap = model.get("overnight")
+    between = ""
+    if gap:
+        ran = "、".join(dict.fromkeys(gap["tasks"])) if gap["tasks"] else ""
+        between = (f'上日最后一次盘点（{esc(show(gap["from"]))}）到本日第一次盘点（{esc(show(gap["to"]))}）之间'
+                   + (f'跑过：{esc(ran)}，没有当场盘' if ran else "没有记到任务，多半是手动操作") + "；")
+    out = ["<section><h2>期初调整 <small>本日期初与上日期末不同的物品</small></h2>",
+           cap(("为什么", "上日期末是上一张定稿的表上的数，本日期初是当天第一次读到的数；" + between
+                          + "这段差额不归任何一天的各列，不计入本日各列与损益"),
                ("恒等式", "上日期末 + 期初调整 = 本日期初")),
            '<div class="tw"><table><thead><tr><th class="sticky">物品</th><th class="num">上日期末<span class="sub">上次读到的数</span></th>'
            '<th class="num">期初调整</th><th class="num">本日期初<span class="sub">当天第一次读到的数</span></th></tr></thead><tbody>']
@@ -433,10 +446,10 @@ def _adjust_table(model, show):
                   if row.get("value") is not None else fmt(row["delta"], sign=True))
         if None not in (before, unit) and before != unit:   # 金额差里含单价变化，数量减了金额也可能增
             change += f'<span class="amt">含单价 {before:,} → {unit:,}</span>'
-        why = ADJUST_REASONS.get(row["reason"], "没读到它")
+        why = ADJUST_REASONS.get(row["reason"], ADJUST_REASONS["overnight"])
         out.append(f'<tr><td class="sticky">{esc(row["name"])}</td>'
                    f'<td class="num">{cell(row["before"], before)}<span class="amt">{esc(show(row["before_time"]))}</span></td>'
-                   f'<td class="num">{change}<span class="amt">结账那一盘{esc(why)}</span></td>'
+                   f'<td class="num">{change}<span class="amt">{esc(why)}</span></td>'
                    f'<td class="num"><b>{cell(row["opening"], unit)}</b><span class="amt">{esc(show(row["opening_time"]))}</span></td></tr>')
     out.append("</tbody></table></div></section>")
     return "".join(out)
@@ -658,6 +671,35 @@ def _details(model, show):
     return "".join(out)
 
 
+def _balance_block(model, show):
+    """期末余额（结转）：结账定稿的表才有，折叠着。当天读到过的就是上面各表的期末，这里只把当天一次也没读到、沿用更早读数的列出来。"""
+    balance = model.get("balance") or {}
+    rows = balance.get("items") or {}
+    if not rows:
+        return ""
+    opened = model["scans"][0]["at"]
+    kept = sorted(((name, row) for name, row in rows.items() if str(row.get("at")) < opened),
+                  key=lambda pair: (str(pair[1].get("at")), pair[0]))
+    held = [(name, row) for name, row in kept if row.get("quantity")]
+    out = [f'<details><summary>期末余额 <small>{len(rows)} 项，结转到下一日'
+           + (f'；{len(kept)} 项当天没读到、沿用更早的读数' if kept else "") + '</small></summary><div class="body">'
+           '<div class="small mut">这张表定稿时每样东西的数：各自当天最后一次读到的。下一日的「上日期末」取自这里，'
+           '与下一日第一次读到的数不同的，差额记在下一日的期初调整，这张表不再改。当天读到过的就是上面各表的期末，不重复列'
+           + (f'；当天一次也没读到的有 {len(kept)} 项，沿用上一张表的数'
+              + (f'，下面列出手里有的 {len(held)} 项' if held else "")
+              + (f'（另有 {len(kept) - len(held)} 项是 0，不列）' if len(held) < len(kept) else "") + "。" if kept else "。")
+           + "</div>"]
+    if held:
+        out.append('<div class="tw"><table><thead><tr><th class="sticky">物品</th><th class="num">期末余额</th>'
+                   '<th>读到的时刻</th></tr></thead><tbody>')
+        for name, row in held:
+            out.append(f'<tr><td class="sticky">{esc(name)}</td><td class="num">{cell(row.get("quantity"), row.get("unit"))}</td>'
+                       f'<td>{esc(show(row.get("at")))}（沿用）</td></tr>')
+        out.append("</tbody></table></div>")
+    out.append("</div></details>")
+    return "".join(out)
+
+
 def _page(title, body, *, script=True) -> str:
     body = re.sub(r'(<tr class="[a-z]+">)<td class="sticky" colspan="(\d+)">(.*?)</td></tr>',
                   lambda match: f'{match.group(1)}<td class="sticky">{match.group(3)}</td>'
@@ -682,10 +724,11 @@ def render_day_html(model) -> str:
     parts += [_kpis(model), _timeline(model, show), _adjust_table(model, show), _stock_table(model, show), _shop_table(model),
               _assets_table(model, show), _statement_table(model), _collect_section(model)]
     parts.append(_details(model, show))
+    parts.append(_balance_block(model, show))
     parts.append('<section><h2>自检</h2><div class="checks">' + "".join(
         f'<div class="{"" if check["ok"] else "bad"}">{esc(check["name"])} <span class="mut">· {esc(check["detail"])}</span></div>'
         for check in model["checks"]) + "</div></section>")
-    parts.append(f'<footer><span>做账规则第 {model["rule_version"]} 版 · 归日按每段开始那次盘点所在的游戏日 · '
+    parts.append(f'<footer><span>做账规则第 {model["rule_version"]} 版 · 一日的账只算到当天最后一次盘点，隔夜的变化记成次日的期初调整 · '
                  '数据来源：账号存档与库存历史 · 本页由凭证现场生成，重算不改数据</span>'
                  f'<span>摘要：{esc(model["summary"])}</span><span><a href="index.html">多日总览</a></span></footer>')
     return _page(f'库存日报 {model["game_day"]}', "\n".join(part for part in parts if part))

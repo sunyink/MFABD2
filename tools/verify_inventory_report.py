@@ -277,52 +277,73 @@ class LedgerTests(unittest.TestCase):
 
 class ReportTests(unittest.TestCase):
     def test_interim_then_final(self):
+        """U76：一日的账只算到当天最后一盘。次日第一盘到来时结账，结账用的就是最后一次记账的数；
+        隔夜那一段不进上一日的表，差额记成次日的期初调整。"""
         story = preset_run(Story())
         interim = story.report()
         self.assertEqual((interim["status"], [col["key"] for col in interim["cols"]]),
                          ("interim", ["daily", "collect", "shop"]))
         self.assertEqual(item(interim, "精炼石")["closing_at"], "S2")   # 当天最后一次读到它的盘点
+        self.assertIsNone(interim["balance"])
+        story.work(0, 兽肉=-30, gold=-5000)                             # 结束游戏之后手动玩过
         final = next_morning(story).report()
-        self.assertEqual((final["status"], [col["key"] for col in final["cols"]]),
-                         ("final", ["daily", "collect", "shop", "outside"]))
-        self.assertIn("cross_day", final["segments"][-1]["flags"])
+        self.assertEqual(final["status"], "final")
+        for key in ("cols", "segments", "items", "unchanged", "unread", "statement", "assets", "checks"):
+            self.assertEqual(final[key], interim[key], key)             # 定稿不改数：就是最后一次记账的那张表
+        self.assertEqual((item(final, "兽肉")["closing"], final["balance"]["items"]["兽肉"]["quantity"]), (1380, 1380))
         self.assertTrue(all(check["ok"] for check in final["checks"]), final["checks"])
         self.assertIsNone(story.report("2026-11-13"))
-        self.assertEqual(story.report("2026-11-15")["status"], "interim")
+        today = story.report("2026-11-15")
+        self.assertEqual(today["status"], "interim")
+        self.assertEqual([(row["name"], row["before"], row["delta"], row["opening"], row["reason"]) for row in today["adjustments"]],
+                         [("金币", 1_192_600, -5000, 1_187_600, "overnight"), ("兽肉", 1380, -30, 1350, "overnight")])
+        self.assertEqual(today["overnight"]["tasks"], [])               # 那一段里没有记到任务：手动操作
+        self.assertEqual({notice["level"] for notice in today["notices"] if "期初调整" in notice["text"]}, {"info"})
 
     def test_columns_hold_changes_not_readings(self):
         model = next_morning(preset_run(Story())).report()
         meat = item(model, "兽肉")
         self.assertEqual((meat["opening"], meat["deltas"], meat["closing"]),
-                         (1000, {"daily": 0, "collect": 400, "shop": -20, "outside": 0}, 1380))
+                         (1000, {"daily": 0, "collect": 400, "shop": -20}, 1380))
         stone = item(model, "精炼石")
-        # 吸取、商店与隔夜那段的两头盘点不都扫养成材料：这几格是「不扫」，合起来没变所以也没有跨区间的数
+        # 吸取、商店那两段的两头盘点不都扫养成材料：这几格是「不扫」，合起来没变所以也没有跨区间的数
         self.assertEqual((stone["deltas"], stone["gaps"], stone["spans"]),
-                         ({"daily": 3}, ["collect", "shop", "outside"], []))
+                         ({"daily": 3}, ["collect", "shop"], []))
         gold = item(model, "金币")
-        self.assertEqual(gold["deltas"], {"daily": 5000, "collect": 0, "shop": 190_000 - 1700 - 700, "outside": 0})
+        self.assertEqual(gold["deltas"], {"daily": 5000, "collect": 0, "shop": 190_000 - 1700 - 700})
         self.assertEqual(model["statement"]["totals"]["cash"], gold["total"])
 
     def test_ticket_changed_while_unscanned_goes_to_a_span(self):
         story = preset_run(Story())
         story.stock["抽抽乐券"] += 0   # 日常里 +1 发生在第二盘之前，已在日常列
-        model = next_morning(story.work(0, 抽抽乐券=2)).report()   # 结束游戏之后手动得了 2 张
-        ticket = item(model, "抽抽乐券")
+        story.work(0, 抽抽乐券=2)      # 结束游戏之后手动得了 2 张
+        story.restart(1800).task("Daily_HomePage").at("begin", "daily", FULL)   # 同一天再跑一轮，第一盘全盘才读到
+        ticket = item(story.report(), "抽抽乐券")
         self.assertEqual(ticket["deltas"], {"daily": 1})
         self.assertEqual([(span["cols"], span["delta"], span["reason"]) for span in ticket["spans"]],
                          [(["collect", "shop", "outside"], 2, "out_of_scope")])
         self.assertEqual(ticket["closing"], 5)
 
-    def test_rerun_of_one_daily_lands_in_the_daily_column(self):
-        """先缺一个日常跑完全套，再回去单跑那个日常：它的变化仍在日常列，隔夜那段归当天。"""
+    def test_daily_rerun_after_the_last_scan_goes_to_the_next_opening(self):
+        """U76：全套跑完又回去单跑一个日常，当天没有再盘：它的变化不在当天的表里，记成次日的期初调整，并写明那一段跑过什么。
+        想让它进当天的日常列，当天得再盘一次（结束游戏、手动结账）。"""
         story = preset_run(Story())
         story.restart(1800).task("Pass_HomePage").at("begin", "daily", FULL).work(精炼石=7)
         model = next_morning(story).report()
         self.assertEqual([(col["key"], col["runs"]) for col in model["cols"]],
-                         [("daily", 2), ("collect", 1), ("shop", 1), ("outside", 1)])
-        self.assertEqual(item(model, "精炼石")["deltas"]["daily"], 10)
-        self.assertIn("unsettled", model["cols"][0]["flags"])
+                         [("daily", 1), ("collect", 1), ("shop", 1), ("outside", 1)])
+        self.assertEqual((item(model, "精炼石")["deltas"]["daily"], item(model, "精炼石")["closing"]), (3, 33))
+        self.assertTrue(any("最后一次盘点之后还跑过日常" in notice["text"] for notice in model["notices"]))
         self.assertTrue(all(check["ok"] for check in model["checks"]), model["checks"])
+        today = story.report("2026-11-15", labels={"Pass_HomePage": "通行证"})
+        (stone,) = today["adjustments"]
+        self.assertEqual((stone["name"], stone["before"], stone["delta"], stone["reason"]), ("精炼石", 33, 7, "overnight"))
+        self.assertEqual(today["overnight"]["tasks"], ["通行证"])
+        self.assertIn("跑过：通行证，没有当场盘", render_day_html(today))
+        settled = Story()                                                 # 换成当天收尾时盘了一次：进日常列
+        preset_run(settled).restart(1800).task("Pass_HomePage").at("begin", "daily", FULL).work(精炼石=7)
+        settled.task("Close_HomePage").at("queue_end", scopes=("B", "C"))
+        self.assertEqual(item(settled.report(), "精炼石")["deltas"]["daily"], 10)
 
     def test_unknown_item_merges_its_two_intervals_only(self):
         story = Story()
@@ -500,10 +521,57 @@ class ReportTests(unittest.TestCase):
         page = render_day_html(model)
         table = page[page.index("<h2>期初调整"):page.index("<h2>一、进销存表")]
         self.assertIn("<td class=\"sticky\">兽肉</td>", table)
-        self.assertIn("结账那一盘没读准它", table)
-        self.assertIn("结账那一盘没读到顶栏", table)
+        self.assertIn("本日第一盘没读准它", table)
+        self.assertIn("本日第一盘没读到顶栏", table)
         self.assertNotIn("调整 ", page[page.index("<h2>一、进销存表"):page.index("<h2>三、资产表")])   # 进销存表不再标注
         self.assertNotIn("<h2>期初调整", render_day_html(before))                                  # 平时没有这张表
+
+    def test_settled_table_carries_a_closing_balance_to_the_next_day(self):
+        """U75 结转：定稿的表带期末余额，每样东西一行——各自当天最后一次读到的数，当天没读到的沿用上一张表的那一行；
+        下一日的上日期末取自它。"""
+        story = preset_run(Story())
+        story.unknown = ("抽抽乐券",)
+        next_morning(story)                                              # S5：11-15 第一盘，没读准抽抽乐券
+        story.task("Arbitrage_Start").at("begin", "shop").work(30, 兽肉=5)
+        story.at("end", "shop", ("A",))                                  # S6：11-15 只再盘了一次存货
+        story.work(0, 抽抽乐券=2)
+        story.unknown = ("素材",)
+        next_morning(story)                                              # S7：11-16 第一盘，没读准素材；抽抽乐券这才读到
+        ledger = story.ledger()
+        at = [scan["at"] for scan in ledger["scans"]]
+
+        def report(day, prior=None):
+            return build_report(ledger, game_day=day, as_of=iso(story.now), cookbook=COOKBOOK, prior=prior)
+
+        first = report("2026-11-14")
+        self.assertEqual(first["balance"]["as_of"], at[3])                                        # 当天最后一盘
+        self.assertLessEqual(set(CATALOG) | {"金币"}, set(first["balance"]["items"]))
+        self.assertEqual(first["balance"]["items"]["兽肉"], {"quantity": 1380, "at": at[3]})
+        self.assertEqual(first["balance"]["items"]["抽抽乐券"], {"quantity": 3, "at": at[1]})     # 最后两盘不扫它：当天更早的读数
+        second = report("2026-11-15", first["balance"]["items"])
+        self.assertEqual(second["unread"], ["抽抽乐券"])
+        self.assertEqual(second["adjustments"], [])
+        self.assertEqual(second["balance"]["items"]["抽抽乐券"], {"quantity": 3, "at": at[1]})    # 当天没读到：沿用上一张表
+        self.assertEqual(second["balance"]["items"]["素材"], {"quantity": 5, "at": at[4]})
+        self.assertEqual(second["balance"]["items"]["兽肉"], {"quantity": 1385, "at": at[5]})
+        third = report("2026-11-16", second["balance"]["items"])
+        self.assertIsNone(third["balance"])                                                      # 期中的表没有期末余额
+        (ticket,) = third["adjustments"]
+        self.assertEqual({key: ticket[key] for key in ("name", "before", "before_at", "before_time", "delta", "opening",
+                                                       "reason")},
+                         {"name": "抽抽乐券", "before": 3, "before_at": "S2", "before_time": at[1], "delta": 2, "opening": 5,
+                          "reason": "overnight"})
+        # 手上没有定稿的表（离线拿整本账单算某一天）时从账里推上日期末，与逐日结转的结果相同
+        self.assertEqual(report("2026-11-15")["balance"], second["balance"])
+        self.assertEqual(report("2026-11-16")["adjustments"], third["adjustments"])
+        page = render_day_html(second)
+        block = page[page.index("<summary>期末余额"):]
+        block = block[:block.index("</details>")]
+        self.assertIn("1 项当天没读到、沿用更早的读数", block)
+        self.assertIn('<td class="sticky">抽抽乐券</td>', block)
+        self.assertIn("（沿用）", block)
+        self.assertNotIn('<td class="sticky">兽肉</td>', block)                                    # 当天读到过的不重复列
+        self.assertNotIn("<summary>期末余额", render_day_html(third))
 
     def test_first_day_and_tail_are_announced(self):
         story = Story()
@@ -758,6 +826,79 @@ class OutputTests(unittest.TestCase):
         self.assertEqual(running["2026-11-14"], (30, 33, None))
         self.assertEqual(running["2026-11-15"][:2], (21, 21))
         self.assertEqual({key: running["2026-11-15"][2][key] for key in ("before", "delta")}, {"before": 33, "delta": -12})
+
+    def test_adjustment_stays_once_its_day_is_settled(self):
+        """U75：某样东西在最后一个定稿日整天没读到、上次的读数又滚出了热档，期初调整在补上读数那天定稿之后也还在。
+
+        上日期末取自上一张定稿的表，不靠更早的凭证；那张是没有余额块的旧表时，这一回把冷档读全从账里推。
+        """
+        story = preset_run(Story())
+        story.unknown = ("精炼石",)
+        next_morning(story)                    # 11-15 唯一一次全盘没读准精炼石
+        story.work(0, 精炼石=-12)
+        next_morning(story)                    # 11-16 第一盘读到 21
+        next_morning(story)                    # 11-17 第一盘：11-16 结账
+        by_day = {}
+        for number, event in enumerate(story.events):
+            event["event_id"] = f"e{number}"
+            by_day.setdefault(event["observed_at"][:10], []).append(event)
+        self.assertEqual(sorted(by_day), ["2026-11-14", "2026-11-15", "2026-11-16", "2026-11-17"])
+
+        def stone(folder):
+            model = json.loads((folder / "2026-11-16.json").read_text(encoding="utf-8"))
+            return model["status"], next(({key: row[key] for key in ("before", "delta", "opening")}
+                                          for row in model["adjustments"] if row["name"] == "精炼石"), None)
+
+        for old_table in (False, True):
+            with self.subTest(old_table=old_table), tempfile.TemporaryDirectory() as folder:
+                store = Path(folder)
+                cold, reports = output.history_dir(store, "42"), output.report_dir(store, "42")
+                cold.mkdir(parents=True)
+                for day, events in sorted(by_day.items()):   # 每天一回：当天的凭证进冷档，热档只有当天这几条
+                    (cold / f"{day}.events.jsonl").write_text(
+                        "\n".join(json.dumps(event, ensure_ascii=False) for event in events) + "\n", encoding="utf-8")
+                    if day == "2026-11-16":                  # 定稿的表格式版本不同也不重算
+                        path = reports / "2026-11-14.json"
+                        path.write_text(path.read_text(encoding="utf-8").replace('"ledger-report/2"', '"ledger-report/0"'),
+                                        encoding="utf-8")
+                    if old_table and day == "2026-11-17":    # 最后一张定稿的表是没有期末余额的旧表
+                        path = reports / "2026-11-15.json"
+                        model = json.loads(path.read_text(encoding="utf-8"))
+                        del model["balance"]
+                        path.write_text(json.dumps(model, ensure_ascii=False), encoding="utf-8")
+                    output.generate_reports(store, "42", agent_dir=ROOT / "agent", hot=events)
+                self.assertEqual(stone(reports), ("final", {"before": 33, "delta": -12, "opening": 21}))
+                self.assertIn('"ledger-report/0"', (reports / "2026-11-14.json").read_text(encoding="utf-8"))
+                output.generate_reports(store, "42", agent_dir=ROOT / "agent", hot=[], force=True)
+                self.assertEqual(stone(reports), ("final", {"before": 33, "delta": -12, "opening": 21}))
+
+    def test_zero_frozen_at_settlement_is_put_right_by_an_adjustment(self):
+        """U76：当天最后一盘把一样东西漏读成 0，这一天就以 0 记账、以 0 定稿——次日读回原数也不回头改它，
+        差额记成次日的期初调整（漏读更正）。"""
+        story = preset_run(Story())
+        story.lost = ("兽肉",)
+        story.restart(600).task("Daily_HomePage").at("begin", "daily", FULL)   # S5：当天最后一盘，漏读兽肉
+        cut = len(story.events)
+        next_morning(story)                                                    # S6：次日第一盘读回 1380
+        for number, event in enumerate(story.events):
+            event["event_id"] = f"e{number}"
+        with tempfile.TemporaryDirectory() as folder:
+            store = Path(folder)
+            reports = output.report_dir(store, "42")
+            output.generate_reports(store, "42", agent_dir=ROOT / "agent", hot=story.events[:cut])
+            interim = json.loads((reports / "2026-11-14.json").read_text(encoding="utf-8"))
+            output.generate_reports(store, "42", agent_dir=ROOT / "agent", hot=story.events)
+            before = json.loads((reports / "2026-11-14.json").read_text(encoding="utf-8"))
+            model = json.loads((reports / "2026-11-15.json").read_text(encoding="utf-8"))
+        self.assertEqual((interim["status"], item(interim, "兽肉")["closing"]), ("interim", 0))
+        self.assertEqual((before["status"], item(before, "兽肉")["closing"], before["balance"]["items"]["兽肉"]["quantity"]),
+                         ("final", 0, 0))
+        self.assertEqual((before["items"], before["statement"]), (interim["items"], interim["statement"]))   # 定稿不改数
+        (meat,) = [row for row in model["adjustments"] if row["name"] == "兽肉"]
+        self.assertEqual({key: meat[key] for key in ("before", "before_at", "delta", "opening", "reason")},
+                         {"before": 0, "before_at": "S5", "delta": 1380, "opening": 1380, "reason": "suspect_zero"})
+        self.assertTrue(any("兽肉" in notice["text"] and "漏读" in notice["text"] for notice in model["notices"]))
+        self.assertIn("warn", {notice["level"] for notice in model["notices"] if "期初调整" in notice["text"]})
 
     def test_entry_page_in_install_folder(self):
         story = next_morning(preset_run(Story()))

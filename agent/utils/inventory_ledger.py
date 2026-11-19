@@ -15,8 +15,10 @@ from datetime import datetime, timezone
 
 from .ledger_rules import GAP_SECONDS, _connected, game_day
 
-RULE_VERSION = 6   # 3：吸取分卡产出；4：存货没盘全时退出重扫，重扫的读数并进原来那次盘点；5：回读库存确认的出售按报价记金币，取不到记未知
+RULE_VERSION = 7   # 3：吸取分卡产出；4：存货没盘全时退出重扫，重扫的读数并进原来那次盘点；5：回读库存确认的出售按报价记金币，取不到记未知
                    # 6：跨过开始那天结账盘点的一笔变化，记成补上读数那天的期初调整（inventory_report，U67-1）
+                   # 7：一日的账只算到当天最后一盘，定稿等于最后一次记账；定稿的表带期末余额，下一日第一盘与它的差额
+                   #    全部记成期初调整，隔夜那一段不再归上一日（inventory_report，U75、U76）
 # 顶栏货币在账里的名字 → 货币读数里的字段。
 CURRENCY = (("金币", "gold"), ("钻石", "diamond"), ("钻石（免费）", "diamond_free"),
             ("钻石（付费）", "diamond_paid"), ("天赋神药", "tonic"))
@@ -434,6 +436,17 @@ def _chains(scans, catalog, intervals) -> dict:
                         "kind": entry.get("kind"), "scope": scope, "suspect": suspect,
                         "readings": [[index, quantity] for index, quantity in readings], "pieces": pieces}
     return result
+
+
+def items_until(ledger, last: int) -> dict:
+    """只看到第 last 次盘点（下标）为止的物品读数链：一日的表只算到当天最后一盘，之后的读数不拿来改它（U76）。
+
+    后来的读数会让「夹在两次相同读数之间的 0」被当成漏读丢掉；截到当天最后一盘，那个 0 在这一天的表上照旧算数，
+    读回原数的差额由次日的期初调整接住。
+    """
+    catalog = {name: {"category": entry["category"], "kind": entry.get("kind"), "scope": entry.get("scope")}
+               for name, entry in ledger["items"].items()}
+    return _chains(ledger["scans"][:last + 1], catalog, ledger["intervals"][:last])
 
 
 def build_ledger(vouchers, *, catalog=None, quiet=(), gap: float = GAP_SECONDS) -> dict:
