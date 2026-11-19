@@ -10,7 +10,8 @@ jobs:
   pr-notification:
     # 跳过机器人发起的 PR（dependabot 版本 bump 等）。这类 PR 由 dependabot.yml 的
     # 季度体检批量开出，本身不需要实时推群——否则一次体检就是一串通知。
-    if: github.event.pull_request.user.type != 'Bot'
+    # QQ 推送暂停（2026-11-19）：NapCat 中继已停用，换上新中继之前不发，免得每次都标红。恢复时去掉 `false &&`。
+    if: false && github.event.pull_request.user.type != 'Bot'
     runs-on: ubuntu-latest
     steps:
       - name: Prepare PR Message
