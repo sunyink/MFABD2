@@ -142,11 +142,13 @@ class StaticWiringTests(unittest.TestCase):
                 self.assertNotIn("custom_action", self.d[exit_node])
 
     def test_only_once_stops_after_success_and_disable(self):
-        """单卡模式仍先写完成记录、禁用当前卡，随后才写每周一次记录并停止。"""
+        """单卡模式仍先写完成记录、落盘这张卡的掉落、禁用当前卡，随后才写每周一次记录并停止。"""
         navigation = json.loads((ROOT / "assets/resource/base/pipeline/Collect_Navigation.json").read_text(encoding="utf-8"))
         patches = self.d["Collect_OnlyOnce_Switch"]["custom_action_param"]["patches"]
         self.assertNotIn("Collect_PackEnd_Ck", patches)
-        self.assertEqual(navigation["Collect_PackEnd_Ck"]["next"], ["Collect_PackEnd_Disable"])
+        # 掉落要在禁用当前卡（清锚 CurrentCollectPack）之前落盘，否则读不到卡名。
+        self.assertEqual(navigation["Collect_PackEnd_Ck"]["next"], ["Collect_PackEnd_FeedCard"])
+        self.assertEqual(navigation["Collect_PackEnd_FeedCard"]["next"], ["Collect_PackEnd_Disable"])
         self.assertEqual(patches["Collect_PackEnd_Disable"]["next"], ["Collect_PackEnd_Ck_OnlyOnce"])
         self.assertEqual(navigation["Collect_PackEnd_Ck_OnlyOnce"]["next"], ["Collect_PackEnd_Ck_OnlyOnce_StopTask"])
         self.assertEqual(navigation["Collect_PackEnd_Ck_OnlyOnce_StopTask"]["action"], "StopTask")

@@ -43,6 +43,19 @@ def record(entry: str, task_id: int, event: str, now: float | None = None) -> No
                 return
 
 
+def note(task_id: int, **facts) -> None:
+    """给这个任务的那一行补记别的模块留下的事实，随 rows() 一起读得到；任务不在表里就不记。
+
+    现在只有记账位置在用：stock_current——这个任务最近走过的那个记账位置上，库存读数接不接得上
+    （不用盘、或盘了为 True，该盘没盘成为 False）。出售与补查据此决定认不认更早的读数（utils/arbitrage_sale_skip.py）。
+    """
+    with _LOCK:
+        for row in reversed(_ROWS):
+            if row["task_id"] == task_id:
+                row.update(facts)
+                return
+
+
 def rows() -> list:
     """按开始时刻排的任务行副本。"""
     with _LOCK:

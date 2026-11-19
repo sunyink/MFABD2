@@ -72,8 +72,10 @@ class SaleBatch:
         remaining = self.pending["selected"] - sold
         self.actual_quantity += sold
         self.inventory_after = inventory
+        # 带上这一批开窗时核对过的选量与整行报价：做账时库存正好少了选量那么多，就按报价记出售金币（用户 11-16）。
         self.proofs.append({"basis": "inventory_delta", "before": self.pending["inventory"],
-                            "after": inventory, "quantity": sold})
+                            "after": inventory, "quantity": sold, "selected": self.pending["selected"],
+                            "quoted_total": self.pending["quoted_total"]})
         self.pending = None
         self.ready = None
         self.status = "reconciled" if remaining else "confirmed"

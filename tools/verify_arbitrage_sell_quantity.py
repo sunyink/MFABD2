@@ -452,5 +452,29 @@ class StackDispatchTests(unittest.TestCase):
         self.invalidated.assert_called_once()
 
 
+class SaleBatchProofTests(unittest.TestCase):
+    """金币没核上、回读库存确认的那一段，凭证要带上这一批的选量与报价，做账才能按报价记金币（U64，11-16 试跑7）。"""
+
+    def test_stock_recheck_keeps_the_quote_of_that_batch(self):
+        from utils.arbitrage_sale_state import SaleBatch
+        batch = SaleBatch({"request_id": "r", "item_name": "甜辣鲜虾"}, "10", "2026-11-16")
+        batch.arm({"inventory": 1960, "selected": 1960, "quoted_total": 1_540_560})
+        self.assertTrue(batch.retry())
+        self.assertEqual(batch.reconcile(0), 0)
+        result = batch.result()
+        self.assertEqual((result["status"], result["actual_quantity"], result["inventory_after"]), ("confirmed", 1960, 0))
+        self.assertEqual(result["proofs"], [{"basis": "inventory_delta", "before": 1960, "after": 0, "quantity": 1960,
+                                             "selected": 1960, "quoted_total": 1_540_560}])
+
+    def test_partial_recheck_keeps_the_quote_for_the_whole_selection(self):
+        from utils.arbitrage_sale_state import SaleBatch
+        batch = SaleBatch({"request_id": "r", "item_name": "包饭"}, "10", "2026-11-16")
+        batch.arm({"inventory": 40, "selected": 10, "quoted_total": 70_000})
+        batch.retry()
+        self.assertEqual(batch.reconcile(35), 5)                  # 只成交 5 个：报价是 10 个的，做账记金币未知
+        proof = batch.result()["proofs"][0]
+        self.assertEqual((proof["quantity"], proof["selected"], proof["quoted_total"]), (5, 10, 70_000))
+
+
 if __name__ == "__main__":
     unittest.main()

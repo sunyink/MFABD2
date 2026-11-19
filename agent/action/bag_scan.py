@@ -20,13 +20,15 @@ from maa.custom_action import CustomAction
 from utils import bag_pictures, mfaalog
 from utils.account_sync import sync_from_context
 from utils.bag_cells import Grid, icon_pack, item_table, read_page
+from utils.bag_corner import CornerLayout, corner_box, parse_corner
 from utils.bag_detail import (DetailLayout, FadeWatch, anchor_of, at_anchor, crop, plain_quantity, same_text,
                               split_quantity, stitch, text_box)
 from utils.bag_scan_engine import BagScanEngine, Reading, Section
-from utils.inventory_store import save_scan_record, set_inventory_quantities, utc_now
+from utils.inventory_store import get_inventory_items, save_scan_record, set_inventory_quantities, utc_now
 from utils.name_i18n import canon
 from utils.ocr_item_name import clean, item_aliases
 from utils.ocr_read import read_texts
+from utils.persistent_store import PersistentStore
 
 
 __all__ = ["BagScan", "BagScanRun", "get_scan", "profile_names", "run_bag_scan"]
@@ -46,6 +48,40 @@ CONFIG, GRID = "Agt_BagScan_Config", "Agt_BagScan_Grid"
 OTHER = "other"     # 物品表里目录外物品（活动道具、亲密饮品）的档案名
 
 _SCANS = OrderedDict()
+# 本进程里每个账号当天最近一次读到的数：{账号: {"day": 游戏日, "values": {物品: 数}}}。
+# 角标读数只和它比（用户 11-16：启动后第一次盘点全部点开；之后只和同一天前一次比）。进程重启就清空。
+_DAY_READS = {}
+
+
+def _game_day(timestamp=None):
+    """游戏日：09:00 KST 换日，正好是 UTC 日期（ledger 记账规则）。"""
+    return str(timestamp or utc_now())[:10]
+
+
+def _baseline(account, day):
+    """今天前一次读到、而且之后没被别的记录改过的数（实时库存还是这次仓检写的那个数）。"""
+    entry = _DAY_READS.get(account)
+    if not entry or entry["day"] != day:
+        return {}
+    items = get_inventory_items()
+    result = {}
+    for name, value in entry["values"].items():
+        fact = items.get(name)
+        if (isinstance(fact, dict) and fact.get("quantity_status") == "known" and fact.get("quantity") == value
+                and fact.get("quantity_source") == "bag_detail"):
+            result[name] = value
+    return result
+
+
+def _keep_reads(account, day, record):
+    """一次仓检之后更新当天的读数：读到的换成新数；这次判 0 或没读准的去掉（前一次不算数了）。"""
+    entry = _DAY_READS.get(account)
+    if not entry or entry["day"] != day:
+        entry = _DAY_READS[account] = {"day": day, "values": {}}
+    values = entry["values"]
+    values.update({name: value for name, value in (record.get("quantities") or {}).items() if value})
+    for name in [*(record.get("absent") or []), *(record.get("unknown") or {})]:
+        values.pop(name, None)
 
 
 def _bag_items():
@@ -144,10 +180,11 @@ class MaaBagDevice:
     哪一步不成（版式没见过、颜色没找到字、拼读拆不开、一直等不到走完）就退回原来的检测+识别节点，扫描核心照旧两帧复核。
     """
 
-    def __init__(self, context: Context, ready_node: str, detail: dict):
+    def __init__(self, context: Context, ready_node: str, detail: dict, corner: CornerLayout | None = None):
         self.context = context
         self.ready_node = ready_node
         self.layout = DetailLayout.from_attach(detail)
+        self.corner = corner or CornerLayout()
         self.open_timeout = detail.get("open_timeout", 2000) / 1000
         self.settle_timeout = detail.get("timeout", 5000) / 1000
         self.interval = detail.get("interval", 30) / 1000
@@ -279,6 +316,13 @@ class MaaBagDevice:
         texts, _, _ = read_texts(self.context, QUANTITY_OCR, self.capture(), retry=True)
         return texts
 
+    def read_corner(self, image, box):
+        """格子右下角的数量：按白字裁出那一块，只识别一次（不找字框）；裁不准、读不规整返回 None。"""
+        region = corner_box(image, box, self.corner)
+        if region is None:
+            return None
+        return parse_corner([text for text, _ in self._rec(crop(image, region))])
+
     def close_detail(self):
         return _ran(self.context.run_task(CLOSE), CLOSED) is not None
 
@@ -353,7 +397,7 @@ _UNKNOWN_TEXT = {
     "template_missing": "不在物品表里", "detail_unreadable": "详情未核实", "continuity_broken": "翻页接不上",
     "cell_unverified": "有格子没核实", "persist_failed": "存档写入失败", "page_limit": "翻页上限",
     "timeout": "超时", "stopped": "任务停止", "state_lost": "列表状态丢失", "error": "扫描出错",
-    "not_scanned": "没进背包核对",
+    "not_scanned": "没进背包核对", "corner_unconfirmed": "角标读过但没走完那一段",
 }
 
 
@@ -417,11 +461,12 @@ class BagScanRun(CustomAction):
                   "note": params.get("note"), "started_at": utc_now(), "job_id": None,
                   "scope": [], "target_count": 0, "complete": False,
                   "termination": "error", "continuity": "broken", "pages": 0,
-                  "quantities": {}, "absent": [], "unknown": {}, "cells": {}, "timing_ms": {}}
+                  "quantities": {}, "absent": [], "unknown": {}, "cells": {}, "timing_ms": {}, "corner": []}
         if isinstance(params.get("origin"), dict):
             record["origin"] = params["origin"]   # 库存记账的位置触发的盘点：哪个节点、哪个任务、什么类型
         if not sync_from_context(context, where="BagScanRun"):
             return False
+        account, day = PersistentStore._current_account_id, _game_day(record["started_at"])
         try:
             record["job_id"] = context.get_task_job().job_id
             record["label"] = _label(record["label"])
@@ -442,8 +487,12 @@ class BagScanRun(CustomAction):
                 if not set_inventory_quantities(quantities, "bag_detail", {**reference, "page": page}):
                     raise RuntimeError("库存写入失败")
 
+            device = MaaBagDevice(context, config["ready_node"], context.get_node_object(DETAIL).attach,
+                                  CornerLayout.from_attach(layout.get("corner")))
+            # 角标只用在整类盘点上：只找几样的（如套利料理后补查）找齐就停，用不着等段尾核实角标。
+            baseline = _baseline(account, day) if params.get("targets") in (None, "", "all") else {}
             engine = BagScanEngine(
-                MaaBagDevice(context, config["ready_node"], context.get_node_object(DETAIL).attach), lambda image: read_page(image, grid, pack), targets,
+                device, lambda image: read_page(image, grid, pack), targets,
                 known_names=frozenset(item["cn"] for item in _bag_items() if item["profile"] != OTHER),
                 grid_roi=grid.area, row_height=grid.pitch[1], columns=grid.columns, footer_rows=grid.footer,
                 sections=sections, loose_kinds=loose_kinds,
@@ -453,12 +502,14 @@ class BagScanRun(CustomAction):
                 max_pages=config["max_pages"], timeout_seconds=config["timeout_seconds"],
                 confirm_frames=config["confirm_frames"], box_tolerance=config["box_tolerance"],
                 continuity_threshold=config["continuity_threshold"], on_page=persist, log=_log,
-                known_pictures=known_pictures)
+                known_pictures=known_pictures,
+                corner=(lambda image, cell: device.read_corner(image, cell.box)) if baseline else None,
+                baseline=baseline)
             result = engine.run()
             _keep_pictures(pictures_dir, layout["icons"], known_pictures, engine)
             record.update({key: result[key] for key in (
                 "complete", "termination", "continuity", "pages", "quantities", "absent", "unknown", "cells",
-                "timing_ms")})
+                "timing_ms", "corner")})
             if result["error"]:
                 record["error"] = result["error"]
             if record["absent"]:
@@ -477,6 +528,7 @@ class BagScanRun(CustomAction):
             except Exception as exc:
                 mfaalog.error(f"[BagScan] 扫描记录存档异常: {exc}")
             _remember(record)
+            _keep_reads(account, day, record)
         timing, cells = record["timing_ms"] or {}, record["cells"] or {}
         mfaalog.info(f"[BagScan] {record['label']}（{'+'.join(record['scope'])}）：读到 {len(record['quantities'])}，"
                      f"判 0 {len(record['absent'])}，未知 {len(record['unknown'])}，结束={record['termination']}，"
@@ -484,6 +536,9 @@ class BagScanRun(CustomAction):
                      f"（读图 {round(timing.get('read', 0) / 1000, 1)} 秒，点开 {cells.get('opened', 0)} 格，"
                      f"凭图标跳过 {cells.get('by_icon', 0)}，同图跳过 {cells.get('same_picture', 0)}，"
                      + (f"凭记住的图跳过 {cells['known_picture']}，" if cells.get("known_picture") else "")
+                     + (f"角标 {cells['corner']}（与前一次不符改点开 {cells.get('corner_missed', 0)}、"
+                        f"又见到别的格改点开 {cells.get('corner_reopened', 0)}），"
+                        if cells.get("corner") or cells.get("corner_missed") else "")
                      + f"没核实 {cells.get('unverified', 0)}"
                      + (f"，对齐没把握 {cells['unaligned_pages']} 页" if cells.get("unaligned_pages") else "")
                      + (f"，重新分格 {cells['resplit']} 次" if cells.get("resplit") else "") + "）")
@@ -491,6 +546,16 @@ class BagScanRun(CustomAction):
             mfaalog.info(f"[BagScan] 未知（不判 0）—— {unknown_text(record['unknown'])}")
         # 允许按 BagReturn 原路返回；业务是否完整只看记录里的 complete。
         return True
+
+
+def scope_names(context: Context, scope) -> set:
+    """某几个扫描类型要找的物品名；配置读不到时空集。"""
+    try:
+        config = context.get_node_object(CONFIG).attach
+        names, _ = _plan(config, _scope_keys(scope, config["scopes"]))
+        return set(names)
+    except Exception:
+        return set()
 
 
 def run_bag_scan(context: Context, *, label: str | None, targets: str | list[str] = "all",

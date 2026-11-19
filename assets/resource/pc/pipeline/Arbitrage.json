@@ -743,36 +743,6 @@
             44
         ]
     },
-    "Arbitrage_PriceList_Owned_Enable": {
-        "all_of": [
-            {
-                "sub_name": "Clr",
-                "recognition": "ColorMatch",
-                "roi": [
-                    971,
-                    535,
-                    17,
-                    16
-                ],
-                "lower": [
-                    [
-                        0,
-                        0,
-                        0
-                    ]
-                ],
-                "upper": [
-                    [
-                        255,
-                        255,
-                        255
-                    ]
-                ]
-            },
-            "Rec_SliderSwitch_GryOff_Clr",
-            "Arbitrage_PriceList_Open_Egress"
-        ]
-    },
     "Arbitrage_PriceList_Owned_Disable": {
         "all_of": [
             {

@@ -11,8 +11,10 @@
         ]
     },
     "Close_PCStopApp": {
-        "desc": "[PC] Win32无StopApp动作,改用PC_StopApp自定义动作关闭游戏窗口(WM_CLOSE优先,2.5s未关则按PID强杀);游戏已关时no-op成功.",
+        "desc": "[PC] Win32无StopApp动作,改用PC_StopApp自定义动作关闭游戏窗口(WM_CLOSE优先,2.5s未关则按PID强杀);游戏已关时no-op成功.不看画面、后面没有节点,延迟写0.",
+        "pre_delay": 0,
         "action": "Custom",
-        "custom_action": "PC_StopApp"
+        "custom_action": "PC_StopApp",
+        "post_delay": 0
     }
 }

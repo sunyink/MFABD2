@@ -2,6 +2,7 @@
 
 from collections import OrderedDict
 from dataclasses import replace
+import json
 from uuid import uuid4
 
 from maa.agent.agent_server import AgentServer
@@ -18,17 +19,35 @@ from utils.arbitrage_purchase_lists import node_enabled
 from utils.arbitrage_recipe_catalog import discover_recipe_entries
 from utils.arbitrage_replenish_data import load_replenish_data
 from utils.arbitrage_replenish_profit import DEFAULT_PROFIT_SURRENDER_PERCENT, validate_profit_surrender_percent
+from utils.arbitrage_sale_skip import trust_since
 from utils.persistent_store import PersistentStore
 
 
 STAGES = ("Arbitrage_PreSell_Entry", "Arbitrage_BuyItem", "Arbitrage_Cooking",
           "Arbitrage_SellItem", "Arbitrage_SellMaterials")
+_MARKET_SCAN_NODE = "Arbitrage_GlobalMarket_Scan"   # 全量价目表扫描（ArbitrageSellController mode=preview_all）
 _COOKING_RUNS = OrderedDict()
 _NORMAL_COMPLETED = OrderedDict()
 
 
 def cooking_stage_active(task_id):
     return task_id in _COOKING_RUNS and _COOKING_RUNS[task_id] == PersistentStore._current_account_id
+
+
+def _reuse_since(task_id):
+    """③ 补查认哪之后读到的数：本次运行最近一次记账盘点的开始，没开记账就本任务开始（同 ①④⑤ 的出售跳过）。
+
+    做菜前已作废这道配方用到的材料，② 买后已作废名单商品（U66），这之后还标着已知的数就是准的；
+    没做菜时不必把配方材料全部重读（试跑10）。拿不到（任务起止没接上）时退回这轮做菜的开始。
+    """
+    try:
+        since = trust_since()
+    except Exception as exc:
+        mfaalog.warning(f"[③仓检] 本轮盘点时刻读不到({exc})，只认做菜开始之后的读数")
+        since = None
+    if since is not None:
+        return since
+    return store.moment_of(get_cooking_scan_start(task_id))
 
 
 def replenishment_entries(context, task_id):
@@ -154,10 +173,11 @@ class ArbitrageBagScan(CustomAction):
             required = {name for entry in entries if entry.name in data["recipes"]
                         for name in data["recipes"][entry.name]["ingredients"]}
             catalog = bag_catalog(context)
-            pending = pending_materials(dict.fromkeys(sorted(required)), store.get_inventory_items(),
-                                        get_cooking_scan_start(task_id))
+            since = _reuse_since(task_id)
+            pending = pending_materials(dict.fromkeys(sorted(required)), store.get_inventory_items(), since)
             scan = sorted(set(pending) & catalog.keys())
-            mfaalog.info(f"[③仓检] 配方需要{len(required)}项，需进背包核对{len(scan)}项")
+            basis = f"（沿用 {since.astimezone():%H:%M:%S} 之后的读数）" if since is not None else "（没有可沿用的读数）"
+            mfaalog.info(f"[③仓检] 配方需要{len(required)}项，需进背包核对{len(scan)}项{basis}")
         except Exception as exc:
             mfaalog.error(f"[③仓检] 准备失败：{exc}")
             return False
@@ -203,9 +223,16 @@ class ArbitrageMarketEnsure(CustomAction):
             if not local.set_anchor("Replenish_ShopEntry", "Arbitrage_Merchant_NoDiscount_Entry"):
                 raise RuntimeError("行情进店入口设置失败")
             ensure_shop(local)
-            result = local.run_task("Arbitrage_GlobalMarket_Entry")
+            # 店里的价目表是进店那一刻的：过了 00:00 KST 不退出商店再进就不换（游戏 bug，柜台已是新价，用户 11-17）。
+            # 各阶段都从箱庭进店、做完退回箱庭，所以只剩「进店之后才跨 0 点」：行情归进店那天，不按开扫时刻。
+            # 进店那一刻落在 ensure_shop 里面（点完还要等页面）：前后两头日子不同，就说不准店里是哪天的表，不扫。
             if store.market_day() != day:
-                raise RuntimeError("扫描期间价目表换日（韩国时间 0 点），本轮不用这份行情，请重新运行")
+                raise RuntimeError("进店途中价目表换日（韩国时间 0 点），店里是哪天的表说不准；新的一天由下一段开头重扫")
+            raw = local.get_node_object(_MARKET_SCAN_NODE).action.param.custom_action_param
+            param = dict(raw if isinstance(raw, dict) else json.loads(str(raw or "{}")), market_day=day)
+            result = local.run_task("Arbitrage_GlobalMarket_Entry", {_MARKET_SCAN_NODE: {"custom_action_param": param}})
+            if store.market_day() != day:
+                raise RuntimeError("扫描期间价目表换日（韩国时间 0 点），这份行情记在进店那天；新的一天由下一段开头重扫")
             if (result is None or not result.status.succeeded
                     or not any(node.name == "Arbitrage_PriceList_Egress" for node in result.nodes)
                     or store.get_market_snapshot(day) is None):

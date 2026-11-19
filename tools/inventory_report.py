@@ -11,12 +11,28 @@
 """
 
 import argparse
+import json
 from pathlib import Path
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "agent"))
 from utils import inventory_report_output as output  # noqa: E402
+from utils import ledger_rules  # noqa: E402
+
+LEDGER_NODES = ROOT / "assets" / "resource" / "base" / "pipeline" / "Ledger.json"
+
+
+def ledger_settings() -> dict:
+    """做账划段用的免记名单与连续阈值：和运行时一样取自节点 Agt_Ledger_Config.attach，这里直接读资源文件。
+
+    读不到用内置值。运行时若被别的资源包或选项覆盖过这个节点，离线这里看不到——现在没有谁覆盖它。
+    """
+    try:
+        attach = json.loads(LEDGER_NODES.read_text(encoding="utf-8"))["Agt_Ledger_Config"]["attach"]
+    except (OSError, ValueError, KeyError, TypeError):
+        attach = None
+    return ledger_rules.settings(attach)
 
 
 def accounts(store: Path) -> list:
@@ -52,7 +68,9 @@ def main(argv=None) -> int:
             print("--from 与 --to 要一起给")
             return 2
         days = output.game_days_between(options.first, options.last)
-    result = output.generate_reports(options.store, options.account, agent_dir=ROOT / "agent", days=days, force=True)
+    settings = ledger_settings()
+    result = output.generate_reports(options.store, options.account, agent_dir=ROOT / "agent", days=days, force=True,
+                                     quiet=settings["quiet"], gap=settings["gap"])
     if not result["days"]:
         print("没有可出的报表：这个账号在所选范围里没有记账盘点。")
         return 1
