@@ -92,6 +92,19 @@ class Runner(CustomAction):
 
 
 class CookingExitTests(unittest.TestCase):
+    def test_every_cooking_entry_resolves_to_one_recipe_in_base_and_pc(self):
+        # PC 包给部分五星菜加了「料理_<菜名>_10.png」变体图；变体不能被当成第二个菜名，
+        # 否则入口解析失败，补买与补做会静默跳过这道菜（09-29 起 PC 上的香草牛排等四道）。
+        for pc in (False, True):
+            with self.subTest(pc=pc):
+                resource = Resource()
+                self.assertTrue(resource.post_bundle(ROOT / "assets/resource/base").wait().succeeded)
+                if pc:
+                    self.assertTrue(resource.post_bundle(ROOT / "assets/resource/pc").wait().succeeded)
+                entries = discover_recipe_entries(resource)
+                self.assertEqual([(row.entry, row.reason) for row in entries if row.reason or not row.name], [])
+                self.assertEqual(len({row.name for row in entries}), len(entries))
+
     def test_base_and_pc_keep_routes_and_alternate_exit_owners(self):
         # MaaFramework keeps its log handle open until process exit on Windows.
         with tempfile.TemporaryDirectory(prefix="mfabd2-cooking-exit-", ignore_cleanup_errors=True) as directory:

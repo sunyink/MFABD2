@@ -18,6 +18,15 @@ COOKING_HUBS = ("Arbitrage_Cooking_MenuEnter", "Arbitrage_Cooking_Page1")
 _ITEM_NAMES = Path(__file__).resolve().parents[1] / "data" / "bd2_item_names_i18n.json"
 
 
+def _template_recipe_name(stem):
+    """「料理_<菜名>」或同一道菜的变体图「料理_<菜名>_<数字>」都取<菜名>（PC 包的 _10 变体）。"""
+    name = stem.removeprefix("料理_")
+    base, sep, suffix = name.rpartition("_")
+    if sep and base and suffix.isascii() and suffix.isdigit():
+        name = base
+    return canon(name)
+
+
 @lru_cache(maxsize=1)
 def recipe_item_names() -> frozenset:
     """物品表里全部料理（成品）的简体名；全项目只有这一处读。读不到时抛错，由调用方决定怎么保守处理。
@@ -112,7 +121,7 @@ class _Reader:
             for value in paths:
                 path = PurePosixPath(value.replace("\\", "/"))
                 if path.parent.as_posix() == "Shop/RecipeList" and path.stem.startswith("料理_"):
-                    name = canon(path.stem.removeprefix("料理_"))
+                    name = _template_recipe_name(path.stem)
                     if name:
                         names.add(name)
             return names

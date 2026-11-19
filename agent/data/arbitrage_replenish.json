@@ -1,6 +1,6 @@
 {
     "schema_version": 1,
-    "catalog_date": "2026-09-06",
+    "catalog_date": "2026-11-19",
     "shop_reference_date": "2026-09-04",
     "tonic_unit_price": 45,
     "recipes": {
@@ -222,7 +222,7 @@
                 "料酒": 2,
                 "甜辣酱": 2
             },
-            "peak_reference": 786
+            "peak_reference": 811
         },
         "三角美乃滋饭团": {
             "level": 3,
@@ -241,7 +241,7 @@
                 "米": 2,
                 "萝卜缨": 2
             },
-            "peak_reference": 656
+            "peak_reference": 714
         },
         "巧克力鸡尾酒": {
             "level": 2,
@@ -268,7 +268,7 @@
                 "蛋黄酱": 2,
                 "小麦": 2
             },
-            "peak_reference": 427
+            "peak_reference": 570
         },
         "草药三明治": {
             "level": 4,
@@ -278,7 +278,7 @@
                 "小麦": 2,
                 "甜辣酱": 2
             },
-            "peak_reference": 441
+            "peak_reference": 588
         },
         "水果冰沙": {
             "level": 1,
@@ -286,7 +286,7 @@
                 "水果罐头": 1,
                 "白糖": 1
             },
-            "peak_reference": 151
+            "peak_reference": 168
         },
         "哈密瓜雪酪": {
             "level": 2,
@@ -294,7 +294,7 @@
                 "哈密瓜": 3,
                 "白糖": 2
             },
-            "peak_reference": 171
+            "peak_reference": 186
         },
         "巧克力面包": {
             "level": 1,
@@ -302,7 +302,7 @@
                 "巧克力": 1,
                 "吐司": 1
             },
-            "peak_reference": 70
+            "peak_reference": 90
         },
         "土豆汤": {
             "level": 1,
@@ -310,7 +310,7 @@
                 "土豆": 1,
                 "牛奶": 1
             },
-            "peak_reference": 51
+            "peak_reference": 72
         },
         "桑格利亚酒": {
             "level": 2,
@@ -318,7 +318,7 @@
                 "葡萄": 3,
                 "白糖": 2
             },
-            "peak_reference": 164
+            "peak_reference": 186
         },
         "玉米奶酪": {
             "level": 3,
@@ -327,7 +327,7 @@
                 "奶酪": 1,
                 "料酒": 1
             },
-            "peak_reference": 302
+            "peak_reference": 415
         },
         "炒蘑菇": {
             "level": 1,
@@ -335,7 +335,7 @@
                 "蘑菇": 1,
                 "胡萝卜": 1
             },
-            "peak_reference": 50
+            "peak_reference": 78
         },
         "蘑菇汤": {
             "level": 1,
@@ -343,7 +343,7 @@
                 "蘑菇": 1,
                 "小麦": 1
             },
-            "peak_reference": 33
+            "peak_reference": 66
         },
         "藏红花甜茶": {
             "level": 4,
@@ -353,7 +353,7 @@
                 "哈密瓜": 2,
                 "藏红花": 2
             },
-            "peak_reference": 376
+            "peak_reference": 546
         },
         "蔬菜三明治": {
             "level": 3,
@@ -361,7 +361,7 @@
                 "番茄": 2,
                 "吐司": 2
             },
-            "peak_reference": 228
+            "peak_reference": 360
         },
         "炒土豆": {
             "level": 4,
@@ -371,7 +371,7 @@
                 "胡萝卜": 2,
                 "橄榄油": 2
             },
-            "peak_reference": 331
+            "peak_reference": 507
         },
         "甜椒意式烘蛋": {
             "level": 3,
@@ -380,7 +380,7 @@
                 "甜椒": 2,
                 "鸡蛋": 1
             },
-            "peak_reference": 201
+            "peak_reference": 333
         },
         "喵拿铁": {
             "level": 3,
@@ -388,7 +388,7 @@
                 "咖啡豆": 3,
                 "牛奶": 2
             },
-            "peak_reference": 218
+            "peak_reference": 351
         },
         "达雷普黑啤酒": {
             "level": 2,
@@ -396,7 +396,7 @@
                 "大麦": 2,
                 "啤酒花": 2
             },
-            "peak_reference": 98
+            "peak_reference": 144
         },
         "金枪鱼鸡胸肉三明治": {
             "level": 3,
@@ -405,7 +405,7 @@
                 "袋装鸡胸肉": 2,
                 "吐司": 2
             },
-            "peak_reference": 177
+            "peak_reference": 324
         },
         "豆奶酱意大利面": {
             "level": 3,
@@ -414,7 +414,7 @@
                 "小麦": 1,
                 "橄榄油": 1
             },
-            "peak_reference": 177
+            "peak_reference": 332
         },
         "烤菇串": {
             "level": 2,
@@ -422,7 +422,7 @@
                 "蘑菇": 2,
                 "兽肉": 2
             },
-            "peak_reference": 55
+            "peak_reference": 126
         },
         "酱炒牛排": {
             "level": 3,
@@ -431,7 +431,7 @@
                 "西蓝花": 2,
                 "盐": 2
             },
-            "peak_reference": 148
+            "peak_reference": 321
         },
         "流浪美食家烤肉": {
             "level": 4,
@@ -441,7 +441,7 @@
                 "土豆": 2,
                 "黄油": 2
             },
-            "peak_reference": 259
+            "peak_reference": 477
         },
         "黑啤酒炖锅": {
             "level": 3,
@@ -450,7 +450,7 @@
                 "啤酒花": 2,
                 "兽肉": 2
             },
-            "peak_reference": 110
+            "peak_reference": 294
         },
         "凯洛养身汤": {
             "level": 4,
@@ -460,7 +460,7 @@
                 "盐": 2,
                 "凯洛药材": 2
             },
-            "peak_reference": 307
+            "peak_reference": 534
         },
         "蘑菇烤肉火锅": {
             "level": 3,
@@ -469,7 +469,7 @@
                 "兽肉": 4,
                 "胡萝卜": 2
             },
-            "peak_reference": 124
+            "peak_reference": 312
         },
         "三分熟鲜血布丁": {
             "level": 4,
@@ -479,7 +479,7 @@
                 "小麦": 4,
                 "鸡蛋": 3
             },
-            "peak_reference": 216
+            "peak_reference": 457
         }
     },
     "materials": {
