@@ -347,25 +347,29 @@ def _stock_table(model, show):
            + ("；存货行上行数量、下行金额" if valued else "") + "</small></h2>",
            cap(("期间", f'{esc(model["game_day"])} 游戏日，{esc(show(first["at"]))} → {esc(show(last["at"]))} 盘点'),
                ("单位", "数量：个" + ("；金额：金币，满万以万计" if valued else ""))),
-           '<div class="tw"><table><thead><tr><th class="sticky">物品</th>']
+           ]
+    head = ['<div class="tw"><table><thead><tr><th class="sticky">物品</th>']
     if valued:
-        out.append('<th class="num">单价<span class="sub">月度最高价</span></th>')
-    out.append(f'<th class="num">期初<span class="sub">{esc(show(first["at"]))}</span></th>')
+        head.append('<th class="num">单价<span class="sub">月度最高价</span></th>')
+    head.append(f'<th class="num">期初<span class="sub">{esc(show(first["at"]))}</span></th>')
     for col in cols:
         notes = [f'{col["runs"]} 段'] + [FLAG_LABEL[flag] for flag in col["flags"] if flag in ("abnormal_end", "unsettled")]
         if col["key"] in ("daily", "collect", "shop"):
             notes.append("盘 " + ("+".join(col["scopes"]) or "–"))
-        out.append(f'<th class="num col-{col["key"]}">{esc(col["label"])}<span class="sub">{esc(" · ".join(notes))}</span></th>')
+        head.append(f'<th class="num col-{col["key"]}">{esc(col["label"])}<span class="sub">{esc(" · ".join(notes))}</span></th>')
     if with_spans:
-        out.append('<th class="num">跨区间<span class="sub">几段合成一笔</span></th>')
-    out.append(f'<th class="num">期末<span class="sub">{esc(show(last["at"]))}</span></th></tr></thead><tbody>')
+        head.append('<th class="num">跨区间<span class="sub">几段合成一笔</span></th>')
+    head.append(f'<th class="num">期末<span class="sub">{esc(show(last["at"]))}</span></th></tr></thead><tbody>')
+    head = "".join(head)
+    out.append(head)
     notes = []
-    for key, title in GROUPS:
-        rows = [item for item in model["items"] if item["group"] == key]
-        if not rows:
-            continue
-        out.append(f'<tr class="grp"><td class="sticky" colspan="{width}">{esc(title)}</td></tr>')
-        for item in sorted(rows, key=lambda row: (-abs(row["total"] * (_unit(row["price"]) or 1)), row["name"])):
+    # 期初期末相同、只是当天中途有进有出的，收进表下的折叠里（11-19 用户定：数量没变化的原来不显示就维持，原来显示就缩）。
+    flat = [item for item in model["items"] if item["total"] == 0]
+    moving = [item for item in model["items"] if item["total"] != 0]
+
+    def rows_of(items):
+        out = []
+        for item in sorted(items, key=lambda row: (-abs(row["total"] * (_unit(row["price"]) or 1)), row["name"])):
             unit, unit_open = _unit(item["price"]), _unit(item["price_open"])
             out.append(f'<tr><td class="sticky">{esc(item["name"])}</td>')
             if valued:
@@ -398,6 +402,13 @@ def _stock_table(model, show):
                     out.append('<td class="num"><span class="zero">–</span></td>')
             late = f'<span class="amt">截至 {esc(item["closing_at"])}</span>' if item["closing_at"] != last["id"] else ""
             out.append(f'<td class="num"><b>{cell(item["closing"], unit)}</b>{late}</td></tr>')
+        return out
+
+    for key, title in GROUPS:
+        if not any(item["group"] == key for item in model["items"]):
+            continue
+        out.append(f'<tr class="grp"><td class="sticky" colspan="{width}">{esc(title)}</td></tr>')
+        out.extend(rows_of(item for item in moving if item["group"] == key))
         if valued and key in VALUED:
             value = model["valuation"][key]
             flows = sum(value["flows"].values()) + value["spans"]
@@ -407,6 +418,15 @@ def _stock_table(model, show):
     if not model["items"]:
         out.append(f'<tr class="sub"><td class="sticky" colspan="{width}">当天还没有可比较的两次盘点，或没有任何变动</td></tr>')
     out.append("</tbody></table></div>")
+    if flat:
+        out.append(f'<details class="plain"><summary>期初期末相同的 {len(flat)} 项 <small>当天中途有进有出，数量回到原样</small></summary>'
+                   f'<div class="body">{head}')
+        for key, title in GROUPS:
+            part = [item for item in flat if item["group"] == key]
+            if part:
+                out.append(f'<tr class="grp"><td class="sticky" colspan="{width}">{esc(title)}</td></tr>')
+                out.extend(rows_of(part))
+        out.append("</tbody></table></div></div></details>")
     if notes:
         out.append('<ol class="fns">' + "".join(f"<li><b>{esc(name)}</b>{esc(text)}</li>" for name, text in notes) + "</ol>")
     held = [row for row in unchanged if row["quantity"]]

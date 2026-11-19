@@ -313,6 +313,25 @@ class ReportTests(unittest.TestCase):
         self.assertEqual(gold["deltas"], {"daily": 5000, "collect": 0, "shop": 190_000 - 1700 - 700})
         self.assertEqual(model["statement"]["totals"]["cash"], gold["total"])
 
+    def test_item_back_to_its_opening_is_folded_under_the_table(self):
+        """11-19 用户定：期初期末相同、只是当天中途有进有出的，从进销存表收进表下的折叠里，提项数。"""
+        story = Story()
+        story.task("Daily_HomePage").at("begin", "daily", FULL).work(精炼石=3, gold=5000)
+        story.task("Collect_StartGame_HomePage").at("begin", "collect", FULL).work(600, 兽肉=400)
+        story.at("end", "collect", ("A",))
+        story.task("Arbitrage_Start").at("begin", "shop").work(30, 兽肉=-400)
+        story.at("end", "shop", ("A",))
+        story.task("Close_HomePage").at("queue_end")
+        model = next_morning(story.end()).report()
+        meat = item(model, "兽肉")
+        self.assertEqual((meat["total"], meat["deltas"]["collect"], meat["deltas"]["shop"]), (0, 400, -400))
+        page = render_day_html(model)
+        start = page.index("<h2>一、进销存表")
+        main, folded = page[start:page.index("</section>", start)].split("期初期末相同的 1 项", 1)
+        self.assertNotIn('<td class="sticky">兽肉</td>', main)
+        self.assertIn('<td class="sticky">兽肉</td>', folded)
+        self.assertIn('<td class="sticky">精炼石</td>', main)
+
     def test_ticket_changed_while_unscanned_goes_to_a_span(self):
         story = preset_run(Story())
         story.stock["抽抽乐券"] += 0   # 日常里 +1 发生在第二盘之前，已在日常列
