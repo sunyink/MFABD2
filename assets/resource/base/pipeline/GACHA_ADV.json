@@ -304,8 +304,94 @@
         ],
         "next": [
             "[JumpBack]GachaADV_Daily_MarkComplete",
+            "GachaADV_Recheck",
+            "GachaADV_Recheck_Quick",
             "Global_ToSandBox"
         ]
+    },
+    "GachaADV_Recheck": {
+        "desc": "两类走完回到首页，抽抽乐图标还有红点：再进去，只走页签还有红点的那一类，整个任务最多补查 2 次。按固定格位顺序走时列表一滚就会漏池（11-19 PC 实机服装第 2 池），靠这里补。",
+        "max_hit": 2,
+        "recognition": "And",
+        "all_of": [
+            "GachaADV_GachaRed_Have"
+        ],
+        "pre_delay": 0,
+        "post_delay": 0,
+        "next": [
+            "GachaADV_Recheck_Page",
+            "[JumpBack]GachaADV_GachaRed_Have"
+        ],
+        "focus": "GA.[WRN]抽抽乐还有红点,按大类补查一遍"
+    },
+    "GachaADV_Recheck_Page": {
+        "desc": "补查进到抽卡页后按页签红点分派：服装有红点走服装，否则装备有红点走装备；走完各自回首页，再由 GachaADV_AREA2#_Post 判要不要下一次。",
+        "recognition": "And",
+        "all_of": [
+            "GachaADV_PageEnter_1#"
+        ],
+        "pre_delay": 0,
+        "post_delay": 0,
+        "next": [
+            "GachaADV_AREA1#",
+            "GachaADV_AREA2#",
+            "GachaADV_Recheck_NoArea"
+        ]
+    },
+    "GachaADV_Recheck_NoArea": {
+        "desc": "抽抽乐图标有红点，两个页签却都没有：不是免费抽的事，退出抽卡页收尾，不再补查。",
+        "pre_delay": 0,
+        "post_delay": 0,
+        "next": [
+            "[JumpBack]GachaADV_FinGacha",
+            "Global_ToSandBox"
+        ],
+        "focus": "GA.[WRN]抽抽乐有红点但两类页签都没有,不再补查"
+    },
+    "GachaADV_Recheck_Quick": {
+        "desc": "补查 2 次后抽抽乐仍有红点：用页面上的「全部免费抽取」兜底一次。一键本是默认做法，逐池读红点是为了「5星必出保留」；逐池走漏了就回到一键。",
+        "max_hit": 1,
+        "recognition": "And",
+        "all_of": [
+            "GachaADV_GachaRed_Have"
+        ],
+        "pre_delay": 0,
+        "post_delay": 0,
+        "next": [
+            "GachaADV_Recheck_QuickPage",
+            "[JumpBack]GachaADV_GachaRed_Have"
+        ],
+        "focus": "GA.[WRN]补查2次后抽抽乐仍有红点,改用一键速抽"
+    },
+    "GachaADV_Recheck_QuickPage": {
+        "desc": "兜底进到抽卡页：点一键速抽，走完回首页后红点没了就记当天完成，再回箱庭。",
+        "recognition": "And",
+        "all_of": [
+            "GachaADV_PageEnter_1#"
+        ],
+        "pre_delay": 0,
+        "post_delay": 0,
+        "next": [
+            "[JumpBack]GachaADV_Recheck_QuickAll",
+            "[JumpBack]GachaADV_FinGacha",
+            "[JumpBack]GachaADV_Daily_MarkComplete",
+            "Global_ToSandBox"
+        ]
+    },
+    "GachaADV_Recheck_QuickAll": {
+        "desc": "借 Gacha_Quick_All 的识别点「全部免费抽取」，之后接它的确认与结果页。不用它本身：用户关掉「一键速抽」时它是 enabled:false，进不了 next。",
+        "max_hit": 3,
+        "recognition": "And",
+        "all_of": [
+            "Gacha_Quick_All"
+        ],
+        "action": "Click",
+        "post_delay": 2000,
+        "next": [
+            "Gacha_Quick_All_SubMsg",
+            "GachaADV_Recheck_QuickAll"
+        ],
+        "focus": "GA.F.一键抽卡启动(兜底)"
     },
     "GachaADV_Daily_MarkComplete": {
         "desc": "抽卡正常收尾后,同图确认主界面、抽卡入口亮态且无红点才记录当天完成。仅由两阶段收尾调用;每轮最多打标一次,回跳后继续原收尾。",
