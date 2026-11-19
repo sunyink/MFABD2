@@ -203,8 +203,9 @@ def _retry(context, label: str, record: dict, origin: dict, *, closing: bool) ->
     again = run_bag_scan(context, label=f"{label}·重扫", targets=missing, scope=scopes,
                          origin={**origin, "retry_of": record["scan_id"]})
     if not again.get("executed"):
+        # 没走到扫描核心也可能已经离开原位（进包半路失败）：位置看这一趟，不沿用首趟的。
         mfaalog.warning(f"[Ledger] ⚠️ {label}：重扫没执行（{again.get('error')}），没盘准的跨过去")
-        return returned, set()
+        return bool(again.get("returned")), set()
     left = [name for name in missing if name in (again.get("unknown") or {})]
     if left:
         mfaalog.warning(f"[Ledger] ⚠️ {label}：重扫后仍有 {len(left)} 项没盘准，跨过去")

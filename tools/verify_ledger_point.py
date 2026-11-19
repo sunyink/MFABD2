@@ -323,6 +323,17 @@ class LedgerPointTests(unittest.TestCase):
         self.assertEqual(len(self.scans), 4)                                       # 重扫还不全也只扫一次
         self.assertEqual(len(self.events("currency_reading")), 3)                  # 重扫没回到原位：收尾位置换到箱庭照样读
 
+    def test_rescan_that_did_not_run_decides_where_we_are(self):
+        """重扫没走到扫描核心（进包半路失败）时页面可能已离开原位：位置看这一趟，不沿用首趟的「已回原位」（PR #605 机审第 4 条）。"""
+        self.queued = [{"executed": True, "returned": True, "unknown": {"兽肉": "state_lost"}},
+                       {"executed": False}]                                         # 假盘点：没执行的一律 returned=False
+        with patch.object(point, "scope_names", lambda context, scope: {"兽肉", "米"}):
+            self.task("Mail_HomePage", 101)
+            self.assertTrue(self.run_point("begin", "daily", 101, "Mail_HomePage"))
+        self.assertEqual(len(self.scans), 2)
+        self.assertEqual(self.events("currency_reading"), [])                      # 开头位置：不在原地读货币，页面交给所在流程恢复
+        self.assertEqual(point._STATES["7"].last_scan["scan_id"], "scan1")          # 首趟照算盘过
+
     def test_report_failure_is_only_logged(self):
         with patch.object(point, "_report", REAL_REPORT), \
                 patch.object(MemoryAccountStore, "CONFIG_DIR", "Z:/不存在", create=True), \
