@@ -6,6 +6,8 @@ from pathlib import Path
 
 DATA_FILE = Path(__file__).resolve().parents[1] / "data" / "arbitrage_replenish.json"
 PURCHASE_DISCOUNT_PERCENT = 60
+# 制作一份消耗的天赋神药瓶数按星级查表，不等于星级（2026-11-05 游戏内实测）。
+TONIC_BOTTLES_BY_LEVEL = {1: 1, 2: 2, 3: 5, 4: 7, 5: 10}
 
 
 def _positive(value, label):
