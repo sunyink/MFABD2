@@ -3,10 +3,10 @@
 修复前 Arbitrage_NviGuide_Butt 的 next 含自身且无界：游戏不响应点击时寻路列表打不开，
 按钮一直认得到，任务永不结束（2026-10-19 12:07–12:10 实测连点 172 次，重启游戏后恢复）。
 修复后 Butt 自身 max_hit 11，用完由 on_error 直接进 Global_Null_Panic 重启游戏；
-Arbitrage_Sandplay_SeeMerchant 每次寻路前清零 Butt 的计数，重启后重新寻路仍能进入 Butt。
+Arbitrage_Sandplay_QuickMove 每次寻路前清零 Butt 的计数，重启后重新寻路仍能进入 Butt。
 Panic 用满 3 次后 on_error 无节点接住，任务判失败。
 
-Panic 保留 StopApp 与 max_hit，把 next 换成 SeeMerchant：代替「StartGame 走完、退栈回调用方、
+Panic 保留 StopApp 与 max_hit，把 next 换成 QuickMove：代替「StartGame 走完、退栈回调用方、
 重新寻路到商人」这一段。真实的退栈回接没有在这里覆盖。
 
 夹具取自 2026-10-19 实机截图，只保留寻路按钮与列表区域，其余填平色：
@@ -51,7 +51,7 @@ BASE = ROOT / "assets/resource/base"
 PC = ROOT / "assets/resource/pc"
 FIXTURES = Path(__file__).resolve().parent / "fixtures/arbitrage_nvi_guide_loop"
 
-SEE = "Arbitrage_Sandplay_SeeMerchant"
+SEE = "Arbitrage_Sandplay_QuickMove"
 BUTT = "Arbitrage_NviGuide_Butt"
 MERCHANT = "Arbitrage_NviGuide_Merchant_Ocr"
 PANIC = "Global_Null_Panic"
@@ -178,12 +178,13 @@ class NviGuideLoopTests(unittest.TestCase):
         # PC 包只覆盖 roi/模板，流程字段继承 base
         for field in ("next", "on_error", "max_hit", "timeout"):
             self.assertNotIn(field, pc.get(BUTT, {}))
-        for field in ("action", "custom_action", "custom_action_param", "next"):
-            self.assertNotIn(field, pc.get(SEE, {}))
+        self.assertNotIn(SEE, pc)
+        # 入口借 Butt 的识别，PC 包改 Butt 的 roi/模板时入口跟着走
+        self.assertEqual(base[SEE]["any_of"], [BUTT])
 
     def run_nav(self, controller, extra=None):
         fixture = {
-            # 夹具里没有小地图，直接命中；保留清计数动作
+            # 入口只认寻路按钮，直接命中；保留清计数动作
             SEE: {"recognition": "DirectHit", "pre_delay": 0, "post_delay": 0},
             BUTT: {"pre_delay": 0, "rate_limit": 0},
             MERCHANT: {"action": "DoNothing", "next": []},

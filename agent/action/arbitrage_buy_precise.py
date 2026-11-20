@@ -246,7 +246,7 @@ def buy_overrides(context, request):
                     "attach": config, "next": [_EXIT] if request.get("dry_run")
                     else ["Arbitrage_Sell_Item_Selling"]},
     })
-    for node in ("Arbitrage_ItemList_Swip", "Arbitrage_Sell_Item_ListTraverse_End",
+    for node in ("Arbitrage_ItemList_Swip", "Agt_SellList_Swip_Shifted", "Arbitrage_Sell_Item_ListTraverse_End",
                  "Arbitrage_ItemList_Sorting_Entry", "Arbitrage_Sell_TypeB"):
         patch[node] = {"enabled": False}
     return patch

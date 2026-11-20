@@ -125,7 +125,7 @@
         "next": [
             "[JumpBack]PVP_PerPetTask",
             "Arbitrage_Merchant_Locate_Egress",
-            "Arbitrage_Sandplay_SeeMerchant",
+            "Arbitrage_Sandplay_QuickMove",
             "[JumpBack]Collect_FindTeleporCircle0.9",
             "[JumpBack]Collect_FindTeleporCircle",
             "[JumpBack]Collect_ForceTeleporCircle",
@@ -133,17 +133,11 @@
         ],
         "focus": "箱庭模块启动"
     },
-    "Arbitrage_Sandplay_SeeMerchant": {
-        "desc": "小地图认到商人，转入寻路。每次寻路前清零 NviGuide_Butt 的命中计数：重启后重新寻路、补买和出售再次寻路都要从这里重新进入 Butt",
-        "recognition": "TemplateMatch",
-        "roi": [
-            163,
-            142,
-            129,
-            115
-        ],
-        "template": [
-            "Map_Merchant.png"
+    "Arbitrage_Sandplay_QuickMove": {
+        "desc": "认到左上寻路按钮就快速移动去商店：寻路列表里一直有「商店」，人在哪都能直接飞到商人面前，不用先在小地图上看到商人（11-20 用户确认）。每次寻路前清零 NviGuide_Butt 的命中计数：重启后重新寻路、补买和出售再次寻路都要从这里重新进入 Butt | 寻路按钮认不到时才轮到后面借采集的传送阵、传送技能与区域地图那几档。",
+        "recognition": "Or",
+        "any_of": [
+            "Arbitrage_NviGuide_Butt"
         ],
         "action": "Custom",
         "custom_action": "ClearNodeHitCount",
@@ -153,7 +147,7 @@
         "next": [
             "Arbitrage_NviGuide_Butt"
         ],
-        "focus": "小地图发现商人"
+        "focus": "快速移动去商店"
     },
     "Arbitrage_NviGuide_Butt": {
         "desc": "点开寻路列表，连点 11 次仍打不开就重启游戏。按钮是开关，列表打开后本模板认不到，自引用不会把已打开的列表点关。on_error 不经 Exception 直接 Panic：游戏不响应点击时退栈会掉进 Global_ToHomePage_HomeButton 同样无限连点；Panic 用满 3 次后无节点接住，任务判失败",
@@ -3506,6 +3500,55 @@
         },
         "timeout": 1,
         "focus": "滑动出售物品列表"
+    },
+    "Agt_SellList_Swip_Shifted": {
+        "desc": "出售列表下滑的换点重试：起手点比 Arbitrage_ItemList_Swip 上移半行（44 像素），其余照抄。py 独占（ArbitrageSaleSearch 在第一次滑不动时调用），勿挂进管路。 | 分类标题（如「料理食材」）上方那条空隙按下去拖不动列表，再上、再下一点都能拖（11-20 用户实测）；空隙不到半行高，两个起手点不会同时落进去。",
+        "max_hit": 15,
+        "recognition": "Or",
+        "any_of": [
+            "Arbitrage_Merchant_Egress"
+        ],
+        "action": "Custom",
+        "custom_action": "SmartAction",
+        "custom_action_param": {
+            "proxy_node": "Agt_Proxy_Blank",
+            "proxy_override": {
+                "action": "Swipe",
+                "begin": [
+                    894,
+                    536
+                ],
+                "end": [
+                    894,
+                    0
+                ],
+                "duration": 800,
+                "end_hold": 800,
+                "post_wait_freezes": {
+                    "time": 500,
+                    "target": [
+                        407,
+                        157,
+                        50,
+                        142
+                    ]
+                }
+            },
+            "detect_roi": [
+                384,
+                128,
+                85,
+                276
+            ],
+            "settle_delay": 500,
+            "on_changed": "next",
+            "on_unchanged": "loop",
+            "loop_limit": 3,
+            "loop_exhausted": "error",
+            "threshold": 3.0
+        },
+        "timeout": 1,
+        "focus": "滑动出售物品列表（换起手点）"
     },
     "Arbitrage_Sell_Item_ListTraverse": {
         "desc": "出售物品双入口；先从全名OCR候选中选置信度最高者，未命中才试模板。Python向源OCR传名称、向子模板传路径，无对应模板时仅使用OCR。",

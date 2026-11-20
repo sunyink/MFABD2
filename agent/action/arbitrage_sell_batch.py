@@ -21,6 +21,8 @@ _EXIT = "Arbitrage_Sell_Item_BatchExit"
 _END = "Arbitrage_Sell_Item_BatchEnd"
 _FAILED = "Arbitrage_Sell_Item_BatchExitFailed"
 _SWIPE = "Arbitrage_ItemList_Swip"
+# 起手点上移半行的同款滑动：分类标题上方那条空隙按下去拖不动列表（11-20 实机），第一次不动时换这个点再滑。
+_SWIPE_SHIFTED = "Agt_SellList_Swip_Shifted"
 _LOCKED = "Arbitrage_Sell_PackShopSwich_Locked"
 
 
@@ -141,18 +143,23 @@ class ArbitrageSaleSearch(CustomAction):
                     mfaalog.info(f"[Arbitrage] [{batch.request['item_name']}] 从顶部查至类别末端，库存为0")
                     return False
                 if page + 1 < max_pages:
-                    moved = context.run_task(_SWIPE)
-                    if moved is None or not moved.status.succeeded or not any(
-                        node.name == _SWIPE and node.action is not None and node.action.success
-                        for node in moved.nodes
-                    ):
-                        raise RuntimeError("出售列表下滑未完成，不能判零")
+                    if not _swiped(context, _SWIPE):
+                        mfaalog.info("[Arbitrage] 出售列表没滑动，换起手点再滑一次")
+                        if not _swiped(context, _SWIPE_SHIFTED):
+                            raise RuntimeError("出售列表下滑未完成，不能判零")
             raise RuntimeError("出售列表查找达到页数上限，不能判零")
         except Exception as exc:
             if batch is not None:
                 batch.fail(exc)
             mfaalog.warning(f"[Arbitrage] 柜台查找失败：{exc}")
             return False
+
+
+def _swiped(context, node):
+    """跑一次滑动节点，返回列表是否真的滑动了。"""
+    moved = context.run_task(node)
+    return moved is not None and moved.status.succeeded and any(
+        step.name == node and step.action is not None and step.action.success for step in moved.nodes)
 
 
 def _overrides(base, request):
@@ -196,7 +203,8 @@ def execute_sale_item(context, item_name, base_override, *, reserve=0, target=No
         detail = None
         try:
             check_scope(local, batch)
-            for name in (_SWIPE, "Arbitrage_Sell_Item_Cancel", "Arbitrage_Sell_Item_Exit_ResetSwip"):
+            for name in (_SWIPE, _SWIPE_SHIFTED, "Arbitrage_Sell_Item_Cancel",
+                         "Arbitrage_Sell_Item_Exit_ResetSwip"):
                 if not local.clear_hit_count(name):
                     raise RuntimeError(f"无法重置出售节点计数：{name}")
             gold_verify.clear_verdict()

@@ -31,26 +31,6 @@
             "Global_Null"
         ]
     },
-    "Arbitrage_Sandplay_SeeMerchant": {
-        "desc": "小地图认商人钱袋图标→走路寻路(优先于传送分支)。|[PC覆盖·2026-07-13实录] PC小地图更小更靠左:钱袋实测720(146,143),base roi[163,142,129,115]左缘把它排除在外(帧内噪声0.565);安卓模板对PC渲染也不可靠。从MFA帧重裁Map_Merchant_PC.png(18x18)追加template,roi扩罩整个小地图[80,70,130,110],阈0.75(自匹1.000,他图小地图噪声≤0.60)。此节点命中即走SeeMerchant→NviGuide寻路直达商人,绕开未适配的区域地图选点链(点错进副本的根源)。|[07-23三修] 10:19实录:小地图商人图标现渲染为商摊样(163,107,18,18),旧PC钱袋模板对它仅0.588<0.75→找商人层全断,Sandplay.next耗尽超时走默认Null假成功('找不到商人'报成任务完成,09:06/09:14/10:19三轮)。从10:19 on_error帧重裁Map_Merchant_PC2.png(22x22)追加;离线验:自match 1.000/09:06交叉0.932/09:14交叉0.934(三轮同位=固定图标)/主页负样0.667,故本张阈取0.8两侧均衡。",
-        "roi": [
-            80,
-            70,
-            130,
-            110
-        ],
-        "template": [
-            "Map_Merchant.png",
-            "Map_Merchant_PC.png",
-            "Map_Merchant_PC2.png"
-        ],
-        "threshold": [
-            0.75,
-            0.75,
-            0.8
-        ],
-        "focus": "Arb.PC.小地图发现商人→寻路"
-    },
     "Arbitrage_NviGuide_Butt": {
         "desc": "点小地图旁寻路按钮(↱≡)打开路线列表。|[PC覆盖·2026-07-13实录] PC按钮实测720(181-204,66-82),base roi[208,72,138,43]左缘整个排除它(帧内仅噪声0.25~0.30)→SeeMerchant命中钱袋后此处断链任务结束(23:48实录)。从MFA帧重裁PC版28x20(白描边字形亮度蒙版,背景无关),跨箱庭同位验0.817~1.000;roi左扩[165,50,190,60]。|[07-26复核] 曾议「活帧0.65需把threshold降0.55」,单点调试实测继承base阈即可稳定命中,故不加覆盖,原议作废。",
         "roi": [
@@ -1029,6 +1009,50 @@
                 "end": [
                     569,
                     105,
+                    1,
+                    1
+                ],
+                "end_hold": 800,
+                "post_wait_freezes": {
+                    "target": [
+                        344,
+                        142,
+                        26,
+                        97
+                    ],
+                    "time": 500
+                }
+            },
+            "settle_delay": 500,
+            "threshold": 3.0
+        }
+    },
+    "Agt_SellList_Swip_Shifted": {
+        "desc": "PC 版换点重试：起手点比本包 Arbitrage_ItemList_Swip 上移 44 像素，其余照抄。PC 上那条拖不动的空隙没实测过，坐标按 base 的做法推出来，未实机。",
+        "custom_action_param": {
+            "detect_roi": [
+                329,
+                123,
+                56,
+                202
+            ],
+            "loop_exhausted": "error",
+            "loop_limit": 3,
+            "on_changed": "next",
+            "on_unchanged": "loop",
+            "proxy_node": "Agt_Proxy_Blank",
+            "proxy_override": {
+                "action": "Swipe",
+                "begin": [
+                    569,
+                    562,
+                    1,
+                    1
+                ],
+                "duration": 800,
+                "end": [
+                    569,
+                    61,
                     1,
                     1
                 ],
