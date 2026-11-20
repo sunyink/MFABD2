@@ -125,7 +125,7 @@
         "next": [
             "[JumpBack]PVP_PerPetTask",
             "Arbitrage_Merchant_Locate_Egress",
-            "Arbitrage_Sandplay_SeeMerchant",
+            "Arbitrage_Sandplay_QuickMove",
             "[JumpBack]Collect_FindTeleporCircle0.9",
             "[JumpBack]Collect_FindTeleporCircle",
             "[JumpBack]Collect_ForceTeleporCircle",
@@ -133,17 +133,11 @@
         ],
         "focus": "箱庭模块启动"
     },
-    "Arbitrage_Sandplay_SeeMerchant": {
-        "desc": "小地图认到商人，转入寻路。每次寻路前清零 NviGuide_Butt 的命中计数：重启后重新寻路、补买和出售再次寻路都要从这里重新进入 Butt",
-        "recognition": "TemplateMatch",
-        "roi": [
-            163,
-            142,
-            129,
-            115
-        ],
-        "template": [
-            "Map_Merchant.png"
+    "Arbitrage_Sandplay_QuickMove": {
+        "desc": "认到左上寻路按钮就快速移动去商店：寻路列表里一直有「商店」，人在哪都能直接飞到商人面前，不用先在小地图上看到商人（11-20 用户确认）。每次寻路前清零 NviGuide_Butt 的命中计数：重启后重新寻路、补买和出售再次寻路都要从这里重新进入 Butt | 寻路按钮认不到时才轮到后面借采集的传送阵、传送技能与区域地图那几档。",
+        "recognition": "Or",
+        "any_of": [
+            "Arbitrage_NviGuide_Butt"
         ],
         "action": "Custom",
         "custom_action": "ClearNodeHitCount",
@@ -153,7 +147,7 @@
         "next": [
             "Arbitrage_NviGuide_Butt"
         ],
-        "focus": "小地图发现商人"
+        "focus": "快速移动去商店"
     },
     "Arbitrage_NviGuide_Butt": {
         "desc": "点开寻路列表，连点 11 次仍打不开就重启游戏。按钮是开关，列表打开后本模板认不到，自引用不会把已打开的列表点关。on_error 不经 Exception 直接 Panic：游戏不响应点击时退栈会掉进 Global_ToHomePage_HomeButton 同样无限连点；Panic 用满 3 次后无节点接住，任务判失败",
