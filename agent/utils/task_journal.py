@@ -12,10 +12,12 @@ from uuid import uuid4
 from maa.event_sink import NotificationType
 from maa.tasker import TaskerEventSink
 
+from .queue_hold import is_queue_hold
+
 # Agent 进程的一次生命周期。进程重启后内存里的记账状态也没了，两边一起算「不连续」。
 SESSION = uuid4().hex
-# 不算任务的：MFAA 在两个任务之间投递的占位任务；停止任务时框架自己投递的那一条。
-SKIP = frozenset({"MFAA_QueueHold", "MaaTaskerPostStop"})
+# 不算任务的：MFAA 在两个任务之间投递的占位任务（is_queue_hold）；停止任务时框架自己投递的那一条。
+SKIP = frozenset({"MaaTaskerPostStop"})
 
 _LOCK = threading.Lock()
 _ROWS: deque = deque(maxlen=400)
@@ -28,7 +30,7 @@ def record(entry: str, task_id: int, event: str, now: float | None = None) -> No
     新任务开始时上一行还没收到结束，就按此刻补上，免得一次漏报把后面的间隔全算错。
     """
     now = time.time() if now is None else now
-    if entry in SKIP:
+    if entry in SKIP or is_queue_hold(entry):
         return
     with _LOCK:
         if event == "start":
