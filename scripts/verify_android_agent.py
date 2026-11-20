@@ -135,6 +135,11 @@ def verify_stub_contract():
             getattr(actual_module, name)  # Missing real modules/types must fail.
             if name == "NotificationType":
                 assert dict(stub_type.__members__) == dict(actual_module.NotificationType.__members__)
+            if name == "RecognitionDetail":
+                actual_type = getattr(actual_module, name)
+                assert dataclasses.is_dataclass(stub_type) and dataclasses.is_dataclass(actual_type)
+                assert [field.name for field in dataclasses.fields(stub_type)] == [
+                    field.name for field in dataclasses.fields(actual_type)], "RecognitionDetail fields"
     from maa.agent.agent_server import AgentServer
     from android_test_support import AgentServer as StubServer
     for name in ("_set_api_properties", "custom_action", "register_custom_action",

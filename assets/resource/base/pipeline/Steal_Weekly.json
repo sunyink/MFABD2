@@ -1,0 +1,13 @@
+{
+    "StealWeekly_Entry": {
+        "recognition": "DirectHit",
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "StealWeekly",
+        "custom_action_param": {},
+        "post_delay": 0,
+        "next": [],
+        "on_error": [],
+        "focus": "SL.逐目标执行三角色偷窃周常"
+    }
+}

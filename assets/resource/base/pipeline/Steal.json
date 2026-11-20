@@ -1,0 +1,20 @@
+{
+    "Steal_Start": {
+        "action": "Custom",
+        "custom_action": "StealWeekly",
+        "custom_action_param": {},
+        "post_delay": 0,
+        "next": [],
+        "on_error": [],
+        "focus": "SL.偷窃周常：逐NPC检查三个角色"
+    },
+    "Steal_Start2": {
+        "action": "Custom",
+        "custom_action": "StealWeekly",
+        "custom_action_param": {},
+        "post_delay": 0,
+        "next": [],
+        "on_error": [],
+        "focus": "SL.偷窃周常重试：按任务设置检查全部目标"
+    }
+}

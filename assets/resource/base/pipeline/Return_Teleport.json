@@ -1,0 +1,276 @@
+{
+    "ReturnTP_OptimizeConfig": {
+        "enabled": false,
+        "next": [],
+        "on_error": [],
+        "attach": {"skip_if_at_portal": true}
+    },
+    "ReturnTeleport_Start": {
+        "recognition": "DirectHit",
+        "action": "Custom",
+        "custom_action": "ReturnTeleport",
+        "custom_action_param": {},
+        "post_delay": 0,
+        "next": [],
+        "on_error": [],
+        "focus": "回到传送阵：仅使用生成魔法阵技能"
+    },
+    "ReturnTP_Click": {
+        "recognition": "DirectHit",
+        "pre_delay": 0,
+        "action": "Click",
+        "target": [
+            0,
+            0,
+            1,
+            1
+        ],
+        "post_delay": 0,
+        "next": [],
+        "on_error": []
+    },
+    "ReturnTP_FieldHud": {
+        "recognition": "Or",
+        "any_of": [
+            "Rec_SandBox_Pin_Tpl",
+            "Rec_SandBox_Run_Tpl"
+        ],
+        "next": [],
+        "on_error": []
+    },
+    "ReturnTP_StoryDialogue": {
+        "recognition": "Or",
+        "any_of": ["ReturnCards_StoryDialogue"],
+        "next": [],
+        "on_error": []
+    },
+    "ReturnTP_NpcMenuName": {
+        "recognition": "OCR",
+        "roi": [
+            608,
+            174,
+            235,
+            30
+        ],
+        "expected": ["^[一-龥·]{2,30}$"],
+        "next": [],
+        "on_error": []
+    },
+    "ReturnTP_NpcMenu": {
+        "recognition": "And",
+        "all_of": [
+            "StealInteraction_TalentHeading",
+            "ReturnTP_NpcMenuName"
+        ],
+        "next": [],
+        "on_error": []
+    },
+    "ReturnTP_Moving": {
+        "recognition": "Or",
+        "any_of": [
+            "Rec_SandBox_Moveing_Tpl",
+            "Rec_SandBox_Moveing_Ocr"
+        ],
+        "next": [],
+        "on_error": []
+    },
+    "ReturnTP_MapMenu": {
+        "recognition": "Or",
+        "any_of": ["Collect_OperationsMain_ToAreaMap"],
+        "next": [],
+        "on_error": []
+    },
+    "ReturnTP_MapPortal": {
+        "recognition": "Or",
+        "any_of": ["Collect_ForceTeleporCircle_Ico"],
+        "next": [],
+        "on_error": []
+    },
+    "ReturnTP_Back": {
+        "recognition": "Or",
+        "any_of": ["Global_BackPageHub_Once"],
+        "next": [],
+        "on_error": []
+    },
+    "ReturnTP_ConfirmTitle": {
+        "recognition": "OCR",
+        "roi": [
+            500,
+            270,
+            280,
+            70
+        ],
+        "expected": [
+            "^生成魔法阵$",
+            "^生成魔法陣$"
+        ],
+        "next": [],
+        "on_error": []
+    },
+    "ReturnTP_Generate": {
+        "recognition": "OCR",
+        "roi": [
+            672,
+            389,
+            61,
+            64
+        ],
+        "expected": [
+            "^生成$",
+            "^創建$"
+        ],
+        "next": [],
+        "on_error": []
+    },
+    "ReturnTP_ConfirmDialog": {
+        "recognition": "And",
+        "all_of": [
+            "ReturnTP_ConfirmTitle",
+            "ReturnTP_Generate"
+        ],
+        "next": [],
+        "on_error": []
+    },
+    "ReturnTP_Cancel": {
+        "recognition": "OCR",
+        "roi": [
+            488,
+            413,
+            149,
+            32
+        ],
+        "expected": ["^取消$"],
+        "next": [],
+        "on_error": []
+    },
+    "ReturnTP_PortalObject": {
+        "recognition": "Or",
+        "any_of": ["Collect_FindTeleporCircle"],
+        "next": [],
+        "on_error": []
+    },
+    "ReturnTP_PortalName": {
+        "recognition": "OCR",
+        "roi": [
+            430,
+            100,
+            620,
+            330
+        ],
+        "expected": ["^(移动魔法阵|移動魔法陣|魔法阵|魔法陣|传送阵|傳送陣)$"],
+        "next": [],
+        "on_error": []
+    },
+    "ReturnTP_PortalIdentity": {
+        "recognition": "Or",
+        "any_of": [
+            "ReturnTP_PortalLocalRim",
+            "ReturnTP_PortalObject",
+            "ReturnTP_PortalName"
+        ],
+        "next": [],
+        "on_error": []
+    },
+    "ReturnTP_PortalLocalRim": {
+        "recognition": "TemplateMatch",
+        "roi": [
+            480,
+            310,
+            320,
+            220
+        ],
+        "template": ["ReturnTP_NaturalCircleLower_PC.png"],
+        "threshold": 0.85,
+        "next": [],
+        "on_error": []
+    },
+    "ReturnTP_PortalInteract": {
+        "recognition": "Or",
+        "any_of": ["Collect_TeleporCircle_Ico_Enter"],
+        "next": [],
+        "on_error": []
+    },
+    "ReturnTP_Page3Ready": {
+        "recognition": "Or",
+        "any_of": ["Collect_Skill_Tap3_Enable"],
+        "next": [],
+        "on_error": []
+    },
+    "ReturnTP_Page3Button": {
+        "recognition": "Or",
+        "any_of": ["Collect_Skill_Tap3"],
+        "next": [],
+        "on_error": []
+    },
+    "ReturnTP_SkillConfigured": {
+        "recognition": "Or",
+        "any_of": ["Collect_TeleportRecall_Skill"],
+        "next": [],
+        "on_error": []
+    },
+    "ReturnTP_SkillReady": {
+        "recognition": "Or",
+        "any_of": ["Collect_ForceTeleporCircle"],
+        "next": [],
+        "on_error": []
+    },
+    "ReturnTP_SkillGray": {
+        "recognition": "Or",
+        "any_of": ["Collect_ForceTeleporCircle_No"],
+        "next": [],
+        "on_error": []
+    },
+    "ReturnTP_SkillDisabled": {
+        "recognition": "ColorMatch",
+        "roi": [
+            1117,
+            476,
+            11,
+            3
+        ],
+        "method": 40,
+        "lower": [
+            0,
+            0,
+            45
+        ],
+        "upper": [
+            180,
+            75,
+            185
+        ],
+        "count": 25,
+        "next": [],
+        "on_error": []
+    },
+    "ReturnTP_SkillButton": {
+        "recognition": "Or",
+        "any_of": ["Collect_Skill3_4"],
+        "next": [],
+        "on_error": []
+    },
+    "ReturnTP_BlockedToast": {
+        "recognition": "OCR",
+        "roi": [
+            380,
+            40,
+            520,
+            170
+        ],
+        "expected": ["(无法|無法).*(地点|地點|附近).*(天赋技能|天賦技能)"],
+        "next": [],
+        "on_error": []
+    },
+    "ReturnTP_NearCircleToast": {
+        "recognition": "OCR",
+        "roi": [
+            380,
+            40,
+            520,
+            170
+        ],
+        "expected": ["^(?=.*(?:无法|無法))(?=.*(?:魔法阵附近|魔法陣附近))(?=.*(?:天赋技能|天賦技能)).{8,}$"],
+        "next": [],
+        "on_error": []
+    }
+}

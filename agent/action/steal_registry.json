@@ -1,0 +1,135 @@
+{
+  "schema_version": 1,
+  "routes": [
+    {
+      "route_id": "C1_CuriousYouth",
+      "name": "好奇青年",
+      "card": 1,
+      "completion_key": "Steal_C1_CuriousYouth_3Characters",
+      "entry": "Steal_C1_CuriousYouth_FullTest",
+      "terminal": "Steal_C1_CuriousYouth_Complete",
+      "mark_node": "Steal_C1_CuriousYouth_Mark",
+      "live_verified": true
+    },
+    {
+      "route_id": "C1_Collector",
+      "name": "无聊收集狂大叔",
+      "card": 1,
+      "completion_key": "Steal_C1_Collector_3Characters",
+      "entry": "Steal_C1_Collector_FullTest",
+      "terminal": "Steal_C1_Collector_Complete",
+      "mark_node": "Steal_C1_Collector_Mark",
+      "live_verified": true
+    },
+    {
+      "route_id": "C2_LoanShark",
+      "name": "达雷普高利贷业主",
+      "card": 2,
+      "completion_key": "Steal_C2_LoanShark_3Characters",
+      "entry": "Steal_C2_LoanShark_FullTest",
+      "terminal": "Steal_C2_LoanShark_Complete",
+      "mark_node": "Steal_C2_LoanShark_Mark",
+      "live_verified": true
+    },
+    {
+      "route_id": "C3_Mercenary",
+      "name": "从容自若的佣兵",
+      "card": 3,
+      "completion_key": "Steal_C3_Mercenary_3Characters",
+      "entry": "Steal_C3_Mercenary_FullTest",
+      "terminal": "Steal_C3_Mercenary_Complete",
+      "mark_node": "Steal_C3_Mercenary_Mark",
+      "live_verified": true
+    },
+    {
+      "route_id": "C3_Shopkeeper",
+      "name": "布伦商店主人",
+      "card": 3,
+      "completion_key": "Steal_C3_Shopkeeper_3Characters",
+      "entry": "Steal_C3_Shopkeeper_FullTest",
+      "terminal": "Steal_C3_Shopkeeper_Complete",
+      "mark_node": "Steal_C3_Shopkeeper_Mark",
+      "live_verified": true
+    },
+    {
+      "route_id": "C4_CoolWindYouth",
+      "name": "吹风的青年",
+      "card": 4,
+      "completion_key": "Steal_C4_CoolWindYouth_3Characters",
+      "entry": "Steal_C4_CoolWindYouth_FullTest",
+      "terminal": "Steal_C4_CoolWindYouth_Complete",
+      "mark_node": "Steal_C4_CoolWindYouth_Mark",
+      "live_verified": true
+    },
+    {
+      "route_id": "C4_TavernGuest",
+      "name": "客栈客人",
+      "card": 4,
+      "completion_key": "Steal_C4_TavernGuest_3Characters",
+      "entry": "Steal_C4_TavernGuest_FullTest",
+      "terminal": "Steal_C4_TavernGuest_Complete",
+      "mark_node": "Steal_C4_TavernGuest_Mark",
+      "live_verified": true
+    },
+    {
+      "route_id": "C5_Merchant",
+      "name": "丝路商团商人",
+      "card": 5,
+      "completion_key": "Steal_C5_Merchant_3Characters",
+      "entry": "Steal_C5_Merchant_FullTest",
+      "terminal": "Steal_C5_Merchant_Complete",
+      "mark_node": "Steal_C5_Merchant_Mark",
+      "live_verified": true
+    },
+    {
+      "route_id": "C5_Lover",
+      "name": "坠入爱河的青年",
+      "card": 5,
+      "completion_key": "Steal_C5_Lover_3Characters",
+      "entry": "Steal_C5_Lover_FullTest",
+      "terminal": "Steal_C5_Lover_Complete",
+      "mark_node": "Steal_C5_Lover_Mark",
+      "live_verified": true
+    },
+    {
+      "route_id": "C6_Apprentice",
+      "name": "魔塔见习魔法师",
+      "card": 6,
+      "completion_key": "Steal_C6_Apprentice_3Characters",
+      "entry": "Steal_C6_Apprentice_FullTest",
+      "terminal": "Steal_C6_Apprentice_Complete",
+      "mark_node": "Steal_C6_Apprentice_Mark",
+      "live_verified": true
+    },
+    {
+      "route_id": "C6_Stone",
+      "name": "仓库管理石怪",
+      "card": 6,
+      "completion_key": "Steal_C6_Stone_3Characters",
+      "entry": "Steal_C6_Stone_FullTest",
+      "terminal": "Steal_C6_Stone_Complete",
+      "mark_node": "Steal_C6_Stone_Mark",
+      "live_verified": true
+    },
+    {
+      "route_id": "C7_Boatman",
+      "name": "悠闲的渡船船夫",
+      "card": 7,
+      "completion_key": "Steal_C7_Boatman_3Characters",
+      "entry": "Steal_C7_Boatman_FullTest",
+      "terminal": "Steal_C7_Boatman_Complete",
+      "mark_node": "Steal_C7_Boatman_Mark",
+      "live_verified": true
+    },
+    {
+      "route_id": "C8_TaxCollector",
+      "name": "罗戴夫征税官",
+      "card": 8,
+      "completion_key": "Steal_C8_TaxCollector_3Characters",
+      "entry": "Steal_C8_TaxCollector_FullTest",
+      "terminal": "Steal_C8_TaxCollector_Complete",
+      "mark_node": "Steal_C8_TaxCollector_Mark",
+      "live_verified": true
+    }
+  ]
+}
