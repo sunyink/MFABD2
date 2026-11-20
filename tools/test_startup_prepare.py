@@ -1,4 +1,4 @@
-"""Manual offline startup contract tests; Python 3.10+, no native imports."""
+"""Manual offline startup contract tests; Python 3.11+, no native imports."""
 
 import importlib.abc
 import re

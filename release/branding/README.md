@@ -85,7 +85,7 @@ python scripts/verify_release_interface.py   # runtime icon in interface.json, a
 ```
 
 CI runs both in `install.yml`'s `Check Resources` job, which both the desktop and
-the Android build depend on. The suites run on Python 3.10, the same version the
+the Android build depend on. The suites run on Python 3.11, the same version the
 build jobs use.
 
 Source/fallback tests do not establish Explorer, Dock, launcher, or device visual

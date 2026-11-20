@@ -69,8 +69,8 @@ APK 按这些输出检出并复核提交。Android UI 的固定提交只配置�
 
 检查分为两套解释器：构建配置测试使用 Python 3.11；Agent、存档、接口筛选、资源覆盖、
 红点算法和业务导入检查使用上游 agent core 的 Python 版本，当前为 3.13.15。
-依赖由同一个 `android_build.py requirements` 生成，当前 NumPy 为 2.3.2；不会将
-桌面 `numpy<2` 直接安装进该环境，也不会因缺少依赖而改用模拟模块或跳过检查。
+依赖由同一个 `android_build.py requirements` 生成，NumPy 与 Pillow 取 `android/release.json`
+的钉法（当前 2.3.2 / 11.0.0，与桌面相同）；不会因缺少依赖而改用模拟模块或跳过检查。
 
 运行环境测试在新进程中模拟 Maa 的导入和注册边界，真实加载 `action`、`recognition`、
 `fishing_agent`、启动与日志监听器。Maa 替身仅提供明确的模块和接口，缺项直接失败；
@@ -151,7 +151,7 @@ Android 不运行项目的桌面 venv 创建或安装步骤。宿主必须提供
 尚未提供桌面旧存档或早期 Android 试验存档的自动迁移。
 应用卸载或清除应用数据不属于“保留存档的覆盖升级”。
 
-本地最小验证（**需要 Python 3.11+**；项目桌面 dev 环境默认的 3.10 会在
+本地最小验证（**需要 Python 3.11+**，与桌面 dev 环境同版本；更旧的会在
 `hashlib.file_digest` 与 `TestCase.enterContext` 上直接报 AttributeError）：
 
 ```sh

@@ -1,14 +1,18 @@
 """开发侧虚拟环境：Agent 启动时只检查，装依赖交给独立的同步进程。
 
+Agent 由 `uv run --no-project` 启动（interface.json 的 agent 段），uv 只负责找到项目里的 .venv，
+不替我们装任何东西；建环境、装依赖由本文件调 uv 完成，maafw 装哪个版本由客户端说了算。
+
 Agent 启动处在客户端的连接计时里（VS Code 插件按设置项 maa.agentTimeout，MFAA 不限时），
-时长不归我们管：在里面跑 pip，超时就被客户端直接结束，pip 可能停在「卸了旧版、没装新版」。
+时长不归我们管：在里面装包，超时就被客户端直接结束，可能停在「卸了旧版、没装新版」。
 所以拆成两半：
   · ensure_venv()：毫秒级、不联网。比对 requirements 指纹与 maafw 版本，目标版本取客户端
     按 PI V2 注入的 PI_CLIENT_MAAFW_VERSION（客户端已加载原生库的 MaaVersion()）。
     不一致就在新窗口拉起同步，等它完成后接着启动。客户端先等不及结束了 Agent 也无妨：
     同步在独立进程里不受牵连，窗口关闭后重新启动即可。
-  · sync()：本文件作为脚本运行，建 venv、装依赖，全程持锁。首次搭环境也用它：
-        py -3.10 agent/utils/venv_ops.py
+  · sync()：本文件作为脚本运行，建 venv、装依赖，全程持锁。首次搭环境也用它，
+    本机不必先装 Python，uv 会按需下载：
+        uv run --no-project --python 3.11 agent/utils/venv_ops.py
 发布包没有 requirements.txt，不走这里；用户侧从不当场下载。
 """
 
@@ -34,8 +38,12 @@ CLIENT_MAAFW_ENV = "PI_CLIENT_MAAFW_VERSION"
 # 客户端没报版本、环境里也还没装 maafw 时，按此范围安装。
 FALLBACK_MAAFW_SPEC = ">=5.11,<6.1"
 VENV_NAME = ".venv"
-PREFERRED_PYTHON_VERSION = "3.10"
-PIP_INDEX = "https://pypi.tuna.tsinghua.edu.cn/simple"
+# 与发布包里的 Python 同版本；也是下限：更旧的装不上 numpy==2.3.2。
+# 本文件作为脚本时要能在旧解释器上跑起来报出这句话，别用新语法。
+PREFERRED_PYTHON_VERSION = "3.11"
+# 默认装包镜像；自己设了 UV_DEFAULT_INDEX 或 UV_INDEX_URL 的以自己的为准。
+PACKAGE_INDEX = "https://pypi.tuna.tsinghua.edu.cn/simple"
+UV_INSTALL_HINT = "https://docs.astral.sh/uv/getting-started/installation/"
 # =========================================================
 # 以下状态文件都在 .venv 里，删掉 .venv 一并清空。
 MARKER_NAME = ".deps_marker"  # 上次装成功的 requirements 指纹
@@ -158,7 +166,9 @@ def pending_changes(project_root: Path, venv_path: Path, target) -> list:
     return pending
 
 def sync_command(project_root: Path, target) -> str:
-    command = f'"{sys.executable}" "{Path(__file__).resolve()}" --root "{project_root}"'
+    """给人手动运行的同步命令。经 uv 运行本文件：当前解释器可能不可用或太旧，uv 会按需下载。"""
+    command = (f'uv run --no-project --python {PREFERRED_PYTHON_VERSION} '
+               f'"{Path(__file__).resolve()}" --root "{project_root}"')
     return command + (f" --maafw {target}" if target else "")
 
 def launch_sync(project_root: Path, target) -> bool:
@@ -216,20 +226,20 @@ def ensure_venv(project_root: Path):
         return
 
     if not is_running_in_venv():
-        # Windows 没有 exec 语义，原先用子进程重启会形成同名双层 python 进程：
-        # kill 哪个都不确定，杀父进程则子进程变孤儿，继续持有 AgentServer 的 socket。
-        # 故不在这里切解释器，只给出可直接粘贴的配置；环境缺了就顺手拉起同步去建。
-        main_py = (project_root / "agent" / "main.py").as_posix()
-        lines = ["Agent 需要用虚拟环境的解释器启动，当前用的是宿主解释器。"]
+        # uv run 找到 .venv 就会用它；走到这里说明没用上：环境还没建，或者是调试器拿别的解释器直接起的。
+        # 不在这里切解释器：Windows 没有 exec 语义，用子进程重启会多出一层同名 python 进程，
+        # 杀父进程则子进程变孤儿，继续持有 AgentServer 的 socket。只说明怎么办；环境缺了就顺手拉起同步去建。
+        lines = [f"Agent 没有在项目的虚拟环境里运行，当前解释器是 {sys.executable}。"]
         if not venv_python.exists():
             launched = launch_sync(project_root, client_maafw_version())
-            lines.append("虚拟环境还没建，" + (f"已在「{SYNC_WINDOW_TITLE}」窗口中创建。" if launched
-                                         else f"请先运行: {sync_command(project_root, None)}"))
-        lines += [
-            "请把 interface.json 的 agent 段改为:",
-            f'    "child_exec": "{venv_python.as_posix()}",',
-            f'    "child_args": ["-u", "-X", "utf8=1", "{main_py}"]',
-        ]
+            lines.append("虚拟环境还没建，" + (f"已在「{SYNC_WINDOW_TITLE}」窗口中创建，窗口关闭后重新启动即可。" if launched
+                                         else f"请先运行: {sync_command(project_root, client_maafw_version())}"))
+        else:
+            lines += [
+                f"虚拟环境 {venv_path} 已存在但没被用上：",
+                "  · 从 VS Code 调试时，请把 Python 解释器选成项目的 .venv；",
+                "  · 其它方式启动时，请确认 interface.json 的 agent 段是用 uv run 启动的。",
+            ]
         _abort(lines)
 
     if sync_running(venv_path):
@@ -275,11 +285,21 @@ def _run(command, **kwargs) -> bool:
         print(f"❌ 失败: {e}", flush=True)
         return False
 
-def _pip(python: Path, *args: str) -> bool:
-    # requirements.txt 带中文注释，系统代码页下 pip 会解码失败
-    env = {**os.environ, "PYTHONUTF8": "1"}
-    return _run([str(python), "-m", "pip", "install", "--disable-pip-version-check",
-                 "-i", PIP_INDEX, *args], env=env)
+def _uv():
+    """uv 的可执行文件。经 uv run 启动时它把自己的路径放在环境变量 UV 里，否则从 PATH 找。"""
+    path = os.environ.get("UV") or shutil.which("uv")
+    if path and Path(path).is_file():
+        return path
+    print(f"❌ 没找到 uv。开发环境靠它建虚拟环境、装依赖，Agent 也由它启动。\n"
+          f"   安装方法见 {UV_INSTALL_HINT} ，装好后重开终端与编辑器再试。", flush=True)
+    return None
+
+def _install(uv: str, python: Path, *args: str) -> bool:
+    # uv 建的环境里没有 pip，装包一律经 uv，用 --python 指明装进哪个环境
+    command = [uv, "pip", "install", "--python", str(python)]
+    if not (os.environ.get("UV_DEFAULT_INDEX") or os.environ.get("UV_INDEX_URL")):
+        command += ["--default-index", PACKAGE_INDEX]
+    return _run([*command, *args])
 
 def _installed_maafw(python: Path):
     result = subprocess.run( # nosec
@@ -290,30 +310,24 @@ def _installed_maafw(python: Path):
     raw = result.stdout.strip()
     return normalize_version(raw) or raw  # 同 installed_maafw_version，去掉元数据里的 v
 
-def find_preferred_python() -> str:
-    if sys.platform == "win32":
-        try:
-            cmd = ["py", f"-{PREFERRED_PYTHON_VERSION}", "-c", "import sys; print(sys.executable)"]
-            result = subprocess.run(cmd, capture_output=True, text=True, check=True) # nosec
-            return result.stdout.strip()
-        except (subprocess.CalledProcessError, FileNotFoundError):
-            pass
-    else:
-        path = shutil.which(f"python{PREFERRED_PYTHON_VERSION}")
-        if path:
-            return path
-    current = f"{sys.version_info.major}.{sys.version_info.minor}"
-    print(f"⚠️ 没找到 Python {PREFERRED_PYTHON_VERSION}，改用当前解释器 ({current})。")
-    return sys.executable
+def _minor(version: str) -> tuple:
+    return tuple(int(part) for part in version.split(".")[:2])
 
-def check_existing_venv_version(venv_path: Path):
+def check_existing_venv_version(venv_path: Path) -> bool:
+    """更旧的 venv 装不上依赖，只能重建（不替用户删）；更新的照用，只提醒。"""
     for line in _read(venv_path / "pyvenv.cfg").splitlines():
+        # 标准库 venv 写 version = 3.11.9，uv 写 version_info = 3.11，两种都认
         if line.startswith("version"):
             version = line.split("=")[1].strip()
+            if _minor(version) < _minor(PREFERRED_PYTHON_VERSION):
+                print(f"❌ 虚拟环境是 Python {version}，依赖要求 {PREFERRED_PYTHON_VERSION} 及以上。\n"
+                      f"   请删除 {venv_path} 后运行 {sync_command(venv_path.parent, None)} 重建。")
+                return False
             if not version.startswith(PREFERRED_PYTHON_VERSION):
                 print(f"⚠️ 虚拟环境是 Python {version}，首选 {PREFERRED_PYTHON_VERSION}；"
                       f"遇到兼容问题可删除 .venv 重建。")
-            return
+            return True
+    return True
 
 def _in_kill_on_close_job() -> bool:
     """当前进程所在作业关闭时会结束它的话，同步就可能停在卸了旧版、没装新版的半路。"""
@@ -335,13 +349,17 @@ def _in_kill_on_close_job() -> bool:
     return bool(info.LimitFlags & 0x2000)  # JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
 
 def _sync_locked(project_root: Path, venv_path: Path, target) -> bool:
+    uv = _uv()
+    if uv is None:
+        return False
     python = get_venv_executable(venv_path)
     if python.exists():
-        check_existing_venv_version(venv_path)
+        if not check_existing_venv_version(venv_path):
+            return False
     else:
-        base = find_preferred_python()
-        print(f"创建虚拟环境 {venv_path}（基础解释器 {base}）", flush=True)
-        if not _run([base, "-m", "venv", str(venv_path)]):
+        print(f"创建虚拟环境 {venv_path}（Python {PREFERRED_PYTHON_VERSION}，本机没有时由 uv 下载）", flush=True)
+        # --allow-existing：目录此时已经存在，里面有本进程正持有的锁文件
+        if not _run([uv, "venv", "--allow-existing", "--python", PREFERRED_PYTHON_VERSION, str(venv_path)]):
             return False
 
     fingerprint = requirements_fingerprint(project_root)
@@ -349,16 +367,16 @@ def _sync_locked(project_root: Path, venv_path: Path, target) -> bool:
     if _read(marker) == fingerprint:
         print("requirements.txt 无变化", flush=True)
     else:
-        if not _pip(python, "-r", str(project_root / "requirements.txt")):
+        if not _install(uv, python, "-r", str(project_root / "requirements.txt")):
             return False
         marker.write_text(fingerprint, encoding="utf-8")
 
     current = _installed_maafw(python)
     if target and current != target:
         print(f"maafw {current or '未安装'} → {target}", flush=True)
-        return _pip(python, f"maafw=={target}")
+        return _install(uv, python, f"maafw=={target}")
     if not target and current is None:
-        return _pip(python, f"maafw{FALLBACK_MAAFW_SPEC}")
+        return _install(uv, python, f"maafw{FALLBACK_MAAFW_SPEC}")
     print(f"maafw {current} 无需变更", flush=True)
     return True
 
