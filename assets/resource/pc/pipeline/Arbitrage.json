@@ -1047,6 +1047,50 @@
             "threshold": 3.0
         }
     },
+    "Agt_SellList_Swip_Shifted": {
+        "desc": "PC 版换点重试：起手点比本包 Arbitrage_ItemList_Swip 上移 44 像素，其余照抄。PC 上那条拖不动的空隙没实测过，坐标按 base 的做法推出来，未实机。",
+        "custom_action_param": {
+            "detect_roi": [
+                329,
+                123,
+                56,
+                202
+            ],
+            "loop_exhausted": "error",
+            "loop_limit": 3,
+            "on_changed": "next",
+            "on_unchanged": "loop",
+            "proxy_node": "Agt_Proxy_Blank",
+            "proxy_override": {
+                "action": "Swipe",
+                "begin": [
+                    569,
+                    562,
+                    1,
+                    1
+                ],
+                "duration": 800,
+                "end": [
+                    569,
+                    61,
+                    1,
+                    1
+                ],
+                "end_hold": 800,
+                "post_wait_freezes": {
+                    "target": [
+                        344,
+                        142,
+                        26,
+                        97
+                    ],
+                    "time": 500
+                }
+            },
+            "settle_delay": 500,
+            "threshold": 3.0
+        }
+    },
     "Agt_<Sell_Item>_Ocr": {
         "roi": [
             392,

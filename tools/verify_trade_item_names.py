@@ -231,6 +231,29 @@ class ItemWiringTests(unittest.TestCase):
                 self.assertEqual(batch.absent.call_count, 0 if uncertain else 1)
                 self.assertEqual(batch.fail.call_count, 1 if uncertain else 0)
 
+    def test_unmoved_swipe_retries_from_shifted_start_before_giving_up(self):
+        # 11-20 实机：起手点落在分类标题上方那条空隙，列表拖不动；换上移半行的起手点再滑
+        for shifted_moves in (True, False):
+            with self.subTest(shifted_moves=shifted_moves):
+                reads = iter([NS(hit=True), NS(hit=False, raw_detail={}), NS(hit=False), NS(hit=True), NS(hit=True)])
+                runs = []
+
+                def run_task(node):
+                    runs.append(node)
+                    moved = node == sale._SWIPE_SHIFTED and shifted_moves
+                    return NS(status=NS(succeeded=moved), nodes=[NS(name=node, action=NS(success=moved))])
+
+                ctx = NS(tasker=NS(controller=NS(post_screencap=lambda: NS(wait=lambda: NS(get=lambda: IMAGE)))),
+                         get_node_object=lambda _: NS(attach={"max_pages": 2}), get_anchor=lambda _: "end",
+                         run_recognition=lambda *args: next(reads), run_task=run_task)
+                batch = NS(request={"item_name": "米"}, absent=Mock(), fail=Mock())
+                with patch.object(sale, "_batch", return_value=batch), patch.object(sale, "check_scope"):
+                    found = sale.ArbitrageSaleSearch().run(ctx, NS(node_name="search"))
+                self.assertEqual(runs, [sale._SWIPE, sale._SWIPE_SHIFTED])
+                self.assertEqual(found, shifted_moves)
+                self.assertEqual(batch.absent.call_count, 0)
+                self.assertEqual(batch.fail.call_count, 0 if shifted_moves else 1)
+
 
 class NameSlotTests(unittest.TestCase):
     """Sale search reads only the name box above each type tag (10-03 sale-page layout)."""

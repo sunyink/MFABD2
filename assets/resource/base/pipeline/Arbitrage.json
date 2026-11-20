@@ -3507,6 +3507,55 @@
         "timeout": 1,
         "focus": "滑动出售物品列表"
     },
+    "Agt_SellList_Swip_Shifted": {
+        "desc": "出售列表下滑的换点重试：起手点比 Arbitrage_ItemList_Swip 上移半行（44 像素），其余照抄。py 独占（ArbitrageSaleSearch 在第一次滑不动时调用），勿挂进管路。 | 分类标题（如「料理食材」）上方那条空隙按下去拖不动列表，再上、再下一点都能拖（11-20 用户实测）；空隙不到半行高，两个起手点不会同时落进去。",
+        "max_hit": 15,
+        "recognition": "Or",
+        "any_of": [
+            "Arbitrage_Merchant_Egress"
+        ],
+        "action": "Custom",
+        "custom_action": "SmartAction",
+        "custom_action_param": {
+            "proxy_node": "Agt_Proxy_Blank",
+            "proxy_override": {
+                "action": "Swipe",
+                "begin": [
+                    894,
+                    536
+                ],
+                "end": [
+                    894,
+                    0
+                ],
+                "duration": 800,
+                "end_hold": 800,
+                "post_wait_freezes": {
+                    "time": 500,
+                    "target": [
+                        407,
+                        157,
+                        50,
+                        142
+                    ]
+                }
+            },
+            "detect_roi": [
+                384,
+                128,
+                85,
+                276
+            ],
+            "settle_delay": 500,
+            "on_changed": "next",
+            "on_unchanged": "loop",
+            "loop_limit": 3,
+            "loop_exhausted": "error",
+            "threshold": 3.0
+        },
+        "timeout": 1,
+        "focus": "滑动出售物品列表（换起手点）"
+    },
     "Arbitrage_Sell_Item_ListTraverse": {
         "desc": "出售物品双入口；先从全名OCR候选中选置信度最高者，未命中才试模板。Python向源OCR传名称、向子模板传路径，无对应模板时仅使用OCR。",
         "recognition": "Or",
