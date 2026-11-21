@@ -36,6 +36,7 @@ from recognition.rdd_hsv_rescue import (  # noqa: E402
     normalize_rescue_config,
     resolve_entry_plan,
 )
+from recognition.rdd_relevel import normalize_relevel_config  # noqa: E402
 from recognition.rdd_sampler import MANIFEST_NAMES  # noqa: E402
 
 
@@ -175,6 +176,9 @@ def replay(sample_dir, rescue=False, expected_rescue_nodes=()):
     # 每条稳定命中的落点：救回的是不是真红点，回放器判不了(台账没有人工标注)，
     # 只能把节点/框/分/图名摊出来供人肉眼核对。新入口上线前这一步不能省。
     rescue_won: list = []
+    # 换档重看（flt_relevel）：排在 HSV 救援之后，只接仍未中的帧。同样只观测、摊开落点供人核对。
+    relevel_trigger = relevel_stable = 0
+    relevel_won: list = []
     checked_rescue_nodes = set()
     seen_nodes = set()          # 语料里出现过的节点名，用于区分"期望写错"与"语料不覆盖"
     mismatches = []
@@ -276,6 +280,52 @@ def replay(sample_dir, rescue=False, expected_rescue_nodes=()):
                         "crop": os.path.basename(crop_path),
                     })
 
+        # 台账里这条是不是换档救回的：是的话标准档应当未中，也不该要求 HSV 救援救回。
+        recorded_relevel = entry.get("换档") or {}
+        relevel_hit = (recorded_relevel.get("结论") == "稳定命中"
+                       and recorded_relevel.get("模式") == "active"
+                       and entry.get("result") == "hit" and not outcome["hit"])
+        relevel_box = None
+        if rescue and not outcome["hit"] and not stable:
+            raw_relevel = dict(params.get("flt_relevel") or {})
+            raw_relevel["mode"] = "shadow"
+            raw_relevel["time_budget_ms"] = 1000     # 离线不让墙钟影响结论
+            relevel_cfg, relevel_error = normalize_relevel_config(raw_relevel)
+            if relevel_error:
+                mismatches.append({
+                    "line": index, "node": entry.get("node"),
+                    "relevel_config_error": relevel_error,
+                })
+                continue
+            relevel_trigger += 1
+            relevel_result = detector._run_relevel(
+                hsv_np=hsv_np, hsv_ranges=hsv_ranges,
+                area_range=(area_min, area_max), aspect_range=(asp_lo, asp_hi),
+                gap_ratio=gap_ratio, min_conf=min_conf, rx=0, ry=0,
+                config=relevel_cfg,
+            )
+            relevel_winner = relevel_result.get("_winner")
+            if relevel_winner is not None and detector._relevel_confirm_full(
+                    hsv_np=hsv_np, winner=relevel_winner,
+                    area_range=(area_min, area_max), aspect_range=(asp_lo, asp_hi),
+                    gap_ratio=gap_ratio, min_conf=min_conf, rx=0, ry=0) is not None:
+                relevel_stable += 1
+                relevel_box = list(relevel_winner["box_local"])
+                win = relevel_result.get("胜出") or {}
+                relevel_won.append({
+                    "line": index, "node": entry.get("node"), "roi": entry.get("roi"),
+                    "stage": stage, "box_local": relevel_box, "conf": win.get("分"),
+                    "level": win.get("档"), "shape": win.get("形状"),
+                    "recorded_result": entry.get("result"),
+                    "crop": os.path.basename(crop_path),
+                })
+        if relevel_hit and rescue and relevel_box != _expected_local(entry):
+            mismatches.append({
+                "line": index, "node": entry.get("node"),
+                "expected_relevel_box": _expected_local(entry),
+                "actual_relevel_box": relevel_box,
+            })
+
         expected_rescue = entry.get("expected_rescue")
         if (expected_rescue is None and not outcome["hit"] and stage in ENTRY_PLANS
                 and _expect_matches(expect_map, entry.get("node"),
@@ -288,13 +338,13 @@ def replay(sample_dir, rescue=False, expected_rescue_nodes=()):
                 expected_rescue = True
         recorded_rescue = _recorded_rescue(entry)
         recorded_mode = recorded_rescue.get("模式") or recorded_rescue.get("mode")
-        recorded_active = (recorded_mode == "active"
+        recorded_active = (recorded_mode == "active" and not relevel_hit
                            and expected_hit and not outcome["hit"])
         # 只在"旧版 active 曾经救回过"时才要求新版也救回。反向不成立：
         # 旧算法救不出，不等于新算法不该救出 —— 那正是迭代要改进的部分。
         # （2026-07-11 的 2 条 active 记录即属此类：旧网格爬失败，新直方图定点成功。）
         if (expected_rescue is None and recorded_mode == "active"
-                and not outcome["hit"] and expected_hit):
+                and not relevel_hit and not outcome["hit"] and expected_hit):
             expected_rescue = True
         if expected_rescue is not None:
             rescue_checks += 1
@@ -330,7 +380,8 @@ def replay(sample_dir, rescue=False, expected_rescue_nodes=()):
                         "actual_active_profile": actual_profile,
                     })
 
-        expected_baseline_hit = False if recorded_active else expected_hit
+        expected_baseline_hit = (False if (recorded_active or relevel_hit)
+                                 else expected_hit)
         if outcome["hit"] == expected_baseline_hit:
             parity += 1
         else:
@@ -341,7 +392,7 @@ def replay(sample_dir, rescue=False, expected_rescue_nodes=()):
             })
             continue
 
-        if expected_hit and not recorded_active:
+        if expected_hit and not recorded_active and not relevel_hit:
             actual_box = list(outcome["candidates"][0]["box_local"])
             expected_box = _expected_local(entry)
             if actual_box == expected_box:
@@ -385,6 +436,9 @@ def replay(sample_dir, rescue=False, expected_rescue_nodes=()):
         "rescue_checks": rescue_checks,
         "rescue_pass": rescue_pass,
         "rescue_exempt": rescue_exempt,
+        "relevel_trigger": relevel_trigger,
+        "relevel_stable": relevel_stable,
+        "relevel_won": relevel_won,
         "not_applicable": not_applicable,
         "mismatches": mismatches,
     }, ensure_ascii=False, indent=2))
