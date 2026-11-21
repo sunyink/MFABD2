@@ -131,12 +131,30 @@ def result_confirms_route(result, route):
     return route.mark_node in completed_nodes and route.terminal in completed_nodes
 
 
+def _mark_node_executed(result, route):
+    if result is None:
+        return False
+    return any(node.name == route.mark_node and node.completed for node in getattr(result, "nodes", ()))
+
+
 class WeeklyRunner:
-    def __init__(self, context, completion_check, logger, card_return=None):
+    def __init__(self, context, completion_check, logger, card_return=None, *,
+                 cycle_key=None, clear_completion=None):
         self.context = context
         self.completion_check = completion_check
         self.logger = logger
         self.card_return = card_return
+        self.cycle_key = cycle_key
+        self.clear_completion = clear_completion
+
+    def _rollback_mark(self, route, reason):
+        if self.clear_completion is None:
+            return
+        try:
+            self.clear_completion(route)
+            self.logger.info(f"[偷窃周常] {route.name}：{reason}，已撤销本次未确认的周完成记录。")
+        except Exception as exc:
+            self.logger.error(f"[偷窃周常] {route.name}：撤销周完成记录失败：{exc}")
 
     def stopping(self):
         return bool(self.context.tasker.stopping)
@@ -217,14 +235,31 @@ class WeeklyRunner:
                             return self.stopped_report(outcomes, routes[index:], return_outcomes=return_outcomes)
                         if not route.live_verified:
                             self.logger.info(f"[偷窃周常] {route.name}：执行待实机验证路线，完成前逐项核验。")
+                        start_cycle = self.cycle_key() if self.cycle_key is not None else None
                         started = True
                         result = local.run_task(route.entry, overrides)
+                        end_cycle = self.cycle_key() if self.cycle_key is not None else None
+                        cycle_changed = start_cycle is not None and end_cycle != start_cycle
+                        confirmed = result_confirms_route(result, route)
                         if self.stopping():
+                            if cycle_changed:
+                                self._rollback_mark(route, "停止期间跨过周一08:00周刷新临界点")
+                            elif skip_completed and not confirmed and _mark_node_executed(result, route):
+                                self._rollback_mark(route, "停止前已写入但未确认结束节点")
                             return self.stopped_report(
                                 outcomes, routes[index:], started=True, return_outcomes=return_outcomes)
-                        if not result_confirms_route(result, route):
+                        if cycle_changed:
+                            self._rollback_mark(route, "执行期间跨过周一08:00周刷新临界点")
+                            raise RuntimeError("执行期间跨过周一08:00周刷新临界点，已撤销记录待重检")
+                        if not confirmed:
+                            if skip_completed and _mark_node_executed(result, route):
+                                self._rollback_mark(route, "未通过结束节点校验")
                             raise RuntimeError("未通过独立路线的完成节点和结束场景校验")
                         persisted = self.completion_check(route)
+                        end_cycle_after = self.cycle_key() if self.cycle_key is not None else None
+                        if start_cycle is not None and end_cycle_after != start_cycle:
+                            self._rollback_mark(route, "确认记录期间跨过周一08:00周刷新临界点")
+                            raise RuntimeError("确认记录期间跨过周一08:00周刷新临界点，已撤销记录待重检")
                         if self.stopping():
                             return self.stopped_report(
                                 outcomes, routes[index:], started=True, return_outcomes=return_outcomes)

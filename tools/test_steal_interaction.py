@@ -40,12 +40,15 @@ class InteractionTests(unittest.TestCase):
         self.assertEqual([branch["only_rec"] for branch in branches], [True, False])
         self.assertEqual([branch["threshold"] for branch in branches], [.7, .7])
         patterns = [pattern for branch in branches for pattern in branch["expected"]]
-        for text in ("0:00", "167:59", "1天", "5天", "7 天"):
+        for text in ("0:01", "00:01", "0:59", "1:00", "17:37", "167:59", "1天", "5天", "7 天"):
             self.assertTrue(any(re.fullmatch(pattern, text) for pattern in patterns), text)
-        for text in ("5天一", "8天", "0天", "天", "167:60", "选择", "", "1000:00"):
+        for text in ("0:00", "00:00", "000:00", "0：00", "5天一", "8天", "0天", "天", "167:60", "选择", "", "1000:00"):
             self.assertFalse(any(re.fullmatch(pattern, text) for pattern in patterns), text)
         self.assertTrue(any(re.fullmatch(pattern, "1天") for pattern in branches[0]["expected"]))
         self.assertFalse(any(re.fullmatch(pattern, "5天一") for pattern in branches[0]["expected"]))
+        for number in (1, 2, 3):
+            static_patterns = self.nodes[f"StealInteraction_Card{number}Cooldown"]["any_of"][0]["expected"]
+            self.assertEqual(static_patterns, branches[0]["expected"])
 
     def test_label_fallback_keeps_exact_label_and_does_not_read_selection_line(self):
         original, fallback = self.module.label_conditions(88)
@@ -56,10 +59,18 @@ class InteractionTests(unittest.TestCase):
         for branch in (original, fallback):
             self.assertIsNone(re.fullmatch(branch["expected"][0], "偷窃选择"))
 
-    def test_final_gate_requires_identity_no_preview_and_all_three_cooldowns(self):
+    def test_final_gate_requires_identity_no_preview_and_all_three_cooldowns_and_labels(self):
         final = self.nodes["StealInteraction_AllCardsOnCooldown"]
-        for name in ("NpcIdentity", "TalentHeading", "NoPreview", "Card1Cooldown", "Card2Cooldown", "Card3Cooldown"):
+        for name in (
+            "NpcIdentity", "TalentHeading", "NoPreview",
+            "Card1Label", "Card1Cooldown",
+            "Card2Label", "Card2Cooldown",
+            "Card3Label", "Card3Cooldown",
+        ):
             self.assertIn("StealInteraction_" + name, final["all_of"])
+        for number in (1, 2, 3):
+            self.assertIn(f"StealInteraction_Card{number}Label", self.nodes[f"StealInteraction_Card{number}Done"]["all_of"])
+            self.assertIn(f"StealInteraction_Card{number}Label", self.nodes[f"StealInteraction_Card{number}After"]["all_of"])
         self.assertEqual(final["next"], [])
         self.assertEqual(final["on_error"], ["StealInteraction_Fail"])
 
@@ -108,6 +119,63 @@ class InteractionTests(unittest.TestCase):
         flow = load_action("steal_flow")
         for value in ("bad json", {}, {"reason": "preview mismatch"}):
             self.assertFalse(flow.StealFailAction().run(None, SimpleNamespace(custom_action_param=value)))
+
+    def test_failed_interaction_dismisses_leftover_preview_and_npc_menu_still_returns_false(self):
+        frames = [
+            SimpleNamespace(size=720 * 1280 * 3, shape=(720, 1280, 3), hits={"PreviewPresent", "PreviewCancel", "TalentHeading"}),
+            SimpleNamespace(size=720 * 1280 * 3, shape=(720, 1280, 3), hits={"TalentHeading"}),
+        ]
+        idx = {"i": 0}
+        actions = []
+
+        def screencap():
+            frame = frames[min(idx["i"], len(frames) - 1)]
+            idx["i"] += 1
+            return SimpleNamespace(done=True, succeeded=True, get=lambda f=frame: f)
+
+        def run_recognition(name, frame):
+            suffix = name.removeprefix("StealInteraction_")
+            hit = suffix in frame.hits
+            box = [527, 442, 38, 25] if (hit and suffix == "PreviewCancel") else ([1, 1, 2, 2] if hit else None)
+            return SimpleNamespace(hit=hit, box=box)
+
+        def run_action(name, pipeline_override=None):
+            actions.append((name, pipeline_override))
+            return SimpleNamespace(success=True)
+
+        context = SimpleNamespace(
+            tasker=SimpleNamespace(stopping=False, controller=SimpleNamespace(post_screencap=screencap)),
+            run_task=Mock(side_effect=[task(["Offset0"]), task([], False)]),
+            run_recognition=run_recognition,
+            run_action=run_action,
+        )
+        context.clone = Mock(return_value=context)
+        orig_sleep = self.module.time.sleep
+        self.module.time.sleep = lambda _: None
+        try:
+            ok = self.module.StealInteractionAction().run(
+                context, SimpleNamespace(custom_action_param={"npc_names": ["目标老板"]}))
+        finally:
+            self.module.time.sleep = orig_sleep
+        self.assertFalse(ok)
+        self.assertEqual(actions, [
+            ("StealInteraction_Click", {"StealInteraction_Click": {"target": [546, 454, 1, 1]}}),
+            ("StealInteraction_CloseNpc", None),
+        ])
+
+    def test_failed_interaction_skips_cleanup_when_stopping(self):
+        context = SimpleNamespace(
+            tasker=SimpleNamespace(stopping=True, controller=SimpleNamespace(post_screencap=Mock())),
+            run_task=Mock(side_effect=[task(["Offset0"]), task([], False)]),
+            run_recognition=Mock(),
+            run_action=Mock(),
+        )
+        context.clone = Mock(return_value=context)
+        ok = self.module.StealInteractionAction().run(
+            context, SimpleNamespace(custom_action_param={"npc_names": ["目标老板"]}))
+        self.assertFalse(ok)
+        context.tasker.controller.post_screencap.assert_not_called()
+        context.run_action.assert_not_called()
 
 
 if __name__ == "__main__":

@@ -26,6 +26,7 @@ _CACHEABLE_CHILD_SUFFIXES = frozenset({
     "ConfirmText", "ConfirmButton", "CancelButton", "MoveUnavailable", "ShopIcon",
     "ShopTarget", "DestinationNpc", "TavernClock", "HostMenuName", "GachaHeading",
     "GachaPurchaseTitle", "GachaCancel", "GachaPurchaseDialog", "AreaName",
+    "PreviewPresent", "PreviewCancel", "PreviewDialog", "TalentHeading",
 })
 
 
@@ -273,10 +274,15 @@ class StealNavigator:
 
     def open_quick_panel(self):
         image = self.settle_loading(self.capture())
-        # Daily tasks can leave the draw page (or its purchase confirmation)
-        # open. Only these recognized screens may use this bounded recovery.
-        for _ in range(3):
-            if self.hit("GachaPurchaseDialog", image):
+        # Daily tasks or a failed stealing route can leave the draw page, a
+        # stealing preview modal, or an NPC talent menu open. Only these
+        # explicitly recognized screens may use this bounded recovery.
+        for _ in range(4):
+            if self.hit("PreviewDialog", image):
+                self.click(self.recognize("PreviewCancel", image))
+            elif self.hit("TalentHeading", image) and not self.hit("PreviewPresent", image):
+                self.action("CloseHostInteraction")
+            elif self.hit("GachaPurchaseDialog", image):
                 self.click(self.recognize("GachaCancel", image))
             elif self.hit("GachaHeading", image):
                 self.action("MenuBack")
@@ -372,8 +378,7 @@ class StealNavigator:
     def select_card(self, panel):
         reopened = False
         while True:
-            tab = self.recognize("StoryTab", panel)
-            if not tab.hit:
+            if not self.hit("StoryTab", panel):
                 raise RuntimeError("快速卡带中没有剧情分类")
             fresh_panel = self.capture()
             if self.hit("QuickButton", fresh_panel):
@@ -383,7 +388,15 @@ class StealNavigator:
                     panel = self.open_quick_panel()
                     continue
                 raise RuntimeError("查找卡带时快速面板消失")
-            self.click(tab)
+            fresh_tab = self.recognize("StoryTab", fresh_panel)
+            if not fresh_tab.hit:
+                if not reopened and self.field_ready(fresh_panel):
+                    reopened = True
+                    mfaalog.info("[偷窃导航] 点击剧情分类前未识别分类标签，重新打开快速面板一次。")
+                    panel = self.open_quick_panel()
+                    continue
+                raise RuntimeError("快速卡带中没有剧情分类")
+            self.click(fresh_tab)
             self.pause(0.8)
             # No fixed slot: favourites and recent cards can move the desired cover.
             # Search the current page, reset to the beginning, then scan at most 4 pages.
@@ -447,14 +460,22 @@ class StealNavigator:
         if not self.try_action("AreaMapOpen"):
             return False
         verified = False
-        deadline = time.monotonic() + 6
-        while time.monotonic() < deadline:
-            self.check_running()
-            if self.hit("AreaName", self.capture()):
-                verified = True
-                break
-            self.pause(0.3)
-        if not self.try_action("AreaMapClose"):
+        closed = False
+        try:
+            deadline = time.monotonic() + 6
+            while time.monotonic() < deadline:
+                self.check_running()
+                if self.hit("AreaName", self.capture()):
+                    verified = True
+                    break
+                self.pause(0.3)
+        finally:
+            if not self.context.tasker.stopping:
+                try:
+                    closed = self.try_action("AreaMapClose")
+                except Exception:
+                    closed = False
+        if not closed:
             return False
         self.pause(1.0)
         return verified

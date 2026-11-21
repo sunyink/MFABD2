@@ -111,6 +111,62 @@ class AccountAdapterTests(unittest.TestCase):
                 navigate_outdoor=navigate_outdoor, logger=Mock())
         navigate_outdoor.assert_not_called()
 
+    def test_return_card_to_portal_cleans_up_menu_on_non_stopping_runtime_error(self):
+        module = self.module
+        ctx = SimpleNamespace(tasker=SimpleNamespace(stopping=False), clone=lambda: ctx)
+        first_runner = SimpleNamespace(
+            run=Mock(side_effect=RuntimeError("返回传送阵达到16次操作上限")),
+            capture=Mock(return_value="frame"),
+            close_known_menu=Mock(),
+            result=None,
+        )
+        navigate_outdoor = Mock()
+        with self.assertRaisesRegex(RuntimeError, "16次操作上限"):
+            module.return_card_to_portal(
+                ctx, 3, runner_factory=Mock(return_value=first_runner),
+                navigate_outdoor=navigate_outdoor, logger=Mock())
+        first_runner.close_known_menu.assert_called_once_with("frame")
+        navigate_outdoor.assert_not_called()
+
+    def test_return_card_to_portal_retry_cleans_up_menu_on_non_stopping_runtime_error(self):
+        module = self.module
+        ctx = SimpleNamespace(tasker=SimpleNamespace(stopping=False), clone=lambda: ctx)
+        first_runner = SimpleNamespace(
+            run=Mock(side_effect=module.ReturnTeleportUnavailable("当前场景不可使用生成魔法阵技能")),
+            capture=Mock(return_value="frame1"),
+            close_known_menu=Mock(),
+            result=None,
+        )
+        retry_runner = SimpleNamespace(
+            run=Mock(side_effect=RuntimeError("返回传送阵截图失败")),
+            capture=Mock(return_value="frame2"),
+            close_known_menu=Mock(),
+            result=None,
+        )
+        navigate_outdoor = Mock()
+        with self.assertRaisesRegex(RuntimeError, "截图失败"):
+            module.return_card_to_portal(
+                ctx, 3, runner_factory=Mock(side_effect=[first_runner, retry_runner]),
+                navigate_outdoor=navigate_outdoor, logger=Mock())
+        first_runner.close_known_menu.assert_called_once_with("frame1")
+        retry_runner.close_known_menu.assert_called_once_with("frame2")
+        navigate_outdoor.assert_called_once_with(ctx, 3)
+
+    def test_return_card_to_portal_does_not_clean_up_on_stop_error(self):
+        module = self.module
+        ctx = SimpleNamespace(tasker=SimpleNamespace(stopping=False), clone=lambda: ctx)
+        first_runner = SimpleNamespace(
+            run=Mock(side_effect=RuntimeError("任务已停止")),
+            capture=Mock(return_value="frame"),
+            close_known_menu=Mock(),
+            result=None,
+        )
+        with self.assertRaisesRegex(RuntimeError, "任务已停止"):
+            module.return_card_to_portal(
+                ctx, 3, runner_factory=Mock(return_value=first_runner),
+                navigate_outdoor=Mock(), logger=Mock())
+        first_runner.close_known_menu.assert_not_called()
+
 
 class _FakeClock:
     def __init__(self):
@@ -145,13 +201,17 @@ class _WorldHandContext:
         self.states = {
             "field": field,
             "world_hand_only": field | {"PortalWorldHand"},
+            "world_hand_near_toast": field | {"PortalWorldHand", "NearCircleToast", "BlockedToast"},
+            "blocked_indoor_toast": field | {"BlockedToast"},
             "map": {"MapMenu", "MapPortal", "Back"},
+            "map_no_portal": {"MapMenu", "Back"},
             "confirm": {"ConfirmDialog", "ConfirmTitle", "Generate"},
             "interact_map": {"MapMenu", "Back"},
             "npc_menu": {"FieldHud", "NpcMenu", "Back"},
         }
         self.state = "field"
         self.bubble_outcome = bubble_outcome
+        self.skill_outcome = "map"
         self.actions = []
         self.tasker = SimpleNamespace(
             stopping=False,
@@ -178,7 +238,7 @@ class _WorldHandContext:
         self.actions.append(target[:2])
         point = target[:2]
         if point == [1123, 491]:
-            self.state = "map"
+            self.state = self.skill_outcome
         elif point == [510, 260]:
             self.state = "confirm"
         elif point == [702, 421]:
@@ -189,7 +249,7 @@ class _WorldHandContext:
             elif self.bubble_outcome == "npc":
                 self.state = "npc_menu"
         elif point == [90, 32]:
-            self.state = "world_hand_only"
+            self.state = "field" if self.state == "map_no_portal" else "world_hand_only"
         return SimpleNamespace(success=True)
 
 
@@ -225,6 +285,48 @@ class ReturnTeleportWorldHandTests(unittest.TestCase):
             runner.run()
         self.assertIsNone(runner.result)
         self.assertEqual(ctx.actions, [[1123, 491], [510, 260], [702, 421], [641, 296], [90, 32]])
+
+    def test_check_existing_portal_accepts_world_hand_and_skips_skill_cast(self):
+        ctx = _WorldHandContext(bubble_outcome="map")
+        ctx.state = "world_hand_only"
+        runner = self.module.ReturnTeleportRunner(ctx, skip_if_at_portal=True)
+        self.assertTrue(runner.run())
+        self.assertEqual(runner.result, "already")
+        self.assertEqual(ctx.actions, [[641, 296], [90, 32]])
+
+    def test_near_circle_toast_after_cast_accepts_world_hand_with_map_proof(self):
+        ctx = _WorldHandContext(bubble_outcome="map")
+        ctx.state = "world_hand_only"
+        ctx.skill_outcome = "world_hand_near_toast"
+        runner = self.module.ReturnTeleportRunner(ctx, skip_if_at_portal=False)
+        self.assertTrue(runner.run())
+        self.assertEqual(runner.result, "already")
+        self.assertEqual(ctx.actions, [[1123, 491], [641, 296], [90, 32]])
+
+    def test_leftover_near_circle_toast_allows_existing_portal_check_when_skip_enabled(self):
+        ctx = _WorldHandContext(bubble_outcome="map")
+        ctx.state = "world_hand_near_toast"
+        runner = self.module.ReturnTeleportRunner(ctx, skip_if_at_portal=True)
+        self.assertTrue(runner.run())
+        self.assertEqual(runner.result, "already")
+        self.assertEqual(ctx.actions, [[641, 296], [90, 32]])
+
+    def test_non_near_circle_blocked_toast_still_fails_even_when_skip_enabled(self):
+        ctx = _WorldHandContext(bubble_outcome="map")
+        ctx.state = "blocked_indoor_toast"
+        runner = self.module.ReturnTeleportRunner(ctx, skip_if_at_portal=True)
+        with self.assertRaisesRegex(self.module.ReturnTeleportUnavailable, "禁止使用生成魔法阵"):
+            runner.run()
+        self.assertEqual(ctx.actions, [])
+
+    def test_current_scope_action_closes_leftover_map_menu_on_unavailable(self):
+        ctx = _WorldHandContext(bubble_outcome="map")
+        ctx.skill_outcome = "map_no_portal"
+        ok = self.module.ReturnTeleportAction().run(
+            ctx, SimpleNamespace(custom_action_param='{"scope":"current","skip_if_at_portal":true}'))
+        self.assertFalse(ok)
+        self.assertEqual(ctx.state, "field")
+        self.assertEqual(ctx.actions, [[1123, 491], [90, 32]])
 
 
 if __name__ == "__main__":

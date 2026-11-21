@@ -59,6 +59,38 @@ def _image_exists(root, name, *, node_name, required):
     return False
 
 
+_JSONC_TOKEN = re.compile(
+    r'"(?:\\.|[^"\\])*"|//[^\r\n]*|/\*[\s\S]*?\*/',
+)
+
+
+def _load_pipeline_json(path: Path):
+    text = path.read_text(encoding="utf-8-sig")
+    if path.suffix.lower() != ".jsonc":
+        return json.loads(text)
+
+    def _replace(match):
+        token = match.group(0)
+        return token if token.startswith('"') else " "
+
+    stripped = _JSONC_TOKEN.sub(_replace, text)
+    # Remove trailing commas only outside strings by reusing the string token pattern.
+    def _strip_commas(match):
+        token = match.group(0)
+        return token if token.startswith('"') else ""
+
+    cleaned = re.sub(r'"(?:\\.|[^"\\])*"|,(?=\s*[}\]])', _strip_commas, stripped)
+    return json.loads(cleaned)
+
+
+def _pipeline_files(directory: Path):
+    return sorted(
+        (path for path in directory.rglob("*")
+         if path.is_file() and path.suffix.lower() in (".json", ".jsonc")),
+        key=lambda item: item.relative_to(directory).as_posix(),
+    )
+
+
 def load_catalog(resource_root=None):
     """Read public and private PC card definitions, including disabled cards.
 
@@ -82,9 +114,9 @@ def load_catalog(resource_root=None):
         directory = root / layer / "pipeline"
         if not directory.exists():
             continue
-        for path in sorted(directory.rglob("*.json"), key=lambda item: item.relative_to(directory).as_posix()):
+        for path in _pipeline_files(directory):
             try:
-                data = json.loads(path.read_text(encoding="utf-8-sig"))
+                data = _load_pipeline_json(path)
             except (OSError, UnicodeError, ValueError) as exc:
                 raise CatalogError(f"Cannot read pipeline {path}: {exc}") from exc
             if not isinstance(data, dict):

@@ -108,10 +108,16 @@ class Harness:
         self.queries.append(schedule.completion_params(route))
         return route.completion_key in self.marks
 
-    def run(self, routes, check=None, *, skip_completed=True, card_return=None):
+    def run(self, routes, check=None, *, skip_completed=True, card_return=None,
+            cycle_key=None, clear_completion=None):
         return schedule.WeeklyRunner(
-            self.context, check or self.check, self.logger, card_return=card_return).run(
-            routes, skip_completed=skip_completed)
+            self.context,
+            check or self.check,
+            self.logger,
+            card_return=card_return,
+            cycle_key=cycle_key,
+            clear_completion=clear_completion,
+        ).run(routes, skip_completed=skip_completed)
 
 
 class WeeklySchedulerTests(unittest.TestCase):
@@ -462,6 +468,52 @@ class WeeklySchedulerTests(unittest.TestCase):
         self.assertEqual([c[0] for c in self.harness.calls], [self.registry["C1_Collector"].entry])
         self.assertEqual([(r.card, r.status) for r in report.return_outcomes], [(1, "interrupted")])
         self.assertEqual([item.status for item in report.outcomes], ["completed", "not_run"])
+
+    def test_weekly_reset_boundary_rolls_back_mark_and_fails_route(self):
+        cycles = iter([1000, 2000])
+        cleared = []
+
+        def clear(route):
+            cleared.append(route.completion_key)
+            self.harness.marks.discard(route.completion_key)
+
+        report = self.harness.run(
+            (self.first,),
+            cycle_key=lambda: next(cycles),
+            clear_completion=clear,
+        )
+        self.assertFalse(report.succeeded)
+        self.assertEqual(report.outcomes[0].status, "failed")
+        self.assertIn("08:00", report.outcomes[0].reason)
+        self.assertEqual(cleared, [self.first.completion_key])
+        self.assertNotIn(self.first.completion_key, self.harness.marks)
+
+    def test_missing_terminal_after_mark_rolls_back_newly_written_mark(self):
+        cleared = []
+
+        def clear(route):
+            cleared.append(route.completion_key)
+            self.harness.marks.discard(route.completion_key)
+
+        self.harness.behaviors[self.first.entry] = "wrong_terminal"
+        report = self.harness.run((self.first,), skip_completed=True, clear_completion=clear)
+        self.assertFalse(report.succeeded)
+        self.assertEqual(report.outcomes[0].status, "failed")
+        self.assertEqual(cleared, [self.first.completion_key])
+        self.assertNotIn(self.first.completion_key, self.harness.marks)
+
+    def test_recheck_with_skip_false_preserves_preexisting_mark_on_missing_terminal(self):
+        cleared = []
+        self.harness.marks.add(self.first.completion_key)
+        self.harness.behaviors[self.first.entry] = "wrong_terminal"
+        report = self.harness.run(
+            (self.first,),
+            skip_completed=False,
+            clear_completion=lambda route: cleared.append(route.completion_key),
+        )
+        self.assertFalse(report.succeeded)
+        self.assertEqual(cleared, [])
+        self.assertIn(self.first.completion_key, self.harness.marks)
 
 
 if __name__ == "__main__":

@@ -224,9 +224,9 @@ class ReturnTeleportRunner:
         block toast), so indoor positions still fail with their precise
         reason instead of an interaction-related message.
         """
-        if not self.interactable_field(frame):
+        if not self.interactable_field(frame, allow_world_hand=True):
             return False
-        self.click("PortalInteract", frame)
+        self._click_portal_interact(frame, allow_world_hand=True)
         end = time.monotonic() + 4
         while time.monotonic() < end:
             probe = self.capture()
@@ -238,8 +238,13 @@ class ReturnTeleportRunner:
                 return False
             if self.hit("MapMenu", probe):
                 self.close_known_menu(probe)
-                self.wait_for(self.interactable_field, "已在阵上的稳定位置", timeout=10, stable=2,
-                              ignore_near_warning=True)
+                self.wait_for(
+                    lambda shot: self.interactable_field(shot, allow_world_hand=True),
+                    "已在阵上的稳定位置",
+                    timeout=10,
+                    stable=2,
+                    ignore_near_warning=True,
+                )
                 self.result = "already"
                 return True
             self.pause(.3)
@@ -285,10 +290,17 @@ class ReturnTeleportRunner:
             self.close_known_menu(frame)
             raise ReturnTeleportUnavailable("当前处于NPC菜单，已关闭；本卡未施法")
         frame = self.close_known_menu(frame)
-        if self.hit("BlockedToast", frame):
+        if (self.hit("BlockedToast", frame)
+                and not (self.skip_if_at_portal and self.hit("NearCircleToast", frame))):
             raise ReturnTeleportUnavailable("当前地点禁止使用生成魔法阵技能；请先回到允许使用的室外场景")
         if not self.field_ready(frame):
-            frame = self.wait_for(self.field_ready, "可操作的静止自由场景", timeout=12, stable=2)
+            frame = self.wait_for(
+                self.field_ready,
+                "可操作的静止自由场景",
+                timeout=12,
+                stable=2,
+                ignore_near_warning=self.skip_if_at_portal,
+            )
         if self.skip_if_at_portal and self.check_existing_portal(frame):
             mfaalog.info("[回到传送阵] 已验证当前位置在阵上，跳过施法。")
             return True
@@ -298,12 +310,13 @@ class ReturnTeleportRunner:
         self.click("SkillButton", frame)
         menu = self.wait_for(
             lambda shot: self.hit("MapMenu", shot)
-            or (self.hit("NearCircleToast", shot) and self.interactable_field(shot)),
+            or (self.hit("NearCircleToast", shot)
+                and self.interactable_field(shot, allow_world_hand=True)),
             "生成魔法阵的地图菜单或已在阵旁的明确提示", timeout=10, stable=2, ignore_near_warning=True)
-        if self.hit("NearCircleToast", menu) and self.interactable_field(menu):
+        if self.hit("NearCircleToast", menu) and self.interactable_field(menu, allow_world_hand=True):
             # Only the explicit 'near a magic circle' rejection after casting
             # enables this path. A generic hand icon never bypasses generation.
-            result = self.verify_arrival(menu, require_identity=False)
+            result = self.verify_arrival(menu, require_identity=False, allow_world_hand=True)
             self.result = "already"
             return result
         portal = self.recognize("MapPortal", menu)
@@ -338,13 +351,39 @@ class ReturnTeleportRunner:
         return result
 
 
+def _select_card(navigator, card, *, require_leave=False):
+    select_fn = navigator.select_card
+    if not require_leave:
+        return select_fn(card)
+    try:
+        return select_fn(card, require_leave=True)
+    except TypeError:
+        return select_fn(card)
+
+
+def _cleanup_runner_menu(runner, context, exc):
+    if getattr(getattr(context, "tasker", None), "stopping", False):
+        return
+    if "剧情对话" in str(exc):
+        return
+    cleanup = getattr(runner, "close_known_menu", None)
+    capture = getattr(runner, "capture", None)
+    if not cleanup or not capture:
+        return
+    try:
+        cleanup(capture())
+    except Exception as cleanup_error:
+        mfaalog.error(f"[回到传送阵] 关闭已打开菜单失败：{cleanup_error}")
+
+
 def restore_cards(context, cards, skip_if_at_portal=True, navigator_factory=None,
                   runner_factory=ReturnTeleportRunner):
-    from .return_teleport_cards import CardUnavailable, ReturnCardNavigator
+    from .return_teleport_cards import CardRejectionUnclosed, CardUnavailable, ReturnCardNavigator
     navigator_factory = navigator_factory or ReturnCardNavigator
     outcomes = []
     started = time.monotonic()
     last_verified = None
+    current_card = None
     labels = {"story": "剧情", "character": "角色", "event": "活动"}
     for index, card in enumerate(cards, 1):
         if context.tasker.stopping or time.monotonic() - started > 5400:
@@ -354,7 +393,9 @@ def restore_cards(context, cards, skip_if_at_portal=True, navigator_factory=None
         mfaalog.info(f"[批量复原] {index}/{len(cards)} {label}：开始检查。")
         runner = None
         try:
-            navigator_factory(context.clone()).select_card(card)
+            require_leave = current_card is not None and current_card != card
+            _select_card(navigator_factory(context.clone()), card, require_leave=require_leave)
+            current_card = card
             runner = runner_factory(context.clone(), skip_if_at_portal=skip_if_at_portal)
             if not runner.run():
                 raise ReturnTeleportUnavailable("没有确认传送阵归位")
@@ -363,6 +404,10 @@ def restore_cards(context, cards, skip_if_at_portal=True, navigator_factory=None
             if status in ("restored", "already"):
                 last_verified = (card, label)
             mfaalog.info(f"[批量复原] {label}：{'已在阵上，未施法' if status == 'already' else '技能归位已确认'}。")
+        except CardRejectionUnclosed as exc:
+            outcomes.append({"card": label, "status": exc.kind, "reason": str(exc)})
+            mfaalog.error(f"[批量复原] {label}：{exc}；停止后续地图，避免误记到下一张。")
+            return False, outcomes
         except CardUnavailable as exc:
             outcomes.append({"card": label, "status": exc.kind, "reason": str(exc)})
             mfaalog.error(f"[批量复原] {label}：{exc}，继续下一张。")
@@ -394,7 +439,9 @@ def restore_cards(context, cards, skip_if_at_portal=True, navigator_factory=None
         card, label = last_verified
         mfaalog.info(f"[批量复原] 最后一张未确认归位，返回本批最后成功的{label}复核；原失败记录保留。")
         try:
-            navigator_factory(context.clone()).select_card(card)
+            require_leave = current_card is not None and current_card != card
+            _select_card(navigator_factory(context.clone()), card, require_leave=require_leave)
+            current_card = card
             if context.tasker.stopping:
                 raise RuntimeError("任务已停止，不再执行收尾复核")
             final_runner = runner_factory(context.clone(), skip_if_at_portal=True)
@@ -413,6 +460,7 @@ def restore_cards(context, cards, skip_if_at_portal=True, navigator_factory=None
 @AgentServer.custom_action("ReturnTeleport")
 class ReturnTeleportAction(CustomAction):
     def run(self, context, argv) -> bool:
+        runner = None
         try:
             raw = argv.custom_action_param
             params = json.loads(raw) if isinstance(raw, str) else raw
@@ -424,9 +472,12 @@ class ReturnTeleportAction(CustomAction):
                 from .return_teleport_catalog import load_catalog, select_cards
                 result, _ = restore_cards(context, select_cards(load_catalog(), scope), skip)
                 return result
-            result = ReturnTeleportRunner(context.clone(), skip_if_at_portal=skip).run()
+            runner = ReturnTeleportRunner(context.clone(), skip_if_at_portal=skip)
+            result = runner.run()
             mfaalog.info("[回到传送阵] 已确认传送阵可交互，菜单已关闭，人物保持原地。")
             return bool(result)
         except Exception as exc:
+            if runner is not None:
+                _cleanup_runner_menu(runner, context, exc)
             mfaalog.error(f"[回到传送阵] {exc}")
             return False

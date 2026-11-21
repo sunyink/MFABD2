@@ -17,6 +17,16 @@ class CardUnavailable(RuntimeError):
         super().__init__(reason)
 
 
+class CardRejectionUnclosed(RuntimeError):
+    """A card rejection dialog could not be confirmed closed; stop the batch."""
+
+    def __init__(self, kind, reason):
+        if kind not in ("locked", "unsupported"):
+            raise ValueError("Unknown unclosed rejection kind")
+        self.kind, self.reason = kind, reason
+        super().__init__(reason)
+
+
 class CardTransitionTimeout(RuntimeError):
     """Unfinished loading/transition is fatal to the remaining batch."""
 
@@ -171,22 +181,41 @@ class ReturnCardNavigator:
         if self.hit("StoryDialogue", image):
             raise StoryDialogueBlocked("检测到剧情对话选项；不自动推进剧情，已停止后续卡带")
 
+    def _is_loading(self, image):
+        if self.hit("Loading", image):
+            return True
+        if isinstance(image, np.ndarray) and image.ndim == 3 and image.shape[2] == 3:
+            luminance = image.mean(axis=2)
+            return float(luminance.mean()) < 25.0 and float((luminance > 120).mean()) < 0.005
+        return False
+
     def _failure(self, image):
         self._guard_story_dialogue(image)
         kind = ("locked" if self.hit("Locked", image) else
                 "unsupported" if self.hit("Unsupported", image) else None)
         if kind is None:
             return
+        reason = "游戏明确提示卡带尚未解锁" if kind == "locked" else "游戏明确提示当前卡带无法进入"
         # Never confirm a story/unlock/purchase prompt. Only a recognized
         # cancel or back button may dismiss an explicit rejection.
+        dismissed = False
         for suffix in ("Cancel", "Back"):
             result = self.recognize(suffix, image)
             if result.hit:
                 self.click(result)
-                self.pause(.5)
+                end = time.monotonic() + 3.0
+                while time.monotonic() < end:
+                    self.pause(.4)
+                    fresh = self.capture()
+                    self._guard_story_dialogue(fresh)
+                    if (not self.hit("Locked", fresh) and not self.hit("Unsupported", fresh)
+                            and (self.hit("QuickPanel", fresh) or self.field_ready(fresh))):
+                        dismissed = True
+                        break
                 break
-        raise CardUnavailable(kind, "游戏明确提示卡带尚未解锁" if kind == "locked"
-                              else "游戏明确提示当前卡带无法进入")
+        if not dismissed:
+            raise CardRejectionUnclosed(kind, reason + "；拒绝弹窗未能确认关闭")
+        raise CardUnavailable(kind, reason)
 
     def wait_for(self, predicate, description, timeout=20, stable=1, **unused):
         end, consecutive = time.monotonic() + min(timeout, 30), 0
@@ -200,21 +229,33 @@ class ReturnCardNavigator:
         self.check_running()
         raise CardUnavailable("unsupported", "未确认" + description)
 
-    def wait_for_card_entry(self):
+    def wait_for_card_entry(self, *, require_leave=False):
         # Once a card was clicked, a slow loading screen or an unrecognized
         # opening transition must not be treated as a failed card followed by
         # clicks on every remaining card. Wait without input until the same
         # card has a stable field, an explicit rejection, or the hard deadline.
+        left_previous = not require_leave
+        leave_deadline = time.monotonic() + 10
         consecutive = 0
         while time.monotonic() < self.deadline:
             image = self.capture()
-            if self.hit("Loading", image):
+            if self._is_loading(image):
+                left_previous = True
                 consecutive = 0
             else:
                 self._failure(image)
-                consecutive = consecutive + 1 if self.field_ready(image) else 0
-                if consecutive >= 2:
-                    return image
+                if not self.field_ready(image):
+                    if not self.hit("QuickPanel", image):
+                        left_previous = True
+                    consecutive = 0
+                elif not left_previous:
+                    if time.monotonic() >= leave_deadline:
+                        raise CardUnavailable("unsupported", "点击目标卡带后画面未离开原场景，未确认切卡生效")
+                    consecutive = 0
+                else:
+                    consecutive += 1
+                    if consecutive >= 2:
+                        return image
             self.pause(.6)
         self.check_running()
         raise CardTransitionTimeout("卡带加载或开场转场未结束；停止后续卡带")
@@ -223,7 +264,7 @@ class ReturnCardNavigator:
         # Same bounded known-screen recovery as the stealing panel opener;
         # no dependency on its run(), NPC or destination navigation methods.
         image = self.capture()
-        if self.hit("Loading", image):
+        if self._is_loading(image):
             image = self.wait_for_card_entry()
         self._failure(image)
         for _ in range(3):
@@ -241,9 +282,21 @@ class ReturnCardNavigator:
         if back.hit:
             self.click(back)
             self.pause(1.)
-            image = self.wait_for(self.field_ready, "从大厅返回自由场景", timeout=25, stable=2)
-        if not self.field_ready(image):
-            raise CardUnavailable("unsupported", "请先关闭未知交互或菜单，回到自由场景或大厅")
+            image = self.wait_for(
+                lambda shot: not self._is_loading(shot) and self.field_ready(shot),
+                "从大厅返回自由场景",
+                timeout=25,
+                stable=2,
+            )
+        else:
+            if not self.field_ready(image):
+                raise CardUnavailable("unsupported", "请先关闭未知交互或菜单，回到自由场景或大厅")
+            image = self.wait_for(
+                lambda shot: not self._is_loading(shot) and self.field_ready(shot),
+                "稳定的自由场景",
+                timeout=6,
+                stable=2,
+            )
         button = self.recognize("QuickButton", image)
         if not button.hit:
             raise CardUnavailable("unsupported", "未识别到快速卡带按钮；不会固定点地面或走路")
@@ -282,7 +335,7 @@ class ReturnCardNavigator:
         means = np.asarray(strip, dtype=np.float32).reshape(10, 7, 62, 20, 3).mean(axis=(1, 3))
         return hashlib.blake2b((means / 16).astype(np.uint8).tobytes(), digest_size=16).hexdigest()
 
-    def _try_current_page(self):
+    def _try_current_page(self, *, require_leave=False):
         image = self.capture()
         self._failure(image)
         if not self._panel_ready(image):
@@ -292,10 +345,10 @@ class ReturnCardNavigator:
             return image, False
         self.click(target, offset=(-10, 5))
         self.pause(.8)
-        self.wait_for_card_entry()
+        self.wait_for_card_entry(require_leave=require_leave)
         return image, True
 
-    def select_card(self, card: ReturnCard) -> None:
+    def select_card(self, card: ReturnCard, *, require_leave: bool = False) -> None:
         if (not isinstance(card, ReturnCard) or card.category not in CATEGORIES
                 or type(card.number) is not int or not 1 <= card.number <= 100
                 or not isinstance(card.templates, tuple) or not card.templates
@@ -315,7 +368,7 @@ class ReturnCardNavigator:
             raise RuntimeError("返回传送阵切卡仅支持Windows PC客户端")
         self.open_quick_panel()
         self._select_category()
-        _, found = self._try_current_page()
+        _, found = self._try_current_page(require_leave=require_leave)
         if found:
             return
         for _ in range(2):
@@ -323,12 +376,20 @@ class ReturnCardNavigator:
             self.pause(.6)
         seen = set()
         for page in range(self.PAGE_LIMIT):
-            image, found = self._try_current_page()
+            image, found = self._try_current_page(require_leave=require_leave)
             if found:
                 return
             signature = self.page_signature(image)
             if signature in seen:
-                break
+                # Re-capture after a bounded settle pause before concluding the
+                # scroll reached the end; a slow swipe can still be moving.
+                self.pause(.5)
+                settled, found = self._try_current_page(require_leave=require_leave)
+                if found:
+                    return
+                signature = self.page_signature(settled)
+                if signature in seen:
+                    break
             seen.add(signature)
             if page + 1 < self.PAGE_LIMIT:
                 self.action("ScrollForward")

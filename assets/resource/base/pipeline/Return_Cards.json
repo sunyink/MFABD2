@@ -1,23 +1,23 @@
 {
-    "ReturnCards_Click": {"recognition": "DirectHit", "action": "Click", "target": [
+    "ReturnCards_Click": {"recognition": "DirectHit", "pre_delay": 0, "action": "Click", "target": [
             0,
             0,
             1,
             1
-        ], "next": [], "on_error": []},
-    "ReturnCards_OpenQuickPanel": {"recognition": "DirectHit", "action": "Click", "target": [
+        ], "post_delay": 0, "rate_limit": 0, "next": [], "on_error": []},
+    "ReturnCards_OpenQuickPanel": {"recognition": "DirectHit", "pre_delay": 0, "action": "Click", "target": [
             567,
             666,
             1,
             1
-        ], "next": [], "on_error": []},
-    "ReturnCards_MenuBack": {"recognition": "DirectHit", "action": "Click", "target": [
+        ], "post_delay": 0, "rate_limit": 0, "next": [], "on_error": []},
+    "ReturnCards_MenuBack": {"recognition": "DirectHit", "pre_delay": 0, "action": "Click", "target": [
             113,
             34,
             1,
             1
-        ], "next": [], "on_error": []},
-    "ReturnCards_ScrollToStart": {"recognition": "DirectHit", "action": "Swipe", "begin": [
+        ], "post_delay": 0, "rate_limit": 0, "next": [], "on_error": []},
+    "ReturnCards_ScrollToStart": {"recognition": "DirectHit", "pre_delay": 0, "action": "Swipe", "begin": [
             80,
             650,
             1,
@@ -27,8 +27,8 @@
             650,
             1,
             1
-        ], "end_hold": 500, "duration": 500, "next": [], "on_error": []},
-    "ReturnCards_ScrollForward": {"recognition": "DirectHit", "action": "Swipe", "begin": [
+        ], "end_hold": 500, "duration": 500, "post_delay": 0, "rate_limit": 0, "next": [], "on_error": []},
+    "ReturnCards_ScrollForward": {"recognition": "DirectHit", "pre_delay": 0, "action": "Swipe", "begin": [
             1190,
             650,
             1,
@@ -38,8 +38,8 @@
             650,
             1,
             1
-        ], "end_hold": 500, "duration": 500, "next": [], "on_error": []},
-    "ReturnCards_TabStart": {"recognition": "DirectHit", "action": "Swipe", "begin": [
+        ], "end_hold": 500, "duration": 500, "post_delay": 0, "rate_limit": 0, "next": [], "on_error": []},
+    "ReturnCards_TabStart": {"recognition": "DirectHit", "pre_delay": 0, "action": "Swipe", "begin": [
             80,
             580,
             1,
@@ -49,8 +49,8 @@
             580,
             1,
             1
-        ], "end_hold": 300, "duration": 500, "next": [], "on_error": []},
-    "ReturnCards_TabForward": {"recognition": "DirectHit", "action": "Swipe", "begin": [
+        ], "end_hold": 300, "duration": 500, "post_delay": 0, "rate_limit": 0, "next": [], "on_error": []},
+    "ReturnCards_TabForward": {"recognition": "DirectHit", "pre_delay": 0, "action": "Swipe", "begin": [
             1080,
             580,
             1,
@@ -60,7 +60,7 @@
             580,
             1,
             1
-        ], "end_hold": 300, "duration": 500, "next": [], "on_error": []},
+        ], "end_hold": 300, "duration": 500, "post_delay": 0, "rate_limit": 0, "next": [], "on_error": []},
     "ReturnCards_QuickPanel": {"recognition": "Or", "any_of": [
             "ReturnCards_RecentTab",
             "ReturnCards_StoryTab",

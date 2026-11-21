@@ -156,6 +156,81 @@ class NavigationTests(unittest.TestCase):
             self.nav.action("Click")
         self.context.run_action.assert_not_called()
 
+    def test_select_card_clicks_story_tab_coordinates_from_fresh_panel(self):
+        old_panel = SimpleNamespace(tag="old")
+        fresh_panel = SimpleNamespace(tag="fresh")
+        card_frame = SimpleNamespace(tag="card")
+        arrived_frame = SimpleNamespace(tag="arrived")
+        frames = iter([fresh_panel, card_frame, arrived_frame, arrived_frame])
+        self.nav.capture = lambda: next(frames)
+        self.nav.pause = lambda _: None
+        self.nav.loading = lambda _: False
+
+        def reco(name, frame):
+            suffix = name.removeprefix("StealNav_")
+            if frame is old_panel:
+                return recognition(name, suffix == "StoryTab", box=[300, 560, 70, 20] if suffix == "StoryTab" else None)
+            if frame is fresh_panel:
+                return recognition(name, suffix == "StoryTab", box=[310, 580, 70, 20] if suffix == "StoryTab" else None)
+            if frame is card_frame:
+                return recognition(name, suffix == "Card", box=[400, 620, 40, 40] if suffix == "Card" else None)
+            return recognition(name, suffix == "Field")
+
+        self.context.run_recognition.side_effect = reco
+        result = self.nav.select_card(old_panel)
+        self.assertIs(result, arrived_frame)
+        first_click = self.context.run_action.call_args_list[0]
+        self.assertEqual(first_click.args[0], "StealNav_Click")
+        self.assertEqual(first_click.kwargs["pipeline_override"]["StealNav_Click"]["target"], [345, 590, 1, 1])
+
+    def test_probe_on_card_closes_area_map_even_when_capture_raises(self):
+        self.nav.capture = Mock(side_effect=RuntimeError("capture failed"))
+        with self.assertRaisesRegex(RuntimeError, "capture failed"):
+            self.nav.probe_on_card()
+        called = [call.args[0] for call in self.context.run_action.call_args_list]
+        self.assertEqual(called, ["StealNav_AreaMapOpen", "StealNav_AreaMapClose"])
+
+    def test_probe_on_card_skips_close_when_stopping(self):
+        def stop_on_capture():
+            self.context.tasker.stopping = True
+            raise RuntimeError("任务已停止")
+
+        self.nav.capture = stop_on_capture
+        with self.assertRaisesRegex(RuntimeError, "任务已停止"):
+            self.nav.probe_on_card()
+        called = [call.args[0] for call in self.context.run_action.call_args_list]
+        self.assertEqual(called, ["StealNav_AreaMapOpen"])
+
+    def test_open_quick_panel_recovers_leftover_steal_preview_and_npc_menu(self):
+        f_preview = SimpleNamespace(hits={"PreviewDialog", "PreviewPresent", "PreviewCancel", "TalentHeading"})
+        f_npc = SimpleNamespace(hits={"TalentHeading"})
+        f_field = SimpleNamespace(hits={"Field", "QuickButton"})
+        f_panel = SimpleNamespace(hits={"QuickPanel"})
+        frames = iter([f_preview, f_npc, f_field, f_panel])
+        self.nav.capture = lambda: next(frames)
+        self.nav.pause = lambda _: None
+        self.nav.loading = lambda _: False
+
+        def reco(name, frame):
+            suffix = name.removeprefix("StealNav_")
+            hit = suffix in frame.hits
+            box = None
+            if hit and suffix == "PreviewCancel":
+                box = [527, 442, 38, 25]
+            elif hit and suffix == "QuickButton":
+                box = [550, 650, 34, 34]
+            return recognition(name, hit, box=box)
+
+        self.context.run_recognition.side_effect = reco
+        result = self.nav.open_quick_panel()
+        self.assertIs(result, f_panel)
+        actions = [(call.args[0], call.kwargs.get("pipeline_override")) for call in self.context.run_action.call_args_list]
+        self.assertEqual(actions, [
+            ("StealNav_Click", {"StealNav_Click": {"target": [546, 454, 1, 1]}}),
+            ("StealNav_CloseHostInteraction", {}),
+            ("StealNav_Click", {"StealNav_Click": {"target": [567, 667, 1, 1]}}),
+        ])
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

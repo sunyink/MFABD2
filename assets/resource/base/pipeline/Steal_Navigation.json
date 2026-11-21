@@ -548,5 +548,46 @@
         "post_delay": 0,
         "next": [],
         "on_error": []
+    },
+    "StealNav_PreviewPresent": {
+        "recognition": "Or",
+        "any_of": [
+            "StealInteraction_PreviewPresent"
+        ],
+        "pre_delay": 0,
+        "post_delay": 0,
+        "next": [],
+        "on_error": []
+    },
+    "StealNav_PreviewCancel": {
+        "recognition": "Or",
+        "any_of": [
+            "StealInteraction_PreviewCancel"
+        ],
+        "pre_delay": 0,
+        "post_delay": 0,
+        "next": [],
+        "on_error": []
+    },
+    "StealNav_PreviewDialog": {
+        "recognition": "And",
+        "all_of": [
+            "StealNav_PreviewPresent",
+            "StealNav_PreviewCancel"
+        ],
+        "pre_delay": 0,
+        "post_delay": 0,
+        "next": [],
+        "on_error": []
+    },
+    "StealNav_TalentHeading": {
+        "recognition": "Or",
+        "any_of": [
+            "StealInteraction_TalentHeading"
+        ],
+        "pre_delay": 0,
+        "post_delay": 0,
+        "next": [],
+        "on_error": []
     }
 }
