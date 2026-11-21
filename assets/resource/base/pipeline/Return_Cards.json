@@ -1,0 +1,254 @@
+{
+    "ReturnCards_Click": {"recognition": "DirectHit", "pre_delay": 0, "action": "Click", "target": [
+            0,
+            0,
+            1,
+            1
+        ], "post_delay": 0, "rate_limit": 0, "next": [], "on_error": []},
+    "ReturnCards_OpenQuickPanel": {"recognition": "DirectHit", "pre_delay": 0, "action": "Click", "target": [
+            567,
+            666,
+            1,
+            1
+        ], "post_delay": 0, "rate_limit": 0, "next": [], "on_error": []},
+    "ReturnCards_MenuBack": {"recognition": "DirectHit", "pre_delay": 0, "action": "Click", "target": [
+            113,
+            34,
+            1,
+            1
+        ], "post_delay": 0, "rate_limit": 0, "next": [], "on_error": []},
+    "ReturnCards_ScrollToStart": {"recognition": "DirectHit", "pre_delay": 0, "action": "Swipe", "begin": [
+            80,
+            650,
+            1,
+            1
+        ], "end": [
+            1190,
+            650,
+            1,
+            1
+        ], "end_hold": 500, "duration": 500, "post_delay": 0, "rate_limit": 0, "next": [], "on_error": []},
+    "ReturnCards_ScrollForward": {"recognition": "DirectHit", "pre_delay": 0, "action": "Swipe", "begin": [
+            1190,
+            650,
+            1,
+            1
+        ], "end": [
+            80,
+            650,
+            1,
+            1
+        ], "end_hold": 500, "duration": 500, "post_delay": 0, "rate_limit": 0, "next": [], "on_error": []},
+    "ReturnCards_TabStart": {"recognition": "DirectHit", "pre_delay": 0, "action": "Swipe", "begin": [
+            80,
+            580,
+            1,
+            1
+        ], "end": [
+            1080,
+            580,
+            1,
+            1
+        ], "end_hold": 300, "duration": 500, "post_delay": 0, "rate_limit": 0, "next": [], "on_error": []},
+    "ReturnCards_TabForward": {"recognition": "DirectHit", "pre_delay": 0, "action": "Swipe", "begin": [
+            1080,
+            580,
+            1,
+            1
+        ], "end": [
+            80,
+            580,
+            1,
+            1
+        ], "end_hold": 300, "duration": 500, "post_delay": 0, "rate_limit": 0, "next": [], "on_error": []},
+    "ReturnCards_QuickPanel": {"recognition": "Or", "any_of": [
+            "ReturnCards_RecentTab",
+            "ReturnCards_StoryTab",
+            "ReturnCards_CharacterTab",
+            "ReturnCards_EventTab"
+        ], "next": [], "on_error": []},
+    "ReturnCards_RecentTab": {"recognition": "Or", "any_of": ["StealNav_RecentTab"], "next": [], "on_error": []},
+    "ReturnCards_StoryTab": {
+        "recognition": "Or",
+        "any_of": ["Collect_QuickCart_SelectType_StoryPack"],
+        "next": [],
+        "on_error": []
+    },
+    "ReturnCards_CharacterTab": {
+        "recognition": "Or",
+        "any_of": ["Collect_QuickCart_SelectType_CharacterPack"],
+        "next": [],
+        "on_error": []
+    },
+    "ReturnCards_EventTab": {
+        "recognition": "Or",
+        "any_of": ["Collect_QuickCart_SelectType_EventPack"],
+        "next": [],
+        "on_error": []
+    },
+    "ReturnCards_StorySelected": {
+        "recognition": "And",
+        "all_of": [
+            {"sub_name": "CategoryLabel", "recognition": "Or", "any_of": ["ReturnCards_StoryTab"]},
+            {"sub_name": "SelectedPixels", "recognition": "ColorMatch", "roi": "CategoryLabel", "lower": [
+                    203,
+                    203,
+                    202
+                ], "upper": [
+                    255,
+                    255,
+                    255
+                ], "count": 200}
+        ],
+        "next": [],
+        "on_error": []
+    },
+    "ReturnCards_CharacterSelected": {
+        "recognition": "And",
+        "all_of": [
+            {"sub_name": "CategoryLabel", "recognition": "Or", "any_of": ["ReturnCards_CharacterTab"]},
+            {"sub_name": "SelectedPixels", "recognition": "ColorMatch", "roi": "CategoryLabel", "lower": [
+                    167,
+                    167,
+                    165
+                ], "upper": [
+                    255,
+                    255,
+                    255
+                ], "count": 200}
+        ],
+        "next": [],
+        "on_error": []
+    },
+    "ReturnCards_EventSelected": {
+        "recognition": "And",
+        "all_of": [
+            {"sub_name": "CategoryLabel", "recognition": "Or", "any_of": ["ReturnCards_EventTab"]},
+            {"sub_name": "SelectedPixels", "recognition": "ColorMatch", "roi": "CategoryLabel", "lower": [
+                    167,
+                    167,
+                    165
+                ], "upper": [
+                    255,
+                    255,
+                    255
+                ], "count": 200}
+        ],
+        "next": [],
+        "on_error": []
+    },
+    "ReturnCards_Field": {"recognition": "Or", "any_of": ["StealNav_Field"], "next": [], "on_error": []},
+    "ReturnCards_QuickButton": {"recognition": "Or", "any_of": ["StealNav_QuickButton"], "next": [], "on_error": []},
+    "ReturnCards_StoryDialogue": {"recognition": "And", "all_of": [
+            "ReturnCards_StoryControls",
+            "ReturnCards_StoryChoices"
+        ], "next": [], "on_error": []},
+    "ReturnCards_StoryControls": {"recognition": "And", "all_of": [
+            "ReturnCards_StoryF1",
+            "ReturnCards_StoryF2",
+            "ReturnCards_StoryF3"
+        ], "next": [], "on_error": []},
+    "ReturnCards_StoryF1": {"recognition": "OCR", "roi": [
+            995,
+            55,
+            40,
+            35
+        ], "expected": ["^F1$"], "replace": [[
+                "^FI$",
+                "F1"
+            ]], "next": [], "on_error": []},
+    "ReturnCards_StoryF2": {"recognition": "OCR", "roi": [
+            1075,
+            55,
+            40,
+            35
+        ], "expected": ["^F2$"], "next": [], "on_error": []},
+    "ReturnCards_StoryF3": {"recognition": "OCR", "roi": [
+            1155,
+            55,
+            40,
+            35
+        ], "expected": ["^F3$"], "next": [], "on_error": []},
+    "ReturnCards_StoryChoices": {"recognition": "OCR", "roi": [
+            430,
+            575,
+            420,
+            115
+        ], "expected": ["[一-龥]{2,}"], "next": [], "on_error": []},
+    "ReturnCards_Loading": {"recognition": "Or", "any_of": [
+            "ReturnCards_LoadingCardScene",
+            "ReturnCards_LoadingSpinner"
+        ], "next": [], "on_error": []},
+    "ReturnCards_LoadingCardScene": {"recognition": "And", "all_of": [
+            "ReturnCards_LoadingPercent",
+            "ReturnCards_LoadingHint"
+        ], "next": [], "on_error": []},
+    "ReturnCards_LoadingPercent": {"recognition": "OCR", "roi": [
+            1180,
+            632,
+            92,
+            80
+        ], "expected": ["^(?:100|[1-9]?[0-9])\\s*%$"], "next": [], "on_error": []},
+    "ReturnCards_LoadingHint": {"recognition": "OCR", "roi": [
+            165,
+            610,
+            965,
+            75
+        ], "expected": ["(?:游戏卡|遊戲卡).*(?:主线|主線|探索|角色)"], "next": [], "on_error": []},
+    "ReturnCards_LoadingSpinner": {"recognition": "Or", "any_of": [
+            "Rec_<Global_WaitingForLoading>_01",
+            "Rec_<Global_WaitingForLoading>_02"
+        ], "next": [], "on_error": []},
+    "ReturnCards_LobbyReturn": {"recognition": "Or", "any_of": ["StealNav_LobbyReturn"], "next": [], "on_error": []},
+    "ReturnCards_GuideMenu": {"recognition": "Or", "any_of": ["StealNav_GuideMenu"], "next": [], "on_error": []},
+    "ReturnCards_ConfirmDialog": {
+        "recognition": "Or",
+        "any_of": ["StealNav_ConfirmDialog"],
+        "next": [],
+        "on_error": []
+    },
+    "ReturnCards_GachaHeading": {"recognition": "Or", "any_of": ["StealNav_GachaHeading"], "next": [], "on_error": []},
+    "ReturnCards_GachaPurchaseDialog": {
+        "recognition": "Or",
+        "any_of": ["StealNav_GachaPurchaseDialog"],
+        "next": [],
+        "on_error": []
+    },
+    "ReturnCards_GachaCancel": {"recognition": "Or", "any_of": ["StealNav_GachaCancel"], "next": [], "on_error": []},
+    "ReturnCards_Card": {"recognition": "TemplateMatch", "roi": [
+            0,
+            600,
+            1280,
+            105
+        ], "template": ["Cartridges/Q_sp1_PC.png"], "threshold": 0.85, "order_by": "Score", "next": [], "on_error": []},
+    "ReturnCards_Locked": {"recognition": "OCR", "roi": [
+            280,
+            160,
+            740,
+            370
+        ], "expected": [
+            "尚未解[锁鎖]",
+            "未解[锁鎖].*(游戏卡|遊戲卡)",
+            "(游戏卡|遊戲卡).*未解[锁鎖]",
+            "需.*(完成|通关|通關).*解[锁鎖]"
+        ], "next": [], "on_error": []},
+    "ReturnCards_Unsupported": {"recognition": "OCR", "roi": [
+            280,
+            120,
+            740,
+            420
+        ], "expected": [
+            "[无無]法[进進]入",
+            "活动.*(结束|未开启)",
+            "活動.*(結束|未開啟)",
+            "暂不支持",
+            "暫不支援"
+        ], "next": [], "on_error": []},
+    "ReturnCards_Cancel": {"recognition": "OCR", "roi": [
+            360,
+            340,
+            540,
+            240
+        ], "expected": ["^取消$"], "next": [], "on_error": []},
+    "ReturnCards_Back": {"recognition": "Or", "any_of": ["Global_BackPageHub_Once"], "next": [], "on_error": []}
+}

@@ -209,6 +209,14 @@ CYCLE_STRATEGIES = {
         "reset_weekday": 0,     # 周一
         "blackout_minutes": 0   # 无结算期
     },
+    # 偷窃 NPC 的三角色完成记录独立于其他卡带周任务。
+    "steal_weekly": {
+        "type": "weekly",
+        "reset_time": "08:00",
+        "timezone": 8,
+        "reset_weekday": 0,
+        "blackout_minutes": 0
+    },
     # 【BD2】国际服-日常刷新时间 (每天 08:00)
     "g_daily": {
         "type": "daily",

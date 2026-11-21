@@ -39,6 +39,21 @@ class Rect:
 RectType = Union[Rect, list[int], np.ndarray, tuple[int, int, int, int]]
 
 
+@dataclass
+class RecognitionDetail:
+    reco_id: int
+    name: str
+    algorithm: Any
+    hit: bool
+    box: Rect | None
+    all_results: list[Any]
+    filtered_results: list[Any]
+    best_result: Any
+    raw_detail: dict[str, Any]
+    raw_image: np.ndarray
+    draw_images: list[np.ndarray]
+
+
 class Context:
     def __init__(self, handle):
         raise AssertionError("A bootstrap test must not create a device Context")
@@ -189,7 +204,7 @@ EXPORTS = {
     "maa.context": {"Context": Context, "ContextEventSink": ContextEventSink},
     "maa.custom_action": {"CustomAction": CustomAction},
     "maa.custom_recognition": {"CustomRecognition": CustomRecognition},
-    "maa.define": {"Rect": Rect, "RectType": RectType},
+    "maa.define": {"Rect": Rect, "RectType": RectType, "RecognitionDetail": RecognitionDetail},
 }
 
 

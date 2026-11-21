@@ -1,0 +1,910 @@
+{
+    "StealInteraction_NpcIdentity": {
+        "recognition": "OCR",
+        "roi": [
+            608,
+            174,
+            235,
+            30
+        ],
+        "expected": [
+            "^__STEAL_NPC_NOT_CONFIGURED__$"
+        ],
+        "pre_delay": 0,
+        "post_delay": 0,
+        "on_error": [
+            "StealInteraction_Fail"
+        ]
+    },
+    "StealInteraction_PreviewIdentity": {
+        "recognition": "OCR",
+        "roi": [
+            430,
+            240,
+            420,
+            45
+        ],
+        "expected": [
+            "^__STEAL_NPC_NOT_CONFIGURED__持有物列表$"
+        ],
+        "pre_delay": 0,
+        "post_delay": 0,
+        "on_error": [
+            "StealInteraction_Fail"
+        ]
+    },
+    "StealInteraction_PreviewRate": {
+        "recognition": "OCR",
+        "roi": [
+            520,
+            270,
+            240,
+            40
+        ],
+        "expected": [
+            "^[偷葡][窃竊]成功率100%$"
+        ],
+        "pre_delay": 0,
+        "post_delay": 0,
+        "on_error": [
+            "StealInteraction_Fail"
+        ]
+    },
+    "StealInteraction_PreviewButton": {
+        "recognition": "OCR",
+        "roi": [
+            610,
+            430,
+            185,
+            40
+        ],
+        "expected": [
+            "^[偷葡][窃竊]\\s*[0-9]{1,4}\\s*$"
+        ],
+        "pre_delay": 0,
+        "post_delay": 0,
+        "on_error": [
+            "StealInteraction_Fail"
+        ]
+    },
+    "StealInteraction_NoPreview": {
+        "recognition": "Custom",
+        "custom_recognition": "NotRecognition",
+        "custom_recognition_param": {
+            "node": "StealInteraction_PreviewPresent"
+        },
+        "pre_delay": 0,
+        "post_delay": 0,
+        "on_error": [
+            "StealInteraction_Fail"
+        ]
+    },
+    "StealInteraction_TalentHeading": {
+        "recognition": "OCR",
+        "roi": [
+            75,
+            450,
+            150,
+            35
+        ],
+        "expected": [
+            "^天[赋賦]技能$"
+        ],
+        "pre_delay": 0,
+        "post_delay": 0,
+        "on_error": [
+            "StealInteraction_Fail"
+        ]
+    },
+    "StealInteraction_RewardToast": {
+        "recognition": "OCR",
+        "roi": [
+            135,
+            310,
+            250,
+            55
+        ],
+        "expected": [
+            "^(金币|金幣)[×xX]?[0-9,]+$"
+        ],
+        "pre_delay": 0,
+        "post_delay": 0,
+        "on_error": [
+            "StealInteraction_Fail"
+        ]
+    },
+    "StealInteraction_Card1Cooldown": {
+        "recognition": "Or",
+        "any_of": [
+            {
+                "recognition": "OCR",
+                "roi": [
+                    96,
+                    593,
+                    62,
+                    23
+                ],
+                "expected": [
+                    "^(?:(?:[1-9]\\d{0,2}|0[1-9]\\d?|00[1-9])[:：][0-5]\\d|0{1,3}[:：](?:[1-5]\\d|0[1-9]))$",
+                    "^[1-7]\\s*天$"
+                ],
+                "only_rec": true,
+                "threshold": 0.7
+            },
+            {
+                "recognition": "OCR",
+                "roi": [
+                    96,
+                    590,
+                    62,
+                    30
+                ],
+                "expected": [
+                    "^[1-7]\\s*天$"
+                ],
+                "only_rec": false,
+                "threshold": 0.7
+            }
+        ],
+        "pre_delay": 0,
+        "post_delay": 0,
+        "on_error": [
+            "StealInteraction_Fail"
+        ]
+    },
+    "StealInteraction_Card1Label": {
+        "recognition": "Or",
+        "any_of": [
+            {
+                "recognition": "OCR",
+                "roi": [
+                    96,
+                    610,
+                    65,
+                    30
+                ],
+                "expected": [
+                    "^[偷葡][窃竊]$"
+                ]
+            },
+            {
+                "recognition": "OCR",
+                "roi": [
+                    108,
+                    611,
+                    40,
+                    16
+                ],
+                "expected": [
+                    "^[偷葡][窃竊]$"
+                ],
+                "only_rec": true
+            }
+        ],
+        "pre_delay": 0,
+        "post_delay": 0,
+        "on_error": [
+            "StealInteraction_Fail"
+        ]
+    },
+    "StealInteraction_Card1NotCooldown": {
+        "recognition": "Custom",
+        "custom_recognition": "NotRecognition",
+        "custom_recognition_param": {
+            "node": "StealInteraction_Card1Cooldown"
+        },
+        "pre_delay": 0,
+        "post_delay": 0,
+        "on_error": [
+            "StealInteraction_Fail"
+        ]
+    },
+    "StealInteraction_Card2Cooldown": {
+        "recognition": "Or",
+        "any_of": [
+            {
+                "recognition": "OCR",
+                "roi": [
+                    178,
+                    593,
+                    62,
+                    23
+                ],
+                "expected": [
+                    "^(?:(?:[1-9]\\d{0,2}|0[1-9]\\d?|00[1-9])[:：][0-5]\\d|0{1,3}[:：](?:[1-5]\\d|0[1-9]))$",
+                    "^[1-7]\\s*天$"
+                ],
+                "only_rec": true,
+                "threshold": 0.7
+            },
+            {
+                "recognition": "OCR",
+                "roi": [
+                    178,
+                    590,
+                    62,
+                    30
+                ],
+                "expected": [
+                    "^[1-7]\\s*天$"
+                ],
+                "only_rec": false,
+                "threshold": 0.7
+            }
+        ],
+        "pre_delay": 0,
+        "post_delay": 0,
+        "on_error": [
+            "StealInteraction_Fail"
+        ]
+    },
+    "StealInteraction_Card2Label": {
+        "recognition": "Or",
+        "any_of": [
+            {
+                "recognition": "OCR",
+                "roi": [
+                    178,
+                    610,
+                    65,
+                    30
+                ],
+                "expected": [
+                    "^[偷葡][窃竊]$"
+                ]
+            },
+            {
+                "recognition": "OCR",
+                "roi": [
+                    190,
+                    611,
+                    40,
+                    16
+                ],
+                "expected": [
+                    "^[偷葡][窃竊]$"
+                ],
+                "only_rec": true
+            }
+        ],
+        "pre_delay": 0,
+        "post_delay": 0,
+        "on_error": [
+            "StealInteraction_Fail"
+        ]
+    },
+    "StealInteraction_Card2NotCooldown": {
+        "recognition": "Custom",
+        "custom_recognition": "NotRecognition",
+        "custom_recognition_param": {
+            "node": "StealInteraction_Card2Cooldown"
+        },
+        "pre_delay": 0,
+        "post_delay": 0,
+        "on_error": [
+            "StealInteraction_Fail"
+        ]
+    },
+    "StealInteraction_Card3Cooldown": {
+        "recognition": "Or",
+        "any_of": [
+            {
+                "recognition": "OCR",
+                "roi": [
+                    260,
+                    593,
+                    62,
+                    23
+                ],
+                "expected": [
+                    "^(?:(?:[1-9]\\d{0,2}|0[1-9]\\d?|00[1-9])[:：][0-5]\\d|0{1,3}[:：](?:[1-5]\\d|0[1-9]))$",
+                    "^[1-7]\\s*天$"
+                ],
+                "only_rec": true,
+                "threshold": 0.7
+            },
+            {
+                "recognition": "OCR",
+                "roi": [
+                    260,
+                    590,
+                    62,
+                    30
+                ],
+                "expected": [
+                    "^[1-7]\\s*天$"
+                ],
+                "only_rec": false,
+                "threshold": 0.7
+            }
+        ],
+        "pre_delay": 0,
+        "post_delay": 0,
+        "on_error": [
+            "StealInteraction_Fail"
+        ]
+    },
+    "StealInteraction_Card3Label": {
+        "recognition": "Or",
+        "any_of": [
+            {
+                "recognition": "OCR",
+                "roi": [
+                    260,
+                    610,
+                    65,
+                    30
+                ],
+                "expected": [
+                    "^[偷葡][窃竊]$"
+                ]
+            },
+            {
+                "recognition": "OCR",
+                "roi": [
+                    272,
+                    611,
+                    40,
+                    16
+                ],
+                "expected": [
+                    "^[偷葡][窃竊]$"
+                ],
+                "only_rec": true
+            }
+        ],
+        "pre_delay": 0,
+        "post_delay": 0,
+        "on_error": [
+            "StealInteraction_Fail"
+        ]
+    },
+    "StealInteraction_Card3NotCooldown": {
+        "recognition": "Custom",
+        "custom_recognition": "NotRecognition",
+        "custom_recognition_param": {
+            "node": "StealInteraction_Card3Cooldown"
+        },
+        "pre_delay": 0,
+        "post_delay": 0,
+        "on_error": [
+            "StealInteraction_Fail"
+        ]
+    },
+    "StealInteraction_Entry": {
+        "recognition": "DirectHit",
+        "pre_delay": 0,
+        "post_delay": 0,
+        "timeout": 8000,
+        "next": [
+            "StealInteraction_Ready"
+        ],
+        "on_error": [
+            "StealInteraction_Fail"
+        ]
+    },
+    "StealInteraction_Ready": {
+        "recognition": "And",
+        "all_of": [
+            "StealInteraction_NpcIdentity",
+            "StealInteraction_TalentHeading",
+            "StealInteraction_NoPreview"
+        ],
+        "pre_delay": 0,
+        "post_delay": 0,
+        "timeout": 5000,
+        "next": [
+            "StealInteraction_Card1Done",
+            "StealInteraction_Card1Select"
+        ],
+        "on_error": [
+            "StealInteraction_Fail"
+        ],
+        "focus": "SL.已确认NPC交互，逐角色检查偷窃"
+    },
+    "StealInteraction_Card1Done": {
+        "recognition": "And",
+        "all_of": [
+            "StealInteraction_NpcIdentity",
+            "StealInteraction_NoPreview",
+            "StealInteraction_Card1Label",
+            "StealInteraction_Card1Cooldown"
+        ],
+        "pre_delay": 0,
+        "post_delay": 0,
+        "timeout": 5000,
+        "next": [
+            "StealInteraction_Card2Done",
+            "StealInteraction_Card2Select"
+        ],
+        "on_error": [
+            "StealInteraction_Fail"
+        ],
+        "focus": "SL.角色1已有明确周倒计时，跳过"
+    },
+    "StealInteraction_Card1Select": {
+        "recognition": "And",
+        "all_of": [
+            "StealInteraction_NpcIdentity",
+            "StealInteraction_TalentHeading",
+            "StealInteraction_NoPreview",
+            "StealInteraction_Card1Label",
+            "StealInteraction_Card1NotCooldown"
+        ],
+        "pre_delay": 0,
+        "action": "Click",
+        "target": [
+            126,
+            610,
+            1,
+            1
+        ],
+        "post_delay": 800,
+        "timeout": 12000,
+        "next": [
+            "StealInteraction_Card1Confirm"
+        ],
+        "on_error": [
+            "StealInteraction_Fail"
+        ],
+        "focus": "SL.选择角色1的偷窃技能"
+    },
+    "StealInteraction_Card1Confirm": {
+        "recognition": "And",
+        "all_of": [
+            "StealInteraction_PreviewIdentity",
+            "StealInteraction_PreviewRate",
+            "StealInteraction_PreviewGold",
+            "StealInteraction_PreviewButton"
+        ],
+        "pre_delay": 500,
+        "action": "Click",
+        "target": [
+            700,
+            454,
+            1,
+            1
+        ],
+        "post_delay": 100,
+        "timeout": 12000,
+        "next": [
+            "StealInteraction_Card1After"
+        ],
+        "on_error": [
+            "StealInteraction_Fail"
+        ],
+        "focus": "SL.核对NPC与成功率后执行角色1偷窃"
+    },
+    "StealInteraction_Card1After": {
+        "recognition": "And",
+        "all_of": [
+            "StealInteraction_NpcIdentity",
+            "StealInteraction_NoPreview",
+            "StealInteraction_Card1Label",
+            "StealInteraction_Card1Cooldown"
+        ],
+        "pre_delay": 0,
+        "post_delay": 0,
+        "timeout": 5000,
+        "next": [
+            "StealInteraction_Card2Done",
+            "StealInteraction_Card2Select"
+        ],
+        "on_error": [
+            "StealInteraction_Fail"
+        ],
+        "focus": "SL.角色1从可用变为明确周倒计时，已确认完成"
+    },
+    "StealInteraction_Card2Done": {
+        "recognition": "And",
+        "all_of": [
+            "StealInteraction_NpcIdentity",
+            "StealInteraction_NoPreview",
+            "StealInteraction_Card2Label",
+            "StealInteraction_Card2Cooldown"
+        ],
+        "pre_delay": 0,
+        "post_delay": 0,
+        "timeout": 5000,
+        "next": [
+            "StealInteraction_Card3Done",
+            "StealInteraction_Card3Select"
+        ],
+        "on_error": [
+            "StealInteraction_Fail"
+        ],
+        "focus": "SL.角色2已有明确周倒计时，跳过"
+    },
+    "StealInteraction_Card2Select": {
+        "recognition": "And",
+        "all_of": [
+            "StealInteraction_NpcIdentity",
+            "StealInteraction_TalentHeading",
+            "StealInteraction_NoPreview",
+            "StealInteraction_Card2Label",
+            "StealInteraction_Card2NotCooldown"
+        ],
+        "pre_delay": 0,
+        "action": "Click",
+        "target": [
+            209,
+            610,
+            1,
+            1
+        ],
+        "post_delay": 800,
+        "timeout": 12000,
+        "next": [
+            "StealInteraction_Card2Confirm"
+        ],
+        "on_error": [
+            "StealInteraction_Fail"
+        ],
+        "focus": "SL.选择角色2的偷窃技能"
+    },
+    "StealInteraction_Card2Confirm": {
+        "recognition": "And",
+        "all_of": [
+            "StealInteraction_PreviewIdentity",
+            "StealInteraction_PreviewRate",
+            "StealInteraction_PreviewGold",
+            "StealInteraction_PreviewButton"
+        ],
+        "pre_delay": 500,
+        "action": "Click",
+        "target": [
+            700,
+            454,
+            1,
+            1
+        ],
+        "post_delay": 100,
+        "timeout": 12000,
+        "next": [
+            "StealInteraction_Card2After"
+        ],
+        "on_error": [
+            "StealInteraction_Fail"
+        ],
+        "focus": "SL.核对NPC与成功率后执行角色2偷窃"
+    },
+    "StealInteraction_Card2After": {
+        "recognition": "And",
+        "all_of": [
+            "StealInteraction_NpcIdentity",
+            "StealInteraction_NoPreview",
+            "StealInteraction_Card2Label",
+            "StealInteraction_Card2Cooldown"
+        ],
+        "pre_delay": 0,
+        "post_delay": 0,
+        "timeout": 5000,
+        "next": [
+            "StealInteraction_Card3Done",
+            "StealInteraction_Card3Select"
+        ],
+        "on_error": [
+            "StealInteraction_Fail"
+        ],
+        "focus": "SL.角色2从可用变为明确周倒计时，已确认完成"
+    },
+    "StealInteraction_Card3Done": {
+        "recognition": "And",
+        "all_of": [
+            "StealInteraction_NpcIdentity",
+            "StealInteraction_NoPreview",
+            "StealInteraction_Card3Label",
+            "StealInteraction_Card3Cooldown"
+        ],
+        "pre_delay": 0,
+        "post_delay": 0,
+        "timeout": 5000,
+        "next": [
+            "StealInteraction_AllCardsOnCooldown"
+        ],
+        "on_error": [
+            "StealInteraction_Fail"
+        ],
+        "focus": "SL.角色3已有明确周倒计时，跳过"
+    },
+    "StealInteraction_Card3Select": {
+        "recognition": "And",
+        "all_of": [
+            "StealInteraction_NpcIdentity",
+            "StealInteraction_TalentHeading",
+            "StealInteraction_NoPreview",
+            "StealInteraction_Card3Label",
+            "StealInteraction_Card3NotCooldown"
+        ],
+        "pre_delay": 0,
+        "action": "Click",
+        "target": [
+            291,
+            610,
+            1,
+            1
+        ],
+        "post_delay": 800,
+        "timeout": 12000,
+        "next": [
+            "StealInteraction_Card3Confirm"
+        ],
+        "on_error": [
+            "StealInteraction_Fail"
+        ],
+        "focus": "SL.选择角色3的偷窃技能"
+    },
+    "StealInteraction_Card3Confirm": {
+        "recognition": "And",
+        "all_of": [
+            "StealInteraction_PreviewIdentity",
+            "StealInteraction_PreviewRate",
+            "StealInteraction_PreviewGold",
+            "StealInteraction_PreviewButton"
+        ],
+        "pre_delay": 500,
+        "action": "Click",
+        "target": [
+            700,
+            454,
+            1,
+            1
+        ],
+        "post_delay": 100,
+        "timeout": 12000,
+        "next": [
+            "StealInteraction_Card3After"
+        ],
+        "on_error": [
+            "StealInteraction_Fail"
+        ],
+        "focus": "SL.核对NPC与成功率后执行角色3偷窃"
+    },
+    "StealInteraction_Card3After": {
+        "recognition": "And",
+        "all_of": [
+            "StealInteraction_NpcIdentity",
+            "StealInteraction_NoPreview",
+            "StealInteraction_Card3Label",
+            "StealInteraction_Card3Cooldown"
+        ],
+        "pre_delay": 0,
+        "post_delay": 0,
+        "timeout": 5000,
+        "next": [
+            "StealInteraction_AllCardsOnCooldown"
+        ],
+        "on_error": [
+            "StealInteraction_Fail"
+        ],
+        "focus": "SL.角色3从可用变为明确周倒计时，已确认完成"
+    },
+    "StealInteraction_AllCardsOnCooldown": {
+        "recognition": "And",
+        "all_of": [
+            "StealInteraction_NpcIdentity",
+            "StealInteraction_TalentHeading",
+            "StealInteraction_NoPreview",
+            "StealInteraction_Card1Label",
+            "StealInteraction_Card1Cooldown",
+            "StealInteraction_Card2Label",
+            "StealInteraction_Card2Cooldown",
+            "StealInteraction_Card3Label",
+            "StealInteraction_Card3Cooldown"
+        ],
+        "pre_delay": 0,
+        "post_delay": 0,
+        "timeout": 5000,
+        "next": [],
+        "on_error": [
+            "StealInteraction_Fail"
+        ],
+        "focus": "SL.当前NPC三名角色均已明确冷却"
+    },
+    "StealInteraction_Fail": {
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "StealFail",
+        "custom_action_param": {
+            "reason": "NPC、技能卡、偷窃预览或逐角色倒计时未确认"
+        },
+        "post_delay": 0,
+        "next": [],
+        "on_error": []
+    },
+    "StealInteraction_PreviewPresent": {
+        "recognition": "OCR",
+        "roi": [
+            425,
+            235,
+            440,
+            60
+        ],
+        "expected": [
+            "持有物列表"
+        ],
+        "pre_delay": 0,
+        "post_delay": 0,
+        "on_error": [
+            "StealInteraction_Fail"
+        ]
+    },
+    "StealInteraction_FirstSteal": {
+        "recognition": "Or",
+        "any_of": [
+            {
+                "recognition": "OCR",
+                "roi": [
+                    96,
+                    610,
+                    65,
+                    30
+                ],
+                "expected": [
+                    "^[偷葡][窃竊]$"
+                ]
+            },
+            {
+                "recognition": "OCR",
+                "roi": [
+                    108,
+                    611,
+                    40,
+                    16
+                ],
+                "expected": [
+                    "^[偷葡][窃竊]$"
+                ],
+                "only_rec": true
+            }
+        ],
+        "pre_delay": 0,
+        "post_delay": 0,
+        "on_error": [
+            "StealInteraction_Fail"
+        ]
+    },
+    "StealInteraction_FirstBargain": {
+        "recognition": "Or",
+        "any_of": [
+            {
+                "recognition": "OCR",
+                "roi": [
+                    96,
+                    610,
+                    65,
+                    30
+                ],
+                "expected": [
+                    "^砍[价價]$"
+                ]
+            },
+            {
+                "recognition": "OCR",
+                "roi": [
+                    108,
+                    611,
+                    40,
+                    16
+                ],
+                "expected": [
+                    "^砍[价價]$"
+                ],
+                "only_rec": true
+            }
+        ],
+        "pre_delay": 0,
+        "post_delay": 0,
+        "on_error": [
+            "StealInteraction_Fail"
+        ]
+    },
+    "StealInteraction_Offset0": {
+        "recognition": "And",
+        "all_of": [
+            "StealInteraction_NpcIdentity",
+            "StealInteraction_TalentHeading",
+            "StealInteraction_NoPreview",
+            "StealInteraction_FirstSteal"
+        ],
+        "pre_delay": 0,
+        "post_delay": 0,
+        "next": [],
+        "on_error": [
+            "StealInteraction_Fail"
+        ]
+    },
+    "StealInteraction_Offset1": {
+        "recognition": "And",
+        "all_of": [
+            "StealInteraction_NpcIdentity",
+            "StealInteraction_TalentHeading",
+            "StealInteraction_NoPreview",
+            "StealInteraction_FirstBargain"
+        ],
+        "pre_delay": 0,
+        "post_delay": 0,
+        "next": [],
+        "on_error": [
+            "StealInteraction_Fail"
+        ]
+    },
+    "StealInteraction_DetectEntry": {
+        "recognition": "DirectHit",
+        "pre_delay": 0,
+        "post_delay": 0,
+        "timeout": 8000,
+        "next": [
+            "StealInteraction_Offset0",
+            "StealInteraction_Offset1"
+        ],
+        "on_error": [
+            "StealInteraction_Fail"
+        ]
+    },
+    "StealInteraction_PreviewGold": {
+        "recognition": "OCR",
+        "roi": [
+            435,
+            330,
+            360,
+            55
+        ],
+        "expected": [
+            "^金币$",
+            "^金幣$"
+        ],
+        "pre_delay": 0,
+        "post_delay": 0,
+        "on_error": [
+            "StealInteraction_Fail"
+        ]
+    },
+    "StealInteraction_PreviewCancel": {
+        "recognition": "OCR",
+        "roi": [
+            460,
+            425,
+            165,
+            55
+        ],
+        "expected": [
+            "^取消$"
+        ],
+        "pre_delay": 0,
+        "post_delay": 0,
+        "on_error": [
+            "StealInteraction_Fail"
+        ]
+    },
+    "StealInteraction_Click": {
+        "recognition": "DirectHit",
+        "pre_delay": 0,
+        "action": "Click",
+        "target": [
+            0,
+            0,
+            1,
+            1
+        ],
+        "post_delay": 0,
+        "rate_limit": 0,
+        "next": [],
+        "on_error": []
+    },
+    "StealInteraction_CloseNpc": {
+        "recognition": "DirectHit",
+        "pre_delay": 0,
+        "action": "Click",
+        "target": [
+            113,
+            34,
+            1,
+            1
+        ],
+        "post_delay": 0,
+        "rate_limit": 0,
+        "next": [],
+        "on_error": []
+    }
+}
