@@ -97,6 +97,12 @@
         "expected": [
             "7天内不再显示",
             "7日期間不再觀看"
+        ],
+        "target_offset": [
+            122,
+            3,
+            -100,
+            -4
         ]
     },
     "StartGame_PerPetTask": {
