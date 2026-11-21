@@ -6,7 +6,7 @@
         "focus": "[color:red][WRN][PC] 管路逻辑失控，无法恢复。\n\nPC端不支持自动重启游戏，请检查游戏状态后手动重新运行任务。[/color]"
     },
     "Agt_RedDot_Preset": {
-        "desc": "[PC覆盖] 通用红点预设(覆盖base同名节点)。移除已弃用 inner_s_max/inner_v_min。当前生效值:S下限140 / red_area[30,1200] / 命中阈值0.55——注意 sc_min_conf(0.55) 按新名优先规则覆盖了同存的 min_confidence(0.25),后者是死字段,别照它读。形状清晰的大红点(商品邮箱/每周任务页签)720实测 conf 0.92~0.93,余量充足。⚠️曾把S下限降到100,已回滚,勿再降:373条语料回放实测全局 S140→100 净损失15个命中(新增11/丢失26)。新增的11个里10个是 Pass_SelectPass[262,130,40,478] 大ROI误命中(18条无红点样本误报10条);丢失的26个里23个卡 confidence——降S使红环变厚吞掉白芯,white/vert 主轴分项一起掉分。S 是双向悬崖(过高红环破损/过低吞白芯),140 是全语料最优工作点(202命中峰值)。单点低饱和场景另开分档预设,勿动本节点,见 Agt_RedDot_Preset_LowSat。⚠️注:对极小红点(如邮件图标'!'仅~3px),RedDotDetector形状模型在720下不可靠(conf 0.0~0.43飘),应改用 ColorMatch 计数,见 Mail_NewRed。",
+        "desc": "[PC覆盖] 通用红点预设(覆盖base同名节点)。移除已弃用 inner_s_max/inner_v_min。当前生效值:S下限140 / red_area[30,1200] / 命中阈值0.55——注意 sc_min_conf(0.55) 按新名优先规则覆盖了同存的 min_confidence(0.25),后者是死字段,别照它读。形状清晰的大红点(商品邮箱/每周任务页签)720实测 conf 0.92~0.93,余量充足。⚠️曾把S下限降到100,已回滚,勿再降:373条语料回放实测全局 S140→100 净损失15个命中(新增11/丢失26)。新增的11个里10个是 Pass_SelectPass[262,130,40,478] 大ROI误命中(18条无红点样本误报10条);丢失的26个里23个卡 confidence——降S使红环变厚吞掉白芯,white/vert 主轴分项一起掉分。S 是双向悬崖(过高红环破损/过低吞白芯),140 是全语料最优工作点(202命中峰值)。单点低饱和场景另开分档预设,勿动本节点,见 Agt_RedDot_Preset_LowSat。⚠️注:对极小红点(如邮件图标'!'仅~3px),RedDotDetector形状模型在720下不可靠(conf 0.0~0.43飘),应改用 ColorMatch 计数,见 Mail_NewRed。flt_relevel 是换档重看,含义见 base 同名节点;本节点的参数整体替换 base 的那份,所以这里也要写一份,改 base 时同步。",
         "custom_recognition_param": {
             "flt_hsv_rescue": {
                 "max_delta_s": 110,
@@ -15,6 +15,13 @@
                 "max_parents": 5,
                 "min_stable_states": 2,
                 "mode": "active",
+                "time_budget_ms": 40
+            },
+            "flt_relevel": {
+                "mode": "active",
+                "s_min": 60,
+                "s_max": 220,
+                "step": 10,
                 "time_budget_ms": 40
             },
             "gap_ratio": 0.35,

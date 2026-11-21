@@ -150,7 +150,7 @@
         "action": "Click"
     },
     "Agt_RedDot_Preset": {
-        "desc": "通用红点预设。flt_hsv_rescue.entry_* 是严格HSV救援的入口开关,取值 off/shadow/active/inherit(跟随mode)。三个入口共用同一套处理与出口,只决定'父块从哪来':entry_aspect=长宽比闸拒绝的块(v3原有入口);entry_confidence=过闸打过分但分不够的块(多是连片把封闭区搅成杂散空洞,竖长与偏白一起塌);entry_confidence_rej=前者无解时回头搜同帧被长宽比拒的块(证据仅1条,固定shadow只记录不改判)。mode 是硬总开关,off 时三个入口一律不跑。预算(max_full_runs/time_budget_ms)全局共享,不随入口数增长。改这里之前先跑 agent/recognition/replay_rdd_samples.py 全语料回放,判据是 result_parity 100% 且救回的每一条经肉眼确认是真红点。",
+        "desc": "通用红点预设。flt_hsv_rescue.entry_* 是严格HSV救援的入口开关,取值 off/shadow/active/inherit(跟随mode)。三个入口共用同一套处理与出口,只决定'父块从哪来':entry_aspect=长宽比闸拒绝的块(v3原有入口);entry_confidence=过闸打过分但分不够的块(多是连片把封闭区搅成杂散空洞,竖长与偏白一起塌);entry_confidence_rej=前者无解时回头搜同帧被长宽比拒的块(证据仅1条,固定shadow只记录不改判)。mode 是硬总开关,off 时三个入口一律不跑。预算(max_full_runs/time_budget_ms)全局共享,不随入口数增长。改这里之前先跑 agent/recognition/replay_rdd_samples.py 全语料回放,判据是 result_parity 100% 且救回的每一条经肉眼确认是真红点。flt_relevel 是换档重看:标准档与上面的救援都没认出时,沿饱和度下限(s_min~s_max,步长 step)换档重跑本链,往下补回被背景洗淡的红、往上切开连片的红;只挪饱和度下限,色相与亮度不动。候选须过形状闸(菱形贴合/外接框近方/白芯居中)且相邻半步的一档认出同一处才采纳。",
         "recognition": "Custom",
         "custom_recognition": "RedDotDetector",
         "custom_recognition_param": {
@@ -196,6 +196,13 @@
                 "max_full_runs": 12,
                 "min_stable_states": 2,
                 "max_parents": 5,
+                "time_budget_ms": 40
+            },
+            "flt_relevel": {
+                "mode": "active",
+                "s_min": 60,
+                "s_max": 220,
+                "step": 10,
                 "time_budget_ms": 40
             }
         }
@@ -299,6 +306,13 @@
                 "max_full_runs": 32,
                 "min_stable_states": 2,
                 "max_parents": 5,
+                "time_budget_ms": 40
+            },
+            "flt_relevel": {
+                "mode": "active",
+                "s_min": 60,
+                "s_max": 220,
+                "step": 10,
                 "time_budget_ms": 40
             }
         }
