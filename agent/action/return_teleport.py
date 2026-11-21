@@ -134,8 +134,21 @@ class ReturnTeleportRunner:
                 and self.hit("PortalIdentity", frame)
                 and self.hit("PortalInteract", frame))
 
-    def interactable_field(self, frame):
-        return self.field_ready(frame) and self.hit("PortalInteract", frame)
+    def interactable_field(self, frame, *, allow_world_hand=False):
+        if not self.field_ready(frame):
+            return False
+        if self.hit("PortalInteract", frame):
+            return True
+        return allow_world_hand and self.hit("PortalWorldHand", frame)
+
+    def _click_portal_interact(self, frame, *, allow_world_hand=False):
+        if self.hit("PortalInteract", frame):
+            self.click("PortalInteract", frame)
+            return
+        if allow_world_hand and self.hit("PortalWorldHand", frame):
+            self.click("PortalWorldHand", frame)
+            return
+        raise RuntimeError("返回传送阵未识别到目标：PortalInteract")
 
     def wait_for(self, predicate, description, timeout=15, stable=1, ignore_near_warning=False):
         end = time.monotonic() + min(timeout, 30)
@@ -177,18 +190,27 @@ class ReturnTeleportRunner:
             raise RuntimeError("传送阵菜单未能关闭")
         return frame
 
-    def verify_arrival(self, frame, require_identity=True):
-        ready = self.near_circle if require_identity else self.interactable_field
+    def verify_arrival(self, frame, require_identity=True, allow_world_hand=False):
+        ready = (
+            self.near_circle
+            if require_identity
+            else lambda shot: self.interactable_field(shot, allow_world_hand=allow_world_hand)
+        )
         if not ready(frame):
             raise RuntimeError("未同时确认传送阵物件/名称和交互按钮")
-        self.click("PortalInteract", frame)
+        self._click_portal_interact(frame, allow_world_hand=allow_world_hand)
         menu = self.wait_for(lambda shot: self.hit("MapMenu", shot), "传送阵交互地图", timeout=8,
                              ignore_near_warning=not require_identity)
         self.close_known_menu(menu)
         # The real interaction-map transition has now proved the object. Its
         # visual rim may change after the camera returns, without any movement.
-        self.wait_for(self.interactable_field, "传送阵旁的稳定可交互位置", timeout=10, stable=2,
-                      ignore_near_warning=not require_identity)
+        self.wait_for(
+            lambda shot: self.interactable_field(shot, allow_world_hand=allow_world_hand),
+            "传送阵旁的稳定可交互位置",
+            timeout=10,
+            stable=2,
+            ignore_near_warning=not require_identity,
+        )
         return True
 
     def check_existing_portal(self, frame):
@@ -277,7 +299,7 @@ class ReturnTeleportRunner:
         menu = self.wait_for(
             lambda shot: self.hit("MapMenu", shot)
             or (self.hit("NearCircleToast", shot) and self.interactable_field(shot)),
-            "生成魔法阵的地图菜单或已在阵旁的明确提示", timeout=10, ignore_near_warning=True)
+            "生成魔法阵的地图菜单或已在阵旁的明确提示", timeout=10, stable=2, ignore_near_warning=True)
         if self.hit("NearCircleToast", menu) and self.interactable_field(menu):
             # Only the explicit 'near a magic circle' rejection after casting
             # enables this path. A generic hand icon never bypasses generation.
@@ -290,14 +312,28 @@ class ReturnTeleportRunner:
         mfaalog.info("[回到传送阵] 已识别当前地图传送阵，确认生成。")
         self.click_box(portal.box)
         confirm = self.wait_for(lambda shot: self.hit("ConfirmDialog", shot),
-                                "生成魔法阵标题和确认按钮", timeout=8)
+                                "生成魔法阵标题和确认按钮", timeout=8, stable=2)
         self.click("Generate", confirm)
         mfaalog.info("[回到传送阵] 已确认生成，等待传送和阵旁交互校验。")
         # Old world-circle templates do not cover every natural blue circle.
         # Generation followed by a real interaction-map transition is the
         # proof of arrival; a hand icon alone is never a successful outcome.
-        arrived = self.wait_for(self.interactable_field, "传送后已在传送阵交互范围", timeout=25, stable=2)
-        result = self.verify_arrival(arrived, require_identity=False)
+        # Some PC maps (e.g. Story Card 7) intermittently omit the bottom-right F
+        # shortcut after teleporting directly onto the portal even though the
+        # portal's world-space overhead hand bubble is active and opens MapMenu.
+        world_hand_after = time.monotonic() + 10
+        arrived = self.wait_for(
+            lambda shot: self.interactable_field(
+                shot, allow_world_hand=time.monotonic() >= world_hand_after
+            ),
+            "传送后已在传送阵交互范围",
+            timeout=25,
+            stable=2,
+        )
+        used_world_hand = not self.hit("PortalInteract", arrived) and self.hit("PortalWorldHand", arrived)
+        if used_world_hand:
+            mfaalog.info("[回到传送阵] 右下角交互键未弹出，改用传送阵上方交互气泡打开地图校验。")
+        result = self.verify_arrival(arrived, require_identity=False, allow_world_hand=used_world_hand)
         self.result = "restored"
         return result
 

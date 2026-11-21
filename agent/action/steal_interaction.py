@@ -32,11 +32,13 @@ def interaction_overrides(params):
 
 
 def cooldown_conditions(x):
-    # Preserve the established HH:MM crop. Detect the day-count text separately
-    # so card arrows/lines cannot be read as an extra glyph (for example 5天一).
+    # Preserve the established HH:MM crop and also accept exact 1-7 day text in
+    # direct recognition so MaaFw batch-OCR detection cannot clip a thin leading
+    # '1' on '1天'. Keep the separate detected crop as fallback when card lines
+    # add an extra glyph in direct recognition (for example '5天一').
     return [
         {"recognition": "OCR", "roi": [x + 8, 593, 62, 23],
-         "expected": [r"^\d{1,3}[:：][0-5]\d$"], "only_rec": True, "threshold": 0.7},
+         "expected": [r"^\d{1,3}[:：][0-5]\d$", r"^[1-7]\s*天$"], "only_rec": True, "threshold": 0.7},
         {"recognition": "OCR", "roi": [x + 8, 590, 62, 30],
          "expected": [r"^[1-7]\s*天$"], "only_rec": False, "threshold": 0.7},
     ]

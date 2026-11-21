@@ -41,14 +41,28 @@ class Outcome:
 
 
 @dataclass(frozen=True)
+class CardReturnOutcome:
+    card: int
+    status: str
+    reason: str = ""
+
+
+@dataclass(frozen=True)
 class RunReport:
     outcomes: tuple[Outcome, ...]
     stopped: bool = False
+    return_outcomes: tuple[CardReturnOutcome, ...] = ()
+
+    @property
+    def return_failed(self):
+        return tuple(item for item in self.return_outcomes
+                     if item.status not in ("restored", "already"))
 
     @property
     def succeeded(self):
         return (bool(self.outcomes) and not self.stopped
-                and all(item.status in ("completed", "skipped") for item in self.outcomes))
+                and all(item.status in ("completed", "skipped") for item in self.outcomes)
+                and not self.return_failed)
 
     @property
     def unfinished(self):
@@ -118,20 +132,52 @@ def result_confirms_route(result, route):
 
 
 class WeeklyRunner:
-    def __init__(self, context, completion_check, logger):
+    def __init__(self, context, completion_check, logger, card_return=None):
         self.context = context
         self.completion_check = completion_check
         self.logger = logger
+        self.card_return = card_return
 
     def stopping(self):
         return bool(self.context.tasker.stopping)
 
-    def stopped_report(self, outcomes, remaining, started=False):
+    def stopped_report(self, outcomes, remaining, started=False, return_outcomes=()):
         if started and remaining:
             route, remaining = remaining[0], remaining[1:]
             outcomes.append(Outcome(route.route_id, route.name, "interrupted", "执行期间收到停止请求，结果未确认"))
         outcomes.extend(Outcome(route.route_id, route.name, "not_run", "任务已停止") for route in remaining)
-        return RunReport(tuple(outcomes), stopped=True)
+        return RunReport(tuple(outcomes), stopped=True, return_outcomes=tuple(return_outcomes))
+
+    def _return_card_if_ready(self, card, card_statuses, return_outcomes, outcomes, remaining):
+        if self.card_return is None:
+            return None
+        statuses = card_statuses.get(card, ())
+        if not statuses or "completed" not in statuses:
+            return None
+        if not all(status in ("completed", "skipped") for status in statuses):
+            return None
+        if self.stopping():
+            return_outcomes.append(CardReturnOutcome(card, "interrupted", "执行期间收到停止请求，未回到传送阵"))
+            return self.stopped_report(outcomes, remaining, return_outcomes=return_outcomes)
+        self.logger.info(f"[偷窃周常] 剧情卡{card} 目标已全部完成，开始使用传送功能回到传送阵。")
+        try:
+            status = self.card_return(card)
+            if self.stopping():
+                return_outcomes.append(CardReturnOutcome(card, "interrupted", "回传送阵期间收到停止请求，结果未确认"))
+                return self.stopped_report(outcomes, remaining, return_outcomes=return_outcomes)
+            if status not in ("restored", "already"):
+                raise RuntimeError("未确认回到传送阵")
+            return_outcomes.append(CardReturnOutcome(card, status))
+            detail = "已在传送阵上" if status == "already" else "已传送回传送阵"
+            self.logger.info(f"[偷窃周常] 剧情卡{card}：{detail}。")
+        except Exception as exc:
+            if self.stopping():
+                return_outcomes.append(CardReturnOutcome(card, "interrupted", "回传送阵期间收到停止请求，结果未确认"))
+                return self.stopped_report(outcomes, remaining, return_outcomes=return_outcomes)
+            return_outcomes.append(CardReturnOutcome(card, "failed", str(exc)))
+            tail = "继续下一张地图" if remaining else "本次任务结束"
+            self.logger.error(f"[偷窃周常] 剧情卡{card} 回到传送阵失败：{exc}；{tail}。")
+        return None
 
     def run(self, routes, *, skip_completed=True):
         if type(skip_completed) is not bool:
@@ -139,50 +185,67 @@ class WeeklyRunner:
         if not skip_completed:
             self.logger.info("[偷窃周常] 已关闭按周记录跳过，将重新检查所选NPC的三个角色。")
         outcomes = []
+        return_outcomes = []
+        card_statuses = {}
+        last_index_by_card = {}
+        for index, route in enumerate(routes):
+            last_index_by_card[route.card] = index
         for index, route in enumerate(routes):
             if self.stopping():
-                return self.stopped_report(outcomes, routes[index:])
+                return self.stopped_report(outcomes, routes[index:], return_outcomes=return_outcomes)
             if route.entry is None:
                 outcomes.append(Outcome(route.route_id, route.name, "pending", "路线尚未实现"))
+                card_statuses.setdefault(route.card, []).append("pending")
                 self.logger.error(f"[偷窃周常] {route.name}：缺少路线，保留为未完成。")
-                continue
-            started = False
-            try:
-                already_done = self.completion_check(route) if skip_completed else False
-                if self.stopping():
-                    return self.stopped_report(outcomes, routes[index:])
-                if already_done:
-                    outcomes.append(Outcome(route.route_id, route.name, "skipped"))
-                    self.logger.info(f"[偷窃周常] {route.name}：本周三角色完成记录有效，跳过。")
-                    continue
-                local = self.context.clone()
-                # FinalScene must pass before Mark writes the weekly record.
-                # The DirectHit terminal then ends this route, including when
-                # the calibration JSON links it to another route.
-                overrides = {route.terminal: {"next": [], "on_error": []}}
-                if self.stopping():
-                    return self.stopped_report(outcomes, routes[index:])
-                if not route.live_verified:
-                    self.logger.info(f"[偷窃周常] {route.name}：执行待实机验证路线，完成前逐项核验。")
-                started = True
-                result = local.run_task(route.entry, overrides)
-                if self.stopping():
-                    return self.stopped_report(outcomes, routes[index:], started=True)
-                if not result_confirms_route(result, route):
-                    raise RuntimeError("未通过独立路线的完成节点和结束场景校验")
-                persisted = self.completion_check(route)
-                if self.stopping():
-                    return self.stopped_report(outcomes, routes[index:], started=True)
-                if not persisted:
-                    raise RuntimeError("路线已结束但三角色周记录未确认")
-                outcomes.append(Outcome(route.route_id, route.name, "completed"))
-                self.logger.info(f"[偷窃周常] {route.name}：三角色完成及周记录均已确认。")
-            except Exception as exc:
-                if self.stopping():
-                    return self.stopped_report(outcomes, routes[index:], started=started)
-                outcomes.append(Outcome(route.route_id, route.name, "failed", str(exc)))
-                self.logger.error(f"[偷窃周常] {route.name}：{exc}；继续下一独立目标。")
-        return RunReport(tuple(outcomes))
+            else:
+                started = False
+                try:
+                    already_done = self.completion_check(route) if skip_completed else False
+                    if self.stopping():
+                        return self.stopped_report(outcomes, routes[index:], return_outcomes=return_outcomes)
+                    if already_done:
+                        outcomes.append(Outcome(route.route_id, route.name, "skipped"))
+                        card_statuses.setdefault(route.card, []).append("skipped")
+                        self.logger.info(f"[偷窃周常] {route.name}：本周三角色完成记录有效，跳过。")
+                    else:
+                        local = self.context.clone()
+                        # FinalScene must pass before Mark writes the weekly record.
+                        # The DirectHit terminal then ends this route, including when
+                        # the calibration JSON links it to another route.
+                        overrides = {route.terminal: {"next": [], "on_error": []}}
+                        if self.stopping():
+                            return self.stopped_report(outcomes, routes[index:], return_outcomes=return_outcomes)
+                        if not route.live_verified:
+                            self.logger.info(f"[偷窃周常] {route.name}：执行待实机验证路线，完成前逐项核验。")
+                        started = True
+                        result = local.run_task(route.entry, overrides)
+                        if self.stopping():
+                            return self.stopped_report(
+                                outcomes, routes[index:], started=True, return_outcomes=return_outcomes)
+                        if not result_confirms_route(result, route):
+                            raise RuntimeError("未通过独立路线的完成节点和结束场景校验")
+                        persisted = self.completion_check(route)
+                        if self.stopping():
+                            return self.stopped_report(
+                                outcomes, routes[index:], started=True, return_outcomes=return_outcomes)
+                        if not persisted:
+                            raise RuntimeError("路线已结束但三角色周记录未确认")
+                        outcomes.append(Outcome(route.route_id, route.name, "completed"))
+                        card_statuses.setdefault(route.card, []).append("completed")
+                        self.logger.info(f"[偷窃周常] {route.name}：三角色完成及周记录均已确认。")
+                except Exception as exc:
+                    if self.stopping():
+                        return self.stopped_report(
+                            outcomes, routes[index:], started=started, return_outcomes=return_outcomes)
+                    outcomes.append(Outcome(route.route_id, route.name, "failed", str(exc)))
+                    card_statuses.setdefault(route.card, []).append("failed")
+                    self.logger.error(f"[偷窃周常] {route.name}：{exc}；继续下一独立目标。")
+            if index == last_index_by_card[route.card]:
+                stopped = self._return_card_if_ready(
+                    route.card, card_statuses, return_outcomes, outcomes, routes[index + 1:])
+                if stopped is not None:
+                    return stopped
+        return RunReport(tuple(outcomes), return_outcomes=tuple(return_outcomes))
 
 
 def log_report(report, logger):
@@ -194,7 +257,18 @@ def log_report(report, logger):
         logger.info(message)
     else:
         logger.error(message)
-        logger.error("[偷窃周常] 未完成：" + "；".join(
-            f"{item.name}（{item.reason or item.status}）" for item in report.unfinished))
+        if report.unfinished:
+            logger.error("[偷窃周常] 未完成：" + "；".join(
+                f"{item.name}（{item.reason or item.status}）" for item in report.unfinished))
+    if report.return_outcomes:
+        returned = sum(item.status in ("restored", "already") for item in report.return_outcomes)
+        return_message = (f"[偷窃周常] 地图回传送阵：{returned}/{len(report.return_outcomes)}张已确认，"
+                          f"未确认{len(report.return_failed)}张。")
+        if report.return_failed:
+            logger.error(return_message)
+            logger.error("[偷窃周常] 回传送阵未确认：" + "；".join(
+                f"剧情卡{item.card}（{item.reason or item.status}）" for item in report.return_failed))
+        else:
+            logger.info(return_message)
     if report.stopped:
         logger.info("[偷窃周常] 已响应停止请求，没有启动后续路线。")

@@ -190,6 +190,19 @@
         "next": [],
         "on_error": []
     },
+    "ReturnTP_PortalWorldHand": {
+        "recognition": "TemplateMatch",
+        "roi": [
+            520,
+            200,
+            240,
+            200
+        ],
+        "template": ["ReturnTP_PortalWorldHand_PC.png"],
+        "threshold": 0.88,
+        "next": [],
+        "on_error": []
+    },
     "ReturnTP_Page3Ready": {
         "recognition": "Or",
         "any_of": ["Collect_Skill_Tap3_Enable"],

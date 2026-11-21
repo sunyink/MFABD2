@@ -39,11 +39,13 @@ class InteractionTests(unittest.TestCase):
         self.assertEqual([branch["roi"] for branch in branches], [[96, 593, 62, 23], [96, 590, 62, 30]])
         self.assertEqual([branch["only_rec"] for branch in branches], [True, False])
         self.assertEqual([branch["threshold"] for branch in branches], [.7, .7])
-        patterns = [branch["expected"][0] for branch in branches]
-        for text in ("0:00", "167:59", "5天", "7 天"):
+        patterns = [pattern for branch in branches for pattern in branch["expected"]]
+        for text in ("0:00", "167:59", "1天", "5天", "7 天"):
             self.assertTrue(any(re.fullmatch(pattern, text) for pattern in patterns), text)
-        for text in ("5天一", "8天", "167:60", "选择", "", "1000:00"):
+        for text in ("5天一", "8天", "0天", "天", "167:60", "选择", "", "1000:00"):
             self.assertFalse(any(re.fullmatch(pattern, text) for pattern in patterns), text)
+        self.assertTrue(any(re.fullmatch(pattern, "1天") for pattern in branches[0]["expected"]))
+        self.assertFalse(any(re.fullmatch(pattern, "5天一") for pattern in branches[0]["expected"]))
 
     def test_label_fallback_keeps_exact_label_and_does_not_read_selection_line(self):
         original, fallback = self.module.label_conditions(88)

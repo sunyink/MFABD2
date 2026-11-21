@@ -2110,7 +2110,7 @@
             1,
             1
         ],
-        "post_delay": 4000,
+        "post_delay": 5000,
         "timeout": 25000,
         "next": [
             "Steal_C4_CoolWindYouth_TownMapOpen"
@@ -2120,6 +2120,7 @@
         ]
     },
     "Steal_C4_CoolWindYouth_TownMapOpen": {
+        "max_hit": 3,
         "recognition": "And",
         "all_of": [
             "StealNav_Field"
@@ -2131,10 +2132,11 @@
             1,
             1
         ],
-        "post_delay": 900,
+        "post_delay": 1200,
         "timeout": 8000,
         "next": [
-            "Steal_C4_CoolWindYouth_TownMapConfirm"
+            "Steal_C4_CoolWindYouth_TownMapConfirm",
+            "Steal_C4_CoolWindYouth_TownMapOpen"
         ],
         "on_error": [
             "Steal_RouteFail"

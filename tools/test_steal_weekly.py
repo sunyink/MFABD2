@@ -108,8 +108,9 @@ class Harness:
         self.queries.append(schedule.completion_params(route))
         return route.completion_key in self.marks
 
-    def run(self, routes, check=None, *, skip_completed=True):
-        return schedule.WeeklyRunner(self.context, check or self.check, self.logger).run(
+    def run(self, routes, check=None, *, skip_completed=True, card_return=None):
+        return schedule.WeeklyRunner(
+            self.context, check or self.check, self.logger, card_return=card_return).run(
             routes, skip_completed=skip_completed)
 
 
@@ -374,6 +375,93 @@ class WeeklySchedulerTests(unittest.TestCase):
             path.write_text(json.dumps(payload), encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "三个角色"):
                 schedule.load_registry(path)
+
+    def test_card_return_runs_once_per_completed_card_after_last_route(self):
+        events = []
+        routes = tuple(self.registry[rid] for rid in ("C1_CuriousYouth", "C1_Collector", "C2_LoanShark"))
+        for route in routes:
+            def make_behavior(r):
+                def _run(_route):
+                    events.append(("route", r.route_id))
+                    self.harness.marks.add(r.completion_key)
+                    return task_result(r)
+                return _run
+            self.harness.behaviors[route.entry] = make_behavior(route)
+
+        def on_return(card):
+            events.append(("return", card))
+            return "restored"
+
+        report = self.harness.run(routes, card_return=on_return)
+        self.assertTrue(report.succeeded)
+        self.assertEqual(events, [
+            ("route", "C1_CuriousYouth"),
+            ("route", "C1_Collector"),
+            ("return", 1),
+            ("route", "C2_LoanShark"),
+            ("return", 2),
+        ])
+        self.assertEqual([(r.card, r.status) for r in report.return_outcomes], [(1, "restored"), (2, "restored")])
+
+    def test_card_return_skips_cards_where_all_routes_were_skipped_but_runs_when_partial_skipped(self):
+        returned_cards = []
+        routes = tuple(self.registry[rid] for rid in (
+            "C1_CuriousYouth", "C1_Collector", "C2_LoanShark", "C3_Mercenary", "C3_Shopkeeper"))
+        # Card 1: first completed, second already skipped -> MUST return Card 1.
+        # Card 2: already skipped -> MUST NOT return Card 2.
+        # Card 3: first already skipped, second completed -> MUST return Card 3.
+        self.harness.marks.update((
+            self.registry["C1_Collector"].completion_key,
+            self.registry["C2_LoanShark"].completion_key,
+            self.registry["C3_Mercenary"].completion_key,
+        ))
+        report = self.harness.run(routes, card_return=lambda card: (returned_cards.append(card), "already")[1])
+        self.assertTrue(report.succeeded)
+        self.assertEqual(returned_cards, [1, 3])
+        self.assertEqual([(r.card, r.status) for r in report.return_outcomes], [(1, "already"), (3, "already")])
+
+    def test_card_return_does_not_run_when_any_route_on_card_failed(self):
+        returned_cards = []
+        routes = tuple(self.registry[rid] for rid in ("C1_CuriousYouth", "C1_Collector", "C2_LoanShark"))
+        self.harness.behaviors[self.registry["C1_Collector"].entry] = "failed"
+        report = self.harness.run(routes, card_return=lambda card: (returned_cards.append(card), "restored")[1])
+        self.assertFalse(report.succeeded)
+        self.assertEqual(returned_cards, [2])
+        self.assertEqual([(r.card, r.status) for r in report.return_outcomes], [(2, "restored")])
+
+    def test_card_return_failure_marks_report_failed_without_erasing_npc_completion_and_continues(self):
+        returned_cards = []
+        routes = tuple(self.registry[rid] for rid in ("C1_Collector", "C2_LoanShark"))
+
+        def on_return(card):
+            returned_cards.append(card)
+            if card == 1:
+                raise RuntimeError("模拟传送技能失败")
+            return "restored"
+
+        report = self.harness.run(routes, card_return=on_return)
+        self.assertFalse(report.succeeded)
+        self.assertEqual([item.status for item in report.outcomes], ["completed", "completed"])
+        self.assertIn(self.registry["C1_Collector"].completion_key, self.harness.marks)
+        self.assertEqual(returned_cards, [1, 2])
+        self.assertEqual([(r.card, r.status) for r in report.return_outcomes], [(1, "failed"), (2, "restored")])
+        schedule.log_report(report, self.harness.logger)
+        error_lines = [str(call.args[0]) for call in self.harness.logger.error.call_args_list]
+        self.assertTrue(any("剧情卡1" in line and "模拟传送技能失败" in line for line in error_lines))
+
+    def test_stop_during_card_return_stops_subsequent_cards(self):
+        routes = tuple(self.registry[rid] for rid in ("C1_Collector", "C2_LoanShark"))
+
+        def on_return(card):
+            self.harness.tasker.stopping = True
+            return "restored"
+
+        report = self.harness.run(routes, card_return=on_return)
+        self.assertTrue(report.stopped)
+        self.assertFalse(report.succeeded)
+        self.assertEqual([c[0] for c in self.harness.calls], [self.registry["C1_Collector"].entry])
+        self.assertEqual([(r.card, r.status) for r in report.return_outcomes], [(1, "interrupted")])
+        self.assertEqual([item.status for item in report.outcomes], ["completed", "not_run"])
 
 
 if __name__ == "__main__":
