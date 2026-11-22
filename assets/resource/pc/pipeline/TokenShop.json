@@ -1,0 +1,169 @@
+{
+    "Rec_TokenShop_ListArea_Clr": {
+        "roi": [
+            150,
+            66,
+            1045,
+            585
+        ]
+    },
+    "Sub_TokenShop_Price_Ocr": {
+        "roi_offset": [
+            -24,
+            45,
+            48,
+            26
+        ]
+    },
+    "Sub_TokenShop_PriceFree_Ocr": {
+        "roi_offset": [
+            -24,
+            30,
+            48,
+            26
+        ]
+    },
+    "Rec_TokenShop_BannerPast_Ocr": {
+        "roi": [
+            1020,
+            450,
+            180,
+            60
+        ]
+    },
+    "Rec_TokenShop_BannerNow_Ocr": {
+        "roi": [
+            1020,
+            450,
+            180,
+            60
+        ]
+    },
+    "Rec_TokenShop_BuyButton_Ocr": {
+        "roi": [
+            840,
+            464,
+            80,
+            40
+        ]
+    },
+    "TokenShop_Buy_Max": {
+        "roi": [
+            565,
+            458,
+            75,
+            42
+        ]
+    },
+    "TokenShop_Buy_Close": {
+        "target": [
+            934,
+            203,
+            24,
+            24
+        ],
+        "post_wait_freezes": {
+            "time": 300,
+            "target": [
+                150,
+                76,
+                1040,
+                570
+            ],
+            "timeout": 3000
+        }
+    },
+    "TokenShop_Buy_Done": {
+        "post_wait_freezes": {
+            "time": 400,
+            "target": [
+                150,
+                76,
+                1040,
+                570
+            ],
+            "timeout": 4000
+        }
+    },
+    "TokenShop_EventPast_InShop": {
+        "roi": [
+            150,
+            8,
+            180,
+            50
+        ]
+    },
+    "TokenShop_List_Rewind": {
+        "custom_action_param": {
+            "proxy_node": "Agt_TokenShop_List_Back",
+            "detect_roi": [
+                150,
+                76,
+                1040,
+                570
+            ],
+            "threshold": 3.0,
+            "settle_delay": 0,
+            "on_changed": "loop",
+            "on_unchanged": "next",
+            "loop_limit": 8,
+            "loop_exhausted": "next"
+        }
+    },
+    "TokenShop_Seek_Down": {
+        "custom_action_param": {
+            "proxy_node": "Agt_TokenShop_List_Next",
+            "detect_roi": [
+                150,
+                76,
+                1040,
+                570
+            ],
+            "threshold": 3.0,
+            "settle_delay": 0,
+            "on_changed": "next",
+            "on_unchanged": "error",
+            "unchanged_streak": 1
+        }
+    },
+    "Agt_TokenShop_List_Next": {
+        "begin": [
+            660,
+            560
+        ],
+        "end": [
+            660,
+            300
+        ],
+        "post_wait_freezes": {
+            "time": 400,
+            "target": [
+                150,
+                76,
+                1040,
+                570
+            ],
+            "timeout": 3000
+        }
+    },
+    "Agt_TokenShop_List_Back": {
+        "begin": [
+            660,
+            300
+        ],
+        "end": [
+            660,
+            560
+        ],
+        "post_wait_freezes": {
+            "time": 400,
+            "target": [
+                150,
+                76,
+                1040,
+                570
+            ],
+            "timeout": 3000
+        }
+    }
+}

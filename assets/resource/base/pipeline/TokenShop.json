@@ -1,0 +1,1174 @@
+{
+    "TokenShop_Start": {
+        "desc": "代币商店兑换入口：逐家商店各做一次，全部做完结束。商店的启用由 interface 改各 Hub 的 enabled。",
+        "timeout": 2000,
+        "next": [
+            "Env_AgentLost_Stop",
+            "[JumpBack]TokenShop_EventPast_Hub",
+            "Global_Hub_End"
+        ]
+    },
+    "Rec_TokenShop_ListArea_Clr": {
+        "desc": "[识别]商品区范围，全色造框；各商品的名称只在这个框里找。覆盖包按端改 roi。",
+        "recognition": "ColorMatch",
+        "roi": [
+            190,
+            70,
+            950,
+            575
+        ],
+        "method": 4,
+        "lower": [
+            0,
+            0,
+            0
+        ],
+        "upper": [
+            255,
+            255,
+            255
+        ]
+    },
+    "Sub_TokenShop_Price_Ocr": {
+        "desc": "[检测]商品名称正下方价格条上的数字（有限购行的格子）。借名称框 ItemName 向下偏移，上沿落在限购行之下；买完的格子这里是「购买成功／購買完成」，认不到数字。",
+        "recognition": "OCR",
+        "roi": "ItemName",
+        "roi_offset": [
+            -30,
+            53,
+            60,
+            30
+        ],
+        "expected": [
+            "^[0-9][0-9,.]{0,8}$"
+        ]
+    },
+    "Sub_TokenShop_PriceFree_Ocr": {
+        "desc": "[检测]同 Sub_TokenShop_Price_Ocr，用于无限购的格子：没有限购行，名称靠下、价格离得近。",
+        "recognition": "OCR",
+        "roi": "ItemName",
+        "roi_offset": [
+            -30,
+            40,
+            60,
+            30
+        ],
+        "expected": [
+            "^[0-9][0-9,.]{0,8}$"
+        ]
+    },
+    "Rec_TokenShop_BannerPast_Ocr": {
+        "desc": "[识别]主页右侧赛季横幅停在上期：横幅上方的标签写着「结束」。roi 只盖赛季横幅这一格，不盖上面的促销横幅。",
+        "recognition": "OCR",
+        "roi": [
+            1030,
+            345,
+            180,
+            60
+        ],
+        "expected": [
+            "^结束$",
+            "^結束$"
+        ]
+    },
+    "Rec_TokenShop_BannerNow_Ocr": {
+        "desc": "[识别]主页右侧赛季横幅停在当期：标签写着「D-数字」。最后一天据说写「D-day」，没见过实图，先一并收。",
+        "recognition": "OCR",
+        "roi": [
+            1030,
+            345,
+            180,
+            60
+        ],
+        "expected": [
+            "^D-?[0-9]{1,2}$",
+            "^D-?[Dd][Aa][Yy]$"
+        ]
+    },
+    "Rec_TokenShop_BuyButton_Ocr": {
+        "desc": "[识别]购买弹窗右下的「购买」按钮文字。亮不亮由调用方另核。",
+        "recognition": "OCR",
+        "roi": [
+            880,
+            485,
+            90,
+            42
+        ],
+        "expected": [
+            "^[购購][买買]$"
+        ]
+    },
+    "TokenShop_Seek": {
+        "desc": "找当前这件商品（锚点 ShopItemPick 指向它的识别节点）：先在当前页认，认到就去买；1.5 秒认不到，翻过页的先回顶（锚点 ShopListRewind 已设时），否则下翻。",
+        "pre_delay": 0,
+        "post_delay": 0,
+        "timeout": 1500,
+        "rate_limit": 300,
+        "next": [
+            "[Anchor]ShopItemPick"
+        ],
+        "on_error": [
+            "[Anchor]ShopListRewind",
+            "TokenShop_Seek_Down"
+        ]
+    },
+    "TokenShop_List_Rewind": {
+        "desc": "把列表拖回顶部：反复上翻到画面不再变。做完清掉锚点 ShopListRewind，表示列表在顶部。只在翻过页之后才会走到。",
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "SmartAction",
+        "custom_action_param": {
+            "proxy_node": "Agt_TokenShop_List_Back",
+            "detect_roi": [
+                195,
+                92,
+                940,
+                548
+            ],
+            "threshold": 3.0,
+            "settle_delay": 0,
+            "on_changed": "loop",
+            "on_unchanged": "next",
+            "loop_limit": 8,
+            "loop_exhausted": "next"
+        },
+        "anchor": {
+            "ShopListRewind": ""
+        },
+        "post_delay": 0,
+        "next": [
+            "TokenShop_Seek_Top"
+        ]
+    },
+    "TokenShop_Seek_Top": {
+        "desc": "回顶后在首屏再认一次当前这件；认不到就下翻。",
+        "pre_delay": 0,
+        "post_delay": 0,
+        "timeout": 1500,
+        "rate_limit": 300,
+        "next": [
+            "[Anchor]ShopItemPick"
+        ],
+        "on_error": [
+            "TokenShop_Seek_Down"
+        ]
+    },
+    "TokenShop_Seek_Down": {
+        "desc": "下翻一页，经 SmartAction 比对商品区前后两帧：画面变了去 TokenShop_Seek_Page 接着认；没变就是到底了，这件商品本轮不买（已买完或这期没有）。",
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "SmartAction",
+        "custom_action_param": {
+            "proxy_node": "Agt_TokenShop_List_Next",
+            "detect_roi": [
+                195,
+                92,
+                940,
+                548
+            ],
+            "threshold": 3.0,
+            "settle_delay": 0,
+            "on_changed": "next",
+            "on_unchanged": "error",
+            "unchanged_streak": 1
+        },
+        "post_delay": 0,
+        "timeout": 2000,
+        "next": [
+            "TokenShop_Seek_Page"
+        ],
+        "on_error": [
+            "TokenShop_Seek_End"
+        ]
+    },
+    "TokenShop_Seek_Page": {
+        "desc": "已下翻到新的一页：设锚点 ShopListRewind（下一件开始前要回顶），在这一页认当前这件；认不到继续下翻。",
+        "pre_delay": 0,
+        "anchor": {
+            "ShopListRewind": "TokenShop_List_Rewind"
+        },
+        "post_delay": 0,
+        "timeout": 1500,
+        "rate_limit": 300,
+        "next": [
+            "[Anchor]ShopItemPick"
+        ],
+        "on_error": [
+            "TokenShop_Seek_Down"
+        ]
+    },
+    "TokenShop_Seek_End": {
+        "desc": "翻到底也没认到当前这件，回队列轮下一件。",
+        "pre_delay": 0,
+        "post_delay": 0
+    },
+    "Agt_TokenShop_List_Next": {
+        "desc": "py独占，勿挂进管路。商品列表下翻约一行半：TokenShop_Seek_Down 的 SmartAction 代理。松手前停一下防惯性，滑后等商品区静止。",
+        "pre_delay": 0,
+        "action": "Swipe",
+        "begin": [
+            660,
+            560
+        ],
+        "end": [
+            660,
+            250
+        ],
+        "end_hold": 500,
+        "duration": 600,
+        "post_wait_freezes": {
+            "time": 400,
+            "target": [
+                195,
+                92,
+                940,
+                548
+            ],
+            "timeout": 3000
+        },
+        "post_delay": 0
+    },
+    "Agt_TokenShop_List_Back": {
+        "desc": "py独占，勿挂进管路。商品列表上翻约一行半：TokenShop_List_Rewind 的 SmartAction 代理。",
+        "pre_delay": 0,
+        "action": "Swipe",
+        "begin": [
+            660,
+            250
+        ],
+        "end": [
+            660,
+            560
+        ],
+        "end_hold": 500,
+        "duration": 600,
+        "post_wait_freezes": {
+            "time": 400,
+            "target": [
+                195,
+                92,
+                940,
+                548
+            ],
+            "timeout": 3000
+        },
+        "post_delay": 0
+    },
+    "TokenShop_Buy_Max": {
+        "desc": "购买弹窗已开：点 MAX。游戏会把数量封到「限购剩余」与「余额够买几个」里小的那个。",
+        "recognition": "OCR",
+        "roi": [
+            555,
+            482,
+            80,
+            42
+        ],
+        "expected": [
+            "^MAX$"
+        ],
+        "action": "Click",
+        "post_delay": 500,
+        "timeout": 4000,
+        "next": [
+            "TokenShop_Buy_Confirm",
+            "TokenShop_Buy_Close"
+        ]
+    },
+    "TokenShop_Buy_Confirm": {
+        "desc": "「购买」按钮是亮的（买得起）：点它。点完等完成提示；提示没出来而按钮还亮着，说明这一下被游戏吞了，再点。",
+        "recognition": "And",
+        "all_of": [
+            {
+                "sub_name": "OCR",
+                "recognition": "Or",
+                "any_of": [
+                    "Rec_TokenShop_BuyButton_Ocr"
+                ]
+            },
+            "Sub_Ocr_Enable_Clr"
+        ],
+        "action": "Click",
+        "post_delay": 1500,
+        "timeout": 8000,
+        "next": [
+            "TokenShop_Buy_Done",
+            "TokenShop_Buy_Confirm"
+        ],
+        "focus": "TS.确认购买"
+    },
+    "TokenShop_Buy_Close": {
+        "desc": "「购买」按钮是灰的（代币不够买 1 个）：点右上角 X 关掉弹窗，这件跳过。排在 TokenShop_Buy_Confirm 之后——按钮亮时两者都认得到，亮的要先轮到。",
+        "recognition": "Or",
+        "any_of": [
+            "Rec_TokenShop_BuyButton_Ocr"
+        ],
+        "action": "Click",
+        "target": [
+            992,
+            173,
+            30,
+            30
+        ],
+        "post_wait_freezes": {
+            "time": 300,
+            "target": [
+                195,
+                92,
+                940,
+                548
+            ],
+            "timeout": 3000
+        },
+        "post_delay": 300,
+        "focus": "TS.代币不够，跳过这件"
+    },
+    "TokenShop_Buy_Done": {
+        "desc": "完成提示（「购买完成。」／「已完成購買。」）：点「确认」。之后等商品区静止——活动商店买满的格子会挪到最末、整列补位。",
+        "recognition": "OCR",
+        "roi": [
+            540,
+            360,
+            200,
+            70
+        ],
+        "expected": [
+            "^[确確][认認]$"
+        ],
+        "action": "Click",
+        "post_wait_freezes": {
+            "time": 400,
+            "target": [
+                195,
+                92,
+                940,
+                548
+            ],
+            "timeout": 4000
+        },
+        "post_delay": 300
+    },
+    "TokenShop_EventPast_Hub": {
+        "desc": "赛季活动上期商店，本轮做一次。上期商店里的代币不会再涨，见到就换。enabled 是 interface 的抓手。",
+        "enabled": false,
+        "max_hit": 1,
+        "timeout": 1,
+        "next": [
+            "TokenShop_EventPast_Start"
+        ]
+    },
+    "TokenShop_EventPast_Start": {
+        "desc": "从主页去上期商店：横幅已停在上期就点进去；停在当期先横滑；不在主页先复位。主页上两种标签都认不到（没有赛季横幅）就超时退出。",
+        "timeout": 15000,
+        "next": [
+            "TokenShop_EventPast_Goin",
+            "TokenShop_Banner_ToPast",
+            "[JumpBack]Global_ToHomePage"
+        ]
+    },
+    "TokenShop_Banner_ToPast": {
+        "desc": "主页上赛季横幅停在当期：在横幅上向左横滑，切到上期。滑完还是当期就再滑，最多 3 次（只有一期时滑不动）。",
+        "max_hit": 3,
+        "recognition": "And",
+        "all_of": [
+            "Rec_HomePage_GA_Ocr",
+            "Rec_HomePage_GA_Clr",
+            "Rec_TokenShop_BannerNow_Ocr"
+        ],
+        "box_index": 2,
+        "action": "Swipe",
+        "begin": true,
+        "begin_offset": [
+            55,
+            35,
+            0,
+            0
+        ],
+        "end": true,
+        "end_offset": [
+            -55,
+            35,
+            0,
+            0
+        ],
+        "end_hold": 300,
+        "duration": 500,
+        "post_delay": 1000,
+        "timeout": 5000,
+        "next": [
+            "TokenShop_EventPast_Goin",
+            "TokenShop_Banner_ToPast"
+        ]
+    },
+    "TokenShop_EventPast_Goin": {
+        "desc": "主页上赛季横幅停在上期（标签「结束」）：点横幅图标。上期的横幅点进去直接是活动商店。还停在主页就再点。",
+        "recognition": "And",
+        "all_of": [
+            "Rec_HomePage_GA_Ocr",
+            "Rec_HomePage_GA_Clr",
+            "Rec_TokenShop_BannerPast_Ocr"
+        ],
+        "box_index": 2,
+        "action": "Click",
+        "target_offset": [
+            0,
+            32,
+            0,
+            12
+        ],
+        "post_delay": 2500,
+        "timeout": 15000,
+        "next": [
+            "TokenShop_EventPast_InShop",
+            "TokenShop_EventPast_Goin",
+            "[JumpBack]Global_WaitingForLoading"
+        ],
+        "focus": "TS.进入赛季活动(上期)商店"
+    },
+    "TokenShop_EventPast_InShop": {
+        "desc": "已在活动商店：按清单顺序逐件找、逐件买，每件一次；都轮过了走 TokenShop_EventPast_Leave。进店时列表在顶部，清掉锚点 ShopListRewind。",
+        "recognition": "OCR",
+        "roi": [
+            190,
+            10,
+            180,
+            56
+        ],
+        "expected": [
+            "^活动商店$",
+            "^活動商店$"
+        ],
+        "pre_delay": 0,
+        "anchor": {
+            "ShopListRewind": ""
+        },
+        "post_delay": 0,
+        "timeout": 3000,
+        "next": [
+            "[JumpBack]TokenShop_EventPast_FireSeed",
+            "[JumpBack]TokenShop_EventPast_AncientCrystal",
+            "[JumpBack]TokenShop_EventPast_GachaTicket",
+            "[JumpBack]TokenShop_EventPast_GoddessTear1000",
+            "[JumpBack]TokenShop_EventPast_GoddessTear2000",
+            "[JumpBack]TokenShop_EventPast_GoddessTear3000",
+            "[JumpBack]TokenShop_EventPast_RefineCrystal",
+            "[JumpBack]TokenShop_EventPast_EssencePower",
+            "[JumpBack]TokenShop_EventPast_EssenceLife",
+            "[JumpBack]TokenShop_EventPast_EssenceEndure",
+            "[JumpBack]TokenShop_EventPast_TalentElixir",
+            "[JumpBack]TokenShop_EventPast_Gold100k",
+            "[JumpBack]TokenShop_EventPast_RedSlime",
+            "[JumpBack]TokenShop_EventPast_Star4",
+            "[JumpBack]TokenShop_EventPast_SealBook",
+            "TokenShop_EventPast_Leave"
+        ]
+    },
+    "TokenShop_EventPast_Leave": {
+        "desc": "清单轮完，退回主页并把横幅滑回当期：还在商店就点返回，到了主页交给 TokenShop_EventPast_Restore。",
+        "pre_delay": 0,
+        "post_delay": 0,
+        "timeout": 15000,
+        "next": [
+            "TokenShop_EventPast_Restore",
+            "TokenShop_EventPast_Done",
+            "[JumpBack]Global_BackPageHub_Once"
+        ]
+    },
+    "TokenShop_EventPast_Restore": {
+        "desc": "主页上赛季横幅还停在上期：横滑切回当期。不切回去，赛季活动任务的入口会点进上期商店。滑完还是上期就再滑，最多 4 次。",
+        "max_hit": 4,
+        "recognition": "And",
+        "all_of": [
+            "Rec_HomePage_GA_Ocr",
+            "Rec_HomePage_GA_Clr",
+            "Rec_TokenShop_BannerPast_Ocr"
+        ],
+        "box_index": 2,
+        "action": "Swipe",
+        "begin": true,
+        "begin_offset": [
+            55,
+            35,
+            0,
+            0
+        ],
+        "end": true,
+        "end_offset": [
+            -55,
+            35,
+            0,
+            0
+        ],
+        "end_hold": 300,
+        "duration": 500,
+        "post_delay": 1000,
+        "timeout": 5000,
+        "next": [
+            "TokenShop_EventPast_Done",
+            "TokenShop_EventPast_Restore"
+        ]
+    },
+    "TokenShop_EventPast_Done": {
+        "desc": "主页上赛季横幅已回到当期，本店收尾完成。",
+        "recognition": "And",
+        "all_of": [
+            "Rec_HomePage_GA_Ocr",
+            "Rec_HomePage_GA_Clr",
+            "Rec_TokenShop_BannerNow_Ocr"
+        ],
+        "pre_delay": 0,
+        "post_delay": 0,
+        "focus": "TS.赛季活动(上期)商店兑换结束，入口已切回当期"
+    },
+    "TokenShop_EventPast_FireSeed": {
+        "desc": "清单项「狂暴火种」：本轮只找一次。设锚点 ShopItemPick 后交给公共的 TokenShop_Seek。启用与否由 interface 改 enabled。",
+        "enabled": false,
+        "max_hit": 1,
+        "pre_delay": 0,
+        "anchor": {
+            "ShopItemPick": "TokenShop_EventPast_FireSeed_Pick"
+        },
+        "post_delay": 0,
+        "next": [
+            "TokenShop_Seek"
+        ]
+    },
+    "TokenShop_EventPast_FireSeed_Pick": {
+        "desc": "认到「狂暴火种」且名称下方还有价格数字（没买完）：点价格条开购买弹窗。弹窗没开就再点，最多 3 次。",
+        "max_hit": 3,
+        "recognition": "And",
+        "all_of": [
+            "Rec_TokenShop_ListArea_Clr",
+            {
+                "sub_name": "ItemName",
+                "recognition": "OCR",
+                "roi": "Rec_TokenShop_ListArea_Clr",
+                "expected": [
+                    "^狂暴火种$",
+                    "^暴走火種$"
+                ]
+            },
+            "Sub_TokenShop_Price_Ocr"
+        ],
+        "box_index": 2,
+        "action": "Click",
+        "post_delay": 600,
+        "timeout": 4000,
+        "next": [
+            "TokenShop_Buy_Max",
+            "TokenShop_EventPast_FireSeed_Pick"
+        ],
+        "focus": "TS.赛季活动(上期)：购买 狂暴火种"
+    },
+    "TokenShop_EventPast_AncientCrystal": {
+        "desc": "清单项「远古水晶」：本轮只找一次。设锚点 ShopItemPick 后交给公共的 TokenShop_Seek。启用与否由 interface 改 enabled。",
+        "enabled": false,
+        "max_hit": 1,
+        "pre_delay": 0,
+        "anchor": {
+            "ShopItemPick": "TokenShop_EventPast_AncientCrystal_Pick"
+        },
+        "post_delay": 0,
+        "next": [
+            "TokenShop_Seek"
+        ]
+    },
+    "TokenShop_EventPast_AncientCrystal_Pick": {
+        "desc": "认到「远古水晶」且名称下方还有价格数字（没买完）：点价格条开购买弹窗。弹窗没开就再点，最多 3 次。",
+        "max_hit": 3,
+        "recognition": "And",
+        "all_of": [
+            "Rec_TokenShop_ListArea_Clr",
+            {
+                "sub_name": "ItemName",
+                "recognition": "OCR",
+                "roi": "Rec_TokenShop_ListArea_Clr",
+                "expected": [
+                    "^远古水晶$",
+                    "^古代水晶$"
+                ]
+            },
+            "Sub_TokenShop_Price_Ocr"
+        ],
+        "box_index": 2,
+        "action": "Click",
+        "post_delay": 600,
+        "timeout": 4000,
+        "next": [
+            "TokenShop_Buy_Max",
+            "TokenShop_EventPast_AncientCrystal_Pick"
+        ],
+        "focus": "TS.赛季活动(上期)：购买 远古水晶"
+    },
+    "TokenShop_EventPast_GachaTicket": {
+        "desc": "清单项「抽抽乐券」：本轮只找一次。设锚点 ShopItemPick 后交给公共的 TokenShop_Seek。启用与否由 interface 改 enabled。",
+        "enabled": false,
+        "max_hit": 1,
+        "pre_delay": 0,
+        "anchor": {
+            "ShopItemPick": "TokenShop_EventPast_GachaTicket_Pick"
+        },
+        "post_delay": 0,
+        "next": [
+            "TokenShop_Seek"
+        ]
+    },
+    "TokenShop_EventPast_GachaTicket_Pick": {
+        "desc": "认到「抽抽乐券」且名称下方还有价格数字（没买完）：点价格条开购买弹窗。弹窗没开就再点，最多 3 次。",
+        "max_hit": 3,
+        "recognition": "And",
+        "all_of": [
+            "Rec_TokenShop_ListArea_Clr",
+            {
+                "sub_name": "ItemName",
+                "recognition": "OCR",
+                "roi": "Rec_TokenShop_ListArea_Clr",
+                "expected": [
+                    "^抽抽乐券$",
+                    "^抽抽樂券$"
+                ]
+            },
+            "Sub_TokenShop_Price_Ocr"
+        ],
+        "box_index": 2,
+        "action": "Click",
+        "post_delay": 600,
+        "timeout": 4000,
+        "next": [
+            "TokenShop_Buy_Max",
+            "TokenShop_EventPast_GachaTicket_Pick"
+        ],
+        "focus": "TS.赛季活动(上期)：购买 抽抽乐券"
+    },
+    "TokenShop_EventPast_GoddessTear1000": {
+        "desc": "清单项「女神之泪 1000」：本轮只找一次。设锚点 ShopItemPick 后交给公共的 TokenShop_Seek。启用与否由 interface 改 enabled。",
+        "enabled": false,
+        "max_hit": 1,
+        "pre_delay": 0,
+        "anchor": {
+            "ShopItemPick": "TokenShop_EventPast_GoddessTear1000_Pick"
+        },
+        "post_delay": 0,
+        "next": [
+            "TokenShop_Seek"
+        ]
+    },
+    "TokenShop_EventPast_GoddessTear1000_Pick": {
+        "desc": "认到「女神之泪 1000」且名称下方还有价格数字（没买完）：点价格条开购买弹窗。同名的格子不止一个，再核这一格的单价。弹窗没开就再点，最多 3 次。",
+        "max_hit": 3,
+        "recognition": "And",
+        "all_of": [
+            "Rec_TokenShop_ListArea_Clr",
+            {
+                "sub_name": "ItemName",
+                "recognition": "OCR",
+                "roi": "Rec_TokenShop_ListArea_Clr",
+                "expected": [
+                    "^女神之泪$",
+                    "^女神的眼[淚泪]$"
+                ]
+            },
+            "Sub_TokenShop_Price_Ocr",
+            {
+                "sub_name": "ItemPrice",
+                "recognition": "OCR",
+                "roi": "Sub_TokenShop_Price_Ocr",
+                "roi_offset": [
+                    -8,
+                    -6,
+                    16,
+                    12
+                ],
+                "expected": [
+                    "^1[,.]?000$"
+                ]
+            }
+        ],
+        "box_index": 3,
+        "action": "Click",
+        "post_delay": 600,
+        "timeout": 4000,
+        "next": [
+            "TokenShop_Buy_Max",
+            "TokenShop_EventPast_GoddessTear1000_Pick"
+        ],
+        "focus": "TS.赛季活动(上期)：购买 女神之泪 1000"
+    },
+    "TokenShop_EventPast_GoddessTear2000": {
+        "desc": "清单项「女神之泪 2000」：本轮只找一次。设锚点 ShopItemPick 后交给公共的 TokenShop_Seek。启用与否由 interface 改 enabled。",
+        "enabled": false,
+        "max_hit": 1,
+        "pre_delay": 0,
+        "anchor": {
+            "ShopItemPick": "TokenShop_EventPast_GoddessTear2000_Pick"
+        },
+        "post_delay": 0,
+        "next": [
+            "TokenShop_Seek"
+        ]
+    },
+    "TokenShop_EventPast_GoddessTear2000_Pick": {
+        "desc": "认到「女神之泪 2000」且名称下方还有价格数字（没买完）：点价格条开购买弹窗。同名的格子不止一个，再核这一格的单价。弹窗没开就再点，最多 3 次。",
+        "max_hit": 3,
+        "recognition": "And",
+        "all_of": [
+            "Rec_TokenShop_ListArea_Clr",
+            {
+                "sub_name": "ItemName",
+                "recognition": "OCR",
+                "roi": "Rec_TokenShop_ListArea_Clr",
+                "expected": [
+                    "^女神之泪$",
+                    "^女神的眼[淚泪]$"
+                ]
+            },
+            "Sub_TokenShop_Price_Ocr",
+            {
+                "sub_name": "ItemPrice",
+                "recognition": "OCR",
+                "roi": "Sub_TokenShop_Price_Ocr",
+                "roi_offset": [
+                    -8,
+                    -6,
+                    16,
+                    12
+                ],
+                "expected": [
+                    "^2[,.]?000$"
+                ]
+            }
+        ],
+        "box_index": 3,
+        "action": "Click",
+        "post_delay": 600,
+        "timeout": 4000,
+        "next": [
+            "TokenShop_Buy_Max",
+            "TokenShop_EventPast_GoddessTear2000_Pick"
+        ],
+        "focus": "TS.赛季活动(上期)：购买 女神之泪 2000"
+    },
+    "TokenShop_EventPast_GoddessTear3000": {
+        "desc": "清单项「女神之泪 3000」：本轮只找一次。设锚点 ShopItemPick 后交给公共的 TokenShop_Seek。启用与否由 interface 改 enabled。",
+        "enabled": false,
+        "max_hit": 1,
+        "pre_delay": 0,
+        "anchor": {
+            "ShopItemPick": "TokenShop_EventPast_GoddessTear3000_Pick"
+        },
+        "post_delay": 0,
+        "next": [
+            "TokenShop_Seek"
+        ]
+    },
+    "TokenShop_EventPast_GoddessTear3000_Pick": {
+        "desc": "认到「女神之泪 3000」且名称下方还有价格数字（没买完）：点价格条开购买弹窗。同名的格子不止一个，再核这一格的单价。弹窗没开就再点，最多 3 次。",
+        "max_hit": 3,
+        "recognition": "And",
+        "all_of": [
+            "Rec_TokenShop_ListArea_Clr",
+            {
+                "sub_name": "ItemName",
+                "recognition": "OCR",
+                "roi": "Rec_TokenShop_ListArea_Clr",
+                "expected": [
+                    "^女神之泪$",
+                    "^女神的眼[淚泪]$"
+                ]
+            },
+            "Sub_TokenShop_Price_Ocr",
+            {
+                "sub_name": "ItemPrice",
+                "recognition": "OCR",
+                "roi": "Sub_TokenShop_Price_Ocr",
+                "roi_offset": [
+                    -8,
+                    -6,
+                    16,
+                    12
+                ],
+                "expected": [
+                    "^3[,.]?000$"
+                ]
+            }
+        ],
+        "box_index": 3,
+        "action": "Click",
+        "post_delay": 600,
+        "timeout": 4000,
+        "next": [
+            "TokenShop_Buy_Max",
+            "TokenShop_EventPast_GoddessTear3000_Pick"
+        ],
+        "focus": "TS.赛季活动(上期)：购买 女神之泪 3000"
+    },
+    "TokenShop_EventPast_RefineCrystal": {
+        "desc": "清单项「精炼水晶」：本轮只找一次。设锚点 ShopItemPick 后交给公共的 TokenShop_Seek。启用与否由 interface 改 enabled。",
+        "enabled": false,
+        "max_hit": 1,
+        "pre_delay": 0,
+        "anchor": {
+            "ShopItemPick": "TokenShop_EventPast_RefineCrystal_Pick"
+        },
+        "post_delay": 0,
+        "next": [
+            "TokenShop_Seek"
+        ]
+    },
+    "TokenShop_EventPast_RefineCrystal_Pick": {
+        "desc": "认到「精炼水晶」且名称下方还有价格数字（没买完）：点价格条开购买弹窗。弹窗没开就再点，最多 3 次。",
+        "max_hit": 3,
+        "recognition": "And",
+        "all_of": [
+            "Rec_TokenShop_ListArea_Clr",
+            {
+                "sub_name": "ItemName",
+                "recognition": "OCR",
+                "roi": "Rec_TokenShop_ListArea_Clr",
+                "expected": [
+                    "^精炼水晶$",
+                    "^煉製水晶$"
+                ]
+            },
+            "Sub_TokenShop_Price_Ocr"
+        ],
+        "box_index": 2,
+        "action": "Click",
+        "post_delay": 600,
+        "timeout": 4000,
+        "next": [
+            "TokenShop_Buy_Max",
+            "TokenShop_EventPast_RefineCrystal_Pick"
+        ],
+        "focus": "TS.赛季活动(上期)：购买 精炼水晶"
+    },
+    "TokenShop_EventPast_EssencePower": {
+        "desc": "清单项「力量精髓」：本轮只找一次。设锚点 ShopItemPick 后交给公共的 TokenShop_Seek。启用与否由 interface 改 enabled。",
+        "enabled": false,
+        "max_hit": 1,
+        "pre_delay": 0,
+        "anchor": {
+            "ShopItemPick": "TokenShop_EventPast_EssencePower_Pick"
+        },
+        "post_delay": 0,
+        "next": [
+            "TokenShop_Seek"
+        ]
+    },
+    "TokenShop_EventPast_EssencePower_Pick": {
+        "desc": "认到「力量精髓」且名称下方还有价格数字（没买完）：点价格条开购买弹窗。弹窗没开就再点，最多 3 次。",
+        "max_hit": 3,
+        "recognition": "And",
+        "all_of": [
+            "Rec_TokenShop_ListArea_Clr",
+            {
+                "sub_name": "ItemName",
+                "recognition": "OCR",
+                "roi": "Rec_TokenShop_ListArea_Clr",
+                "expected": [
+                    "^力量精髓$"
+                ]
+            },
+            "Sub_TokenShop_Price_Ocr"
+        ],
+        "box_index": 2,
+        "action": "Click",
+        "post_delay": 600,
+        "timeout": 4000,
+        "next": [
+            "TokenShop_Buy_Max",
+            "TokenShop_EventPast_EssencePower_Pick"
+        ],
+        "focus": "TS.赛季活动(上期)：购买 力量精髓"
+    },
+    "TokenShop_EventPast_EssenceLife": {
+        "desc": "清单项「生命精髓」：本轮只找一次。设锚点 ShopItemPick 后交给公共的 TokenShop_Seek。启用与否由 interface 改 enabled。",
+        "enabled": false,
+        "max_hit": 1,
+        "pre_delay": 0,
+        "anchor": {
+            "ShopItemPick": "TokenShop_EventPast_EssenceLife_Pick"
+        },
+        "post_delay": 0,
+        "next": [
+            "TokenShop_Seek"
+        ]
+    },
+    "TokenShop_EventPast_EssenceLife_Pick": {
+        "desc": "认到「生命精髓」且名称下方还有价格数字（没买完）：点价格条开购买弹窗。弹窗没开就再点，最多 3 次。",
+        "max_hit": 3,
+        "recognition": "And",
+        "all_of": [
+            "Rec_TokenShop_ListArea_Clr",
+            {
+                "sub_name": "ItemName",
+                "recognition": "OCR",
+                "roi": "Rec_TokenShop_ListArea_Clr",
+                "expected": [
+                    "^生命精[髓隨随]$"
+                ]
+            },
+            "Sub_TokenShop_Price_Ocr"
+        ],
+        "box_index": 2,
+        "action": "Click",
+        "post_delay": 600,
+        "timeout": 4000,
+        "next": [
+            "TokenShop_Buy_Max",
+            "TokenShop_EventPast_EssenceLife_Pick"
+        ],
+        "focus": "TS.赛季活动(上期)：购买 生命精髓"
+    },
+    "TokenShop_EventPast_EssenceEndure": {
+        "desc": "清单项「忍耐精髓」：本轮只找一次。设锚点 ShopItemPick 后交给公共的 TokenShop_Seek。启用与否由 interface 改 enabled。",
+        "enabled": false,
+        "max_hit": 1,
+        "pre_delay": 0,
+        "anchor": {
+            "ShopItemPick": "TokenShop_EventPast_EssenceEndure_Pick"
+        },
+        "post_delay": 0,
+        "next": [
+            "TokenShop_Seek"
+        ]
+    },
+    "TokenShop_EventPast_EssenceEndure_Pick": {
+        "desc": "认到「忍耐精髓」且名称下方还有价格数字（没买完）：点价格条开购买弹窗。弹窗没开就再点，最多 3 次。",
+        "max_hit": 3,
+        "recognition": "And",
+        "all_of": [
+            "Rec_TokenShop_ListArea_Clr",
+            {
+                "sub_name": "ItemName",
+                "recognition": "OCR",
+                "roi": "Rec_TokenShop_ListArea_Clr",
+                "expected": [
+                    "^忍耐精髓$"
+                ]
+            },
+            "Sub_TokenShop_Price_Ocr"
+        ],
+        "box_index": 2,
+        "action": "Click",
+        "post_delay": 600,
+        "timeout": 4000,
+        "next": [
+            "TokenShop_Buy_Max",
+            "TokenShop_EventPast_EssenceEndure_Pick"
+        ],
+        "focus": "TS.赛季活动(上期)：购买 忍耐精髓"
+    },
+    "TokenShop_EventPast_TalentElixir": {
+        "desc": "清单项「天赋神药」：本轮只找一次。设锚点 ShopItemPick 后交给公共的 TokenShop_Seek。启用与否由 interface 改 enabled。",
+        "enabled": false,
+        "max_hit": 1,
+        "pre_delay": 0,
+        "anchor": {
+            "ShopItemPick": "TokenShop_EventPast_TalentElixir_Pick"
+        },
+        "post_delay": 0,
+        "next": [
+            "TokenShop_Seek"
+        ]
+    },
+    "TokenShop_EventPast_TalentElixir_Pick": {
+        "desc": "认到「天赋神药」且名称下方还有价格数字（没买完）：点价格条开购买弹窗。弹窗没开就再点，最多 3 次。",
+        "max_hit": 3,
+        "recognition": "And",
+        "all_of": [
+            "Rec_TokenShop_ListArea_Clr",
+            {
+                "sub_name": "ItemName",
+                "recognition": "OCR",
+                "roi": "Rec_TokenShop_ListArea_Clr",
+                "expected": [
+                    "^天赋神药$",
+                    "^天賦特效[藥药]$"
+                ]
+            },
+            "Sub_TokenShop_Price_Ocr"
+        ],
+        "box_index": 2,
+        "action": "Click",
+        "post_delay": 600,
+        "timeout": 4000,
+        "next": [
+            "TokenShop_Buy_Max",
+            "TokenShop_EventPast_TalentElixir_Pick"
+        ],
+        "focus": "TS.赛季活动(上期)：购买 天赋神药"
+    },
+    "TokenShop_EventPast_Gold100k": {
+        "desc": "清单项「金币 10万」：本轮只找一次。设锚点 ShopItemPick 后交给公共的 TokenShop_Seek。启用与否由 interface 改 enabled。",
+        "enabled": false,
+        "max_hit": 1,
+        "pre_delay": 0,
+        "anchor": {
+            "ShopItemPick": "TokenShop_EventPast_Gold100k_Pick"
+        },
+        "post_delay": 0,
+        "next": [
+            "TokenShop_Seek"
+        ]
+    },
+    "TokenShop_EventPast_Gold100k_Pick": {
+        "desc": "认到「金币 10万」且名称下方还有价格数字（没买完）：点价格条开购买弹窗。同名的格子不止一个，再核这一格的单价。弹窗没开就再点，最多 3 次。",
+        "max_hit": 3,
+        "recognition": "And",
+        "all_of": [
+            "Rec_TokenShop_ListArea_Clr",
+            {
+                "sub_name": "ItemName",
+                "recognition": "OCR",
+                "roi": "Rec_TokenShop_ListArea_Clr",
+                "expected": [
+                    "^金[币幣]$"
+                ]
+            },
+            "Sub_TokenShop_Price_Ocr",
+            {
+                "sub_name": "ItemPrice",
+                "recognition": "OCR",
+                "roi": "Sub_TokenShop_Price_Ocr",
+                "roi_offset": [
+                    -8,
+                    -6,
+                    16,
+                    12
+                ],
+                "expected": [
+                    "^200$"
+                ]
+            }
+        ],
+        "box_index": 3,
+        "action": "Click",
+        "post_delay": 600,
+        "timeout": 4000,
+        "next": [
+            "TokenShop_Buy_Max",
+            "TokenShop_EventPast_Gold100k_Pick"
+        ],
+        "focus": "TS.赛季活动(上期)：购买 金币 10万"
+    },
+    "TokenShop_EventPast_RedSlime": {
+        "desc": "清单项「红色史莱姆」：本轮只找一次。设锚点 ShopItemPick 后交给公共的 TokenShop_Seek。启用与否由 interface 改 enabled。",
+        "enabled": false,
+        "max_hit": 1,
+        "pre_delay": 0,
+        "anchor": {
+            "ShopItemPick": "TokenShop_EventPast_RedSlime_Pick"
+        },
+        "post_delay": 0,
+        "next": [
+            "TokenShop_Seek"
+        ]
+    },
+    "TokenShop_EventPast_RedSlime_Pick": {
+        "desc": "认到「红色史莱姆」且名称下方还有价格数字（没买完）：点价格条开购买弹窗。弹窗没开就再点，最多 3 次。",
+        "max_hit": 3,
+        "recognition": "And",
+        "all_of": [
+            "Rec_TokenShop_ListArea_Clr",
+            {
+                "sub_name": "ItemName",
+                "recognition": "OCR",
+                "roi": "Rec_TokenShop_ListArea_Clr",
+                "expected": [
+                    "^红色史莱姆$",
+                    "^紅色史[萊莱]姆$"
+                ]
+            },
+            "Sub_TokenShop_Price_Ocr"
+        ],
+        "box_index": 2,
+        "action": "Click",
+        "post_delay": 600,
+        "timeout": 4000,
+        "next": [
+            "TokenShop_Buy_Max",
+            "TokenShop_EventPast_RedSlime_Pick"
+        ],
+        "focus": "TS.赛季活动(上期)：购买 红色史莱姆"
+    },
+    "TokenShop_EventPast_Star4": {
+        "desc": "清单项「4★升星之星」：本轮只找一次。设锚点 ShopItemPick 后交给公共的 TokenShop_Seek。启用与否由 interface 改 enabled。",
+        "enabled": false,
+        "max_hit": 1,
+        "pre_delay": 0,
+        "anchor": {
+            "ShopItemPick": "TokenShop_EventPast_Star4_Pick"
+        },
+        "post_delay": 0,
+        "next": [
+            "TokenShop_Seek"
+        ]
+    },
+    "TokenShop_EventPast_Star4_Pick": {
+        "desc": "认到「4★升星之星」且名称下方还有价格数字（没买完）：点价格条开购买弹窗。弹窗没开就再点，最多 3 次。",
+        "max_hit": 3,
+        "recognition": "And",
+        "all_of": [
+            "Rec_TokenShop_ListArea_Clr",
+            {
+                "sub_name": "ItemName",
+                "recognition": "OCR",
+                "roi": "Rec_TokenShop_ListArea_Clr",
+                "expected": [
+                    "^4.?升星之星$",
+                    "^.?4升星之星$"
+                ]
+            },
+            "Sub_TokenShop_Price_Ocr"
+        ],
+        "box_index": 2,
+        "action": "Click",
+        "post_delay": 600,
+        "timeout": 4000,
+        "next": [
+            "TokenShop_Buy_Max",
+            "TokenShop_EventPast_Star4_Pick"
+        ],
+        "focus": "TS.赛季活动(上期)：购买 4★升星之星"
+    },
+    "TokenShop_EventPast_SealBook": {
+        "desc": "清单末尾的收尾项「刻印咒语书」：前面的都轮过了还有代币，就全换成它。设锚点 ShopItemPick 后交给公共的 TokenShop_Seek。启用与否由 interface 改 enabled。",
+        "enabled": false,
+        "max_hit": 1,
+        "pre_delay": 0,
+        "anchor": {
+            "ShopItemPick": "TokenShop_EventPast_SealBook_Pick"
+        },
+        "post_delay": 0,
+        "next": [
+            "TokenShop_Seek"
+        ]
+    },
+    "TokenShop_EventPast_SealBook_Pick": {
+        "desc": "认到「刻印咒语书」且名称下方还有价格数字（没买完）：点价格条开购买弹窗。弹窗没开就再点，最多 3 次。",
+        "max_hit": 3,
+        "recognition": "And",
+        "all_of": [
+            "Rec_TokenShop_ListArea_Clr",
+            {
+                "sub_name": "ItemName",
+                "recognition": "OCR",
+                "roi": "Rec_TokenShop_ListArea_Clr",
+                "expected": [
+                    "^刻印咒语书$",
+                    "^刻印咒語書$"
+                ]
+            },
+            "Sub_TokenShop_PriceFree_Ocr"
+        ],
+        "box_index": 2,
+        "action": "Click",
+        "post_delay": 600,
+        "timeout": 4000,
+        "next": [
+            "TokenShop_Buy_Max",
+            "TokenShop_EventPast_SealBook_Pick"
+        ],
+        "focus": "TS.赛季活动(上期)：购买 刻印咒语书"
+    }
+}

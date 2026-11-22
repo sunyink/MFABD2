@@ -369,6 +369,21 @@
             ]
         },
         {
+            "name": "[执行]代币商店兑换",
+            "label": "[试验]代币商店兑换",
+            "entry": "TokenShop_Start",
+            "controller": [
+                "Adb",
+                "PC客户端",
+                "PC客户端(Cursor)",
+                "PlayCover"
+            ],
+            "description": "<b>把攒下的代币按清单换成东西。</b>逐件按顺序购买，清单里没有的商品不会碰，也不买用钻石计价的东西。<br><br><b>目前只做了赛季活动的上期商店：</b>赛季结束后代币不会再增加，见到就换；买不起的跳过，接着买后面的。换完会把主页的赛季入口切回当期。<br><span style=\"background-color:rgba(255,160,0,0.2)\"><b>注意：</b>上期商店随当期赛季一起结束，过期后代币作废。</span><br><small>主页面商店的各家代币商店、赛季活动当期，后续版本加入。</small>",
+            "option": [
+                "代币商店-要换的商店"
+            ]
+        },
+        {
             "name": "[半自动]自动钓鱼",
             "entry": "Fishing_Entry",
             "controller": [
@@ -8156,6 +8171,196 @@
                             "attach": {
                                 "account_id": "0"
                             }
+                        }
+                    }
+                }
+            ]
+        },
+        "代币商店-要换的商店": {
+            "type": "checkbox",
+            "label": "要换的商店",
+            "description": "勾选的商店会进去按各自的清单换代币，没勾的不进。<br>勾上之后，下面会展开这家店的清单。",
+            "default_case": [
+                "赛季活动（上期）"
+            ],
+            "cases": [
+                {
+                    "name": "赛季活动（上期）",
+                    "pipeline_override": {
+                        "TokenShop_EventPast_Hub": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "代币商店-赛季活动-商品",
+                        "代币商店-赛季活动-清空零头"
+                    ]
+                }
+            ]
+        },
+        "代币商店-赛季活动-商品": {
+            "type": "checkbox",
+            "label": "赛季活动 · 要买的商品",
+            "description": "免费货币，换完为止。<br><b>勾上＝要买</b>，圈号是购买顺序；没勾的不买。<br>每件都按「限购剩余」与「代币够买几个」里小的那个数买。",
+            "default_case": [
+                "狂暴火种",
+                "远古水晶",
+                "抽抽乐券",
+                "女神之泪 1000",
+                "女神之泪 2000",
+                "女神之泪 3000",
+                "精炼水晶",
+                "力量精髓",
+                "生命精髓",
+                "忍耐精髓",
+                "天赋神药",
+                "金币 10万",
+                "红色史莱姆",
+                "4★升星之星"
+            ],
+            "cases": [
+                {
+                    "name": "狂暴火种",
+                    "label": "狂暴火种 ①",
+                    "pipeline_override": {
+                        "TokenShop_EventPast_FireSeed": {
+                            "enabled": true
+                        }
+                    }
+                },
+                {
+                    "name": "远古水晶",
+                    "label": "远古水晶 ②",
+                    "pipeline_override": {
+                        "TokenShop_EventPast_AncientCrystal": {
+                            "enabled": true
+                        }
+                    }
+                },
+                {
+                    "name": "抽抽乐券",
+                    "label": "抽抽乐券 ③",
+                    "pipeline_override": {
+                        "TokenShop_EventPast_GachaTicket": {
+                            "enabled": true
+                        }
+                    }
+                },
+                {
+                    "name": "女神之泪 1000",
+                    "label": "女神之泪 1000 ④",
+                    "pipeline_override": {
+                        "TokenShop_EventPast_GoddessTear1000": {
+                            "enabled": true
+                        }
+                    }
+                },
+                {
+                    "name": "女神之泪 2000",
+                    "label": "女神之泪 2000 ⑤",
+                    "pipeline_override": {
+                        "TokenShop_EventPast_GoddessTear2000": {
+                            "enabled": true
+                        }
+                    }
+                },
+                {
+                    "name": "女神之泪 3000",
+                    "label": "女神之泪 3000 ⑥",
+                    "pipeline_override": {
+                        "TokenShop_EventPast_GoddessTear3000": {
+                            "enabled": true
+                        }
+                    }
+                },
+                {
+                    "name": "精炼水晶",
+                    "label": "精炼水晶 ⑦",
+                    "pipeline_override": {
+                        "TokenShop_EventPast_RefineCrystal": {
+                            "enabled": true
+                        }
+                    }
+                },
+                {
+                    "name": "力量精髓",
+                    "label": "力量精髓 ⑧",
+                    "pipeline_override": {
+                        "TokenShop_EventPast_EssencePower": {
+                            "enabled": true
+                        }
+                    }
+                },
+                {
+                    "name": "生命精髓",
+                    "label": "生命精髓 ⑨",
+                    "pipeline_override": {
+                        "TokenShop_EventPast_EssenceLife": {
+                            "enabled": true
+                        }
+                    }
+                },
+                {
+                    "name": "忍耐精髓",
+                    "label": "忍耐精髓 ⑩",
+                    "pipeline_override": {
+                        "TokenShop_EventPast_EssenceEndure": {
+                            "enabled": true
+                        }
+                    }
+                },
+                {
+                    "name": "天赋神药",
+                    "label": "天赋神药 ⑪",
+                    "pipeline_override": {
+                        "TokenShop_EventPast_TalentElixir": {
+                            "enabled": true
+                        }
+                    }
+                },
+                {
+                    "name": "金币 10万",
+                    "label": "金币 10万 ⑫",
+                    "pipeline_override": {
+                        "TokenShop_EventPast_Gold100k": {
+                            "enabled": true
+                        }
+                    }
+                },
+                {
+                    "name": "红色史莱姆",
+                    "label": "红色史莱姆 ⑬",
+                    "pipeline_override": {
+                        "TokenShop_EventPast_RedSlime": {
+                            "enabled": true
+                        }
+                    }
+                },
+                {
+                    "name": "4★升星之星",
+                    "label": "4★升星之星 ⑭",
+                    "pipeline_override": {
+                        "TokenShop_EventPast_Star4": {
+                            "enabled": true
+                        }
+                    }
+                }
+            ]
+        },
+        "代币商店-赛季活动-清空零头": {
+            "type": "switch",
+            "label": "最后用刻印咒语书清空零头",
+            "description": "上期商店里，前面勾选的都轮过了还有代币，就全换成刻印咒语书（无限购，5 代币一个）。",
+            "default_case": "Yes",
+            "cases": [
+                {
+                    "name": "No"
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "TokenShop_EventPast_SealBook": {
+                            "enabled": true
                         }
                     }
                 }
