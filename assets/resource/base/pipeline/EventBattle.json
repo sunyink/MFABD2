@@ -5,9 +5,40 @@
             "[JumpBack]Ledger_Begin_Daily",
             "Event_Event_Main",
             "[JumpBack]Global_WaitingForLoading",
+            "[JumpBack]Event_Banner_ToNow",
             "[JumpBack]Event_GoinEvent",
             "[JumpBack]Global_ToHomePage"
         ]
+    },
+    "Event_Banner_ToNow": {
+        "desc": "主页上赛季横幅停在上期（标签「结束」）：横滑切回当期，再轮到 Event_GoinEvent 点进去。上期的横幅点进去是活动商店而不是赛季主页；代币商店任务中途被打断、或玩家手动切过，横幅都会留在上期。滑完还是上期就再滑，最多 4 次。",
+        "max_hit": 4,
+        "recognition": "And",
+        "all_of": [
+            "Rec_HomePage_GA_Ocr",
+            "Rec_HomePage_GA_Clr",
+            "Rec_TokenShop_BannerPast_Ocr"
+        ],
+        "box_index": 2,
+        "action": "Swipe",
+        "begin": true,
+        "begin_offset": [
+            55,
+            35,
+            0,
+            0
+        ],
+        "end": true,
+        "end_offset": [
+            -55,
+            35,
+            0,
+            0
+        ],
+        "end_hold": 300,
+        "duration": 500,
+        "post_delay": 1000,
+        "focus": "EM.赛季入口停在上期，切回当期"
     },
     "Event_GoinEvent": {
         "desc": "识别左下抽抽乐-点击活动",
