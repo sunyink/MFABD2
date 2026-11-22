@@ -7,6 +7,14 @@
             585
         ]
     },
+    "Rec_TokenShop_ShopArea_Clr": {
+        "roi": [
+            490,
+            66,
+            700,
+            590
+        ]
+    },
     "Sub_TokenShop_Price_Ocr": {
         "roi_offset": [
             -24,
@@ -21,6 +29,22 @@
             30,
             48,
             26
+        ]
+    },
+    "Sub_TokenShop_Limit_Ocr": {
+        "roi_offset": [
+            -24,
+            20,
+            48,
+            18
+        ]
+    },
+    "Sub_TokenShop_LimitPrice_Ocr": {
+        "roi_offset": [
+            -4,
+            12,
+            8,
+            22
         ]
     },
     "Rec_TokenShop_BannerPast_Ocr": {
@@ -47,6 +71,22 @@
             40
         ]
     },
+    "Rec_TokenShop_TitlePoints_Ocr": {
+        "roi": [
+            140,
+            8,
+            180,
+            50
+        ]
+    },
+    "Rec_TokenShop_TitlePlay_Ocr": {
+        "roi": [
+            140,
+            8,
+            180,
+            50
+        ]
+    },
     "TokenShop_Buy_Max": {
         "roi": [
             565,
@@ -61,29 +101,23 @@
             203,
             24,
             24
-        ],
-        "post_wait_freezes": {
-            "time": 300,
-            "target": [
-                150,
-                76,
-                1040,
-                570
-            ],
-            "timeout": 3000
-        }
+        ]
     },
-    "TokenShop_Buy_Done": {
-        "post_wait_freezes": {
-            "time": 400,
-            "target": [
-                150,
-                76,
-                1040,
-                570
-            ],
-            "timeout": 4000
-        }
+    "TokenShop_Buy_CloseHalt": {
+        "target": [
+            934,
+            203,
+            24,
+            24
+        ]
+    },
+    "TokenShop_Buy_Abort": {
+        "target": [
+            934,
+            203,
+            24,
+            24
+        ]
     },
     "TokenShop_EventPast_InShop": {
         "roi": [
@@ -93,39 +127,6 @@
             50
         ]
     },
-    "TokenShop_List_Rewind": {
-        "custom_action_param": {
-            "proxy_node": "Agt_TokenShop_List_Back",
-            "detect_roi": [
-                150,
-                76,
-                1040,
-                570
-            ],
-            "threshold": 3.0,
-            "settle_delay": 0,
-            "on_changed": "loop",
-            "on_unchanged": "next",
-            "loop_limit": 8,
-            "loop_exhausted": "next"
-        }
-    },
-    "TokenShop_Seek_Down": {
-        "custom_action_param": {
-            "proxy_node": "Agt_TokenShop_List_Next",
-            "detect_roi": [
-                150,
-                76,
-                1040,
-                570
-            ],
-            "threshold": 3.0,
-            "settle_delay": 0,
-            "on_changed": "next",
-            "on_unchanged": "error",
-            "unchanged_streak": 1
-        }
-    },
     "Agt_TokenShop_List_Next": {
         "begin": [
             660,
@@ -134,17 +135,7 @@
         "end": [
             660,
             300
-        ],
-        "post_wait_freezes": {
-            "time": 400,
-            "target": [
-                150,
-                76,
-                1040,
-                570
-            ],
-            "timeout": 3000
-        }
+        ]
     },
     "Agt_TokenShop_List_Back": {
         "begin": [
@@ -154,16 +145,198 @@
         "end": [
             660,
             560
-        ],
-        "post_wait_freezes": {
-            "time": 400,
-            "target": [
-                150,
-                76,
-                1040,
-                570
-            ],
-            "timeout": 3000
+        ]
+    },
+    "Agt_TokenShop_Quantity": {
+        "attach": {
+            "slider_range": [
+                376,
+                598
+            ]
         }
+    },
+    "Agt_TokenShop_Balance_Ocr": {
+        "roi": [
+            1080,
+            16,
+            125,
+            40
+        ]
+    },
+    "Rec_<TokenShop_Monthly_Goin>_Ocr": {
+        "roi": [
+            626,
+            658,
+            64,
+            44
+        ]
+    },
+    "TokenShop_Monthly_InPage": {
+        "roi": [
+            140,
+            8,
+            180,
+            50
+        ]
+    },
+    "TokenShop_Cat_Points": {
+        "target": [
+            106,
+            153,
+            23,
+            25
+        ]
+    },
+    "TokenShop_Cat_Play": {
+        "target": [
+            105,
+            220,
+            24,
+            21
+        ]
+    },
+    "Rec_<TokenShop_GoldThread_InShop>_Ocr": {
+        "roi": [
+            149,
+            81,
+            68,
+            36
+        ]
+    },
+    "TokenShop_GoldThread_Goto": {
+        "target": [
+            161,
+            90,
+            44,
+            18
+        ]
+    },
+    "Rec_<TokenShop_HopePowder_InShop>_Ocr": {
+        "roi": [
+            150,
+            131,
+            78,
+            31
+        ]
+    },
+    "TokenShop_HopePowder_Goto": {
+        "target": [
+            162,
+            140,
+            54,
+            13
+        ]
+    },
+    "Rec_<TokenShop_RefineTrace_InShop>_Ocr": {
+        "roi": [
+            152,
+            182,
+            76,
+            32
+        ]
+    },
+    "TokenShop_RefineTrace_Goto": {
+        "target": [
+            164,
+            191,
+            52,
+            14
+        ]
+    },
+    "Rec_<TokenShop_MirrorWar_InShop>_Ocr": {
+        "roi": [
+            149,
+            81,
+            105,
+            32
+        ]
+    },
+    "TokenShop_MirrorWar_Goto": {
+        "target": [
+            161,
+            90,
+            81,
+            14
+        ]
+    },
+    "Rec_<TokenShop_EvilCastle_InShop>_Ocr": {
+        "roi": [
+            152,
+            129,
+            89,
+            32
+        ]
+    },
+    "TokenShop_EvilCastle_Goto": {
+        "target": [
+            164,
+            138,
+            65,
+            14
+        ]
+    },
+    "Rec_<TokenShop_Guild_InShop>_Ocr": {
+        "roi": [
+            150,
+            176,
+            78,
+            32
+        ]
+    },
+    "TokenShop_Guild_Goto": {
+        "target": [
+            162,
+            185,
+            54,
+            14
+        ]
+    },
+    "Rec_<TokenShop_GoldArena_InShop>_Ocr": {
+        "roi": [
+            153,
+            223,
+            115,
+            33
+        ]
+    },
+    "TokenShop_GoldArena_Goto": {
+        "target": [
+            165,
+            232,
+            91,
+            15
+        ]
+    },
+    "Rec_<TokenShop_Fishing_InShop>_Ocr": {
+        "roi": [
+            148,
+            267,
+            81,
+            37
+        ]
+    },
+    "TokenShop_Fishing_Goto": {
+        "target": [
+            160,
+            276,
+            57,
+            19
+        ]
+    },
+    "Rec_<TokenShop_SoulDisk_InShop>_Ocr": {
+        "roi": [
+            146,
+            312,
+            110,
+            39
+        ]
+    },
+    "TokenShop_SoulDisk_Goto": {
+        "target": [
+            158,
+            321,
+            86,
+            21
+        ]
     }
 }

@@ -378,9 +378,10 @@
                 "PC客户端(Cursor)",
                 "PlayCover"
             ],
-            "description": "<b>把攒下的代币按清单换成东西。</b>逐件按顺序购买，清单里没有的商品不会碰，也不买用钻石计价的东西。<br><br><b>目前只做了赛季活动的上期商店：</b>赛季结束后代币不会再增加，见到就换；买不起的跳过，接着买后面的。换完会把主页的赛季入口切回当期。<br><span style=\"background-color:rgba(255,160,0,0.2)\"><b>注意：</b>上期商店随当期赛季一起结束，过期后代币作废。</span><br><small>主页面商店的各家代币商店、赛季活动当期，后续版本加入。</small>",
+            "description": "<b>把攒下的代币按清单换成东西。</b>进主页面商店的九家代币商店与赛季活动的上期商店，逐件按顺序购买；清单里没有的商品不会碰，也不买用钻石计价的东西。<br><br><b>每件商品分两档：</b><br>• <b>必买</b>：买得起就买。<br>• <b>有余才买</b>：给代币留够保留量之后，多出来的才拿去买。<br><br><b>什么时候换：</b><br>• 主页面商店：留到月末前最后几天。<br>• 赛季活动的上期商店：代币不会再增加，见到就换；换完会把主页的赛季入口切回当期。<br><span style=\"background-color:rgba(255,160,0,0.2)\"><b>注意：</b>上期商店随当期赛季一起结束，过期后代币作废。</span><br><small>赛季活动当期、限时服装的提醒，后续版本加入。</small>",
             "option": [
-                "代币商店-要换的商店"
+                "代币商店-要换的商店",
+                "代币商店-月末几天"
             ]
         },
         {
@@ -8176,32 +8177,10 @@
                 }
             ]
         },
-        "代币商店-要换的商店": {
-            "type": "checkbox",
-            "label": "要换的商店",
-            "description": "勾选的商店会进去按各自的清单换代币，没勾的不进。<br>勾上之后，下面会展开这家店的清单。",
-            "default_case": [
-                "赛季活动（上期）"
-            ],
-            "cases": [
-                {
-                    "name": "赛季活动（上期）",
-                    "pipeline_override": {
-                        "TokenShop_EventPast_Hub": {
-                            "enabled": true
-                        }
-                    },
-                    "option": [
-                        "代币商店-赛季活动-商品",
-                        "代币商店-赛季活动-清空零头"
-                    ]
-                }
-            ]
-        },
         "代币商店-赛季活动-商品": {
             "type": "checkbox",
             "label": "赛季活动 · 要买的商品",
-            "description": "免费货币，换完为止。<br><b>勾上＝要买</b>，圈号是购买顺序；没勾的不买。<br>每件都按「限购剩余」与「代币够买几个」里小的那个数买。",
+            "description": "免费货币，换完为止。<br><b>勾上＝要买</b>，圈号是购买顺序；没勾的不买。<br>每件都按「限购剩余」与「代币够买几个」里小的那个数买；买不起的跳过，接着买后面的。",
             "default_case": [
                 "狂暴火种",
                 "远古水晶",
@@ -8360,6 +8339,2382 @@
                     "name": "Yes",
                     "pipeline_override": {
                         "TokenShop_EventPast_SealBook": {
+                            "enabled": true
+                        }
+                    }
+                }
+            ]
+        },
+        "代币商店-金线-狂暴火种-必买": {
+            "type": "switch",
+            "label": "狂暴火种 · 必买（不看保留量）",
+            "default_case": "Yes",
+            "cases": [
+                {
+                    "name": "No"
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "TokenShop_GoldThread_FireSeed_Must": {
+                            "enabled": true
+                        },
+                        "TokenShop_GoldThread_FireSeed_Spare": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "代币商店-金线-远古水晶-必买": {
+            "type": "switch",
+            "label": "远古水晶 · 必买（不看保留量）",
+            "default_case": "Yes",
+            "cases": [
+                {
+                    "name": "No"
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "TokenShop_GoldThread_AncientCrystal_Must": {
+                            "enabled": true
+                        },
+                        "TokenShop_GoldThread_AncientCrystal_Spare": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "代币商店-金线-抽抽乐券-必买": {
+            "type": "switch",
+            "label": "抽抽乐券 · 必买（不看保留量）",
+            "default_case": "Yes",
+            "cases": [
+                {
+                    "name": "No"
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "TokenShop_GoldThread_GachaTicket_Must": {
+                            "enabled": true
+                        },
+                        "TokenShop_GoldThread_GachaTicket_Spare": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "代币商店-金线-女神之泪-必买": {
+            "type": "switch",
+            "label": "女神之泪 · 必买（不看保留量）",
+            "default_case": "Yes",
+            "cases": [
+                {
+                    "name": "No"
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "TokenShop_GoldThread_GoddessTear_Must": {
+                            "enabled": true
+                        },
+                        "TokenShop_GoldThread_GoddessTear_Spare": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "代币商店-金线-力量精髓-必买": {
+            "type": "switch",
+            "label": "力量精髓 · 必买（不看保留量）",
+            "default_case": "No",
+            "cases": [
+                {
+                    "name": "No"
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "TokenShop_GoldThread_EssencePower_Must": {
+                            "enabled": true
+                        },
+                        "TokenShop_GoldThread_EssencePower_Spare": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "代币商店-金线-生命精髓-必买": {
+            "type": "switch",
+            "label": "生命精髓 · 必买（不看保留量）",
+            "default_case": "No",
+            "cases": [
+                {
+                    "name": "No"
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "TokenShop_GoldThread_EssenceLife_Must": {
+                            "enabled": true
+                        },
+                        "TokenShop_GoldThread_EssenceLife_Spare": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "代币商店-金线-忍耐精髓-必买": {
+            "type": "switch",
+            "label": "忍耐精髓 · 必买（不看保留量）",
+            "default_case": "No",
+            "cases": [
+                {
+                    "name": "No"
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "TokenShop_GoldThread_EssenceEndure_Must": {
+                            "enabled": true
+                        },
+                        "TokenShop_GoldThread_EssenceEndure_Spare": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "代币商店-金线-4★升星之星-必买": {
+            "type": "switch",
+            "label": "4★升星之星 · 必买（不看保留量）",
+            "default_case": "No",
+            "cases": [
+                {
+                    "name": "No"
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "TokenShop_GoldThread_Star4_Must": {
+                            "enabled": true
+                        },
+                        "TokenShop_GoldThread_Star4_Spare": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "代币商店-金线-特调饮料-必买": {
+            "type": "switch",
+            "label": "特调饮料 · 必买（不看保留量）",
+            "default_case": "No",
+            "cases": [
+                {
+                    "name": "No"
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "TokenShop_GoldThread_SpecialDrink_Must": {
+                            "enabled": true
+                        },
+                        "TokenShop_GoldThread_SpecialDrink_Spare": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "代币商店-金线-商品": {
+            "type": "checkbox",
+            "label": "金线 · 要买的商品",
+            "description": "抽到重复角色获得，各账号用法差别大。<br><small>繁体客户端里这家店叫「黃金線」。</small><br><b>勾上＝要买</b>，没勾的不买；圈号是清单顺序。<br>勾上之后，下面会多出它的开关：<br>• <b>Yes ＝ 必买</b>：不看保留量，买得起就买。<br>• <b>No ＝ 有余才买</b>：只在买完后余额仍不低于保留量时才买。<br><small>先按圈号买完必买的，再按圈号买有余才买的。</small>",
+            "default_case": [
+                "狂暴火种",
+                "远古水晶",
+                "抽抽乐券",
+                "女神之泪",
+                "力量精髓",
+                "生命精髓",
+                "忍耐精髓",
+                "4★升星之星",
+                "特调饮料"
+            ],
+            "cases": [
+                {
+                    "name": "狂暴火种",
+                    "label": "狂暴火种 ①",
+                    "pipeline_override": {
+                        "TokenShop_GoldThread_FireSeed_Spare": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "代币商店-金线-狂暴火种-必买"
+                    ]
+                },
+                {
+                    "name": "远古水晶",
+                    "label": "远古水晶 ②",
+                    "pipeline_override": {
+                        "TokenShop_GoldThread_AncientCrystal_Spare": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "代币商店-金线-远古水晶-必买"
+                    ]
+                },
+                {
+                    "name": "抽抽乐券",
+                    "label": "抽抽乐券 ③",
+                    "pipeline_override": {
+                        "TokenShop_GoldThread_GachaTicket_Spare": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "代币商店-金线-抽抽乐券-必买"
+                    ]
+                },
+                {
+                    "name": "女神之泪",
+                    "label": "女神之泪 ④",
+                    "pipeline_override": {
+                        "TokenShop_GoldThread_GoddessTear_Spare": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "代币商店-金线-女神之泪-必买"
+                    ]
+                },
+                {
+                    "name": "力量精髓",
+                    "label": "力量精髓 ⑤",
+                    "pipeline_override": {
+                        "TokenShop_GoldThread_EssencePower_Spare": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "代币商店-金线-力量精髓-必买"
+                    ]
+                },
+                {
+                    "name": "生命精髓",
+                    "label": "生命精髓 ⑥",
+                    "pipeline_override": {
+                        "TokenShop_GoldThread_EssenceLife_Spare": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "代币商店-金线-生命精髓-必买"
+                    ]
+                },
+                {
+                    "name": "忍耐精髓",
+                    "label": "忍耐精髓 ⑦",
+                    "pipeline_override": {
+                        "TokenShop_GoldThread_EssenceEndure_Spare": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "代币商店-金线-忍耐精髓-必买"
+                    ]
+                },
+                {
+                    "name": "4★升星之星",
+                    "label": "4★升星之星 ⑧",
+                    "pipeline_override": {
+                        "TokenShop_GoldThread_Star4_Spare": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "代币商店-金线-4★升星之星-必买"
+                    ]
+                },
+                {
+                    "name": "特调饮料",
+                    "label": "特调饮料 ⑨",
+                    "pipeline_override": {
+                        "TokenShop_GoldThread_SpecialDrink_Spare": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "代币商店-金线-特调饮料-必买"
+                    ]
+                }
+            ]
+        },
+        "代币商店-金线-保留量": {
+            "type": "input",
+            "label": "金线 · 保留量",
+            "description": "给这种代币留个底。<b>有余才买</b>的商品，只在买完之后余额仍不低于这个数时才买；<b>必买</b>的不受它限制。<br><small>默认 3,200 ＝ 两件限时服装的价格。</small>",
+            "inputs": [
+                {
+                    "name": "金线保留量",
+                    "label": "买完后余额不低于",
+                    "pipeline_type": "int",
+                    "default": "3200",
+                    "verify": "^\\d+$",
+                    "pattern_msg": "应为非负整数"
+                }
+            ],
+            "pipeline_override": {
+                "TokenShop_GoldThread_Buy_Spare": {
+                    "attach": {
+                        "reserve": "{金线保留量}"
+                    }
+                }
+            }
+        },
+        "代币商店-希望粉末-狂暴火种-必买": {
+            "type": "switch",
+            "label": "狂暴火种 · 必买（不看保留量）",
+            "default_case": "Yes",
+            "cases": [
+                {
+                    "name": "No"
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "TokenShop_HopePowder_FireSeed_Must": {
+                            "enabled": true
+                        },
+                        "TokenShop_HopePowder_FireSeed_Spare": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "代币商店-希望粉末-商品": {
+            "type": "checkbox",
+            "label": "希望粉末 · 要买的商品",
+            "description": "抽卡资源，1 抽 1 个，贵重。<br><b>勾上＝要买</b>，没勾的不买；圈号是清单顺序。<br>勾上之后，下面会多出它的开关：<br>• <b>Yes ＝ 必买</b>：不看保留量，买得起就买。<br>• <b>No ＝ 有余才买</b>：只在买完后余额仍不低于保留量时才买。<br><small>先按圈号买完必买的，再按圈号买有余才买的。</small>",
+            "default_case": [
+                "狂暴火种"
+            ],
+            "cases": [
+                {
+                    "name": "狂暴火种",
+                    "label": "狂暴火种 ①",
+                    "pipeline_override": {
+                        "TokenShop_HopePowder_FireSeed_Spare": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "代币商店-希望粉末-狂暴火种-必买"
+                    ]
+                }
+            ]
+        },
+        "代币商店-希望粉末-保留量": {
+            "type": "input",
+            "label": "希望粉末 · 保留量",
+            "description": "给这种代币留个底。<b>有余才买</b>的商品，只在买完之后余额仍不低于这个数时才买；<b>必买</b>的不受它限制。<br><small>默认 200 ＝ 一件服装的价格。</small>",
+            "inputs": [
+                {
+                    "name": "希望粉末保留量",
+                    "label": "买完后余额不低于",
+                    "pipeline_type": "int",
+                    "default": "200",
+                    "verify": "^\\d+$",
+                    "pattern_msg": "应为非负整数"
+                }
+            ],
+            "pipeline_override": {
+                "TokenShop_HopePowder_Buy_Spare": {
+                    "attach": {
+                        "reserve": "{希望粉末保留量}"
+                    }
+                }
+            }
+        },
+        "代币商店-精炼痕迹-狂暴火种-必买": {
+            "type": "switch",
+            "label": "狂暴火种 · 必买（不看保留量）",
+            "default_case": "Yes",
+            "cases": [
+                {
+                    "name": "No"
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "TokenShop_RefineTrace_FireSeed_Must": {
+                            "enabled": true
+                        },
+                        "TokenShop_RefineTrace_FireSeed_Spare": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "代币商店-精炼痕迹-女神之泪-必买": {
+            "type": "switch",
+            "label": "女神之泪 · 必买（不看保留量）",
+            "default_case": "No",
+            "cases": [
+                {
+                    "name": "No"
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "TokenShop_RefineTrace_GoddessTear_Must": {
+                            "enabled": true
+                        },
+                        "TokenShop_RefineTrace_GoddessTear_Spare": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "代币商店-精炼痕迹-远古水晶-必买": {
+            "type": "switch",
+            "label": "远古水晶 · 必买（不看保留量）",
+            "default_case": "No",
+            "cases": [
+                {
+                    "name": "No"
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "TokenShop_RefineTrace_AncientCrystal_Must": {
+                            "enabled": true
+                        },
+                        "TokenShop_RefineTrace_AncientCrystal_Spare": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "代币商店-精炼痕迹-精炼水晶-必买": {
+            "type": "switch",
+            "label": "精炼水晶 · 必买（不看保留量）",
+            "default_case": "No",
+            "cases": [
+                {
+                    "name": "No"
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "TokenShop_RefineTrace_RefineCrystal_Must": {
+                            "enabled": true
+                        },
+                        "TokenShop_RefineTrace_RefineCrystal_Spare": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "代币商店-精炼痕迹-商品": {
+            "type": "checkbox",
+            "label": "精炼痕迹 · 要买的商品",
+            "description": "精炼装备获得。<br><small>繁体客户端里这家店叫「煉製之痕」。</small><br><b>勾上＝要买</b>，没勾的不买；圈号是清单顺序。<br>勾上之后，下面会多出它的开关：<br>• <b>Yes ＝ 必买</b>：不看保留量，买得起就买。<br>• <b>No ＝ 有余才买</b>：只在买完后余额仍不低于保留量时才买。<br><small>先按圈号买完必买的，再按圈号买有余才买的。</small>",
+            "default_case": [
+                "狂暴火种",
+                "女神之泪",
+                "远古水晶",
+                "精炼水晶"
+            ],
+            "cases": [
+                {
+                    "name": "狂暴火种",
+                    "label": "狂暴火种 ①",
+                    "pipeline_override": {
+                        "TokenShop_RefineTrace_FireSeed_Spare": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "代币商店-精炼痕迹-狂暴火种-必买"
+                    ]
+                },
+                {
+                    "name": "女神之泪",
+                    "label": "女神之泪 ②",
+                    "pipeline_override": {
+                        "TokenShop_RefineTrace_GoddessTear_Spare": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "代币商店-精炼痕迹-女神之泪-必买"
+                    ]
+                },
+                {
+                    "name": "远古水晶",
+                    "label": "远古水晶 ③",
+                    "pipeline_override": {
+                        "TokenShop_RefineTrace_AncientCrystal_Spare": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "代币商店-精炼痕迹-远古水晶-必买"
+                    ]
+                },
+                {
+                    "name": "精炼水晶",
+                    "label": "精炼水晶 ④",
+                    "pipeline_override": {
+                        "TokenShop_RefineTrace_RefineCrystal_Spare": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "代币商店-精炼痕迹-精炼水晶-必买"
+                    ]
+                }
+            ]
+        },
+        "代币商店-精炼痕迹-保留量": {
+            "type": "input",
+            "label": "精炼痕迹 · 保留量",
+            "description": "给这种代币留个底。<b>有余才买</b>的商品，只在买完之后余额仍不低于这个数时才买；<b>必买</b>的不受它限制。<br><small>填 0 表示不留。</small>",
+            "inputs": [
+                {
+                    "name": "精炼痕迹保留量",
+                    "label": "买完后余额不低于",
+                    "pipeline_type": "int",
+                    "default": "0",
+                    "verify": "^\\d+$",
+                    "pattern_msg": "应为非负整数"
+                }
+            ],
+            "pipeline_override": {
+                "TokenShop_RefineTrace_Buy_Spare": {
+                    "attach": {
+                        "reserve": "{精炼痕迹保留量}"
+                    }
+                }
+            }
+        },
+        "代币商店-镜中之战-狂暴火种-必买": {
+            "type": "switch",
+            "label": "狂暴火种 · 必买（不看保留量）",
+            "default_case": "Yes",
+            "cases": [
+                {
+                    "name": "No"
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "TokenShop_MirrorWar_FireSeed_Must": {
+                            "enabled": true
+                        },
+                        "TokenShop_MirrorWar_FireSeed_Spare": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "代币商店-镜中之战-UR专用装备抽抽乐兑换券-必买": {
+            "type": "switch",
+            "label": "UR专用装备抽抽乐兑换券 · 必买（不看保留量）",
+            "default_case": "No",
+            "cases": [
+                {
+                    "name": "No"
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "TokenShop_MirrorWar_UrGearTicket_Must": {
+                            "enabled": true
+                        },
+                        "TokenShop_MirrorWar_UrGearTicket_Spare": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "代币商店-镜中之战-精炼水晶-必买": {
+            "type": "switch",
+            "label": "精炼水晶 · 必买（不看保留量）",
+            "default_case": "No",
+            "cases": [
+                {
+                    "name": "No"
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "TokenShop_MirrorWar_RefineCrystal_Must": {
+                            "enabled": true
+                        },
+                        "TokenShop_MirrorWar_RefineCrystal_Spare": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "代币商店-镜中之战-商品": {
+            "type": "checkbox",
+            "label": "镜中之战 · 要买的商品",
+            "description": "传统 PVP，不打没有。<br><b>勾上＝要买</b>，没勾的不买；圈号是清单顺序。<br>勾上之后，下面会多出它的开关：<br>• <b>Yes ＝ 必买</b>：不看保留量，买得起就买。<br>• <b>No ＝ 有余才买</b>：只在买完后余额仍不低于保留量时才买。<br><small>先按圈号买完必买的，再按圈号买有余才买的。</small>",
+            "default_case": [
+                "狂暴火种",
+                "UR专用装备抽抽乐兑换券",
+                "精炼水晶"
+            ],
+            "cases": [
+                {
+                    "name": "狂暴火种",
+                    "label": "狂暴火种 ①",
+                    "pipeline_override": {
+                        "TokenShop_MirrorWar_FireSeed_Spare": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "代币商店-镜中之战-狂暴火种-必买"
+                    ]
+                },
+                {
+                    "name": "UR专用装备抽抽乐兑换券",
+                    "label": "UR专用装备抽抽乐兑换券 ②",
+                    "pipeline_override": {
+                        "TokenShop_MirrorWar_UrGearTicket_Spare": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "代币商店-镜中之战-UR专用装备抽抽乐兑换券-必买"
+                    ]
+                },
+                {
+                    "name": "精炼水晶",
+                    "label": "精炼水晶 ③",
+                    "pipeline_override": {
+                        "TokenShop_MirrorWar_RefineCrystal_Spare": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "代币商店-镜中之战-精炼水晶-必买"
+                    ]
+                }
+            ]
+        },
+        "代币商店-镜中之战-保留量": {
+            "type": "input",
+            "label": "镜中之战 · 保留量",
+            "description": "给这种代币留个底。<b>有余才买</b>的商品，只在买完之后余额仍不低于这个数时才买；<b>必买</b>的不受它限制。<br><small>默认 18,000 ＝ 一件限时服装的价格。</small>",
+            "inputs": [
+                {
+                    "name": "镜中之战保留量",
+                    "label": "买完后余额不低于",
+                    "pipeline_type": "int",
+                    "default": "18000",
+                    "verify": "^\\d+$",
+                    "pattern_msg": "应为非负整数"
+                }
+            ],
+            "pipeline_override": {
+                "TokenShop_MirrorWar_Buy_Spare": {
+                    "attach": {
+                        "reserve": "{镜中之战保留量}"
+                    }
+                }
+            }
+        },
+        "代币商店-恶魔城-力量精髓-必买": {
+            "type": "switch",
+            "label": "力量精髓 · 必买（不看保留量）",
+            "default_case": "No",
+            "cases": [
+                {
+                    "name": "No"
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "TokenShop_EvilCastle_EssencePower_Must": {
+                            "enabled": true
+                        },
+                        "TokenShop_EvilCastle_EssencePower_Spare": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "代币商店-恶魔城-生命精髓-必买": {
+            "type": "switch",
+            "label": "生命精髓 · 必买（不看保留量）",
+            "default_case": "No",
+            "cases": [
+                {
+                    "name": "No"
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "TokenShop_EvilCastle_EssenceLife_Must": {
+                            "enabled": true
+                        },
+                        "TokenShop_EvilCastle_EssenceLife_Spare": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "代币商店-恶魔城-忍耐精髓-必买": {
+            "type": "switch",
+            "label": "忍耐精髓 · 必买（不看保留量）",
+            "default_case": "No",
+            "cases": [
+                {
+                    "name": "No"
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "TokenShop_EvilCastle_EssenceEndure_Must": {
+                            "enabled": true
+                        },
+                        "TokenShop_EvilCastle_EssenceEndure_Spare": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "代币商店-恶魔城-金币袋-必买": {
+            "type": "switch",
+            "label": "金币袋 · 必买（不看保留量）",
+            "default_case": "No",
+            "cases": [
+                {
+                    "name": "No"
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "TokenShop_EvilCastle_GoldBag_Must": {
+                            "enabled": true
+                        },
+                        "TokenShop_EvilCastle_GoldBag_Spare": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "代币商店-恶魔城-普通招募契约书-必买": {
+            "type": "switch",
+            "label": "普通招募契约书 · 必买（不看保留量）",
+            "default_case": "No",
+            "cases": [
+                {
+                    "name": "No"
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "TokenShop_EvilCastle_ContractNormal_Must": {
+                            "enabled": true
+                        },
+                        "TokenShop_EvilCastle_ContractNormal_Spare": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "代币商店-恶魔城-蓝色史莱姆-必买": {
+            "type": "switch",
+            "label": "蓝色史莱姆 · 必买（不看保留量）",
+            "default_case": "No",
+            "cases": [
+                {
+                    "name": "No"
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "TokenShop_EvilCastle_BlueSlime_Must": {
+                            "enabled": true
+                        },
+                        "TokenShop_EvilCastle_BlueSlime_Spare": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "代币商店-恶魔城-黄色史莱姆-必买": {
+            "type": "switch",
+            "label": "黄色史莱姆 · 必买（不看保留量）",
+            "default_case": "No",
+            "cases": [
+                {
+                    "name": "No"
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "TokenShop_EvilCastle_YellowSlime_Must": {
+                            "enabled": true
+                        },
+                        "TokenShop_EvilCastle_YellowSlime_Spare": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "代币商店-恶魔城-刻印咒语书-必买": {
+            "type": "switch",
+            "label": "刻印咒语书 · 必买（不看保留量）",
+            "default_case": "No",
+            "cases": [
+                {
+                    "name": "No"
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "TokenShop_EvilCastle_SealBook_Must": {
+                            "enabled": true
+                        },
+                        "TokenShop_EvilCastle_SealBook_Spare": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "代币商店-恶魔城-精炼粉末-必买": {
+            "type": "switch",
+            "label": "精炼粉末 · 必买（不看保留量）",
+            "default_case": "No",
+            "cases": [
+                {
+                    "name": "No"
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "TokenShop_EvilCastle_RefinePowder_Must": {
+                            "enabled": true
+                        },
+                        "TokenShop_EvilCastle_RefinePowder_Spare": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "代币商店-恶魔城-3★升星之星-必买": {
+            "type": "switch",
+            "label": "3★升星之星 · 必买（不看保留量）",
+            "default_case": "No",
+            "cases": [
+                {
+                    "name": "No"
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "TokenShop_EvilCastle_Star3_Must": {
+                            "enabled": true
+                        },
+                        "TokenShop_EvilCastle_Star3_Spare": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "代币商店-恶魔城-4★升星之星-必买": {
+            "type": "switch",
+            "label": "4★升星之星 · 必买（不看保留量）",
+            "default_case": "No",
+            "cases": [
+                {
+                    "name": "No"
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "TokenShop_EvilCastle_Star4_Must": {
+                            "enabled": true
+                        },
+                        "TokenShop_EvilCastle_Star4_Spare": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "代币商店-恶魔城-商品": {
+            "type": "checkbox",
+            "label": "恶魔城 · 要买的商品",
+            "description": "<b>勾上＝要买</b>，没勾的不买；圈号是清单顺序。<br>勾上之后，下面会多出它的开关：<br>• <b>Yes ＝ 必买</b>：不看保留量，买得起就买。<br>• <b>No ＝ 有余才买</b>：只在买完后余额仍不低于保留量时才买。<br><small>先按圈号买完必买的，再按圈号买有余才买的。</small>",
+            "default_case": [
+                "力量精髓",
+                "生命精髓",
+                "忍耐精髓",
+                "金币袋",
+                "普通招募契约书",
+                "蓝色史莱姆",
+                "黄色史莱姆",
+                "刻印咒语书",
+                "精炼粉末",
+                "3★升星之星",
+                "4★升星之星"
+            ],
+            "cases": [
+                {
+                    "name": "力量精髓",
+                    "label": "力量精髓 ①",
+                    "pipeline_override": {
+                        "TokenShop_EvilCastle_EssencePower_Spare": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "代币商店-恶魔城-力量精髓-必买"
+                    ]
+                },
+                {
+                    "name": "生命精髓",
+                    "label": "生命精髓 ②",
+                    "pipeline_override": {
+                        "TokenShop_EvilCastle_EssenceLife_Spare": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "代币商店-恶魔城-生命精髓-必买"
+                    ]
+                },
+                {
+                    "name": "忍耐精髓",
+                    "label": "忍耐精髓 ③",
+                    "pipeline_override": {
+                        "TokenShop_EvilCastle_EssenceEndure_Spare": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "代币商店-恶魔城-忍耐精髓-必买"
+                    ]
+                },
+                {
+                    "name": "金币袋",
+                    "label": "金币袋 ④",
+                    "pipeline_override": {
+                        "TokenShop_EvilCastle_GoldBag_Spare": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "代币商店-恶魔城-金币袋-必买"
+                    ]
+                },
+                {
+                    "name": "普通招募契约书",
+                    "label": "普通招募契约书 ⑤",
+                    "pipeline_override": {
+                        "TokenShop_EvilCastle_ContractNormal_Spare": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "代币商店-恶魔城-普通招募契约书-必买"
+                    ]
+                },
+                {
+                    "name": "蓝色史莱姆",
+                    "label": "蓝色史莱姆 ⑥",
+                    "pipeline_override": {
+                        "TokenShop_EvilCastle_BlueSlime_Spare": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "代币商店-恶魔城-蓝色史莱姆-必买"
+                    ]
+                },
+                {
+                    "name": "黄色史莱姆",
+                    "label": "黄色史莱姆 ⑦",
+                    "pipeline_override": {
+                        "TokenShop_EvilCastle_YellowSlime_Spare": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "代币商店-恶魔城-黄色史莱姆-必买"
+                    ]
+                },
+                {
+                    "name": "刻印咒语书",
+                    "label": "刻印咒语书 ⑧",
+                    "pipeline_override": {
+                        "TokenShop_EvilCastle_SealBook_Spare": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "代币商店-恶魔城-刻印咒语书-必买"
+                    ]
+                },
+                {
+                    "name": "精炼粉末",
+                    "label": "精炼粉末 ⑨",
+                    "pipeline_override": {
+                        "TokenShop_EvilCastle_RefinePowder_Spare": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "代币商店-恶魔城-精炼粉末-必买"
+                    ]
+                },
+                {
+                    "name": "3★升星之星",
+                    "label": "3★升星之星 ⑩",
+                    "pipeline_override": {
+                        "TokenShop_EvilCastle_Star3_Spare": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "代币商店-恶魔城-3★升星之星-必买"
+                    ]
+                },
+                {
+                    "name": "4★升星之星",
+                    "label": "4★升星之星 ⑪",
+                    "pipeline_override": {
+                        "TokenShop_EvilCastle_Star4_Spare": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "代币商店-恶魔城-4★升星之星-必买"
+                    ]
+                }
+            ]
+        },
+        "代币商店-恶魔城-保留量": {
+            "type": "input",
+            "label": "恶魔城 · 保留量",
+            "description": "给这种代币留个底。<b>有余才买</b>的商品，只在买完之后余额仍不低于这个数时才买；<b>必买</b>的不受它限制。<br><small>填 0 表示不留。</small>",
+            "inputs": [
+                {
+                    "name": "恶魔城保留量",
+                    "label": "买完后余额不低于",
+                    "pipeline_type": "int",
+                    "default": "0",
+                    "verify": "^\\d+$",
+                    "pattern_msg": "应为非负整数"
+                }
+            ],
+            "pipeline_override": {
+                "TokenShop_EvilCastle_Buy_Spare": {
+                    "attach": {
+                        "reserve": "{恶魔城保留量}"
+                    }
+                }
+            }
+        },
+        "代币商店-公会-狂暴火种-必买": {
+            "type": "switch",
+            "label": "狂暴火种 · 必买（不看保留量）",
+            "default_case": "Yes",
+            "cases": [
+                {
+                    "name": "No"
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "TokenShop_Guild_FireSeed_Must": {
+                            "enabled": true
+                        },
+                        "TokenShop_Guild_FireSeed_Spare": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "代币商店-公会-抽抽乐券-必买": {
+            "type": "switch",
+            "label": "抽抽乐券 · 必买（不看保留量）",
+            "default_case": "Yes",
+            "cases": [
+                {
+                    "name": "No"
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "TokenShop_Guild_GachaTicket_Must": {
+                            "enabled": true
+                        },
+                        "TokenShop_Guild_GachaTicket_Spare": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "代币商店-公会-女神之泪-必买": {
+            "type": "switch",
+            "label": "女神之泪 · 必买（不看保留量）",
+            "default_case": "Yes",
+            "cases": [
+                {
+                    "name": "No"
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "TokenShop_Guild_GoddessTear_Must": {
+                            "enabled": true
+                        },
+                        "TokenShop_Guild_GoddessTear_Spare": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "代币商店-公会-觉醒灵药-必买": {
+            "type": "switch",
+            "label": "觉醒灵药 · 必买（不看保留量）",
+            "default_case": "No",
+            "cases": [
+                {
+                    "name": "No"
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "TokenShop_Guild_AwakenElixir_Must": {
+                            "enabled": true
+                        },
+                        "TokenShop_Guild_AwakenElixir_Spare": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "代币商店-公会-力量精髓-必买": {
+            "type": "switch",
+            "label": "力量精髓 · 必买（不看保留量）",
+            "default_case": "No",
+            "cases": [
+                {
+                    "name": "No"
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "TokenShop_Guild_EssencePower_Must": {
+                            "enabled": true
+                        },
+                        "TokenShop_Guild_EssencePower_Spare": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "代币商店-公会-生命精髓-必买": {
+            "type": "switch",
+            "label": "生命精髓 · 必买（不看保留量）",
+            "default_case": "No",
+            "cases": [
+                {
+                    "name": "No"
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "TokenShop_Guild_EssenceLife_Must": {
+                            "enabled": true
+                        },
+                        "TokenShop_Guild_EssenceLife_Spare": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "代币商店-公会-忍耐精髓-必买": {
+            "type": "switch",
+            "label": "忍耐精髓 · 必买（不看保留量）",
+            "default_case": "No",
+            "cases": [
+                {
+                    "name": "No"
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "TokenShop_Guild_EssenceEndure_Must": {
+                            "enabled": true
+                        },
+                        "TokenShop_Guild_EssenceEndure_Spare": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "代币商店-公会-商品": {
+            "type": "checkbox",
+            "label": "公会 · 要买的商品",
+            "description": "签到给少量，打活动给大量。<br><b>勾上＝要买</b>，没勾的不买；圈号是清单顺序。<br>勾上之后，下面会多出它的开关：<br>• <b>Yes ＝ 必买</b>：不看保留量，买得起就买。<br>• <b>No ＝ 有余才买</b>：只在买完后余额仍不低于保留量时才买。<br><small>先按圈号买完必买的，再按圈号买有余才买的。</small>",
+            "default_case": [
+                "狂暴火种",
+                "抽抽乐券",
+                "女神之泪",
+                "觉醒灵药",
+                "力量精髓",
+                "生命精髓",
+                "忍耐精髓"
+            ],
+            "cases": [
+                {
+                    "name": "狂暴火种",
+                    "label": "狂暴火种 ①",
+                    "pipeline_override": {
+                        "TokenShop_Guild_FireSeed_Spare": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "代币商店-公会-狂暴火种-必买"
+                    ]
+                },
+                {
+                    "name": "抽抽乐券",
+                    "label": "抽抽乐券 ②",
+                    "pipeline_override": {
+                        "TokenShop_Guild_GachaTicket_Spare": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "代币商店-公会-抽抽乐券-必买"
+                    ]
+                },
+                {
+                    "name": "女神之泪",
+                    "label": "女神之泪 ③",
+                    "pipeline_override": {
+                        "TokenShop_Guild_GoddessTear_Spare": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "代币商店-公会-女神之泪-必买"
+                    ]
+                },
+                {
+                    "name": "觉醒灵药",
+                    "label": "觉醒灵药 ④",
+                    "pipeline_override": {
+                        "TokenShop_Guild_AwakenElixir_Spare": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "代币商店-公会-觉醒灵药-必买"
+                    ]
+                },
+                {
+                    "name": "力量精髓",
+                    "label": "力量精髓 ⑤",
+                    "pipeline_override": {
+                        "TokenShop_Guild_EssencePower_Spare": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "代币商店-公会-力量精髓-必买"
+                    ]
+                },
+                {
+                    "name": "生命精髓",
+                    "label": "生命精髓 ⑥",
+                    "pipeline_override": {
+                        "TokenShop_Guild_EssenceLife_Spare": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "代币商店-公会-生命精髓-必买"
+                    ]
+                },
+                {
+                    "name": "忍耐精髓",
+                    "label": "忍耐精髓 ⑦",
+                    "pipeline_override": {
+                        "TokenShop_Guild_EssenceEndure_Spare": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "代币商店-公会-忍耐精髓-必买"
+                    ]
+                }
+            ]
+        },
+        "代币商店-公会-保留量": {
+            "type": "input",
+            "label": "公会 · 保留量",
+            "description": "给这种代币留个底。<b>有余才买</b>的商品，只在买完之后余额仍不低于这个数时才买；<b>必买</b>的不受它限制。<br><small>填 0 表示不留。</small>",
+            "inputs": [
+                {
+                    "name": "公会保留量",
+                    "label": "买完后余额不低于",
+                    "pipeline_type": "int",
+                    "default": "0",
+                    "verify": "^\\d+$",
+                    "pattern_msg": "应为非负整数"
+                }
+            ],
+            "pipeline_override": {
+                "TokenShop_Guild_Buy_Spare": {
+                    "attach": {
+                        "reserve": "{公会保留量}"
+                    }
+                }
+            }
+        },
+        "代币商店-黄金竞技场-狂暴火种-必买": {
+            "type": "switch",
+            "label": "狂暴火种 · 必买（不看保留量）",
+            "default_case": "Yes",
+            "cases": [
+                {
+                    "name": "No"
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "TokenShop_GoldArena_FireSeed_Must": {
+                            "enabled": true
+                        },
+                        "TokenShop_GoldArena_FireSeed_Spare": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "代币商店-黄金竞技场-远古水晶-必买": {
+            "type": "switch",
+            "label": "远古水晶 · 必买（不看保留量）",
+            "default_case": "No",
+            "cases": [
+                {
+                    "name": "No"
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "TokenShop_GoldArena_AncientCrystal_Must": {
+                            "enabled": true
+                        },
+                        "TokenShop_GoldArena_AncientCrystal_Spare": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "代币商店-黄金竞技场-抽抽乐券-必买": {
+            "type": "switch",
+            "label": "抽抽乐券 · 必买（不看保留量）",
+            "default_case": "No",
+            "cases": [
+                {
+                    "name": "No"
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "TokenShop_GoldArena_GachaTicket_Must": {
+                            "enabled": true
+                        },
+                        "TokenShop_GoldArena_GachaTicket_Spare": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "代币商店-黄金竞技场-属性甄选抽抽乐兑换券-必买": {
+            "type": "switch",
+            "label": "属性甄选抽抽乐兑换券 · 必买（不看保留量）",
+            "default_case": "No",
+            "cases": [
+                {
+                    "name": "No"
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "TokenShop_GoldArena_ElementTicket_Must": {
+                            "enabled": true
+                        },
+                        "TokenShop_GoldArena_ElementTicket_Spare": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "代币商店-黄金竞技场-觉醒灵药-必买": {
+            "type": "switch",
+            "label": "觉醒灵药 · 必买（不看保留量）",
+            "default_case": "No",
+            "cases": [
+                {
+                    "name": "No"
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "TokenShop_GoldArena_AwakenElixir_Must": {
+                            "enabled": true
+                        },
+                        "TokenShop_GoldArena_AwakenElixir_Spare": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "代币商店-黄金竞技场-金币 10万-必买": {
+            "type": "switch",
+            "label": "金币 10万 · 必买（不看保留量）",
+            "default_case": "No",
+            "cases": [
+                {
+                    "name": "No"
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "TokenShop_GoldArena_Gold100k_Must": {
+                            "enabled": true
+                        },
+                        "TokenShop_GoldArena_Gold100k_Spare": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "代币商店-黄金竞技场-精炼水晶-必买": {
+            "type": "switch",
+            "label": "精炼水晶 · 必买（不看保留量）",
+            "default_case": "No",
+            "cases": [
+                {
+                    "name": "No"
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "TokenShop_GoldArena_RefineCrystal_Must": {
+                            "enabled": true
+                        },
+                        "TokenShop_GoldArena_RefineCrystal_Spare": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "代币商店-黄金竞技场-精炼粉末 2000-必买": {
+            "type": "switch",
+            "label": "精炼粉末 2000 · 必买（不看保留量）",
+            "default_case": "No",
+            "cases": [
+                {
+                    "name": "No"
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "TokenShop_GoldArena_RefinePowder2000_Must": {
+                            "enabled": true
+                        },
+                        "TokenShop_GoldArena_RefinePowder2000_Spare": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "代币商店-黄金竞技场-商品": {
+            "type": "checkbox",
+            "label": "黄金竞技场 · 要买的商品",
+            "description": "PVP，货币较贵；排在前面的三件较重要。<br><b>勾上＝要买</b>，没勾的不买；圈号是清单顺序。<br>勾上之后，下面会多出它的开关：<br>• <b>Yes ＝ 必买</b>：不看保留量，买得起就买。<br>• <b>No ＝ 有余才买</b>：只在买完后余额仍不低于保留量时才买。<br><small>先按圈号买完必买的，再按圈号买有余才买的。</small>",
+            "default_case": [
+                "狂暴火种",
+                "远古水晶",
+                "抽抽乐券",
+                "属性甄选抽抽乐兑换券"
+            ],
+            "cases": [
+                {
+                    "name": "狂暴火种",
+                    "label": "狂暴火种 ①",
+                    "pipeline_override": {
+                        "TokenShop_GoldArena_FireSeed_Spare": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "代币商店-黄金竞技场-狂暴火种-必买"
+                    ]
+                },
+                {
+                    "name": "远古水晶",
+                    "label": "远古水晶 ②",
+                    "pipeline_override": {
+                        "TokenShop_GoldArena_AncientCrystal_Spare": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "代币商店-黄金竞技场-远古水晶-必买"
+                    ]
+                },
+                {
+                    "name": "抽抽乐券",
+                    "label": "抽抽乐券 ③",
+                    "pipeline_override": {
+                        "TokenShop_GoldArena_GachaTicket_Spare": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "代币商店-黄金竞技场-抽抽乐券-必买"
+                    ]
+                },
+                {
+                    "name": "属性甄选抽抽乐兑换券",
+                    "label": "属性甄选抽抽乐兑换券 ④",
+                    "pipeline_override": {
+                        "TokenShop_GoldArena_ElementTicket_Spare": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "代币商店-黄金竞技场-属性甄选抽抽乐兑换券-必买"
+                    ]
+                },
+                {
+                    "name": "觉醒灵药",
+                    "label": "觉醒灵药 ⑤",
+                    "pipeline_override": {
+                        "TokenShop_GoldArena_AwakenElixir_Spare": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "代币商店-黄金竞技场-觉醒灵药-必买"
+                    ]
+                },
+                {
+                    "name": "金币 10万",
+                    "label": "金币 10万 ⑥",
+                    "pipeline_override": {
+                        "TokenShop_GoldArena_Gold100k_Spare": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "代币商店-黄金竞技场-金币 10万-必买"
+                    ]
+                },
+                {
+                    "name": "精炼水晶",
+                    "label": "精炼水晶 ⑦",
+                    "pipeline_override": {
+                        "TokenShop_GoldArena_RefineCrystal_Spare": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "代币商店-黄金竞技场-精炼水晶-必买"
+                    ]
+                },
+                {
+                    "name": "精炼粉末 2000",
+                    "label": "精炼粉末 2000 ⑧",
+                    "pipeline_override": {
+                        "TokenShop_GoldArena_RefinePowder2000_Spare": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "代币商店-黄金竞技场-精炼粉末 2000-必买"
+                    ]
+                }
+            ]
+        },
+        "代币商店-黄金竞技场-保留量": {
+            "type": "input",
+            "label": "黄金竞技场 · 保留量",
+            "description": "给这种代币留个底。<b>有余才买</b>的商品，只在买完之后余额仍不低于这个数时才买；<b>必买</b>的不受它限制。<br><small>默认 520 ＝ 下个月买满火种要用的数。</small>",
+            "inputs": [
+                {
+                    "name": "黄金竞技场保留量",
+                    "label": "买完后余额不低于",
+                    "pipeline_type": "int",
+                    "default": "520",
+                    "verify": "^\\d+$",
+                    "pattern_msg": "应为非负整数"
+                }
+            ],
+            "pipeline_override": {
+                "TokenShop_GoldArena_Buy_Spare": {
+                    "attach": {
+                        "reserve": "{黄金竞技场保留量}"
+                    }
+                }
+            }
+        },
+        "代币商店-钓鱼-金币-必买": {
+            "type": "switch",
+            "label": "金币 · 必买（不看保留量）",
+            "default_case": "No",
+            "cases": [
+                {
+                    "name": "No"
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "TokenShop_Fishing_Gold_Must": {
+                            "enabled": true
+                        },
+                        "TokenShop_Fishing_Gold_Spare": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "代币商店-钓鱼-精炼粉末-必买": {
+            "type": "switch",
+            "label": "精炼粉末 · 必买（不看保留量）",
+            "default_case": "No",
+            "cases": [
+                {
+                    "name": "No"
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "TokenShop_Fishing_RefinePowder_Must": {
+                            "enabled": true
+                        },
+                        "TokenShop_Fishing_RefinePowder_Spare": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "代币商店-钓鱼-装饰币-必买": {
+            "type": "switch",
+            "label": "装饰币 · 必买（不看保留量）",
+            "default_case": "No",
+            "cases": [
+                {
+                    "name": "No"
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "TokenShop_Fishing_DecoCoin_Must": {
+                            "enabled": true
+                        },
+                        "TokenShop_Fishing_DecoCoin_Spare": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "代币商店-钓鱼-商品": {
+            "type": "checkbox",
+            "label": "钓鱼 · 要买的商品",
+            "description": "不钓鱼则没有。<br><b>勾上＝要买</b>，没勾的不买；圈号是清单顺序。<br>勾上之后，下面会多出它的开关：<br>• <b>Yes ＝ 必买</b>：不看保留量，买得起就买。<br>• <b>No ＝ 有余才买</b>：只在买完后余额仍不低于保留量时才买。<br><small>先按圈号买完必买的，再按圈号买有余才买的。</small>",
+            "default_case": [
+                "金币",
+                "精炼粉末",
+                "装饰币"
+            ],
+            "cases": [
+                {
+                    "name": "金币",
+                    "label": "金币 ①",
+                    "pipeline_override": {
+                        "TokenShop_Fishing_Gold_Spare": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "代币商店-钓鱼-金币-必买"
+                    ]
+                },
+                {
+                    "name": "精炼粉末",
+                    "label": "精炼粉末 ②",
+                    "pipeline_override": {
+                        "TokenShop_Fishing_RefinePowder_Spare": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "代币商店-钓鱼-精炼粉末-必买"
+                    ]
+                },
+                {
+                    "name": "装饰币",
+                    "label": "装饰币 ③",
+                    "pipeline_override": {
+                        "TokenShop_Fishing_DecoCoin_Spare": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "代币商店-钓鱼-装饰币-必买"
+                    ]
+                }
+            ]
+        },
+        "代币商店-钓鱼-保留量": {
+            "type": "input",
+            "label": "钓鱼 · 保留量",
+            "description": "给这种代币留个底。<b>有余才买</b>的商品，只在买完之后余额仍不低于这个数时才买；<b>必买</b>的不受它限制。<br><small>填 0 表示不留。</small>",
+            "inputs": [
+                {
+                    "name": "钓鱼保留量",
+                    "label": "买完后余额不低于",
+                    "pipeline_type": "int",
+                    "default": "0",
+                    "verify": "^\\d+$",
+                    "pattern_msg": "应为非负整数"
+                }
+            ],
+            "pipeline_override": {
+                "TokenShop_Fishing_Buy_Spare": {
+                    "attach": {
+                        "reserve": "{钓鱼保留量}"
+                    }
+                }
+            }
+        },
+        "代币商店-魂之盘-女神之泪-必买": {
+            "type": "switch",
+            "label": "女神之泪 · 必买（不看保留量）",
+            "default_case": "Yes",
+            "cases": [
+                {
+                    "name": "No"
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "TokenShop_SoulDisk_GoddessTear_Must": {
+                            "enabled": true
+                        },
+                        "TokenShop_SoulDisk_GoddessTear_Spare": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "代币商店-魂之盘-顶级招募契约书-必买": {
+            "type": "switch",
+            "label": "顶级招募契约书 · 必买（不看保留量）",
+            "default_case": "No",
+            "cases": [
+                {
+                    "name": "No"
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "TokenShop_SoulDisk_ContractTop_Must": {
+                            "enabled": true
+                        },
+                        "TokenShop_SoulDisk_ContractTop_Spare": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "代币商店-魂之盘-金币-必买": {
+            "type": "switch",
+            "label": "金币 · 必买（不看保留量）",
+            "default_case": "No",
+            "cases": [
+                {
+                    "name": "No"
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "TokenShop_SoulDisk_Gold_Must": {
+                            "enabled": true
+                        },
+                        "TokenShop_SoulDisk_Gold_Spare": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "代币商店-魂之盘-火圣石-必买": {
+            "type": "switch",
+            "label": "火圣石 · 必买（不看保留量）",
+            "default_case": "No",
+            "cases": [
+                {
+                    "name": "No"
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "TokenShop_SoulDisk_StoneFire_Must": {
+                            "enabled": true
+                        },
+                        "TokenShop_SoulDisk_StoneFire_Spare": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "代币商店-魂之盘-水圣石-必买": {
+            "type": "switch",
+            "label": "水圣石 · 必买（不看保留量）",
+            "default_case": "No",
+            "cases": [
+                {
+                    "name": "No"
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "TokenShop_SoulDisk_StoneWater_Must": {
+                            "enabled": true
+                        },
+                        "TokenShop_SoulDisk_StoneWater_Spare": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "代币商店-魂之盘-风圣石-必买": {
+            "type": "switch",
+            "label": "风圣石 · 必买（不看保留量）",
+            "default_case": "No",
+            "cases": [
+                {
+                    "name": "No"
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "TokenShop_SoulDisk_StoneWind_Must": {
+                            "enabled": true
+                        },
+                        "TokenShop_SoulDisk_StoneWind_Spare": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "代币商店-魂之盘-光明圣石-必买": {
+            "type": "switch",
+            "label": "光明圣石 · 必买（不看保留量）",
+            "default_case": "No",
+            "cases": [
+                {
+                    "name": "No"
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "TokenShop_SoulDisk_StoneLight_Must": {
+                            "enabled": true
+                        },
+                        "TokenShop_SoulDisk_StoneLight_Spare": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "代币商店-魂之盘-黑暗圣石-必买": {
+            "type": "switch",
+            "label": "黑暗圣石 · 必买（不看保留量）",
+            "default_case": "No",
+            "cases": [
+                {
+                    "name": "No"
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "TokenShop_SoulDisk_StoneDark_Must": {
+                            "enabled": true
+                        },
+                        "TokenShop_SoulDisk_StoneDark_Spare": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "代币商店-魂之盘-精炼粉末-必买": {
+            "type": "switch",
+            "label": "精炼粉末 · 必买（不看保留量）",
+            "default_case": "No",
+            "cases": [
+                {
+                    "name": "No"
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "TokenShop_SoulDisk_RefinePowder_Must": {
+                            "enabled": true
+                        },
+                        "TokenShop_SoulDisk_RefinePowder_Spare": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "代币商店-魂之盘-高级招募契约书-必买": {
+            "type": "switch",
+            "label": "高级招募契约书 · 必买（不看保留量）",
+            "default_case": "No",
+            "cases": [
+                {
+                    "name": "No"
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "TokenShop_SoulDisk_ContractHigh_Must": {
+                            "enabled": true
+                        },
+                        "TokenShop_SoulDisk_ContractHigh_Spare": {
+                            "enabled": false
+                        }
+                    }
+                }
+            ]
+        },
+        "代币商店-魂之盘-商品": {
+            "type": "checkbox",
+            "label": "魂之盘 · 要买的商品",
+            "description": "要把当期全部打完才换得完。<br><small>繁体客户端里这家店叫「死魂之盤」。</small><br><b>勾上＝要买</b>，没勾的不买；圈号是清单顺序。<br>勾上之后，下面会多出它的开关：<br>• <b>Yes ＝ 必买</b>：不看保留量，买得起就买。<br>• <b>No ＝ 有余才买</b>：只在买完后余额仍不低于保留量时才买。<br><small>先按圈号买完必买的，再按圈号买有余才买的。</small>",
+            "default_case": [
+                "女神之泪",
+                "顶级招募契约书",
+                "金币",
+                "火圣石",
+                "水圣石",
+                "风圣石",
+                "光明圣石",
+                "黑暗圣石",
+                "精炼粉末",
+                "高级招募契约书"
+            ],
+            "cases": [
+                {
+                    "name": "女神之泪",
+                    "label": "女神之泪 ①",
+                    "pipeline_override": {
+                        "TokenShop_SoulDisk_GoddessTear_Spare": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "代币商店-魂之盘-女神之泪-必买"
+                    ]
+                },
+                {
+                    "name": "顶级招募契约书",
+                    "label": "顶级招募契约书 ②",
+                    "pipeline_override": {
+                        "TokenShop_SoulDisk_ContractTop_Spare": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "代币商店-魂之盘-顶级招募契约书-必买"
+                    ]
+                },
+                {
+                    "name": "金币",
+                    "label": "金币 ③",
+                    "pipeline_override": {
+                        "TokenShop_SoulDisk_Gold_Spare": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "代币商店-魂之盘-金币-必买"
+                    ]
+                },
+                {
+                    "name": "火圣石",
+                    "label": "火圣石 ④",
+                    "pipeline_override": {
+                        "TokenShop_SoulDisk_StoneFire_Spare": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "代币商店-魂之盘-火圣石-必买"
+                    ]
+                },
+                {
+                    "name": "水圣石",
+                    "label": "水圣石 ⑤",
+                    "pipeline_override": {
+                        "TokenShop_SoulDisk_StoneWater_Spare": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "代币商店-魂之盘-水圣石-必买"
+                    ]
+                },
+                {
+                    "name": "风圣石",
+                    "label": "风圣石 ⑥",
+                    "pipeline_override": {
+                        "TokenShop_SoulDisk_StoneWind_Spare": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "代币商店-魂之盘-风圣石-必买"
+                    ]
+                },
+                {
+                    "name": "光明圣石",
+                    "label": "光明圣石 ⑦",
+                    "pipeline_override": {
+                        "TokenShop_SoulDisk_StoneLight_Spare": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "代币商店-魂之盘-光明圣石-必买"
+                    ]
+                },
+                {
+                    "name": "黑暗圣石",
+                    "label": "黑暗圣石 ⑧",
+                    "pipeline_override": {
+                        "TokenShop_SoulDisk_StoneDark_Spare": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "代币商店-魂之盘-黑暗圣石-必买"
+                    ]
+                },
+                {
+                    "name": "精炼粉末",
+                    "label": "精炼粉末 ⑨",
+                    "pipeline_override": {
+                        "TokenShop_SoulDisk_RefinePowder_Spare": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "代币商店-魂之盘-精炼粉末-必买"
+                    ]
+                },
+                {
+                    "name": "高级招募契约书",
+                    "label": "高级招募契约书 ⑩",
+                    "pipeline_override": {
+                        "TokenShop_SoulDisk_ContractHigh_Spare": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "代币商店-魂之盘-高级招募契约书-必买"
+                    ]
+                }
+            ]
+        },
+        "代币商店-魂之盘-保留量": {
+            "type": "input",
+            "label": "魂之盘 · 保留量",
+            "description": "给这种代币留个底。<b>有余才买</b>的商品，只在买完之后余额仍不低于这个数时才买；<b>必买</b>的不受它限制。<br><small>填 0 表示不留。</small>",
+            "inputs": [
+                {
+                    "name": "魂之盘保留量",
+                    "label": "买完后余额不低于",
+                    "pipeline_type": "int",
+                    "default": "0",
+                    "verify": "^\\d+$",
+                    "pattern_msg": "应为非负整数"
+                }
+            ],
+            "pipeline_override": {
+                "TokenShop_SoulDisk_Buy_Spare": {
+                    "attach": {
+                        "reserve": "{魂之盘保留量}"
+                    }
+                }
+            }
+        },
+        "代币商店-要换的商店": {
+            "type": "checkbox",
+            "label": "要换的商店",
+            "description": "勾选的商店会进去按各自的清单换代币，没勾的不进。<br>勾上之后，下面会展开这家店的清单与保留量。<br><small>「赛季活动（上期）」是赛季活动入口横滑过去的那一期；其余九家在主页底栏「商店」里的「点数」「玩法商店」下面。</small>",
+            "default_case": [
+                "赛季活动（上期）"
+            ],
+            "cases": [
+                {
+                    "name": "赛季活动（上期）",
+                    "pipeline_override": {
+                        "TokenShop_EventPast_Hub": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "代币商店-赛季活动-商品",
+                        "代币商店-赛季活动-清空零头"
+                    ]
+                },
+                {
+                    "name": "金线",
+                    "pipeline_override": {
+                        "TokenShop_GoldThread_Hub": {
+                            "enabled": true
+                        },
+                        "TokenShop_Monthly_Hub": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "代币商店-金线-商品",
+                        "代币商店-金线-保留量"
+                    ]
+                },
+                {
+                    "name": "希望粉末",
+                    "pipeline_override": {
+                        "TokenShop_HopePowder_Hub": {
+                            "enabled": true
+                        },
+                        "TokenShop_Monthly_Hub": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "代币商店-希望粉末-商品",
+                        "代币商店-希望粉末-保留量"
+                    ]
+                },
+                {
+                    "name": "精炼痕迹",
+                    "pipeline_override": {
+                        "TokenShop_RefineTrace_Hub": {
+                            "enabled": true
+                        },
+                        "TokenShop_Monthly_Hub": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "代币商店-精炼痕迹-商品",
+                        "代币商店-精炼痕迹-保留量"
+                    ]
+                },
+                {
+                    "name": "镜中之战",
+                    "pipeline_override": {
+                        "TokenShop_MirrorWar_Hub": {
+                            "enabled": true
+                        },
+                        "TokenShop_Monthly_Hub": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "代币商店-镜中之战-商品",
+                        "代币商店-镜中之战-保留量"
+                    ]
+                },
+                {
+                    "name": "恶魔城",
+                    "pipeline_override": {
+                        "TokenShop_EvilCastle_Hub": {
+                            "enabled": true
+                        },
+                        "TokenShop_Monthly_Hub": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "代币商店-恶魔城-商品",
+                        "代币商店-恶魔城-保留量"
+                    ]
+                },
+                {
+                    "name": "公会",
+                    "pipeline_override": {
+                        "TokenShop_Guild_Hub": {
+                            "enabled": true
+                        },
+                        "TokenShop_Monthly_Hub": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "代币商店-公会-商品",
+                        "代币商店-公会-保留量"
+                    ]
+                },
+                {
+                    "name": "黄金竞技场",
+                    "pipeline_override": {
+                        "TokenShop_GoldArena_Hub": {
+                            "enabled": true
+                        },
+                        "TokenShop_Monthly_Hub": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "代币商店-黄金竞技场-商品",
+                        "代币商店-黄金竞技场-保留量"
+                    ]
+                },
+                {
+                    "name": "钓鱼",
+                    "pipeline_override": {
+                        "TokenShop_Fishing_Hub": {
+                            "enabled": true
+                        },
+                        "TokenShop_Monthly_Hub": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "代币商店-钓鱼-商品",
+                        "代币商店-钓鱼-保留量"
+                    ]
+                },
+                {
+                    "name": "魂之盘",
+                    "pipeline_override": {
+                        "TokenShop_SoulDisk_Hub": {
+                            "enabled": true
+                        },
+                        "TokenShop_Monthly_Hub": {
+                            "enabled": true
+                        }
+                    },
+                    "option": [
+                        "代币商店-魂之盘-商品",
+                        "代币商店-魂之盘-保留量"
+                    ]
+                }
+            ]
+        },
+        "代币商店-月末几天": {
+            "type": "select",
+            "label": "主页面商店：月末前几天开始换",
+            "description": "代币整个月都在涨，留到月末换买得最多，平时不进店。<br>到了这几天，<b>每次运行都会进店</b>按顺序买；买不起排在前面的就停下，等下次再试。<br><small>镜中之战、黄金竞技场这类按周结算发币的店也按月末算：限购是按月的，最后几天每天进去，最后一次结算发的代币赶得上。魂之盘也按月末算。赛季活动的上期商店不看这一项，见到就换。</small>",
+            "default_case": "5 天",
+            "cases": [
+                {
+                    "name": "3 天",
+                    "pipeline_override": {
+                        "TokenShop_Monthly_Last3": {
+                            "enabled": true
+                        }
+                    }
+                },
+                {
+                    "name": "5 天",
+                    "pipeline_override": {
+                        "TokenShop_Monthly_Last5": {
+                            "enabled": true
+                        }
+                    }
+                },
+                {
+                    "name": "7 天",
+                    "pipeline_override": {
+                        "TokenShop_Monthly_Last7": {
+                            "enabled": true
+                        }
+                    }
+                },
+                {
+                    "name": "不等，每次都换",
+                    "pipeline_override": {
+                        "TokenShop_Monthly_Anytime": {
                             "enabled": true
                         }
                     }
