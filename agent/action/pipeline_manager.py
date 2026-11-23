@@ -39,45 +39,82 @@ __version__ = "2.2.0"
 # 下面的示例用 V1 扁平写法（recognition / action 直接是字符串，参数摊在节点顶层），
 # 因为这是本项目的习惯。但**两种写法本模块都吃**：
 #
-#   V1  "action": "Custom", "custom_action": "PatchPipeline", "custom_action_param": {...}
-#   V2  "action": { "type": "Custom", "param": { "custom_action": "PatchPipeline",
-#                                                "custom_action_param": {...} } }
+#   V1  "My_Patch": { "action": "Custom", "custom_action": "PatchPipeline",
+#                     "custom_action_param": {...} }
+#   V2  "My_Patch": { "action": { "type": "Custom",
+#                                 "param": { "custom_action": "PatchPipeline",
+#                                            "custom_action_param": {...} } } }
 #
 # patch 内容同理 —— 写 V1 的 "expected": [...]，或写 V2 的
 # "recognition": {"param": {"expected": [...]}}，都可以。框架自己完成转译，本模块
 # 不解析这些字段，只把补丁原样交给框架。
 #
+# ── 怎么读下面的示例 ──
+# 每个示例都是能直接放进 pipeline 的完整节点：节点名、action、custom_action、
+# custom_action_param，外加 next 表示改完接着走哪。节点名都是占位名，换成你自己的。
+#   · 没写 recognition 的节点就是 DirectHit：不识别，一轮到它就命中、执行动作。
+#   · 用到当前识别框的示例（click 旁作用、$box 占位符）才写了 recognition —— 它们要的是
+#     本节点识别到的框，没有就无从谈起。
+#   · 延迟字段都省略了，按框架默认（pre_delay / post_delay 各 200ms）；不想要这段等待就
+#     显式写 0。
+#
 # ------------------------------------------------------------------------------
 # 1. 打补丁：一个节点
 # ------------------------------------------------------------------------------
-# "action": "Custom",
-# "custom_action": "PatchPipeline",
-# "custom_action_param": {
-#     "target": "Battle_Entry",              // [必填] 目标节点名
-#     "patch":  { "timeout": 30000 }         // [必填] 要改的字段，按平时写节点的写法写
+# "Boss_Prepare": {
+#     "desc": "打 Boss 前把入口的识别超时放宽到 30 秒，再进入口",
+#     "action": "Custom",
+#     "custom_action": "PatchPipeline",
+#     "custom_action_param": {
+#         "target": "Battle_Entry",          // [必填] 目标节点名
+#         "patch":  { "timeout": 30000 }     // [必填] 要改的字段，按平时写节点的写法写
+#     },
+#     "next": ["Battle_Entry"]
 # }
 #
 # ------------------------------------------------------------------------------
 # 2. 打补丁：一批节点用同一份补丁
 # ------------------------------------------------------------------------------
-# "custom_action_param": {
-#     "target": ["Node_A", "Node_B"],        // 数组
-#     "patch":  { "enabled": false }
+# "Shop_SkipTwo": {
+#     "desc": "这一轮不买 A、B 两件",
+#     "action": "Custom",
+#     "custom_action": "PatchPipeline",
+#     "custom_action_param": {
+#         "target": ["Node_A", "Node_B"],    // 数组
+#         "patch":  { "enabled": false }
+#     },
+#     "next": ["Shop_List"]
 # }
 #
 # 也可以用正则选目标（在框架已加载的节点名里搜，支持字符串或数组）：
-# "custom_action_param": {
-#     "target": { "regex": "^Shop_Buy_Item_\\d+$" },
-#     "patch":  { "timeout": 5000 }
+#
+# "Shop_SlowNet": {
+#     "desc": "网络慢：所有购买节点的超时放宽到 5 秒",
+#     "action": "Custom",
+#     "custom_action": "PatchPipeline",
+#     "custom_action_param": {
+#         "target": { "regex": "^Shop_Buy_Item_\\d+$" },
+#         "patch":  { "timeout": 5000 }
+#     },
+#     "next": ["Shop_List"]
 # }
 #
 # ⚠️ 正则零命中 = 硬失败。宁可报错，也不要让"以为改了其实没改"悄悄溜过去。
 #
 # target 里还能写 "[Anchor]锚点名"（字符串或数组里都行），运行时解析成该锚点当前指向
-# 的节点，用来对付「共享结束节点要改的是刚才跳进来的那个节点」这类场景：
-# "custom_action_param": {
-#     "target": "[Anchor]CurCard",
-#     "patch":  { "enabled": false }
+# 的节点，用来对付「共享结束节点要改的是刚才跳进来的那个节点」这类场景。下面这个
+# 结束节点被好几张卡共用；每张卡的入口节点都写了 "anchor": "CurCard"，所以锚点
+# 指向的就是刚跑完的那一张：
+#
+# "Card_Done": {
+#     "desc": "几张卡共用的收尾：把刚跑完的那张关掉，本轮不再进",
+#     "action": "Custom",
+#     "custom_action": "PatchPipeline",
+#     "custom_action_param": {
+#         "target": "[Anchor]CurCard",
+#         "patch":  { "enabled": false }
+#     },
+#     "next": ["Card_List"]
 # }
 #
 # ── 目标选择器的四种写法，按序判定一次、选中即定，不能既要还要 ──
@@ -100,9 +137,11 @@ __version__ = "2.2.0"
 # 场景：一组节点要分成几批先后开关，每个节点归哪一批由用户在界面上选。比如一份购物
 # 清单分「必买」「有余才买」两档：先只开必买那批跑一遍，再只开另一批跑一遍。
 #
-# 把分组写成一张表，放在某个节点的 attach 里 —— 键是节点名，值是组名：
+# 把分组写成一张表，放在某个节点的 attach 里 —— 键是节点名，值是组名。表节点只放数据：
+# 它不出现在任何 next 里，不会被执行，所以不需要 action。
 #
 # "Shop_Plan": {
+#     "desc": "分组表：节点名 → 组名。只给 PatchPipeline 读，不接进流程",
 #     "attach": {
 #         "Shop_Item_A": "must",
 #         "Shop_Item_B": "spare",
@@ -110,34 +149,68 @@ __version__ = "2.2.0"
 #     }
 # }
 #
-# 选表里值等于 value 的那些键作为目标：
+# 表里的 Shop_Item_A / B / C 是预建好的普通节点，底稿都写 "enabled": false —— 没被哪一批
+# 打开时，它们出现在 next 里也不会被识别。
 #
-# "custom_action_param": {
-#     "target": { "attach": "Shop_Plan", "value": "must" },   // 选中 A、C
-#     "patch":  { "enabled": true },                          // 选中的打这一份
-#     "rest":   { "enabled": false }                          // [可选] 表里其余的（B）打这一份
+# 两批各一个节点，选表里值等于 value 的那些键作为目标：
+#
+# "Shop_Pass_Must": {
+#     "desc": "第一批：只开必买（A、C），表里其余的（B）关掉",
+#     "action": "Custom",
+#     "custom_action": "PatchPipeline",
+#     "custom_action_param": {
+#         "target": { "attach": "Shop_Plan", "value": "must" },   // 选中 A、C
+#         "patch":  { "enabled": true },                          // 选中的打这一份
+#         "rest":   { "enabled": false }                          // [可选] 表里其余的（B）打这一份
+#     },
+#     "next": ["Shop_Sweep"]
+# },
+# "Shop_Pass_Spare": {
+#     "desc": "第二批：只开有余才买（B）；上一批的 A、C 落进 rest 被关掉",
+#     "action": "Custom",
+#     "custom_action": "PatchPipeline",
+#     "custom_action_param": {
+#         "target": { "attach": "Shop_Plan", "value": "spare" },  // 选中 B
+#         "patch":  { "enabled": true },
+#         "rest":   { "enabled": false }
+#     },
+#     "next": ["Shop_Sweep"]
+# },
+# "Shop_Sweep": {
+#     "desc": "两批共用的清单：当下开着的那几项才会被识别",
+#     "next": ["Shop_Item_A", "Shop_Item_B", "Shop_Item_C", "Shop_Sweep_End"]
 # }
 #
-# 第二批只换 value：{ "attach": "Shop_Plan", "value": "spare" }。上一批的 A、C 落进 rest
-# 被关掉，所以两批之间不用再单独写一个「全部关掉」的节点。
+# 第二批的 rest 顺手关掉了第一批，所以两批之间不用再单独写一个「全部关掉」的节点。
+# 两批怎么先后接起来（比如由一个派活节点依次跳进 Shop_Pass_Must、Shop_Pass_Spare）
+# 是业务流程的事，本模块只管开关。
 #
 # 不写 value = 选中表里全部键。这时没有「其余」可言，不能配 rest：
 #
-# "custom_action_param": {
-#     "target": { "attach": "Shop_Plan" },
-#     "patch":  { "enabled": false }
+# "Shop_Pass_Off": {
+#     "desc": "收尾：表里的节点全部关掉",
+#     "action": "Custom",
+#     "custom_action": "PatchPipeline",
+#     "custom_action_param": {
+#         "target": { "attach": "Shop_Plan" },
+#         "patch":  { "enabled": false }
+#     },
+#     "next": ["Shop_Leave"]
 # }
 #
 # ── 为什么键是节点名、值是组名，不反过来 ──
 # 界面选项往 attach 里注入时，只有 attach 的**第一层键**会合并，键下面的值是整个替换。
 # 写成 { "must": ["Shop_Item_A", "Shop_Item_C"] }，两个选项各往 "must" 里写一件，结果只剩
 # 后写的那件；写成 { "Shop_Item_A": "must", "Shop_Item_C": "must" }，每个选项只写自己那一个
-# 键，互不覆盖。换组也只是改一个键的值，正好用上「子选项覆盖父选项」的顺序：
+# 键，互不覆盖。换组也只是改一个键的值，正好用上「子选项覆盖父选项」的顺序。
+# 下面是 interface.json 里两个选项的 case：
 #
-# // 勾上 A（默认归「有余才买」）
-# "pipeline_override": { "Shop_Plan": { "attach": { "Shop_Item_A": "spare" } } }
+# // 多选框里勾上 A（默认归「有余才买」）
+# { "name": "Item_A",
+#   "pipeline_override": { "Shop_Plan": { "attach": { "Shop_Item_A": "spare" } } } }
 # // A 下面的子开关选「必买」
-# "pipeline_override": { "Shop_Plan": { "attach": { "Shop_Item_A": "must" } } }
+# { "name": "Yes",
+#   "pipeline_override": { "Shop_Plan": { "attach": { "Shop_Item_A": "must" } } } }
 #
 # 没选的节点根本不在表里，哪一批都不碰它，保持资源里写的原值（通常是 enabled: false）。
 #
@@ -156,12 +229,18 @@ __version__ = "2.2.0"
 # ------------------------------------------------------------------------------
 # target + patch 是「同一份补丁打到一批节点」。如果每个节点要改的东西不一样，用 patches：
 #
-# "custom_action_param": {
-#     "patches": {
-#         "Node_A":          { "next": ["Node_X"] },
-#         "[Anchor]CurCard": { "enabled": false },   // 键同样认锚点
-#         "Node_B":          { "timeout": 3000 }
-#     }
+# "Mode_Hard": {
+#     "desc": "切到困难模式：三个节点各改各的",
+#     "action": "Custom",
+#     "custom_action": "PatchPipeline",
+#     "custom_action_param": {
+#         "patches": {
+#             "Node_A":          { "next": ["Node_X"] },
+#             "[Anchor]CurCard": { "enabled": false },   // 键同样认锚点
+#             "Node_B":          { "timeout": 3000 }
+#         }
+#     },
+#     "next": ["Node_A"]
 # }
 #
 # 键的解析规则是 target 的前两种（固定节点名 / 锚点二选一）—— patches 的键**不支持正则，
@@ -174,10 +253,20 @@ __version__ = "2.2.0"
 # ------------------------------------------------------------------------------
 # 5. 还原
 # ------------------------------------------------------------------------------
-# "custom_action": "RestorePipeline",
-# "custom_action_param": { "target": "Battle_Entry" }      // 单个
-# "custom_action_param": { "target": ["Node_A","Node_B"] } // 多个
-# "custom_action_param": { "target": "*" }                 // 本次任务改过的全部
+# "Battle_Leave": {
+#     "desc": "离开战斗前，把 Boss_Prepare 放宽的超时还原",
+#     "action": "Custom",
+#     "custom_action": "RestorePipeline",
+#     "custom_action_param": {
+#         "target": "Battle_Entry"
+#         // 多个："target": ["Node_A", "Node_B"]
+#         // 全部："target": "*"        本次任务里改过、登记了还原点的所有节点
+#     },
+#     "next": ["Main_Menu"]
+# }
+#
+# 什么时候需要还原：被改的节点还会被别的入口再走一遍时。只在本模块里用、任务结束就
+# 不再走的，不必还原 —— 任务结束时框架会自动丢弃所有运行时改写（见第 9 节）。
 #
 # 还原点由 PatchPipeline 自动登记，采用「先到先得」：同一节点被反复打补丁时，还原点
 # 始终是**第一次打补丁之前**的状态。
@@ -186,10 +275,15 @@ __version__ = "2.2.0"
 #
 # 如果某次改写是一次性的、压根不打算还原，可以在 PatchPipeline 一侧关掉登记：
 #
-# "custom_action_param": {
-#     "target": "Battle_Entry",
-#     "patch":  { "timeout": 30000 },
-#     "backup": false                        // 默认 true。false = 不登记还原点
+# "Boss_Prepare_Once": {
+#     "action": "Custom",
+#     "custom_action": "PatchPipeline",
+#     "custom_action_param": {
+#         "target": "Battle_Entry",
+#         "patch":  { "timeout": 30000 },
+#         "backup": false                    // 默认 true。false = 不登记还原点
+#     },
+#     "next": ["Battle_Entry"]
 # }
 #
 # ⚠️ backup: false 的节点不进账本 —— RestorePipeline 点名还原它，会落到「账本中无还原点，
@@ -205,13 +299,25 @@ __version__ = "2.2.0"
 # 两个动作都支持。同样是因为一个节点只能有一种 action —— 想「改参数 + 点一下 +
 # 清计数器」，不做成参数就得拆三个节点。
 #
-# "custom_action_param": {
-#     "target": "Battle_Entry",
-#     "patch":  { "timeout": 30000 },
-#     "reset_tags": ["Battle_Count"],            // 把这些计数器清零
-#     "clear_hit_count": ["Battle_Retry"],       // 把这些节点的 max_hit 命中次数清零
-#     "click": {}                                // 点当前识别框中心
-#     // "click": { "offset": [10, 20, 40, 40] } // 或点 [识别框左上角+dx+dy] 起、w×h 的区域中心
+# 下面这个节点先认出「再来一次」按钮，改完参数、清完计数，顺手点它。click 点的是本节点
+# 识别到的框，所以要给它配一个真正的识别（这里用模板匹配）；没有有效识别框时配 click
+# 会硬失败。
+#
+# "Battle_Again": {
+#     "desc": "认到「再来一次」：放宽入口超时、清计数，然后点下去",
+#     "recognition": "TemplateMatch",
+#     "template": "battle/again.png",
+#     "action": "Custom",
+#     "custom_action": "PatchPipeline",
+#     "custom_action_param": {
+#         "target": "Battle_Entry",
+#         "patch":  { "timeout": 30000 },
+#         "reset_tags": ["Battle_Count"],            // 把这些计数器清零
+#         "clear_hit_count": ["Battle_Retry"],       // 把这些节点的 max_hit 命中次数清零
+#         "click": {}                                // 点当前识别框中心
+#         // "click": { "offset": [10, 20, 40, 40] } // 或点 [识别框左上角+dx+dy] 起、w×h 的区域中心
+#     },
+#     "next": ["Battle_Entry"]
 # }
 #
 # reset_tags 与 clear_hit_count 清的不是同一种东西：
@@ -229,10 +335,16 @@ __version__ = "2.2.0"
 # 补丁也可以凭空造一个资源里不存在的节点，但必须显式声明 —— 因为「节点名拼错」和
 # 「打算新建」在接口层长得一模一样，不声明就无从区分：
 #
-# "custom_action_param": {
-#     "target": "Tmp_Node",
-#     "create": true,                        // 不写 = 节点不存在即报错
-#     "patch":  { "recognition": "DirectHit", "action": "Click", "target": [1,2,3,4] }
+# "Make_TmpClick": {
+#     "desc": "临时造一个点固定位置的节点，再跳过去",
+#     "action": "Custom",
+#     "custom_action": "PatchPipeline",
+#     "custom_action_param": {
+#         "target": "Tmp_Node",
+#         "create": true,                    // 不写 = 节点不存在即报错
+#         "patch":  { "recognition": "DirectHit", "action": "Click", "target": [1, 2, 3, 4] }
+#     },
+#     "next": ["Tmp_Node"]
 # }
 #
 # 新建的节点没有"原状"可还原，因此不进账本；任务结束时框架会自动清掉它。
@@ -251,10 +363,22 @@ __version__ = "2.2.0"
 #   "$self"    子串替换成"正在被改的那个节点的名字"（配合正则选择器时有用）
 #   "$caller"  子串替换成 caller 参数的值，需要在参数里显式写 "caller": "本节点名"
 #
-# "custom_action_param": {
-#     "caller": "My_Entry_Node",
-#     "target": { "regex": "^Enemy_.*$" },
-#     "patch":  { "roi": "$box", "next": ["[JumpBack]$caller"] }
+# 下面这个节点先认出敌方区域，再把所有 Enemy_* 节点的识别范围收进这个框，并让它们
+# 认完跳回自己。$box 取的是本节点识别到的框，所以同样要配一个真正的识别；没有有效
+# 识别框时用 $box 会硬失败：
+#
+# "My_Entry_Node": {
+#     "desc": "认到敌方区域：Enemy_* 只在这个框里认，认完跳回本节点",
+#     "recognition": "TemplateMatch",
+#     "template": "enemy_area.png",
+#     "action": "Custom",
+#     "custom_action": "PatchPipeline",
+#     "custom_action_param": {
+#         "caller": "My_Entry_Node",
+#         "target": { "regex": "^Enemy_.*$" },
+#         "patch":  { "roi": "$box", "next": ["[JumpBack]$caller"] }
+#     },
+#     "next": ["Enemy_A", "Enemy_B"]
 # }
 #
 # ------------------------------------------------------------------------------
