@@ -12,10 +12,10 @@ from maa.context import Context
 import utils
 from recognition.counter import TAG_STORE
 
-__version__ = "2.1.0"
+__version__ = "2.2.0"
 
 # ==============================================================================
-# Pipeline 动态管理器  v2.1.0
+# Pipeline 动态管理器  v2.2.0
 # ==============================================================================
 # 提供两个 Custom Action：
 #
@@ -80,20 +80,79 @@ __version__ = "2.1.0"
 #     "patch":  { "enabled": false }
 # }
 #
-# ── 目标选择器的三种写法，按序判定一次、选中即定，不能既要还要 ──
+# ── 目标选择器的四种写法，按序判定一次、选中即定，不能既要还要 ──
 #   ① 固定节点名   "Node_A" / ["Node_A", "Node_B"]
 #   ② 锚点         "[Anchor]锚点名"   ← 单个名字，运行时才知道是谁
 #   ③ 节点名正则   {"regex": "..."}   ← 在已加载节点名里搜一批
+#   ④ 按表选       {"attach": "表节点", "value": "组名"}   ← 见第 3 节
 # 锚点不支持正则：锚点名里写正则不会被当正则解释，只会拿去当锚点名查，查不到即跳过。
 #
-# 三者对「没选中任何节点」的处置也不同，别混：
+# 四者对「没选中任何节点」的处置也不同，别混：
 #   · 锚点没指向任何节点  → 跳过该目标，发一条日志，不算失败（流程的正常状态）
+#   · 表里没有要改的节点  → 什么都不改，发一条日志，不算失败（用户一项都没选，也是正常状态）
 #   · 正则零命中          → 硬失败（配置错误）
 #   · target 写成空字符串 → 硬失败（写了 target 却没写值，同样是配置错误，
 #                            会落到下面「节点不存在」那条报错上）
 #
 # ------------------------------------------------------------------------------
-# 3. 打补丁：每个节点各自不同的补丁
+# 3. 打补丁：按一张表分批改（attach 选择器）
+# ------------------------------------------------------------------------------
+# 场景：一组节点要分成几批先后开关，每个节点归哪一批由用户在界面上选。比如一份购物
+# 清单分「必买」「有余才买」两档：先只开必买那批跑一遍，再只开另一批跑一遍。
+#
+# 把分组写成一张表，放在某个节点的 attach 里 —— 键是节点名，值是组名：
+#
+# "Shop_Plan": {
+#     "attach": {
+#         "Shop_Item_A": "must",
+#         "Shop_Item_B": "spare",
+#         "Shop_Item_C": "must"
+#     }
+# }
+#
+# 选表里值等于 value 的那些键作为目标：
+#
+# "custom_action_param": {
+#     "target": { "attach": "Shop_Plan", "value": "must" },   // 选中 A、C
+#     "patch":  { "enabled": true },                          // 选中的打这一份
+#     "rest":   { "enabled": false }                          // [可选] 表里其余的（B）打这一份
+# }
+#
+# 第二批只换 value：{ "attach": "Shop_Plan", "value": "spare" }。上一批的 A、C 落进 rest
+# 被关掉，所以两批之间不用再单独写一个「全部关掉」的节点。
+#
+# 不写 value = 选中表里全部键。这时没有「其余」可言，不能配 rest：
+#
+# "custom_action_param": {
+#     "target": { "attach": "Shop_Plan" },
+#     "patch":  { "enabled": false }
+# }
+#
+# ── 为什么键是节点名、值是组名，不反过来 ──
+# 界面选项往 attach 里注入时，只有 attach 的**第一层键**会合并，键下面的值是整个替换。
+# 写成 { "must": ["Shop_Item_A", "Shop_Item_C"] }，两个选项各往 "must" 里写一件，结果只剩
+# 后写的那件；写成 { "Shop_Item_A": "must", "Shop_Item_C": "must" }，每个选项只写自己那一个
+# 键，互不覆盖。换组也只是改一个键的值，正好用上「子选项覆盖父选项」的顺序：
+#
+# // 勾上 A（默认归「有余才买」）
+# "pipeline_override": { "Shop_Plan": { "attach": { "Shop_Item_A": "spare" } } }
+# // A 下面的子开关选「必买」
+# "pipeline_override": { "Shop_Plan": { "attach": { "Shop_Item_A": "must" } } }
+#
+# 没选的节点根本不在表里，哪一批都不碰它，保持资源里写的原值（通常是 enabled: false）。
+#
+# ── 几条规则 ──
+#   · 组名按「类型和值都相等」比较：表里写 1、value 写 true，不算同一组。
+#   · 表里每个键都必须是已有节点，否则硬失败（多半是名字拼错）。键按原样当节点名，
+#     不解析 [Anchor]。
+#   · 表节点不存在 → 硬失败；表节点存在但 attach 为空 → 什么都不改（见上面的处置表）。
+#   · 不能配 create：表里写的必须是预建好的节点。
+#   · rest 只能配这种选择器，而且必须写了 value。
+#   · 改过的节点照常登记还原点，RestorePipeline 按节点名或 "*" 还原。
+#     RestorePipeline 本身不认 attach 选择器。
+#
+# ------------------------------------------------------------------------------
+# 4. 打补丁：每个节点各自不同的补丁
 # ------------------------------------------------------------------------------
 # target + patch 是「同一份补丁打到一批节点」。如果每个节点要改的东西不一样，用 patches：
 #
@@ -105,14 +164,15 @@ __version__ = "2.1.0"
 #     }
 # }
 #
-# 键的解析规则与 target 完全一致（固定节点名 / 锚点二选一）—— 唯一的差别是 patches
-# 的键**不支持正则**：正则是"一个补丁打一批节点"，那正是 target+patch 的活。
+# 键的解析规则是 target 的前两种（固定节点名 / 锚点二选一）—— patches 的键**不支持正则，
+# 也不支持 attach 选择器**：这两种都是"一个补丁打一批节点"，那正是 target+patch 的活。
+# rest 同理不能配 patches。
 #
 # 之所以要有这个形态：一个节点只能有一种 action，没法靠"多写几个节点"来表达。
 # target+patch 与 patches 同时出现 = 硬失败（意图不明，不猜）。
 #
 # ------------------------------------------------------------------------------
-# 4. 还原
+# 5. 还原
 # ------------------------------------------------------------------------------
 # "custom_action": "RestorePipeline",
 # "custom_action_param": { "target": "Battle_Entry" }      // 单个
@@ -140,7 +200,7 @@ __version__ = "2.1.0"
 #  进来」，语义相反，已随旧 API 一并废弃，迁移脚本遇到会丢弃并告警。）
 #
 # ------------------------------------------------------------------------------
-# 5. 旁作用：顺手清计数器、顺手点一下
+# 6. 旁作用：顺手清计数器、顺手清命中次数、顺手点一下
 # ------------------------------------------------------------------------------
 # 两个动作都支持。同样是因为一个节点只能有一种 action —— 想「改参数 + 点一下 +
 # 清计数器」，不做成参数就得拆三个节点。
@@ -149,12 +209,22 @@ __version__ = "2.1.0"
 #     "target": "Battle_Entry",
 #     "patch":  { "timeout": 30000 },
 #     "reset_tags": ["Battle_Count"],            // 把这些计数器清零
+#     "clear_hit_count": ["Battle_Retry"],       // 把这些节点的 max_hit 命中次数清零
 #     "click": {}                                // 点当前识别框中心
 #     // "click": { "offset": [10, 20, 40, 40] } // 或点 [识别框左上角+dx+dy] 起、w×h 的区域中心
 # }
 #
+# reset_tags 与 clear_hit_count 清的不是同一种东西：
+#   · reset_tags      清本模块配套的计数器（recognition/counter.py 的 TAG_STORE）。
+#   · clear_hit_count 清框架自己记的命中次数。节点的 max_hit 用完后会被跳过，清零后它在
+#                     同一任务里又能命中 —— 比如一个「最多补点 3 次」的公共节点，每换一件
+#                     东西都要重新给满 3 次。只清次数，不改节点的 max_hit 配置。
+#     节点名可以写 "[Anchor]锚点名"（锚点没指向节点就跳过）；节点不存在则硬失败。
+#
+# 执行顺序：reset_tags → clear_hit_count → 补丁 / 还原 → click。
+#
 # ------------------------------------------------------------------------------
-# 6. 新建节点
+# 7. 新建节点
 # ------------------------------------------------------------------------------
 # 补丁也可以凭空造一个资源里不存在的节点，但必须显式声明 —— 因为「节点名拼错」和
 # 「打算新建」在接口层长得一模一样，不声明就无从区分：
@@ -173,7 +243,7 @@ __version__ = "2.1.0"
 #    节点上，动作还返回成功，你想改的那个节点毫发无损。这类问题极难查，故禁掉。
 #
 # ------------------------------------------------------------------------------
-# 7. 占位符：$box / $self / $caller
+# 8. 占位符：$box / $self / $caller
 # ------------------------------------------------------------------------------
 # 可以出现在 patch 里的任意位置（不限于某个字段）：
 #
@@ -188,7 +258,7 @@ __version__ = "2.1.0"
 # }
 #
 # ------------------------------------------------------------------------------
-# 8. 三个容易踩的坑
+# 9. 三个容易踩的坑
 # ------------------------------------------------------------------------------
 # (1) 数组是整体替换，不是逐元素合并。
 #     想改 "all_of" 里第 0 个元素的 roi，必须把整个 all_of 数组写全，只写第 0 个会
@@ -370,6 +440,10 @@ def _resolve_targets(context: Context, spec, *, allow_regex: bool) -> "list[tupl
 
     第二个返回值标记来源，供上游禁止「锚点目标 + create 新建节点」。
 
+    第四种写法 ④ 按表选 {"attach": ...} 不走这里：它还要分出「其余」交给 rest，返回形状
+    不同，由 PatchPipeline 先行截下、交给 _select_by_attach。能走到这里的 attach 选择器
+    只可能来自 RestorePipeline，直接报错。
+
     空字符串**不在这里吞掉**：它是配置错误（写了 target 却没写值），原样放行到下游
     的「节点不存在」检查去报错。只有锚点未命中（_resolve_anchor 返回 None）才过滤，
     那是流程的正常状态。两者语义不同，别再用真值判断混为一谈。
@@ -387,6 +461,8 @@ def _resolve_targets(context: Context, spec, *, allow_regex: bool) -> "list[tupl
             if hit is not None:
                 out.append((hit, raw.startswith(ANCHOR_PREFIX)))
         return out
+    if _is_attach_selector(spec):
+        raise ConfigError("attach 选择器只能用在 PatchPipeline 的 target 上；RestorePipeline 请写节点名或 \"*\"")
     if isinstance(spec, dict) and "regex" in spec:
         if not allow_regex:
             raise ConfigError("RestorePipeline 的 target 不支持 regex，请写节点名或 \"*\"")
@@ -400,7 +476,59 @@ def _resolve_targets(context: Context, spec, *, allow_regex: bool) -> "list[tupl
         if not hit:
             raise ConfigError(f"target.regex {patterns} 没有匹配到任何节点")
         return [(n, False) for n in hit]
-    raise ConfigError(f"target 必须是节点名 / 数组 / {{\"regex\": ...}}，实际是 {spec!r}")
+    raise ConfigError(
+        f"target 必须是节点名 / 数组 / {{\"regex\": ...}} / {{\"attach\": ...}}，实际是 {spec!r}"
+    )
+
+
+_ATTACH_SPEC_KEYS = frozenset({"attach", "value"})
+
+
+def _is_attach_selector(spec) -> bool:
+    return isinstance(spec, dict) and "attach" in spec
+
+
+def _select_by_attach(context: Context, spec: dict) -> "tuple[list[str], list[str], bool]":
+    """④ 按表选 → (选中的节点, 表里其余的节点, 是否写了 value)。
+
+    表是某个节点 attach 里的 {节点名: 组名}。键是节点名而不是组名，是因为界面选项往
+    attach 注入时只有第一层键合并（见文件头第 3 节）。
+
+    组名按「类型和值都相等」比较：Python 里 1 == True，不加类型判断，表里写 1 与
+    value 写 true 会被当成同一组。
+
+    表里的键必须全是已有节点 —— 表通常由界面选项注入，键拼错时硬失败，好过默默少改
+    一项。表为空是正常状态（用户一项都没选），返回两个空列表，由调用方记日志放行。
+    """
+    extra = set(spec) - _ATTACH_SPEC_KEYS
+    if extra:
+        raise ConfigError(f"attach 选择器只认 attach / value 两个键，多出了 {sorted(extra)}")
+
+    table = spec["attach"]
+    if not isinstance(table, str) or not table:
+        raise ConfigError(f"target.attach 必须是表节点的名字（非空字符串），实际是 {table!r}")
+
+    has_value = "value" in spec
+    value = spec.get("value")
+    if has_value and (value is None or isinstance(value, (list, dict))):
+        raise ConfigError(f"target.value 必须是字符串 / 数字 / 布尔，实际是 {value!r}")
+
+    data = context.get_node_data(table)
+    if data is None:
+        raise ConfigError(f"表节点 [{table}] 不存在")
+    rows = data.get("attach") or {}
+    if not isinstance(rows, dict):
+        raise ConfigError(f"表节点 [{table}] 的 attach 不是对象，实际是 {type(rows).__name__}")
+
+    missing = [name for name in rows if context.get_node_data(name) is None]
+    if missing:
+        raise ConfigError(f"表节点 [{table}] 的 attach 里有不存在的节点（名字拼错？）: {missing}")
+
+    selected, rest = [], []
+    for name, group in rows.items():
+        hit = not has_value or (type(group) is type(value) and group == value)
+        (selected if hit else rest).append(name)
+    return selected, rest, has_value
 
 
 def _targets(context: Context, spec, *, allow_regex: bool) -> "list[str]":
@@ -420,6 +548,33 @@ def _side_reset_tags(params: dict) -> None:
     for tag in tags:
         TAG_STORE[tag] = 0
     utils.mfaalog.debug(f"[PipelineManager] 🧹 [旁作用] 计数器已清零: {list(tags)}")
+
+
+def _side_clear_hit_count(context: Context, params: dict) -> None:
+    """清框架记的命中次数（max_hit 用的那个），不碰节点的 max_hit 配置。
+
+    与独立动作 ClearNodeHitCount 功能重合是有意的（同 reset_tags 与 ResetTag）：要搭车时
+    用这个参数，要独立节点时用那个动作。区别在失败语义 —— 这里沿用本模块的规矩，节点
+    不存在就硬失败；ClearNodeHitCount 只记日志、恒返回成功。
+    """
+    raw = params.get("clear_hit_count")
+    if not raw:
+        return
+    names = raw if isinstance(raw, list) else [raw]
+    cleared = []
+    for raw_name in names:
+        if not isinstance(raw_name, str) or not raw_name:
+            raise ConfigError(f"clear_hit_count 里的节点名必须是非空字符串，实际是 {raw_name!r}")
+        node = _resolve_anchor(context, raw_name)
+        if node is None:
+            continue        # 锚点没指向任何节点 → 跳过该项（已在解析处记日志）
+        if context.get_node_data(node) is None:
+            raise ConfigError(f"clear_hit_count 的节点 [{node}] 不存在")
+        if not context.clear_hit_count(node):
+            raise RuntimeError(f"节点 [{node}] 的命中次数没能清零（框架返回失败）")
+        cleared.append(node)
+    if cleared:
+        utils.mfaalog.debug(f"[PipelineManager] 🧹 [旁作用] 命中次数已清零: {cleared}")
 
 
 def _side_click(context: Context, argv: CustomAction.RunArg, spec) -> None:
@@ -451,11 +606,14 @@ class PatchPipeline(CustomAction):
         try:
             params = _parse_param(argv)
             _side_reset_tags(params)
+            _side_clear_hit_count(context, params)
 
             has_pairs = "patches" in params
             has_single = "target" in params or "patch" in params
             if has_pairs and has_single:
                 raise ConfigError("target/patch 与 patches 不能同时出现，请二选一")
+            if "rest" in params and (has_pairs or not _is_attach_selector(params.get("target"))):
+                raise ConfigError("rest 只能配 attach 选择器：target 写成 {\"attach\": 表节点, \"value\": 组名}")
 
             if has_pairs:
                 pairs = params["patches"]
@@ -479,8 +637,12 @@ class PatchPipeline(CustomAction):
                 patch = params["patch"]
                 if not isinstance(patch, dict):
                     raise ConfigError(f"patch 必须是对象，实际是 {type(patch).__name__}")
-                plan = [(n, patch, from_anchor) for n, from_anchor
-                        in _resolve_targets(context, params["target"], allow_regex=True)]
+                spec = params["target"]
+                if _is_attach_selector(spec):
+                    plan = self._plan_by_attach(context, spec, patch, params)
+                else:
+                    plan = [(n, patch, from_anchor) for n, from_anchor
+                            in _resolve_targets(context, spec, allow_regex=True)]
 
             backup = params.get("backup", True)
             create = bool(params.get("create", False))
@@ -547,6 +709,34 @@ class PatchPipeline(CustomAction):
             utils.mfaalog.debug(f"[PatchPipeline] 💥 PatchPipeline 运行异常: {exc}\n{traceback.format_exc()}")
             return False
 
+    @staticmethod
+    def _plan_by_attach(context: Context, spec: dict, patch: dict, params: dict) -> list:
+        """④ 按表选：选中的打 patch，写了 rest 就给表里其余的打 rest。"""
+        # 表里写的必须是预建好的节点；允许 create 就会把拼错的键静默造成空节点
+        if params.get("create"):
+            raise ConfigError("attach 选择器不能配 create：表里写的必须是预建好的节点")
+
+        selected, others, has_value = _select_by_attach(context, spec)
+        plan = [(n, patch, False) for n in selected]
+
+        if "rest" in params:
+            rest = params["rest"]
+            if not has_value:
+                raise ConfigError("没写 value 时选中的是全表，没有「其余」可言，不能配 rest")
+            if not isinstance(rest, dict):
+                raise ConfigError(f"rest 必须是对象，实际是 {type(rest).__name__}")
+            plan += [(n, rest, False) for n in others]
+
+        group = f"值为 {spec['value']!r}" if has_value else "全表"
+        if plan:
+            utils.mfaalog.debug(
+                f"[PatchPipeline] 📋 表 [{spec['attach']}] {group}：选中 {len(selected)} 个"
+                + (f"，其余 {len(others)} 个打 rest" if "rest" in params else "")
+            )
+        else:
+            utils.mfaalog.debug(f"[PatchPipeline] 📋 表 [{spec['attach']}] {group}：没有要改的节点，跳过")
+        return plan
+
 
 # ------------------------------------------------------------------------------
 # RestorePipeline
@@ -558,6 +748,7 @@ class RestorePipeline(CustomAction):
         try:
             params = _parse_param(argv)
             _side_reset_tags(params)
+            _side_clear_hit_count(context, params)
 
             if "target" not in params:
                 raise ConfigError("缺少 target（节点名 / 数组 / \"*\"）")
