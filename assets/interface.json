@@ -8356,11 +8356,13 @@
                 {
                     "name": "Yes",
                     "pipeline_override": {
-                        "TokenShop_GoldThread_FireSeed_Must": {
-                            "enabled": true
+                        "TokenShop_GoldThread_InShop": {
+                            "attach": {
+                                "TokenShop_GoldThread_FireSeed": "must"
+                            }
                         },
-                        "TokenShop_GoldThread_FireSeed_Spare": {
-                            "enabled": false
+                        "TokenShop_GoldThread_PassMust": {
+                            "enabled": true
                         }
                     }
                 }
@@ -8377,11 +8379,13 @@
                 {
                     "name": "Yes",
                     "pipeline_override": {
-                        "TokenShop_GoldThread_AncientCrystal_Must": {
-                            "enabled": true
+                        "TokenShop_GoldThread_InShop": {
+                            "attach": {
+                                "TokenShop_GoldThread_AncientCrystal": "must"
+                            }
                         },
-                        "TokenShop_GoldThread_AncientCrystal_Spare": {
-                            "enabled": false
+                        "TokenShop_GoldThread_PassMust": {
+                            "enabled": true
                         }
                     }
                 }
@@ -8398,11 +8402,13 @@
                 {
                     "name": "Yes",
                     "pipeline_override": {
-                        "TokenShop_GoldThread_GachaTicket_Must": {
-                            "enabled": true
+                        "TokenShop_GoldThread_InShop": {
+                            "attach": {
+                                "TokenShop_GoldThread_GachaTicket": "must"
+                            }
                         },
-                        "TokenShop_GoldThread_GachaTicket_Spare": {
-                            "enabled": false
+                        "TokenShop_GoldThread_PassMust": {
+                            "enabled": true
                         }
                     }
                 }
@@ -8419,11 +8425,13 @@
                 {
                     "name": "Yes",
                     "pipeline_override": {
-                        "TokenShop_GoldThread_GoddessTear_Must": {
-                            "enabled": true
+                        "TokenShop_GoldThread_InShop": {
+                            "attach": {
+                                "TokenShop_GoldThread_GoddessTear": "must"
+                            }
                         },
-                        "TokenShop_GoldThread_GoddessTear_Spare": {
-                            "enabled": false
+                        "TokenShop_GoldThread_PassMust": {
+                            "enabled": true
                         }
                     }
                 }
@@ -8440,11 +8448,13 @@
                 {
                     "name": "Yes",
                     "pipeline_override": {
-                        "TokenShop_GoldThread_EssencePower_Must": {
-                            "enabled": true
+                        "TokenShop_GoldThread_InShop": {
+                            "attach": {
+                                "TokenShop_GoldThread_EssencePower": "must"
+                            }
                         },
-                        "TokenShop_GoldThread_EssencePower_Spare": {
-                            "enabled": false
+                        "TokenShop_GoldThread_PassMust": {
+                            "enabled": true
                         }
                     }
                 }
@@ -8461,11 +8471,13 @@
                 {
                     "name": "Yes",
                     "pipeline_override": {
-                        "TokenShop_GoldThread_EssenceLife_Must": {
-                            "enabled": true
+                        "TokenShop_GoldThread_InShop": {
+                            "attach": {
+                                "TokenShop_GoldThread_EssenceLife": "must"
+                            }
                         },
-                        "TokenShop_GoldThread_EssenceLife_Spare": {
-                            "enabled": false
+                        "TokenShop_GoldThread_PassMust": {
+                            "enabled": true
                         }
                     }
                 }
@@ -8482,11 +8494,13 @@
                 {
                     "name": "Yes",
                     "pipeline_override": {
-                        "TokenShop_GoldThread_EssenceEndure_Must": {
-                            "enabled": true
+                        "TokenShop_GoldThread_InShop": {
+                            "attach": {
+                                "TokenShop_GoldThread_EssenceEndure": "must"
+                            }
                         },
-                        "TokenShop_GoldThread_EssenceEndure_Spare": {
-                            "enabled": false
+                        "TokenShop_GoldThread_PassMust": {
+                            "enabled": true
                         }
                     }
                 }
@@ -8503,11 +8517,13 @@
                 {
                     "name": "Yes",
                     "pipeline_override": {
-                        "TokenShop_GoldThread_Star4_Must": {
-                            "enabled": true
+                        "TokenShop_GoldThread_InShop": {
+                            "attach": {
+                                "TokenShop_GoldThread_Star4": "must"
+                            }
                         },
-                        "TokenShop_GoldThread_Star4_Spare": {
-                            "enabled": false
+                        "TokenShop_GoldThread_PassMust": {
+                            "enabled": true
                         }
                     }
                 }
@@ -8524,11 +8540,13 @@
                 {
                     "name": "Yes",
                     "pipeline_override": {
-                        "TokenShop_GoldThread_SpecialDrink_Must": {
-                            "enabled": true
+                        "TokenShop_GoldThread_InShop": {
+                            "attach": {
+                                "TokenShop_GoldThread_SpecialDrink": "must"
+                            }
                         },
-                        "TokenShop_GoldThread_SpecialDrink_Spare": {
-                            "enabled": false
+                        "TokenShop_GoldThread_PassMust": {
+                            "enabled": true
                         }
                     }
                 }
@@ -8537,7 +8555,7 @@
         "代币商店-金线-商品": {
             "type": "checkbox",
             "label": "金线 · 要买的商品",
-            "description": "抽到重复角色获得，各账号用法差别大。<br><small>繁体客户端里这家店叫「黃金線」。</small><br><b>勾上＝要买</b>，没勾的不买；圈号是清单顺序。<br>勾上之后，下面会多出它的开关：<br>• <b>Yes ＝ 必买</b>：不看保留量，买得起就买。<br>• <b>No ＝ 有余才买</b>：只在买完后余额仍不低于保留量时才买。<br><small>先按圈号买完必买的，再按圈号买有余才买的。</small>",
+            "description": "抽到重复角色获得，各账号用法差别大。<br><small>繁体客户端里这家店叫「黃金線」。</small><br><b>勾上＝要买</b>，没勾的不买；圈号是清单顺序。<br>勾上之后，下面会多出它的开关：<br>• <b>Yes ＝ 必买</b>：不看保留量，买得起就买。<br>• <b>No ＝ 有余才买</b>：只在买完后余额仍不低于保留量时才买。<br><small>先按圈号买完必买的，再按圈号买有余才买的；每一件都从店的顶部找起。</small>",
             "default_case": [
                 "狂暴火种",
                 "远古水晶",
@@ -8554,7 +8572,12 @@
                     "name": "狂暴火种",
                     "label": "狂暴火种 ①",
                     "pipeline_override": {
-                        "TokenShop_GoldThread_FireSeed_Spare": {
+                        "TokenShop_GoldThread_InShop": {
+                            "attach": {
+                                "TokenShop_GoldThread_FireSeed": "spare"
+                            }
+                        },
+                        "TokenShop_GoldThread_PassSpare": {
                             "enabled": true
                         }
                     },
@@ -8566,7 +8589,12 @@
                     "name": "远古水晶",
                     "label": "远古水晶 ②",
                     "pipeline_override": {
-                        "TokenShop_GoldThread_AncientCrystal_Spare": {
+                        "TokenShop_GoldThread_InShop": {
+                            "attach": {
+                                "TokenShop_GoldThread_AncientCrystal": "spare"
+                            }
+                        },
+                        "TokenShop_GoldThread_PassSpare": {
                             "enabled": true
                         }
                     },
@@ -8578,7 +8606,12 @@
                     "name": "抽抽乐券",
                     "label": "抽抽乐券 ③",
                     "pipeline_override": {
-                        "TokenShop_GoldThread_GachaTicket_Spare": {
+                        "TokenShop_GoldThread_InShop": {
+                            "attach": {
+                                "TokenShop_GoldThread_GachaTicket": "spare"
+                            }
+                        },
+                        "TokenShop_GoldThread_PassSpare": {
                             "enabled": true
                         }
                     },
@@ -8590,7 +8623,12 @@
                     "name": "女神之泪",
                     "label": "女神之泪 ④",
                     "pipeline_override": {
-                        "TokenShop_GoldThread_GoddessTear_Spare": {
+                        "TokenShop_GoldThread_InShop": {
+                            "attach": {
+                                "TokenShop_GoldThread_GoddessTear": "spare"
+                            }
+                        },
+                        "TokenShop_GoldThread_PassSpare": {
                             "enabled": true
                         }
                     },
@@ -8602,7 +8640,12 @@
                     "name": "力量精髓",
                     "label": "力量精髓 ⑤",
                     "pipeline_override": {
-                        "TokenShop_GoldThread_EssencePower_Spare": {
+                        "TokenShop_GoldThread_InShop": {
+                            "attach": {
+                                "TokenShop_GoldThread_EssencePower": "spare"
+                            }
+                        },
+                        "TokenShop_GoldThread_PassSpare": {
                             "enabled": true
                         }
                     },
@@ -8614,7 +8657,12 @@
                     "name": "生命精髓",
                     "label": "生命精髓 ⑥",
                     "pipeline_override": {
-                        "TokenShop_GoldThread_EssenceLife_Spare": {
+                        "TokenShop_GoldThread_InShop": {
+                            "attach": {
+                                "TokenShop_GoldThread_EssenceLife": "spare"
+                            }
+                        },
+                        "TokenShop_GoldThread_PassSpare": {
                             "enabled": true
                         }
                     },
@@ -8626,7 +8674,12 @@
                     "name": "忍耐精髓",
                     "label": "忍耐精髓 ⑦",
                     "pipeline_override": {
-                        "TokenShop_GoldThread_EssenceEndure_Spare": {
+                        "TokenShop_GoldThread_InShop": {
+                            "attach": {
+                                "TokenShop_GoldThread_EssenceEndure": "spare"
+                            }
+                        },
+                        "TokenShop_GoldThread_PassSpare": {
                             "enabled": true
                         }
                     },
@@ -8638,7 +8691,12 @@
                     "name": "4★升星之星",
                     "label": "4★升星之星 ⑧",
                     "pipeline_override": {
-                        "TokenShop_GoldThread_Star4_Spare": {
+                        "TokenShop_GoldThread_InShop": {
+                            "attach": {
+                                "TokenShop_GoldThread_Star4": "spare"
+                            }
+                        },
+                        "TokenShop_GoldThread_PassSpare": {
                             "enabled": true
                         }
                     },
@@ -8650,7 +8708,12 @@
                     "name": "特调饮料",
                     "label": "特调饮料 ⑨",
                     "pipeline_override": {
-                        "TokenShop_GoldThread_SpecialDrink_Spare": {
+                        "TokenShop_GoldThread_InShop": {
+                            "attach": {
+                                "TokenShop_GoldThread_SpecialDrink": "spare"
+                            }
+                        },
+                        "TokenShop_GoldThread_PassSpare": {
                             "enabled": true
                         }
                     },
@@ -8693,11 +8756,13 @@
                 {
                     "name": "Yes",
                     "pipeline_override": {
-                        "TokenShop_HopePowder_FireSeed_Must": {
-                            "enabled": true
+                        "TokenShop_HopePowder_InShop": {
+                            "attach": {
+                                "TokenShop_HopePowder_FireSeed": "must"
+                            }
                         },
-                        "TokenShop_HopePowder_FireSeed_Spare": {
-                            "enabled": false
+                        "TokenShop_HopePowder_PassMust": {
+                            "enabled": true
                         }
                     }
                 }
@@ -8706,7 +8771,7 @@
         "代币商店-希望粉末-商品": {
             "type": "checkbox",
             "label": "希望粉末 · 要买的商品",
-            "description": "抽卡资源，1 抽 1 个，贵重。<br><b>勾上＝要买</b>，没勾的不买；圈号是清单顺序。<br>勾上之后，下面会多出它的开关：<br>• <b>Yes ＝ 必买</b>：不看保留量，买得起就买。<br>• <b>No ＝ 有余才买</b>：只在买完后余额仍不低于保留量时才买。<br><small>先按圈号买完必买的，再按圈号买有余才买的。</small>",
+            "description": "抽卡资源，1 抽 1 个，贵重。<br><b>勾上＝要买</b>，没勾的不买；圈号是清单顺序。<br>勾上之后，下面会多出它的开关：<br>• <b>Yes ＝ 必买</b>：不看保留量，买得起就买。<br>• <b>No ＝ 有余才买</b>：只在买完后余额仍不低于保留量时才买。<br><small>先按圈号买完必买的，再按圈号买有余才买的；每一件都从店的顶部找起。</small>",
             "default_case": [
                 "狂暴火种"
             ],
@@ -8715,7 +8780,12 @@
                     "name": "狂暴火种",
                     "label": "狂暴火种 ①",
                     "pipeline_override": {
-                        "TokenShop_HopePowder_FireSeed_Spare": {
+                        "TokenShop_HopePowder_InShop": {
+                            "attach": {
+                                "TokenShop_HopePowder_FireSeed": "spare"
+                            }
+                        },
+                        "TokenShop_HopePowder_PassSpare": {
                             "enabled": true
                         }
                     },
@@ -8758,11 +8828,13 @@
                 {
                     "name": "Yes",
                     "pipeline_override": {
-                        "TokenShop_RefineTrace_FireSeed_Must": {
-                            "enabled": true
+                        "TokenShop_RefineTrace_InShop": {
+                            "attach": {
+                                "TokenShop_RefineTrace_FireSeed": "must"
+                            }
                         },
-                        "TokenShop_RefineTrace_FireSeed_Spare": {
-                            "enabled": false
+                        "TokenShop_RefineTrace_PassMust": {
+                            "enabled": true
                         }
                     }
                 }
@@ -8779,11 +8851,13 @@
                 {
                     "name": "Yes",
                     "pipeline_override": {
-                        "TokenShop_RefineTrace_GoddessTear_Must": {
-                            "enabled": true
+                        "TokenShop_RefineTrace_InShop": {
+                            "attach": {
+                                "TokenShop_RefineTrace_GoddessTear": "must"
+                            }
                         },
-                        "TokenShop_RefineTrace_GoddessTear_Spare": {
-                            "enabled": false
+                        "TokenShop_RefineTrace_PassMust": {
+                            "enabled": true
                         }
                     }
                 }
@@ -8800,11 +8874,13 @@
                 {
                     "name": "Yes",
                     "pipeline_override": {
-                        "TokenShop_RefineTrace_AncientCrystal_Must": {
-                            "enabled": true
+                        "TokenShop_RefineTrace_InShop": {
+                            "attach": {
+                                "TokenShop_RefineTrace_AncientCrystal": "must"
+                            }
                         },
-                        "TokenShop_RefineTrace_AncientCrystal_Spare": {
-                            "enabled": false
+                        "TokenShop_RefineTrace_PassMust": {
+                            "enabled": true
                         }
                     }
                 }
@@ -8821,11 +8897,13 @@
                 {
                     "name": "Yes",
                     "pipeline_override": {
-                        "TokenShop_RefineTrace_RefineCrystal_Must": {
-                            "enabled": true
+                        "TokenShop_RefineTrace_InShop": {
+                            "attach": {
+                                "TokenShop_RefineTrace_RefineCrystal": "must"
+                            }
                         },
-                        "TokenShop_RefineTrace_RefineCrystal_Spare": {
-                            "enabled": false
+                        "TokenShop_RefineTrace_PassMust": {
+                            "enabled": true
                         }
                     }
                 }
@@ -8834,7 +8912,7 @@
         "代币商店-精炼痕迹-商品": {
             "type": "checkbox",
             "label": "精炼痕迹 · 要买的商品",
-            "description": "精炼装备获得。<br><small>繁体客户端里这家店叫「煉製之痕」。</small><br><b>勾上＝要买</b>，没勾的不买；圈号是清单顺序。<br>勾上之后，下面会多出它的开关：<br>• <b>Yes ＝ 必买</b>：不看保留量，买得起就买。<br>• <b>No ＝ 有余才买</b>：只在买完后余额仍不低于保留量时才买。<br><small>先按圈号买完必买的，再按圈号买有余才买的。</small>",
+            "description": "精炼装备获得。<br><small>繁体客户端里这家店叫「煉製之痕」。</small><br><b>勾上＝要买</b>，没勾的不买；圈号是清单顺序。<br>勾上之后，下面会多出它的开关：<br>• <b>Yes ＝ 必买</b>：不看保留量，买得起就买。<br>• <b>No ＝ 有余才买</b>：只在买完后余额仍不低于保留量时才买。<br><small>先按圈号买完必买的，再按圈号买有余才买的；每一件都从店的顶部找起。</small>",
             "default_case": [
                 "狂暴火种",
                 "女神之泪",
@@ -8846,7 +8924,12 @@
                     "name": "狂暴火种",
                     "label": "狂暴火种 ①",
                     "pipeline_override": {
-                        "TokenShop_RefineTrace_FireSeed_Spare": {
+                        "TokenShop_RefineTrace_InShop": {
+                            "attach": {
+                                "TokenShop_RefineTrace_FireSeed": "spare"
+                            }
+                        },
+                        "TokenShop_RefineTrace_PassSpare": {
                             "enabled": true
                         }
                     },
@@ -8858,7 +8941,12 @@
                     "name": "女神之泪",
                     "label": "女神之泪 ②",
                     "pipeline_override": {
-                        "TokenShop_RefineTrace_GoddessTear_Spare": {
+                        "TokenShop_RefineTrace_InShop": {
+                            "attach": {
+                                "TokenShop_RefineTrace_GoddessTear": "spare"
+                            }
+                        },
+                        "TokenShop_RefineTrace_PassSpare": {
                             "enabled": true
                         }
                     },
@@ -8870,7 +8958,12 @@
                     "name": "远古水晶",
                     "label": "远古水晶 ③",
                     "pipeline_override": {
-                        "TokenShop_RefineTrace_AncientCrystal_Spare": {
+                        "TokenShop_RefineTrace_InShop": {
+                            "attach": {
+                                "TokenShop_RefineTrace_AncientCrystal": "spare"
+                            }
+                        },
+                        "TokenShop_RefineTrace_PassSpare": {
                             "enabled": true
                         }
                     },
@@ -8882,7 +8975,12 @@
                     "name": "精炼水晶",
                     "label": "精炼水晶 ④",
                     "pipeline_override": {
-                        "TokenShop_RefineTrace_RefineCrystal_Spare": {
+                        "TokenShop_RefineTrace_InShop": {
+                            "attach": {
+                                "TokenShop_RefineTrace_RefineCrystal": "spare"
+                            }
+                        },
+                        "TokenShop_RefineTrace_PassSpare": {
                             "enabled": true
                         }
                     },
@@ -8925,11 +9023,13 @@
                 {
                     "name": "Yes",
                     "pipeline_override": {
-                        "TokenShop_MirrorWar_FireSeed_Must": {
-                            "enabled": true
+                        "TokenShop_MirrorWar_InShop": {
+                            "attach": {
+                                "TokenShop_MirrorWar_FireSeed": "must"
+                            }
                         },
-                        "TokenShop_MirrorWar_FireSeed_Spare": {
-                            "enabled": false
+                        "TokenShop_MirrorWar_PassMust": {
+                            "enabled": true
                         }
                     }
                 }
@@ -8946,11 +9046,13 @@
                 {
                     "name": "Yes",
                     "pipeline_override": {
-                        "TokenShop_MirrorWar_UrGearTicket_Must": {
-                            "enabled": true
+                        "TokenShop_MirrorWar_InShop": {
+                            "attach": {
+                                "TokenShop_MirrorWar_UrGearTicket": "must"
+                            }
                         },
-                        "TokenShop_MirrorWar_UrGearTicket_Spare": {
-                            "enabled": false
+                        "TokenShop_MirrorWar_PassMust": {
+                            "enabled": true
                         }
                     }
                 }
@@ -8967,11 +9069,13 @@
                 {
                     "name": "Yes",
                     "pipeline_override": {
-                        "TokenShop_MirrorWar_RefineCrystal_Must": {
-                            "enabled": true
+                        "TokenShop_MirrorWar_InShop": {
+                            "attach": {
+                                "TokenShop_MirrorWar_RefineCrystal": "must"
+                            }
                         },
-                        "TokenShop_MirrorWar_RefineCrystal_Spare": {
-                            "enabled": false
+                        "TokenShop_MirrorWar_PassMust": {
+                            "enabled": true
                         }
                     }
                 }
@@ -8980,7 +9084,7 @@
         "代币商店-镜中之战-商品": {
             "type": "checkbox",
             "label": "镜中之战 · 要买的商品",
-            "description": "传统 PVP，不打没有。<br><b>勾上＝要买</b>，没勾的不买；圈号是清单顺序。<br>勾上之后，下面会多出它的开关：<br>• <b>Yes ＝ 必买</b>：不看保留量，买得起就买。<br>• <b>No ＝ 有余才买</b>：只在买完后余额仍不低于保留量时才买。<br><small>先按圈号买完必买的，再按圈号买有余才买的。</small>",
+            "description": "传统 PVP，不打没有。<br><b>勾上＝要买</b>，没勾的不买；圈号是清单顺序。<br>勾上之后，下面会多出它的开关：<br>• <b>Yes ＝ 必买</b>：不看保留量，买得起就买。<br>• <b>No ＝ 有余才买</b>：只在买完后余额仍不低于保留量时才买。<br><small>先按圈号买完必买的，再按圈号买有余才买的；每一件都从店的顶部找起。</small>",
             "default_case": [
                 "狂暴火种",
                 "UR专用装备抽抽乐兑换券",
@@ -8991,7 +9095,12 @@
                     "name": "狂暴火种",
                     "label": "狂暴火种 ①",
                     "pipeline_override": {
-                        "TokenShop_MirrorWar_FireSeed_Spare": {
+                        "TokenShop_MirrorWar_InShop": {
+                            "attach": {
+                                "TokenShop_MirrorWar_FireSeed": "spare"
+                            }
+                        },
+                        "TokenShop_MirrorWar_PassSpare": {
                             "enabled": true
                         }
                     },
@@ -9003,7 +9112,12 @@
                     "name": "UR专用装备抽抽乐兑换券",
                     "label": "UR专用装备抽抽乐兑换券 ②",
                     "pipeline_override": {
-                        "TokenShop_MirrorWar_UrGearTicket_Spare": {
+                        "TokenShop_MirrorWar_InShop": {
+                            "attach": {
+                                "TokenShop_MirrorWar_UrGearTicket": "spare"
+                            }
+                        },
+                        "TokenShop_MirrorWar_PassSpare": {
                             "enabled": true
                         }
                     },
@@ -9015,7 +9129,12 @@
                     "name": "精炼水晶",
                     "label": "精炼水晶 ③",
                     "pipeline_override": {
-                        "TokenShop_MirrorWar_RefineCrystal_Spare": {
+                        "TokenShop_MirrorWar_InShop": {
+                            "attach": {
+                                "TokenShop_MirrorWar_RefineCrystal": "spare"
+                            }
+                        },
+                        "TokenShop_MirrorWar_PassSpare": {
                             "enabled": true
                         }
                     },
@@ -9058,11 +9177,13 @@
                 {
                     "name": "Yes",
                     "pipeline_override": {
-                        "TokenShop_EvilCastle_EssencePower_Must": {
-                            "enabled": true
+                        "TokenShop_EvilCastle_InShop": {
+                            "attach": {
+                                "TokenShop_EvilCastle_EssencePower": "must"
+                            }
                         },
-                        "TokenShop_EvilCastle_EssencePower_Spare": {
-                            "enabled": false
+                        "TokenShop_EvilCastle_PassMust": {
+                            "enabled": true
                         }
                     }
                 }
@@ -9079,11 +9200,13 @@
                 {
                     "name": "Yes",
                     "pipeline_override": {
-                        "TokenShop_EvilCastle_EssenceLife_Must": {
-                            "enabled": true
+                        "TokenShop_EvilCastle_InShop": {
+                            "attach": {
+                                "TokenShop_EvilCastle_EssenceLife": "must"
+                            }
                         },
-                        "TokenShop_EvilCastle_EssenceLife_Spare": {
-                            "enabled": false
+                        "TokenShop_EvilCastle_PassMust": {
+                            "enabled": true
                         }
                     }
                 }
@@ -9100,11 +9223,13 @@
                 {
                     "name": "Yes",
                     "pipeline_override": {
-                        "TokenShop_EvilCastle_EssenceEndure_Must": {
-                            "enabled": true
+                        "TokenShop_EvilCastle_InShop": {
+                            "attach": {
+                                "TokenShop_EvilCastle_EssenceEndure": "must"
+                            }
                         },
-                        "TokenShop_EvilCastle_EssenceEndure_Spare": {
-                            "enabled": false
+                        "TokenShop_EvilCastle_PassMust": {
+                            "enabled": true
                         }
                     }
                 }
@@ -9121,11 +9246,13 @@
                 {
                     "name": "Yes",
                     "pipeline_override": {
-                        "TokenShop_EvilCastle_GoldBag_Must": {
-                            "enabled": true
+                        "TokenShop_EvilCastle_InShop": {
+                            "attach": {
+                                "TokenShop_EvilCastle_GoldBag": "must"
+                            }
                         },
-                        "TokenShop_EvilCastle_GoldBag_Spare": {
-                            "enabled": false
+                        "TokenShop_EvilCastle_PassMust": {
+                            "enabled": true
                         }
                     }
                 }
@@ -9142,11 +9269,13 @@
                 {
                     "name": "Yes",
                     "pipeline_override": {
-                        "TokenShop_EvilCastle_ContractNormal_Must": {
-                            "enabled": true
+                        "TokenShop_EvilCastle_InShop": {
+                            "attach": {
+                                "TokenShop_EvilCastle_ContractNormal": "must"
+                            }
                         },
-                        "TokenShop_EvilCastle_ContractNormal_Spare": {
-                            "enabled": false
+                        "TokenShop_EvilCastle_PassMust": {
+                            "enabled": true
                         }
                     }
                 }
@@ -9163,11 +9292,13 @@
                 {
                     "name": "Yes",
                     "pipeline_override": {
-                        "TokenShop_EvilCastle_BlueSlime_Must": {
-                            "enabled": true
+                        "TokenShop_EvilCastle_InShop": {
+                            "attach": {
+                                "TokenShop_EvilCastle_BlueSlime": "must"
+                            }
                         },
-                        "TokenShop_EvilCastle_BlueSlime_Spare": {
-                            "enabled": false
+                        "TokenShop_EvilCastle_PassMust": {
+                            "enabled": true
                         }
                     }
                 }
@@ -9184,11 +9315,13 @@
                 {
                     "name": "Yes",
                     "pipeline_override": {
-                        "TokenShop_EvilCastle_YellowSlime_Must": {
-                            "enabled": true
+                        "TokenShop_EvilCastle_InShop": {
+                            "attach": {
+                                "TokenShop_EvilCastle_YellowSlime": "must"
+                            }
                         },
-                        "TokenShop_EvilCastle_YellowSlime_Spare": {
-                            "enabled": false
+                        "TokenShop_EvilCastle_PassMust": {
+                            "enabled": true
                         }
                     }
                 }
@@ -9205,11 +9338,13 @@
                 {
                     "name": "Yes",
                     "pipeline_override": {
-                        "TokenShop_EvilCastle_SealBook_Must": {
-                            "enabled": true
+                        "TokenShop_EvilCastle_InShop": {
+                            "attach": {
+                                "TokenShop_EvilCastle_SealBook": "must"
+                            }
                         },
-                        "TokenShop_EvilCastle_SealBook_Spare": {
-                            "enabled": false
+                        "TokenShop_EvilCastle_PassMust": {
+                            "enabled": true
                         }
                     }
                 }
@@ -9226,11 +9361,13 @@
                 {
                     "name": "Yes",
                     "pipeline_override": {
-                        "TokenShop_EvilCastle_RefinePowder_Must": {
-                            "enabled": true
+                        "TokenShop_EvilCastle_InShop": {
+                            "attach": {
+                                "TokenShop_EvilCastle_RefinePowder": "must"
+                            }
                         },
-                        "TokenShop_EvilCastle_RefinePowder_Spare": {
-                            "enabled": false
+                        "TokenShop_EvilCastle_PassMust": {
+                            "enabled": true
                         }
                     }
                 }
@@ -9247,11 +9384,13 @@
                 {
                     "name": "Yes",
                     "pipeline_override": {
-                        "TokenShop_EvilCastle_Star3_Must": {
-                            "enabled": true
+                        "TokenShop_EvilCastle_InShop": {
+                            "attach": {
+                                "TokenShop_EvilCastle_Star3": "must"
+                            }
                         },
-                        "TokenShop_EvilCastle_Star3_Spare": {
-                            "enabled": false
+                        "TokenShop_EvilCastle_PassMust": {
+                            "enabled": true
                         }
                     }
                 }
@@ -9268,11 +9407,13 @@
                 {
                     "name": "Yes",
                     "pipeline_override": {
-                        "TokenShop_EvilCastle_Star4_Must": {
-                            "enabled": true
+                        "TokenShop_EvilCastle_InShop": {
+                            "attach": {
+                                "TokenShop_EvilCastle_Star4": "must"
+                            }
                         },
-                        "TokenShop_EvilCastle_Star4_Spare": {
-                            "enabled": false
+                        "TokenShop_EvilCastle_PassMust": {
+                            "enabled": true
                         }
                     }
                 }
@@ -9281,7 +9422,7 @@
         "代币商店-恶魔城-商品": {
             "type": "checkbox",
             "label": "恶魔城 · 要买的商品",
-            "description": "<b>勾上＝要买</b>，没勾的不买；圈号是清单顺序。<br>勾上之后，下面会多出它的开关：<br>• <b>Yes ＝ 必买</b>：不看保留量，买得起就买。<br>• <b>No ＝ 有余才买</b>：只在买完后余额仍不低于保留量时才买。<br><small>先按圈号买完必买的，再按圈号买有余才买的。</small>",
+            "description": "<b>勾上＝要买</b>，没勾的不买；圈号是清单顺序。<br>勾上之后，下面会多出它的开关：<br>• <b>Yes ＝ 必买</b>：不看保留量，买得起就买。<br>• <b>No ＝ 有余才买</b>：只在买完后余额仍不低于保留量时才买。<br><small>先按圈号买完必买的，再按圈号买有余才买的；每一件都从店的顶部找起。</small>",
             "default_case": [
                 "力量精髓",
                 "生命精髓",
@@ -9300,7 +9441,12 @@
                     "name": "力量精髓",
                     "label": "力量精髓 ①",
                     "pipeline_override": {
-                        "TokenShop_EvilCastle_EssencePower_Spare": {
+                        "TokenShop_EvilCastle_InShop": {
+                            "attach": {
+                                "TokenShop_EvilCastle_EssencePower": "spare"
+                            }
+                        },
+                        "TokenShop_EvilCastle_PassSpare": {
                             "enabled": true
                         }
                     },
@@ -9312,7 +9458,12 @@
                     "name": "生命精髓",
                     "label": "生命精髓 ②",
                     "pipeline_override": {
-                        "TokenShop_EvilCastle_EssenceLife_Spare": {
+                        "TokenShop_EvilCastle_InShop": {
+                            "attach": {
+                                "TokenShop_EvilCastle_EssenceLife": "spare"
+                            }
+                        },
+                        "TokenShop_EvilCastle_PassSpare": {
                             "enabled": true
                         }
                     },
@@ -9324,7 +9475,12 @@
                     "name": "忍耐精髓",
                     "label": "忍耐精髓 ③",
                     "pipeline_override": {
-                        "TokenShop_EvilCastle_EssenceEndure_Spare": {
+                        "TokenShop_EvilCastle_InShop": {
+                            "attach": {
+                                "TokenShop_EvilCastle_EssenceEndure": "spare"
+                            }
+                        },
+                        "TokenShop_EvilCastle_PassSpare": {
                             "enabled": true
                         }
                     },
@@ -9336,7 +9492,12 @@
                     "name": "金币袋",
                     "label": "金币袋 ④",
                     "pipeline_override": {
-                        "TokenShop_EvilCastle_GoldBag_Spare": {
+                        "TokenShop_EvilCastle_InShop": {
+                            "attach": {
+                                "TokenShop_EvilCastle_GoldBag": "spare"
+                            }
+                        },
+                        "TokenShop_EvilCastle_PassSpare": {
                             "enabled": true
                         }
                     },
@@ -9348,7 +9509,12 @@
                     "name": "普通招募契约书",
                     "label": "普通招募契约书 ⑤",
                     "pipeline_override": {
-                        "TokenShop_EvilCastle_ContractNormal_Spare": {
+                        "TokenShop_EvilCastle_InShop": {
+                            "attach": {
+                                "TokenShop_EvilCastle_ContractNormal": "spare"
+                            }
+                        },
+                        "TokenShop_EvilCastle_PassSpare": {
                             "enabled": true
                         }
                     },
@@ -9360,7 +9526,12 @@
                     "name": "蓝色史莱姆",
                     "label": "蓝色史莱姆 ⑥",
                     "pipeline_override": {
-                        "TokenShop_EvilCastle_BlueSlime_Spare": {
+                        "TokenShop_EvilCastle_InShop": {
+                            "attach": {
+                                "TokenShop_EvilCastle_BlueSlime": "spare"
+                            }
+                        },
+                        "TokenShop_EvilCastle_PassSpare": {
                             "enabled": true
                         }
                     },
@@ -9372,7 +9543,12 @@
                     "name": "黄色史莱姆",
                     "label": "黄色史莱姆 ⑦",
                     "pipeline_override": {
-                        "TokenShop_EvilCastle_YellowSlime_Spare": {
+                        "TokenShop_EvilCastle_InShop": {
+                            "attach": {
+                                "TokenShop_EvilCastle_YellowSlime": "spare"
+                            }
+                        },
+                        "TokenShop_EvilCastle_PassSpare": {
                             "enabled": true
                         }
                     },
@@ -9384,7 +9560,12 @@
                     "name": "刻印咒语书",
                     "label": "刻印咒语书 ⑧",
                     "pipeline_override": {
-                        "TokenShop_EvilCastle_SealBook_Spare": {
+                        "TokenShop_EvilCastle_InShop": {
+                            "attach": {
+                                "TokenShop_EvilCastle_SealBook": "spare"
+                            }
+                        },
+                        "TokenShop_EvilCastle_PassSpare": {
                             "enabled": true
                         }
                     },
@@ -9396,7 +9577,12 @@
                     "name": "精炼粉末",
                     "label": "精炼粉末 ⑨",
                     "pipeline_override": {
-                        "TokenShop_EvilCastle_RefinePowder_Spare": {
+                        "TokenShop_EvilCastle_InShop": {
+                            "attach": {
+                                "TokenShop_EvilCastle_RefinePowder": "spare"
+                            }
+                        },
+                        "TokenShop_EvilCastle_PassSpare": {
                             "enabled": true
                         }
                     },
@@ -9408,7 +9594,12 @@
                     "name": "3★升星之星",
                     "label": "3★升星之星 ⑩",
                     "pipeline_override": {
-                        "TokenShop_EvilCastle_Star3_Spare": {
+                        "TokenShop_EvilCastle_InShop": {
+                            "attach": {
+                                "TokenShop_EvilCastle_Star3": "spare"
+                            }
+                        },
+                        "TokenShop_EvilCastle_PassSpare": {
                             "enabled": true
                         }
                     },
@@ -9420,7 +9611,12 @@
                     "name": "4★升星之星",
                     "label": "4★升星之星 ⑪",
                     "pipeline_override": {
-                        "TokenShop_EvilCastle_Star4_Spare": {
+                        "TokenShop_EvilCastle_InShop": {
+                            "attach": {
+                                "TokenShop_EvilCastle_Star4": "spare"
+                            }
+                        },
+                        "TokenShop_EvilCastle_PassSpare": {
                             "enabled": true
                         }
                     },
@@ -9463,11 +9659,13 @@
                 {
                     "name": "Yes",
                     "pipeline_override": {
-                        "TokenShop_Guild_FireSeed_Must": {
-                            "enabled": true
+                        "TokenShop_Guild_InShop": {
+                            "attach": {
+                                "TokenShop_Guild_FireSeed": "must"
+                            }
                         },
-                        "TokenShop_Guild_FireSeed_Spare": {
-                            "enabled": false
+                        "TokenShop_Guild_PassMust": {
+                            "enabled": true
                         }
                     }
                 }
@@ -9484,11 +9682,13 @@
                 {
                     "name": "Yes",
                     "pipeline_override": {
-                        "TokenShop_Guild_GachaTicket_Must": {
-                            "enabled": true
+                        "TokenShop_Guild_InShop": {
+                            "attach": {
+                                "TokenShop_Guild_GachaTicket": "must"
+                            }
                         },
-                        "TokenShop_Guild_GachaTicket_Spare": {
-                            "enabled": false
+                        "TokenShop_Guild_PassMust": {
+                            "enabled": true
                         }
                     }
                 }
@@ -9505,11 +9705,13 @@
                 {
                     "name": "Yes",
                     "pipeline_override": {
-                        "TokenShop_Guild_GoddessTear_Must": {
-                            "enabled": true
+                        "TokenShop_Guild_InShop": {
+                            "attach": {
+                                "TokenShop_Guild_GoddessTear": "must"
+                            }
                         },
-                        "TokenShop_Guild_GoddessTear_Spare": {
-                            "enabled": false
+                        "TokenShop_Guild_PassMust": {
+                            "enabled": true
                         }
                     }
                 }
@@ -9526,11 +9728,13 @@
                 {
                     "name": "Yes",
                     "pipeline_override": {
-                        "TokenShop_Guild_AwakenElixir_Must": {
-                            "enabled": true
+                        "TokenShop_Guild_InShop": {
+                            "attach": {
+                                "TokenShop_Guild_AwakenElixir": "must"
+                            }
                         },
-                        "TokenShop_Guild_AwakenElixir_Spare": {
-                            "enabled": false
+                        "TokenShop_Guild_PassMust": {
+                            "enabled": true
                         }
                     }
                 }
@@ -9547,11 +9751,13 @@
                 {
                     "name": "Yes",
                     "pipeline_override": {
-                        "TokenShop_Guild_EssencePower_Must": {
-                            "enabled": true
+                        "TokenShop_Guild_InShop": {
+                            "attach": {
+                                "TokenShop_Guild_EssencePower": "must"
+                            }
                         },
-                        "TokenShop_Guild_EssencePower_Spare": {
-                            "enabled": false
+                        "TokenShop_Guild_PassMust": {
+                            "enabled": true
                         }
                     }
                 }
@@ -9568,11 +9774,13 @@
                 {
                     "name": "Yes",
                     "pipeline_override": {
-                        "TokenShop_Guild_EssenceLife_Must": {
-                            "enabled": true
+                        "TokenShop_Guild_InShop": {
+                            "attach": {
+                                "TokenShop_Guild_EssenceLife": "must"
+                            }
                         },
-                        "TokenShop_Guild_EssenceLife_Spare": {
-                            "enabled": false
+                        "TokenShop_Guild_PassMust": {
+                            "enabled": true
                         }
                     }
                 }
@@ -9589,11 +9797,13 @@
                 {
                     "name": "Yes",
                     "pipeline_override": {
-                        "TokenShop_Guild_EssenceEndure_Must": {
-                            "enabled": true
+                        "TokenShop_Guild_InShop": {
+                            "attach": {
+                                "TokenShop_Guild_EssenceEndure": "must"
+                            }
                         },
-                        "TokenShop_Guild_EssenceEndure_Spare": {
-                            "enabled": false
+                        "TokenShop_Guild_PassMust": {
+                            "enabled": true
                         }
                     }
                 }
@@ -9602,7 +9812,7 @@
         "代币商店-公会-商品": {
             "type": "checkbox",
             "label": "公会 · 要买的商品",
-            "description": "签到给少量，打活动给大量。<br><b>勾上＝要买</b>，没勾的不买；圈号是清单顺序。<br>勾上之后，下面会多出它的开关：<br>• <b>Yes ＝ 必买</b>：不看保留量，买得起就买。<br>• <b>No ＝ 有余才买</b>：只在买完后余额仍不低于保留量时才买。<br><small>先按圈号买完必买的，再按圈号买有余才买的。</small>",
+            "description": "签到给少量，打活动给大量。<br><b>勾上＝要买</b>，没勾的不买；圈号是清单顺序。<br>勾上之后，下面会多出它的开关：<br>• <b>Yes ＝ 必买</b>：不看保留量，买得起就买。<br>• <b>No ＝ 有余才买</b>：只在买完后余额仍不低于保留量时才买。<br><small>先按圈号买完必买的，再按圈号买有余才买的；每一件都从店的顶部找起。</small>",
             "default_case": [
                 "狂暴火种",
                 "抽抽乐券",
@@ -9617,7 +9827,12 @@
                     "name": "狂暴火种",
                     "label": "狂暴火种 ①",
                     "pipeline_override": {
-                        "TokenShop_Guild_FireSeed_Spare": {
+                        "TokenShop_Guild_InShop": {
+                            "attach": {
+                                "TokenShop_Guild_FireSeed": "spare"
+                            }
+                        },
+                        "TokenShop_Guild_PassSpare": {
                             "enabled": true
                         }
                     },
@@ -9629,7 +9844,12 @@
                     "name": "抽抽乐券",
                     "label": "抽抽乐券 ②",
                     "pipeline_override": {
-                        "TokenShop_Guild_GachaTicket_Spare": {
+                        "TokenShop_Guild_InShop": {
+                            "attach": {
+                                "TokenShop_Guild_GachaTicket": "spare"
+                            }
+                        },
+                        "TokenShop_Guild_PassSpare": {
                             "enabled": true
                         }
                     },
@@ -9641,7 +9861,12 @@
                     "name": "女神之泪",
                     "label": "女神之泪 ③",
                     "pipeline_override": {
-                        "TokenShop_Guild_GoddessTear_Spare": {
+                        "TokenShop_Guild_InShop": {
+                            "attach": {
+                                "TokenShop_Guild_GoddessTear": "spare"
+                            }
+                        },
+                        "TokenShop_Guild_PassSpare": {
                             "enabled": true
                         }
                     },
@@ -9653,7 +9878,12 @@
                     "name": "觉醒灵药",
                     "label": "觉醒灵药 ④",
                     "pipeline_override": {
-                        "TokenShop_Guild_AwakenElixir_Spare": {
+                        "TokenShop_Guild_InShop": {
+                            "attach": {
+                                "TokenShop_Guild_AwakenElixir": "spare"
+                            }
+                        },
+                        "TokenShop_Guild_PassSpare": {
                             "enabled": true
                         }
                     },
@@ -9665,7 +9895,12 @@
                     "name": "力量精髓",
                     "label": "力量精髓 ⑤",
                     "pipeline_override": {
-                        "TokenShop_Guild_EssencePower_Spare": {
+                        "TokenShop_Guild_InShop": {
+                            "attach": {
+                                "TokenShop_Guild_EssencePower": "spare"
+                            }
+                        },
+                        "TokenShop_Guild_PassSpare": {
                             "enabled": true
                         }
                     },
@@ -9677,7 +9912,12 @@
                     "name": "生命精髓",
                     "label": "生命精髓 ⑥",
                     "pipeline_override": {
-                        "TokenShop_Guild_EssenceLife_Spare": {
+                        "TokenShop_Guild_InShop": {
+                            "attach": {
+                                "TokenShop_Guild_EssenceLife": "spare"
+                            }
+                        },
+                        "TokenShop_Guild_PassSpare": {
                             "enabled": true
                         }
                     },
@@ -9689,7 +9929,12 @@
                     "name": "忍耐精髓",
                     "label": "忍耐精髓 ⑦",
                     "pipeline_override": {
-                        "TokenShop_Guild_EssenceEndure_Spare": {
+                        "TokenShop_Guild_InShop": {
+                            "attach": {
+                                "TokenShop_Guild_EssenceEndure": "spare"
+                            }
+                        },
+                        "TokenShop_Guild_PassSpare": {
                             "enabled": true
                         }
                     },
@@ -9732,11 +9977,13 @@
                 {
                     "name": "Yes",
                     "pipeline_override": {
-                        "TokenShop_GoldArena_FireSeed_Must": {
-                            "enabled": true
+                        "TokenShop_GoldArena_InShop": {
+                            "attach": {
+                                "TokenShop_GoldArena_FireSeed": "must"
+                            }
                         },
-                        "TokenShop_GoldArena_FireSeed_Spare": {
-                            "enabled": false
+                        "TokenShop_GoldArena_PassMust": {
+                            "enabled": true
                         }
                     }
                 }
@@ -9753,11 +10000,13 @@
                 {
                     "name": "Yes",
                     "pipeline_override": {
-                        "TokenShop_GoldArena_AncientCrystal_Must": {
-                            "enabled": true
+                        "TokenShop_GoldArena_InShop": {
+                            "attach": {
+                                "TokenShop_GoldArena_AncientCrystal": "must"
+                            }
                         },
-                        "TokenShop_GoldArena_AncientCrystal_Spare": {
-                            "enabled": false
+                        "TokenShop_GoldArena_PassMust": {
+                            "enabled": true
                         }
                     }
                 }
@@ -9774,11 +10023,13 @@
                 {
                     "name": "Yes",
                     "pipeline_override": {
-                        "TokenShop_GoldArena_GachaTicket_Must": {
-                            "enabled": true
+                        "TokenShop_GoldArena_InShop": {
+                            "attach": {
+                                "TokenShop_GoldArena_GachaTicket": "must"
+                            }
                         },
-                        "TokenShop_GoldArena_GachaTicket_Spare": {
-                            "enabled": false
+                        "TokenShop_GoldArena_PassMust": {
+                            "enabled": true
                         }
                     }
                 }
@@ -9795,11 +10046,13 @@
                 {
                     "name": "Yes",
                     "pipeline_override": {
-                        "TokenShop_GoldArena_ElementTicket_Must": {
-                            "enabled": true
+                        "TokenShop_GoldArena_InShop": {
+                            "attach": {
+                                "TokenShop_GoldArena_ElementTicket": "must"
+                            }
                         },
-                        "TokenShop_GoldArena_ElementTicket_Spare": {
-                            "enabled": false
+                        "TokenShop_GoldArena_PassMust": {
+                            "enabled": true
                         }
                     }
                 }
@@ -9816,11 +10069,13 @@
                 {
                     "name": "Yes",
                     "pipeline_override": {
-                        "TokenShop_GoldArena_AwakenElixir_Must": {
-                            "enabled": true
+                        "TokenShop_GoldArena_InShop": {
+                            "attach": {
+                                "TokenShop_GoldArena_AwakenElixir": "must"
+                            }
                         },
-                        "TokenShop_GoldArena_AwakenElixir_Spare": {
-                            "enabled": false
+                        "TokenShop_GoldArena_PassMust": {
+                            "enabled": true
                         }
                     }
                 }
@@ -9837,11 +10092,13 @@
                 {
                     "name": "Yes",
                     "pipeline_override": {
-                        "TokenShop_GoldArena_Gold100k_Must": {
-                            "enabled": true
+                        "TokenShop_GoldArena_InShop": {
+                            "attach": {
+                                "TokenShop_GoldArena_Gold100k": "must"
+                            }
                         },
-                        "TokenShop_GoldArena_Gold100k_Spare": {
-                            "enabled": false
+                        "TokenShop_GoldArena_PassMust": {
+                            "enabled": true
                         }
                     }
                 }
@@ -9858,11 +10115,13 @@
                 {
                     "name": "Yes",
                     "pipeline_override": {
-                        "TokenShop_GoldArena_RefineCrystal_Must": {
-                            "enabled": true
+                        "TokenShop_GoldArena_InShop": {
+                            "attach": {
+                                "TokenShop_GoldArena_RefineCrystal": "must"
+                            }
                         },
-                        "TokenShop_GoldArena_RefineCrystal_Spare": {
-                            "enabled": false
+                        "TokenShop_GoldArena_PassMust": {
+                            "enabled": true
                         }
                     }
                 }
@@ -9879,11 +10138,13 @@
                 {
                     "name": "Yes",
                     "pipeline_override": {
-                        "TokenShop_GoldArena_RefinePowder2000_Must": {
-                            "enabled": true
+                        "TokenShop_GoldArena_InShop": {
+                            "attach": {
+                                "TokenShop_GoldArena_RefinePowder2000": "must"
+                            }
                         },
-                        "TokenShop_GoldArena_RefinePowder2000_Spare": {
-                            "enabled": false
+                        "TokenShop_GoldArena_PassMust": {
+                            "enabled": true
                         }
                     }
                 }
@@ -9892,7 +10153,7 @@
         "代币商店-黄金竞技场-商品": {
             "type": "checkbox",
             "label": "黄金竞技场 · 要买的商品",
-            "description": "PVP，货币较贵；排在前面的三件较重要。<br><b>勾上＝要买</b>，没勾的不买；圈号是清单顺序。<br>勾上之后，下面会多出它的开关：<br>• <b>Yes ＝ 必买</b>：不看保留量，买得起就买。<br>• <b>No ＝ 有余才买</b>：只在买完后余额仍不低于保留量时才买。<br><small>先按圈号买完必买的，再按圈号买有余才买的。</small>",
+            "description": "PVP，货币较贵；排在前面的三件较重要。<br><b>勾上＝要买</b>，没勾的不买；圈号是清单顺序。<br>勾上之后，下面会多出它的开关：<br>• <b>Yes ＝ 必买</b>：不看保留量，买得起就买。<br>• <b>No ＝ 有余才买</b>：只在买完后余额仍不低于保留量时才买。<br><small>先按圈号买完必买的，再按圈号买有余才买的；每一件都从店的顶部找起。</small>",
             "default_case": [
                 "狂暴火种",
                 "远古水晶",
@@ -9904,7 +10165,12 @@
                     "name": "狂暴火种",
                     "label": "狂暴火种 ①",
                     "pipeline_override": {
-                        "TokenShop_GoldArena_FireSeed_Spare": {
+                        "TokenShop_GoldArena_InShop": {
+                            "attach": {
+                                "TokenShop_GoldArena_FireSeed": "spare"
+                            }
+                        },
+                        "TokenShop_GoldArena_PassSpare": {
                             "enabled": true
                         }
                     },
@@ -9916,7 +10182,12 @@
                     "name": "远古水晶",
                     "label": "远古水晶 ②",
                     "pipeline_override": {
-                        "TokenShop_GoldArena_AncientCrystal_Spare": {
+                        "TokenShop_GoldArena_InShop": {
+                            "attach": {
+                                "TokenShop_GoldArena_AncientCrystal": "spare"
+                            }
+                        },
+                        "TokenShop_GoldArena_PassSpare": {
                             "enabled": true
                         }
                     },
@@ -9928,7 +10199,12 @@
                     "name": "抽抽乐券",
                     "label": "抽抽乐券 ③",
                     "pipeline_override": {
-                        "TokenShop_GoldArena_GachaTicket_Spare": {
+                        "TokenShop_GoldArena_InShop": {
+                            "attach": {
+                                "TokenShop_GoldArena_GachaTicket": "spare"
+                            }
+                        },
+                        "TokenShop_GoldArena_PassSpare": {
                             "enabled": true
                         }
                     },
@@ -9940,7 +10216,12 @@
                     "name": "属性甄选抽抽乐兑换券",
                     "label": "属性甄选抽抽乐兑换券 ④",
                     "pipeline_override": {
-                        "TokenShop_GoldArena_ElementTicket_Spare": {
+                        "TokenShop_GoldArena_InShop": {
+                            "attach": {
+                                "TokenShop_GoldArena_ElementTicket": "spare"
+                            }
+                        },
+                        "TokenShop_GoldArena_PassSpare": {
                             "enabled": true
                         }
                     },
@@ -9952,7 +10233,12 @@
                     "name": "觉醒灵药",
                     "label": "觉醒灵药 ⑤",
                     "pipeline_override": {
-                        "TokenShop_GoldArena_AwakenElixir_Spare": {
+                        "TokenShop_GoldArena_InShop": {
+                            "attach": {
+                                "TokenShop_GoldArena_AwakenElixir": "spare"
+                            }
+                        },
+                        "TokenShop_GoldArena_PassSpare": {
                             "enabled": true
                         }
                     },
@@ -9964,7 +10250,12 @@
                     "name": "金币 10万",
                     "label": "金币 10万 ⑥",
                     "pipeline_override": {
-                        "TokenShop_GoldArena_Gold100k_Spare": {
+                        "TokenShop_GoldArena_InShop": {
+                            "attach": {
+                                "TokenShop_GoldArena_Gold100k": "spare"
+                            }
+                        },
+                        "TokenShop_GoldArena_PassSpare": {
                             "enabled": true
                         }
                     },
@@ -9976,7 +10267,12 @@
                     "name": "精炼水晶",
                     "label": "精炼水晶 ⑦",
                     "pipeline_override": {
-                        "TokenShop_GoldArena_RefineCrystal_Spare": {
+                        "TokenShop_GoldArena_InShop": {
+                            "attach": {
+                                "TokenShop_GoldArena_RefineCrystal": "spare"
+                            }
+                        },
+                        "TokenShop_GoldArena_PassSpare": {
                             "enabled": true
                         }
                     },
@@ -9988,7 +10284,12 @@
                     "name": "精炼粉末 2000",
                     "label": "精炼粉末 2000 ⑧",
                     "pipeline_override": {
-                        "TokenShop_GoldArena_RefinePowder2000_Spare": {
+                        "TokenShop_GoldArena_InShop": {
+                            "attach": {
+                                "TokenShop_GoldArena_RefinePowder2000": "spare"
+                            }
+                        },
+                        "TokenShop_GoldArena_PassSpare": {
                             "enabled": true
                         }
                     },
@@ -10031,11 +10332,13 @@
                 {
                     "name": "Yes",
                     "pipeline_override": {
-                        "TokenShop_Fishing_Gold_Must": {
-                            "enabled": true
+                        "TokenShop_Fishing_InShop": {
+                            "attach": {
+                                "TokenShop_Fishing_Gold": "must"
+                            }
                         },
-                        "TokenShop_Fishing_Gold_Spare": {
-                            "enabled": false
+                        "TokenShop_Fishing_PassMust": {
+                            "enabled": true
                         }
                     }
                 }
@@ -10052,11 +10355,13 @@
                 {
                     "name": "Yes",
                     "pipeline_override": {
-                        "TokenShop_Fishing_RefinePowder_Must": {
-                            "enabled": true
+                        "TokenShop_Fishing_InShop": {
+                            "attach": {
+                                "TokenShop_Fishing_RefinePowder": "must"
+                            }
                         },
-                        "TokenShop_Fishing_RefinePowder_Spare": {
-                            "enabled": false
+                        "TokenShop_Fishing_PassMust": {
+                            "enabled": true
                         }
                     }
                 }
@@ -10073,11 +10378,13 @@
                 {
                     "name": "Yes",
                     "pipeline_override": {
-                        "TokenShop_Fishing_DecoCoin_Must": {
-                            "enabled": true
+                        "TokenShop_Fishing_InShop": {
+                            "attach": {
+                                "TokenShop_Fishing_DecoCoin": "must"
+                            }
                         },
-                        "TokenShop_Fishing_DecoCoin_Spare": {
-                            "enabled": false
+                        "TokenShop_Fishing_PassMust": {
+                            "enabled": true
                         }
                     }
                 }
@@ -10086,7 +10393,7 @@
         "代币商店-钓鱼-商品": {
             "type": "checkbox",
             "label": "钓鱼 · 要买的商品",
-            "description": "不钓鱼则没有。<br><b>勾上＝要买</b>，没勾的不买；圈号是清单顺序。<br>勾上之后，下面会多出它的开关：<br>• <b>Yes ＝ 必买</b>：不看保留量，买得起就买。<br>• <b>No ＝ 有余才买</b>：只在买完后余额仍不低于保留量时才买。<br><small>先按圈号买完必买的，再按圈号买有余才买的。</small>",
+            "description": "不钓鱼则没有。<br><b>勾上＝要买</b>，没勾的不买；圈号是清单顺序。<br>勾上之后，下面会多出它的开关：<br>• <b>Yes ＝ 必买</b>：不看保留量，买得起就买。<br>• <b>No ＝ 有余才买</b>：只在买完后余额仍不低于保留量时才买。<br><small>先按圈号买完必买的，再按圈号买有余才买的；每一件都从店的顶部找起。</small>",
             "default_case": [
                 "金币",
                 "精炼粉末",
@@ -10097,7 +10404,12 @@
                     "name": "金币",
                     "label": "金币 ①",
                     "pipeline_override": {
-                        "TokenShop_Fishing_Gold_Spare": {
+                        "TokenShop_Fishing_InShop": {
+                            "attach": {
+                                "TokenShop_Fishing_Gold": "spare"
+                            }
+                        },
+                        "TokenShop_Fishing_PassSpare": {
                             "enabled": true
                         }
                     },
@@ -10109,7 +10421,12 @@
                     "name": "精炼粉末",
                     "label": "精炼粉末 ②",
                     "pipeline_override": {
-                        "TokenShop_Fishing_RefinePowder_Spare": {
+                        "TokenShop_Fishing_InShop": {
+                            "attach": {
+                                "TokenShop_Fishing_RefinePowder": "spare"
+                            }
+                        },
+                        "TokenShop_Fishing_PassSpare": {
                             "enabled": true
                         }
                     },
@@ -10121,7 +10438,12 @@
                     "name": "装饰币",
                     "label": "装饰币 ③",
                     "pipeline_override": {
-                        "TokenShop_Fishing_DecoCoin_Spare": {
+                        "TokenShop_Fishing_InShop": {
+                            "attach": {
+                                "TokenShop_Fishing_DecoCoin": "spare"
+                            }
+                        },
+                        "TokenShop_Fishing_PassSpare": {
                             "enabled": true
                         }
                     },
@@ -10164,11 +10486,13 @@
                 {
                     "name": "Yes",
                     "pipeline_override": {
-                        "TokenShop_SoulDisk_GoddessTear_Must": {
-                            "enabled": true
+                        "TokenShop_SoulDisk_InShop": {
+                            "attach": {
+                                "TokenShop_SoulDisk_GoddessTear": "must"
+                            }
                         },
-                        "TokenShop_SoulDisk_GoddessTear_Spare": {
-                            "enabled": false
+                        "TokenShop_SoulDisk_PassMust": {
+                            "enabled": true
                         }
                     }
                 }
@@ -10185,11 +10509,13 @@
                 {
                     "name": "Yes",
                     "pipeline_override": {
-                        "TokenShop_SoulDisk_ContractTop_Must": {
-                            "enabled": true
+                        "TokenShop_SoulDisk_InShop": {
+                            "attach": {
+                                "TokenShop_SoulDisk_ContractTop": "must"
+                            }
                         },
-                        "TokenShop_SoulDisk_ContractTop_Spare": {
-                            "enabled": false
+                        "TokenShop_SoulDisk_PassMust": {
+                            "enabled": true
                         }
                     }
                 }
@@ -10206,11 +10532,13 @@
                 {
                     "name": "Yes",
                     "pipeline_override": {
-                        "TokenShop_SoulDisk_Gold_Must": {
-                            "enabled": true
+                        "TokenShop_SoulDisk_InShop": {
+                            "attach": {
+                                "TokenShop_SoulDisk_Gold": "must"
+                            }
                         },
-                        "TokenShop_SoulDisk_Gold_Spare": {
-                            "enabled": false
+                        "TokenShop_SoulDisk_PassMust": {
+                            "enabled": true
                         }
                     }
                 }
@@ -10227,11 +10555,13 @@
                 {
                     "name": "Yes",
                     "pipeline_override": {
-                        "TokenShop_SoulDisk_StoneFire_Must": {
-                            "enabled": true
+                        "TokenShop_SoulDisk_InShop": {
+                            "attach": {
+                                "TokenShop_SoulDisk_StoneFire": "must"
+                            }
                         },
-                        "TokenShop_SoulDisk_StoneFire_Spare": {
-                            "enabled": false
+                        "TokenShop_SoulDisk_PassMust": {
+                            "enabled": true
                         }
                     }
                 }
@@ -10248,11 +10578,13 @@
                 {
                     "name": "Yes",
                     "pipeline_override": {
-                        "TokenShop_SoulDisk_StoneWater_Must": {
-                            "enabled": true
+                        "TokenShop_SoulDisk_InShop": {
+                            "attach": {
+                                "TokenShop_SoulDisk_StoneWater": "must"
+                            }
                         },
-                        "TokenShop_SoulDisk_StoneWater_Spare": {
-                            "enabled": false
+                        "TokenShop_SoulDisk_PassMust": {
+                            "enabled": true
                         }
                     }
                 }
@@ -10269,11 +10601,13 @@
                 {
                     "name": "Yes",
                     "pipeline_override": {
-                        "TokenShop_SoulDisk_StoneWind_Must": {
-                            "enabled": true
+                        "TokenShop_SoulDisk_InShop": {
+                            "attach": {
+                                "TokenShop_SoulDisk_StoneWind": "must"
+                            }
                         },
-                        "TokenShop_SoulDisk_StoneWind_Spare": {
-                            "enabled": false
+                        "TokenShop_SoulDisk_PassMust": {
+                            "enabled": true
                         }
                     }
                 }
@@ -10290,11 +10624,13 @@
                 {
                     "name": "Yes",
                     "pipeline_override": {
-                        "TokenShop_SoulDisk_StoneLight_Must": {
-                            "enabled": true
+                        "TokenShop_SoulDisk_InShop": {
+                            "attach": {
+                                "TokenShop_SoulDisk_StoneLight": "must"
+                            }
                         },
-                        "TokenShop_SoulDisk_StoneLight_Spare": {
-                            "enabled": false
+                        "TokenShop_SoulDisk_PassMust": {
+                            "enabled": true
                         }
                     }
                 }
@@ -10311,11 +10647,13 @@
                 {
                     "name": "Yes",
                     "pipeline_override": {
-                        "TokenShop_SoulDisk_StoneDark_Must": {
-                            "enabled": true
+                        "TokenShop_SoulDisk_InShop": {
+                            "attach": {
+                                "TokenShop_SoulDisk_StoneDark": "must"
+                            }
                         },
-                        "TokenShop_SoulDisk_StoneDark_Spare": {
-                            "enabled": false
+                        "TokenShop_SoulDisk_PassMust": {
+                            "enabled": true
                         }
                     }
                 }
@@ -10332,11 +10670,13 @@
                 {
                     "name": "Yes",
                     "pipeline_override": {
-                        "TokenShop_SoulDisk_RefinePowder_Must": {
-                            "enabled": true
+                        "TokenShop_SoulDisk_InShop": {
+                            "attach": {
+                                "TokenShop_SoulDisk_RefinePowder": "must"
+                            }
                         },
-                        "TokenShop_SoulDisk_RefinePowder_Spare": {
-                            "enabled": false
+                        "TokenShop_SoulDisk_PassMust": {
+                            "enabled": true
                         }
                     }
                 }
@@ -10353,11 +10693,13 @@
                 {
                     "name": "Yes",
                     "pipeline_override": {
-                        "TokenShop_SoulDisk_ContractHigh_Must": {
-                            "enabled": true
+                        "TokenShop_SoulDisk_InShop": {
+                            "attach": {
+                                "TokenShop_SoulDisk_ContractHigh": "must"
+                            }
                         },
-                        "TokenShop_SoulDisk_ContractHigh_Spare": {
-                            "enabled": false
+                        "TokenShop_SoulDisk_PassMust": {
+                            "enabled": true
                         }
                     }
                 }
@@ -10366,7 +10708,7 @@
         "代币商店-魂之盘-商品": {
             "type": "checkbox",
             "label": "魂之盘 · 要买的商品",
-            "description": "要把当期全部打完才换得完。<br><small>繁体客户端里这家店叫「死魂之盤」。</small><br><b>勾上＝要买</b>，没勾的不买；圈号是清单顺序。<br>勾上之后，下面会多出它的开关：<br>• <b>Yes ＝ 必买</b>：不看保留量，买得起就买。<br>• <b>No ＝ 有余才买</b>：只在买完后余额仍不低于保留量时才买。<br><small>先按圈号买完必买的，再按圈号买有余才买的。</small>",
+            "description": "要把当期全部打完才换得完。<br><small>繁体客户端里这家店叫「死魂之盤」。</small><br><b>勾上＝要买</b>，没勾的不买；圈号是清单顺序。<br>勾上之后，下面会多出它的开关：<br>• <b>Yes ＝ 必买</b>：不看保留量，买得起就买。<br>• <b>No ＝ 有余才买</b>：只在买完后余额仍不低于保留量时才买。<br><small>先按圈号买完必买的，再按圈号买有余才买的；每一件都从店的顶部找起。</small>",
             "default_case": [
                 "女神之泪",
                 "顶级招募契约书",
@@ -10384,7 +10726,12 @@
                     "name": "女神之泪",
                     "label": "女神之泪 ①",
                     "pipeline_override": {
-                        "TokenShop_SoulDisk_GoddessTear_Spare": {
+                        "TokenShop_SoulDisk_InShop": {
+                            "attach": {
+                                "TokenShop_SoulDisk_GoddessTear": "spare"
+                            }
+                        },
+                        "TokenShop_SoulDisk_PassSpare": {
                             "enabled": true
                         }
                     },
@@ -10396,7 +10743,12 @@
                     "name": "顶级招募契约书",
                     "label": "顶级招募契约书 ②",
                     "pipeline_override": {
-                        "TokenShop_SoulDisk_ContractTop_Spare": {
+                        "TokenShop_SoulDisk_InShop": {
+                            "attach": {
+                                "TokenShop_SoulDisk_ContractTop": "spare"
+                            }
+                        },
+                        "TokenShop_SoulDisk_PassSpare": {
                             "enabled": true
                         }
                     },
@@ -10408,7 +10760,12 @@
                     "name": "金币",
                     "label": "金币 ③",
                     "pipeline_override": {
-                        "TokenShop_SoulDisk_Gold_Spare": {
+                        "TokenShop_SoulDisk_InShop": {
+                            "attach": {
+                                "TokenShop_SoulDisk_Gold": "spare"
+                            }
+                        },
+                        "TokenShop_SoulDisk_PassSpare": {
                             "enabled": true
                         }
                     },
@@ -10420,7 +10777,12 @@
                     "name": "火圣石",
                     "label": "火圣石 ④",
                     "pipeline_override": {
-                        "TokenShop_SoulDisk_StoneFire_Spare": {
+                        "TokenShop_SoulDisk_InShop": {
+                            "attach": {
+                                "TokenShop_SoulDisk_StoneFire": "spare"
+                            }
+                        },
+                        "TokenShop_SoulDisk_PassSpare": {
                             "enabled": true
                         }
                     },
@@ -10432,7 +10794,12 @@
                     "name": "水圣石",
                     "label": "水圣石 ⑤",
                     "pipeline_override": {
-                        "TokenShop_SoulDisk_StoneWater_Spare": {
+                        "TokenShop_SoulDisk_InShop": {
+                            "attach": {
+                                "TokenShop_SoulDisk_StoneWater": "spare"
+                            }
+                        },
+                        "TokenShop_SoulDisk_PassSpare": {
                             "enabled": true
                         }
                     },
@@ -10444,7 +10811,12 @@
                     "name": "风圣石",
                     "label": "风圣石 ⑥",
                     "pipeline_override": {
-                        "TokenShop_SoulDisk_StoneWind_Spare": {
+                        "TokenShop_SoulDisk_InShop": {
+                            "attach": {
+                                "TokenShop_SoulDisk_StoneWind": "spare"
+                            }
+                        },
+                        "TokenShop_SoulDisk_PassSpare": {
                             "enabled": true
                         }
                     },
@@ -10456,7 +10828,12 @@
                     "name": "光明圣石",
                     "label": "光明圣石 ⑦",
                     "pipeline_override": {
-                        "TokenShop_SoulDisk_StoneLight_Spare": {
+                        "TokenShop_SoulDisk_InShop": {
+                            "attach": {
+                                "TokenShop_SoulDisk_StoneLight": "spare"
+                            }
+                        },
+                        "TokenShop_SoulDisk_PassSpare": {
                             "enabled": true
                         }
                     },
@@ -10468,7 +10845,12 @@
                     "name": "黑暗圣石",
                     "label": "黑暗圣石 ⑧",
                     "pipeline_override": {
-                        "TokenShop_SoulDisk_StoneDark_Spare": {
+                        "TokenShop_SoulDisk_InShop": {
+                            "attach": {
+                                "TokenShop_SoulDisk_StoneDark": "spare"
+                            }
+                        },
+                        "TokenShop_SoulDisk_PassSpare": {
                             "enabled": true
                         }
                     },
@@ -10480,7 +10862,12 @@
                     "name": "精炼粉末",
                     "label": "精炼粉末 ⑨",
                     "pipeline_override": {
-                        "TokenShop_SoulDisk_RefinePowder_Spare": {
+                        "TokenShop_SoulDisk_InShop": {
+                            "attach": {
+                                "TokenShop_SoulDisk_RefinePowder": "spare"
+                            }
+                        },
+                        "TokenShop_SoulDisk_PassSpare": {
                             "enabled": true
                         }
                     },
@@ -10492,7 +10879,12 @@
                     "name": "高级招募契约书",
                     "label": "高级招募契约书 ⑩",
                     "pipeline_override": {
-                        "TokenShop_SoulDisk_ContractHigh_Spare": {
+                        "TokenShop_SoulDisk_InShop": {
+                            "attach": {
+                                "TokenShop_SoulDisk_ContractHigh": "spare"
+                            }
+                        },
+                        "TokenShop_SoulDisk_PassSpare": {
                             "enabled": true
                         }
                     },

@@ -39,7 +39,7 @@
             18
         ]
     },
-    "Sub_TokenShop_LimitPrice_Ocr": {
+    "Sub_TokenShop_PriceOrDone_Ocr": {
         "roi_offset": [
             -4,
             12,
@@ -211,6 +211,30 @@
             18
         ]
     },
+    "TokenShop_GoldThread_Rewind": {
+        "target": [
+            162,
+            140,
+            54,
+            13
+        ]
+    },
+    "TokenShop_GoldThread_RewindBack": {
+        "target": [
+            161,
+            90,
+            44,
+            18
+        ]
+    },
+    "Rec_<TokenShop_GoldThread_AtTop>_Ocr": {
+        "roi": [
+            490,
+            66,
+            700,
+            150
+        ]
+    },
     "Rec_<TokenShop_HopePowder_InShop>_Ocr": {
         "roi": [
             150,
@@ -225,6 +249,30 @@
             140,
             54,
             13
+        ]
+    },
+    "TokenShop_HopePowder_Rewind": {
+        "target": [
+            161,
+            90,
+            44,
+            18
+        ]
+    },
+    "TokenShop_HopePowder_RewindBack": {
+        "target": [
+            162,
+            140,
+            54,
+            13
+        ]
+    },
+    "Rec_<TokenShop_HopePowder_AtTop>_Ocr": {
+        "roi": [
+            490,
+            66,
+            700,
+            150
         ]
     },
     "Rec_<TokenShop_RefineTrace_InShop>_Ocr": {
@@ -243,6 +291,30 @@
             14
         ]
     },
+    "TokenShop_RefineTrace_Rewind": {
+        "target": [
+            161,
+            90,
+            44,
+            18
+        ]
+    },
+    "TokenShop_RefineTrace_RewindBack": {
+        "target": [
+            164,
+            191,
+            52,
+            14
+        ]
+    },
+    "Rec_<TokenShop_RefineTrace_AtTop>_Ocr": {
+        "roi": [
+            490,
+            66,
+            700,
+            150
+        ]
+    },
     "Rec_<TokenShop_MirrorWar_InShop>_Ocr": {
         "roi": [
             149,
@@ -257,6 +329,30 @@
             90,
             81,
             14
+        ]
+    },
+    "TokenShop_MirrorWar_Rewind": {
+        "target": [
+            164,
+            138,
+            65,
+            14
+        ]
+    },
+    "TokenShop_MirrorWar_RewindBack": {
+        "target": [
+            161,
+            90,
+            81,
+            14
+        ]
+    },
+    "Rec_<TokenShop_MirrorWar_AtTop>_Ocr": {
+        "roi": [
+            490,
+            66,
+            700,
+            150
         ]
     },
     "Rec_<TokenShop_EvilCastle_InShop>_Ocr": {
@@ -275,6 +371,30 @@
             14
         ]
     },
+    "TokenShop_EvilCastle_Rewind": {
+        "target": [
+            161,
+            90,
+            81,
+            14
+        ]
+    },
+    "TokenShop_EvilCastle_RewindBack": {
+        "target": [
+            164,
+            138,
+            65,
+            14
+        ]
+    },
+    "Rec_<TokenShop_EvilCastle_AtTop>_Ocr": {
+        "roi": [
+            490,
+            66,
+            700,
+            150
+        ]
+    },
     "Rec_<TokenShop_Guild_InShop>_Ocr": {
         "roi": [
             150,
@@ -289,6 +409,30 @@
             185,
             54,
             14
+        ]
+    },
+    "TokenShop_Guild_Rewind": {
+        "target": [
+            161,
+            90,
+            81,
+            14
+        ]
+    },
+    "TokenShop_Guild_RewindBack": {
+        "target": [
+            162,
+            185,
+            54,
+            14
+        ]
+    },
+    "Rec_<TokenShop_Guild_AtTop>_Ocr": {
+        "roi": [
+            490,
+            66,
+            700,
+            150
         ]
     },
     "Rec_<TokenShop_GoldArena_InShop>_Ocr": {
@@ -307,6 +451,30 @@
             15
         ]
     },
+    "TokenShop_GoldArena_Rewind": {
+        "target": [
+            161,
+            90,
+            81,
+            14
+        ]
+    },
+    "TokenShop_GoldArena_RewindBack": {
+        "target": [
+            165,
+            232,
+            91,
+            15
+        ]
+    },
+    "Rec_<TokenShop_GoldArena_AtTop>_Ocr": {
+        "roi": [
+            490,
+            66,
+            700,
+            150
+        ]
+    },
     "Rec_<TokenShop_Fishing_InShop>_Ocr": {
         "roi": [
             148,
@@ -323,6 +491,30 @@
             19
         ]
     },
+    "TokenShop_Fishing_Rewind": {
+        "target": [
+            161,
+            90,
+            81,
+            14
+        ]
+    },
+    "TokenShop_Fishing_RewindBack": {
+        "target": [
+            160,
+            276,
+            57,
+            19
+        ]
+    },
+    "Rec_<TokenShop_Fishing_AtTop>_Ocr": {
+        "roi": [
+            490,
+            66,
+            700,
+            150
+        ]
+    },
     "Rec_<TokenShop_SoulDisk_InShop>_Ocr": {
         "roi": [
             146,
@@ -337,6 +529,46 @@
             321,
             86,
             21
+        ]
+    },
+    "TokenShop_SoulDisk_Rewind": {
+        "target": [
+            161,
+            90,
+            81,
+            14
+        ]
+    },
+    "TokenShop_SoulDisk_RewindBack": {
+        "target": [
+            158,
+            321,
+            86,
+            21
+        ]
+    },
+    "Rec_<TokenShop_SoulDisk_AtTop>_Ocr": {
+        "roi": [
+            490,
+            66,
+            700,
+            150
+        ]
+    },
+    "Rec_TokenShop_PopupName_Clr": {
+        "roi": [
+            318,
+            212,
+            330,
+            48
+        ]
+    },
+    "TokenShop_Buy_WrongItem": {
+        "target": [
+            934,
+            203,
+            24,
+            24
         ]
     }
 }
