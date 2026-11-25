@@ -378,7 +378,7 @@
                 "PC客户端(Cursor)",
                 "PlayCover"
             ],
-            "description": "<b>把攒下的代币按清单换成东西。</b>进主页面商店的九家代币商店与赛季活动的上期商店，逐件按顺序购买；清单里没有的商品不会碰，也不买用钻石计价的东西。<br><br><b>每件商品分两档：</b><br>• <b>必买</b>：买得起就买。<br>• <b>有余才买</b>：给代币留够保留量之后，多出来的才拿去买。<br><br><b>什么时候换：</b><br>• 主页面商店：留到月末前最后几天。<br>• 赛季活动的上期商店：代币不会再增加，见到就换；换完会把主页的赛季入口切回当期。<br><span style=\"background-color:rgba(255,160,0,0.2)\"><b>注意：</b>上期商店随当期赛季一起结束，过期后代币作废。</span><br><small>赛季活动当期、限时服装的提醒，后续版本加入。</small>",
+            "description": "<b>把攒下的代币按清单换成东西。</b>进主页面商店的九家代币商店与赛季活动商店（当期、上期），逐件按顺序购买；清单里没有的商品不会碰，也不买用钻石计价的东西。<br><br><b>每件商品分两档：</b><br>• <b>必买</b>：买得起就买。<br>• <b>有余才买</b>：给代币留够保留量之后，多出来的才拿去买。<br><br><b>什么时候换：</b><br>• 主页面商店：留到月末前最后几天。<br>• 赛季活动的上期商店：代币不会再增加，见到就换；换完会把主页的赛季入口切回当期。<br>• 赛季活动的当期商店：当期最后 3 天里每天进去，只买「当期就买」的商品。<br><span style=\"background-color:rgba(255,160,0,0.2)\"><b>注意：</b>上期商店随当期赛季一起结束，过期后代币作废。</span><br><small>限时服装的提醒，后续版本加入。</small>",
             "option": [
                 "代币商店-要换的商店",
                 "代币商店-月末几天"
@@ -8177,10 +8177,402 @@
                 }
             ]
         },
+        "代币商店-赛季活动-哪一期": {
+            "type": "checkbox",
+            "label": "赛季活动 · 哪一期",
+            "description": "主页右侧的赛季横幅横滑可在当期、上期之间切换，两期是同一家店的前后半段。<br>• <b>上期</b>：代币不会再涨，见到就换；勾上的商品都买，买不起的跳过。<br>• <b>当期</b>：只在当期最后 3 天（横幅写着 D-2、D-1、D-day）进去，只买开了「当期就买」的商品；买不起排在前面的就停下，等明天。",
+            "default_case": [
+                "上期"
+            ],
+            "cases": [
+                {
+                    "name": "上期",
+                    "label": "上期（见到就换）",
+                    "pipeline_override": {
+                        "TokenShop_EventPast_Hub": {
+                            "enabled": true
+                        }
+                    }
+                },
+                {
+                    "name": "当期",
+                    "label": "当期（最后 3 天）",
+                    "pipeline_override": {
+                        "TokenShop_EventNow_Hub": {
+                            "enabled": true
+                        }
+                    }
+                }
+            ]
+        },
+        "代币商店-赛季活动-狂暴火种-当期就买": {
+            "type": "switch",
+            "label": "狂暴火种 · 当期就买",
+            "default_case": "Yes",
+            "cases": [
+                {
+                    "name": "No"
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "Agt_TokenShop_Event_Tiers": {
+                            "attach": {
+                                "TokenShop_Event_FireSeed": "must"
+                            }
+                        },
+                        "TokenShop_EventPast_PassMust": {
+                            "enabled": true
+                        },
+                        "TokenShop_EventNow_PassMust": {
+                            "enabled": true
+                        }
+                    }
+                }
+            ]
+        },
+        "代币商店-赛季活动-远古水晶-当期就买": {
+            "type": "switch",
+            "label": "远古水晶 · 当期就买",
+            "default_case": "Yes",
+            "cases": [
+                {
+                    "name": "No"
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "Agt_TokenShop_Event_Tiers": {
+                            "attach": {
+                                "TokenShop_Event_AncientCrystal": "must"
+                            }
+                        },
+                        "TokenShop_EventPast_PassMust": {
+                            "enabled": true
+                        },
+                        "TokenShop_EventNow_PassMust": {
+                            "enabled": true
+                        }
+                    }
+                }
+            ]
+        },
+        "代币商店-赛季活动-抽抽乐券-当期就买": {
+            "type": "switch",
+            "label": "抽抽乐券 · 当期就买",
+            "default_case": "Yes",
+            "cases": [
+                {
+                    "name": "No"
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "Agt_TokenShop_Event_Tiers": {
+                            "attach": {
+                                "TokenShop_Event_GachaTicket": "must"
+                            }
+                        },
+                        "TokenShop_EventPast_PassMust": {
+                            "enabled": true
+                        },
+                        "TokenShop_EventNow_PassMust": {
+                            "enabled": true
+                        }
+                    }
+                }
+            ]
+        },
+        "代币商店-赛季活动-女神之泪 1000-当期就买": {
+            "type": "switch",
+            "label": "女神之泪 1000 · 当期就买",
+            "default_case": "Yes",
+            "cases": [
+                {
+                    "name": "No"
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "Agt_TokenShop_Event_Tiers": {
+                            "attach": {
+                                "TokenShop_Event_GoddessTear1000": "must"
+                            }
+                        },
+                        "TokenShop_EventPast_PassMust": {
+                            "enabled": true
+                        },
+                        "TokenShop_EventNow_PassMust": {
+                            "enabled": true
+                        }
+                    }
+                }
+            ]
+        },
+        "代币商店-赛季活动-女神之泪 2000-当期就买": {
+            "type": "switch",
+            "label": "女神之泪 2000 · 当期就买",
+            "default_case": "Yes",
+            "cases": [
+                {
+                    "name": "No"
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "Agt_TokenShop_Event_Tiers": {
+                            "attach": {
+                                "TokenShop_Event_GoddessTear2000": "must"
+                            }
+                        },
+                        "TokenShop_EventPast_PassMust": {
+                            "enabled": true
+                        },
+                        "TokenShop_EventNow_PassMust": {
+                            "enabled": true
+                        }
+                    }
+                }
+            ]
+        },
+        "代币商店-赛季活动-女神之泪 3000-当期就买": {
+            "type": "switch",
+            "label": "女神之泪 3000 · 当期就买",
+            "default_case": "Yes",
+            "cases": [
+                {
+                    "name": "No"
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "Agt_TokenShop_Event_Tiers": {
+                            "attach": {
+                                "TokenShop_Event_GoddessTear3000": "must"
+                            }
+                        },
+                        "TokenShop_EventPast_PassMust": {
+                            "enabled": true
+                        },
+                        "TokenShop_EventNow_PassMust": {
+                            "enabled": true
+                        }
+                    }
+                }
+            ]
+        },
+        "代币商店-赛季活动-精炼水晶-当期就买": {
+            "type": "switch",
+            "label": "精炼水晶 · 当期就买",
+            "default_case": "No",
+            "cases": [
+                {
+                    "name": "No"
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "Agt_TokenShop_Event_Tiers": {
+                            "attach": {
+                                "TokenShop_Event_RefineCrystal": "must"
+                            }
+                        },
+                        "TokenShop_EventPast_PassMust": {
+                            "enabled": true
+                        },
+                        "TokenShop_EventNow_PassMust": {
+                            "enabled": true
+                        }
+                    }
+                }
+            ]
+        },
+        "代币商店-赛季活动-力量精髓-当期就买": {
+            "type": "switch",
+            "label": "力量精髓 · 当期就买",
+            "default_case": "No",
+            "cases": [
+                {
+                    "name": "No"
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "Agt_TokenShop_Event_Tiers": {
+                            "attach": {
+                                "TokenShop_Event_EssencePower": "must"
+                            }
+                        },
+                        "TokenShop_EventPast_PassMust": {
+                            "enabled": true
+                        },
+                        "TokenShop_EventNow_PassMust": {
+                            "enabled": true
+                        }
+                    }
+                }
+            ]
+        },
+        "代币商店-赛季活动-生命精髓-当期就买": {
+            "type": "switch",
+            "label": "生命精髓 · 当期就买",
+            "default_case": "No",
+            "cases": [
+                {
+                    "name": "No"
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "Agt_TokenShop_Event_Tiers": {
+                            "attach": {
+                                "TokenShop_Event_EssenceLife": "must"
+                            }
+                        },
+                        "TokenShop_EventPast_PassMust": {
+                            "enabled": true
+                        },
+                        "TokenShop_EventNow_PassMust": {
+                            "enabled": true
+                        }
+                    }
+                }
+            ]
+        },
+        "代币商店-赛季活动-忍耐精髓-当期就买": {
+            "type": "switch",
+            "label": "忍耐精髓 · 当期就买",
+            "default_case": "No",
+            "cases": [
+                {
+                    "name": "No"
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "Agt_TokenShop_Event_Tiers": {
+                            "attach": {
+                                "TokenShop_Event_EssenceEndure": "must"
+                            }
+                        },
+                        "TokenShop_EventPast_PassMust": {
+                            "enabled": true
+                        },
+                        "TokenShop_EventNow_PassMust": {
+                            "enabled": true
+                        }
+                    }
+                }
+            ]
+        },
+        "代币商店-赛季活动-天赋神药-当期就买": {
+            "type": "switch",
+            "label": "天赋神药 · 当期就买",
+            "default_case": "No",
+            "cases": [
+                {
+                    "name": "No"
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "Agt_TokenShop_Event_Tiers": {
+                            "attach": {
+                                "TokenShop_Event_TalentElixir": "must"
+                            }
+                        },
+                        "TokenShop_EventPast_PassMust": {
+                            "enabled": true
+                        },
+                        "TokenShop_EventNow_PassMust": {
+                            "enabled": true
+                        }
+                    }
+                }
+            ]
+        },
+        "代币商店-赛季活动-金币 10万-当期就买": {
+            "type": "switch",
+            "label": "金币 10万 · 当期就买",
+            "default_case": "No",
+            "cases": [
+                {
+                    "name": "No"
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "Agt_TokenShop_Event_Tiers": {
+                            "attach": {
+                                "TokenShop_Event_Gold100k": "must"
+                            }
+                        },
+                        "TokenShop_EventPast_PassMust": {
+                            "enabled": true
+                        },
+                        "TokenShop_EventNow_PassMust": {
+                            "enabled": true
+                        }
+                    }
+                }
+            ]
+        },
+        "代币商店-赛季活动-红色史莱姆-当期就买": {
+            "type": "switch",
+            "label": "红色史莱姆 · 当期就买",
+            "default_case": "No",
+            "cases": [
+                {
+                    "name": "No"
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "Agt_TokenShop_Event_Tiers": {
+                            "attach": {
+                                "TokenShop_Event_RedSlime": "must"
+                            }
+                        },
+                        "TokenShop_EventPast_PassMust": {
+                            "enabled": true
+                        },
+                        "TokenShop_EventNow_PassMust": {
+                            "enabled": true
+                        }
+                    }
+                }
+            ]
+        },
+        "代币商店-赛季活动-4★升星之星-当期就买": {
+            "type": "switch",
+            "label": "4★升星之星 · 当期就买",
+            "default_case": "No",
+            "cases": [
+                {
+                    "name": "No"
+                },
+                {
+                    "name": "Yes",
+                    "pipeline_override": {
+                        "Agt_TokenShop_Event_Tiers": {
+                            "attach": {
+                                "TokenShop_Event_Star4": "must"
+                            }
+                        },
+                        "TokenShop_EventPast_PassMust": {
+                            "enabled": true
+                        },
+                        "TokenShop_EventNow_PassMust": {
+                            "enabled": true
+                        }
+                    }
+                }
+            ]
+        },
         "代币商店-赛季活动-商品": {
             "type": "checkbox",
             "label": "赛季活动 · 要买的商品",
-            "description": "免费货币，换完为止。<br><b>勾上＝要买</b>，圈号是购买顺序；没勾的不买。<br>每件都按「限购剩余」与「代币够买几个」里小的那个数买；买不起的跳过，接着买后面的。",
+            "description": "免费货币，换完为止。<br><b>勾上＝要买</b>，没勾的不买；圈号是购买顺序。<br>勾上之后，下面会多出它的开关：<br>• <b>Yes ＝ 当期就买</b>：当期最后 3 天里就买（完成消费任务）；当期没买完的，上期先补。<br>• <b>No ＝ 上期才买</b>：等退到上期、代币不再涨了再买。<br><small>每件都按「限购剩余」与「代币够买几个」里小的那个数买。</small>",
             "default_case": [
                 "狂暴火种",
                 "远古水晶",
@@ -8202,134 +8594,246 @@
                     "name": "狂暴火种",
                     "label": "狂暴火种 ①",
                     "pipeline_override": {
-                        "TokenShop_EventPast_FireSeed": {
+                        "Agt_TokenShop_Event_Tiers": {
+                            "attach": {
+                                "TokenShop_Event_FireSeed": "spare"
+                            }
+                        },
+                        "TokenShop_EventPast_PassSpare": {
                             "enabled": true
                         }
-                    }
+                    },
+                    "option": [
+                        "代币商店-赛季活动-狂暴火种-当期就买"
+                    ]
                 },
                 {
                     "name": "远古水晶",
                     "label": "远古水晶 ②",
                     "pipeline_override": {
-                        "TokenShop_EventPast_AncientCrystal": {
+                        "Agt_TokenShop_Event_Tiers": {
+                            "attach": {
+                                "TokenShop_Event_AncientCrystal": "spare"
+                            }
+                        },
+                        "TokenShop_EventPast_PassSpare": {
                             "enabled": true
                         }
-                    }
+                    },
+                    "option": [
+                        "代币商店-赛季活动-远古水晶-当期就买"
+                    ]
                 },
                 {
                     "name": "抽抽乐券",
                     "label": "抽抽乐券 ③",
                     "pipeline_override": {
-                        "TokenShop_EventPast_GachaTicket": {
+                        "Agt_TokenShop_Event_Tiers": {
+                            "attach": {
+                                "TokenShop_Event_GachaTicket": "spare"
+                            }
+                        },
+                        "TokenShop_EventPast_PassSpare": {
                             "enabled": true
                         }
-                    }
+                    },
+                    "option": [
+                        "代币商店-赛季活动-抽抽乐券-当期就买"
+                    ]
                 },
                 {
                     "name": "女神之泪 1000",
                     "label": "女神之泪 1000 ④",
                     "pipeline_override": {
-                        "TokenShop_EventPast_GoddessTear1000": {
+                        "Agt_TokenShop_Event_Tiers": {
+                            "attach": {
+                                "TokenShop_Event_GoddessTear1000": "spare"
+                            }
+                        },
+                        "TokenShop_EventPast_PassSpare": {
                             "enabled": true
                         }
-                    }
+                    },
+                    "option": [
+                        "代币商店-赛季活动-女神之泪 1000-当期就买"
+                    ]
                 },
                 {
                     "name": "女神之泪 2000",
                     "label": "女神之泪 2000 ⑤",
                     "pipeline_override": {
-                        "TokenShop_EventPast_GoddessTear2000": {
+                        "Agt_TokenShop_Event_Tiers": {
+                            "attach": {
+                                "TokenShop_Event_GoddessTear2000": "spare"
+                            }
+                        },
+                        "TokenShop_EventPast_PassSpare": {
                             "enabled": true
                         }
-                    }
+                    },
+                    "option": [
+                        "代币商店-赛季活动-女神之泪 2000-当期就买"
+                    ]
                 },
                 {
                     "name": "女神之泪 3000",
                     "label": "女神之泪 3000 ⑥",
                     "pipeline_override": {
-                        "TokenShop_EventPast_GoddessTear3000": {
+                        "Agt_TokenShop_Event_Tiers": {
+                            "attach": {
+                                "TokenShop_Event_GoddessTear3000": "spare"
+                            }
+                        },
+                        "TokenShop_EventPast_PassSpare": {
                             "enabled": true
                         }
-                    }
+                    },
+                    "option": [
+                        "代币商店-赛季活动-女神之泪 3000-当期就买"
+                    ]
                 },
                 {
                     "name": "精炼水晶",
                     "label": "精炼水晶 ⑦",
                     "pipeline_override": {
-                        "TokenShop_EventPast_RefineCrystal": {
+                        "Agt_TokenShop_Event_Tiers": {
+                            "attach": {
+                                "TokenShop_Event_RefineCrystal": "spare"
+                            }
+                        },
+                        "TokenShop_EventPast_PassSpare": {
                             "enabled": true
                         }
-                    }
+                    },
+                    "option": [
+                        "代币商店-赛季活动-精炼水晶-当期就买"
+                    ]
                 },
                 {
                     "name": "力量精髓",
                     "label": "力量精髓 ⑧",
                     "pipeline_override": {
-                        "TokenShop_EventPast_EssencePower": {
+                        "Agt_TokenShop_Event_Tiers": {
+                            "attach": {
+                                "TokenShop_Event_EssencePower": "spare"
+                            }
+                        },
+                        "TokenShop_EventPast_PassSpare": {
                             "enabled": true
                         }
-                    }
+                    },
+                    "option": [
+                        "代币商店-赛季活动-力量精髓-当期就买"
+                    ]
                 },
                 {
                     "name": "生命精髓",
                     "label": "生命精髓 ⑨",
                     "pipeline_override": {
-                        "TokenShop_EventPast_EssenceLife": {
+                        "Agt_TokenShop_Event_Tiers": {
+                            "attach": {
+                                "TokenShop_Event_EssenceLife": "spare"
+                            }
+                        },
+                        "TokenShop_EventPast_PassSpare": {
                             "enabled": true
                         }
-                    }
+                    },
+                    "option": [
+                        "代币商店-赛季活动-生命精髓-当期就买"
+                    ]
                 },
                 {
                     "name": "忍耐精髓",
                     "label": "忍耐精髓 ⑩",
                     "pipeline_override": {
-                        "TokenShop_EventPast_EssenceEndure": {
+                        "Agt_TokenShop_Event_Tiers": {
+                            "attach": {
+                                "TokenShop_Event_EssenceEndure": "spare"
+                            }
+                        },
+                        "TokenShop_EventPast_PassSpare": {
                             "enabled": true
                         }
-                    }
+                    },
+                    "option": [
+                        "代币商店-赛季活动-忍耐精髓-当期就买"
+                    ]
                 },
                 {
                     "name": "天赋神药",
                     "label": "天赋神药 ⑪",
                     "pipeline_override": {
-                        "TokenShop_EventPast_TalentElixir": {
+                        "Agt_TokenShop_Event_Tiers": {
+                            "attach": {
+                                "TokenShop_Event_TalentElixir": "spare"
+                            }
+                        },
+                        "TokenShop_EventPast_PassSpare": {
                             "enabled": true
                         }
-                    }
+                    },
+                    "option": [
+                        "代币商店-赛季活动-天赋神药-当期就买"
+                    ]
                 },
                 {
                     "name": "金币 10万",
                     "label": "金币 10万 ⑫",
                     "pipeline_override": {
-                        "TokenShop_EventPast_Gold100k": {
+                        "Agt_TokenShop_Event_Tiers": {
+                            "attach": {
+                                "TokenShop_Event_Gold100k": "spare"
+                            }
+                        },
+                        "TokenShop_EventPast_PassSpare": {
                             "enabled": true
                         }
-                    }
+                    },
+                    "option": [
+                        "代币商店-赛季活动-金币 10万-当期就买"
+                    ]
                 },
                 {
                     "name": "红色史莱姆",
                     "label": "红色史莱姆 ⑬",
                     "pipeline_override": {
-                        "TokenShop_EventPast_RedSlime": {
+                        "Agt_TokenShop_Event_Tiers": {
+                            "attach": {
+                                "TokenShop_Event_RedSlime": "spare"
+                            }
+                        },
+                        "TokenShop_EventPast_PassSpare": {
                             "enabled": true
                         }
-                    }
+                    },
+                    "option": [
+                        "代币商店-赛季活动-红色史莱姆-当期就买"
+                    ]
                 },
                 {
                     "name": "4★升星之星",
                     "label": "4★升星之星 ⑭",
                     "pipeline_override": {
-                        "TokenShop_EventPast_Star4": {
+                        "Agt_TokenShop_Event_Tiers": {
+                            "attach": {
+                                "TokenShop_Event_Star4": "spare"
+                            }
+                        },
+                        "TokenShop_EventPast_PassSpare": {
                             "enabled": true
                         }
-                    }
+                    },
+                    "option": [
+                        "代币商店-赛季活动-4★升星之星-当期就买"
+                    ]
                 }
             ]
         },
         "代币商店-赛季活动-清空零头": {
             "type": "switch",
-            "label": "最后用刻印咒语书清空零头",
-            "description": "上期商店里，前面勾选的都轮过了还有代币，就全换成刻印咒语书（无限购，5 代币一个）。",
+            "label": "上期最后用刻印咒语书清空零头",
+            "description": "上期商店里，前面勾选的都轮过了还有代币，就全换成刻印咒语书（无限购，5 代币一个）。当期不买它。",
             "default_case": "Yes",
             "cases": [
                 {
@@ -8338,7 +8842,12 @@
                 {
                     "name": "Yes",
                     "pipeline_override": {
-                        "TokenShop_EventPast_SealBook": {
+                        "Agt_TokenShop_Event_Tiers": {
+                            "attach": {
+                                "TokenShop_Event_SealBook": "spare"
+                            }
+                        },
+                        "TokenShop_EventPast_PassSpare": {
                             "enabled": true
                         }
                     }
@@ -10919,19 +11428,15 @@
         "代币商店-要换的商店": {
             "type": "checkbox",
             "label": "要换的商店",
-            "description": "勾选的商店会进去按各自的清单换代币，没勾的不进。<br>勾上之后，下面会展开这家店的清单与保留量。<br><small>「赛季活动（上期）」是赛季活动入口横滑过去的那一期；其余九家在主页底栏「商店」里的「点数」「玩法商店」下面。</small>",
+            "description": "勾选的商店会进去按各自的清单换代币，没勾的不进。<br>勾上之后，下面会展开这家店的清单与保留量。<br><small>「赛季活动」是主页右侧赛季横幅里的活动商店（当期、上期两期，下面再选）；其余九家在主页底栏「商店」里的「点数」「玩法商店」下面。</small>",
             "default_case": [
-                "赛季活动（上期）"
+                "赛季活动"
             ],
             "cases": [
                 {
-                    "name": "赛季活动（上期）",
-                    "pipeline_override": {
-                        "TokenShop_EventPast_Hub": {
-                            "enabled": true
-                        }
-                    },
+                    "name": "赛季活动",
                     "option": [
+                        "代币商店-赛季活动-哪一期",
                         "代币商店-赛季活动-商品",
                         "代币商店-赛季活动-清空零头"
                     ]
@@ -11076,7 +11581,7 @@
         "代币商店-月末几天": {
             "type": "select",
             "label": "主页面商店：月末前几天开始换",
-            "description": "代币整个月都在涨，留到月末换买得最多，平时不进店。<br>到了这几天，<b>每次运行都会进店</b>按顺序买；买不起排在前面的就停下，等下次再试。<br><small>镜中之战、黄金竞技场这类按周结算发币的店也按月末算：限购是按月的，最后几天每天进去，最后一次结算发的代币赶得上。魂之盘也按月末算。赛季活动的上期商店不看这一项，见到就换。</small>",
+            "description": "代币整个月都在涨，留到月末换买得最多，平时不进店。<br>到了这几天，<b>每次运行都会进店</b>按顺序买；买不起排在前面的就停下，等下次再试。<br><small>镜中之战、黄金竞技场这类按周结算发币的店也按月末算：限购是按月的，最后几天每天进去，最后一次结算发的代币赶得上。魂之盘也按月末算。赛季活动不看这一项：上期见到就换，当期看横幅上的天数。</small>",
             "default_case": "5 天",
             "cases": [
                 {

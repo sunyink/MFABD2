@@ -15,14 +15,6 @@
             590
         ]
     },
-    "Sub_TokenShop_Price_Ocr": {
-        "roi_offset": [
-            -24,
-            45,
-            48,
-            26
-        ]
-    },
     "Sub_TokenShop_PriceFree_Ocr": {
         "roi_offset": [
             -24,
@@ -40,6 +32,14 @@
         ]
     },
     "Sub_TokenShop_PriceOrDone_Ocr": {
+        "roi_offset": [
+            -4,
+            12,
+            8,
+            22
+        ]
+    },
+    "Sub_TokenShop_ThirdDone_Ocr": {
         "roi_offset": [
             -4,
             12,
@@ -119,13 +119,43 @@
             24
         ]
     },
-    "TokenShop_EventPast_InShop": {
+    "Rec_TokenShop_BannerNowLast_Ocr": {
+        "roi": [
+            1020,
+            450,
+            180,
+            60
+        ]
+    },
+    "Rec_TokenShop_EventTitle_Ocr": {
         "roi": [
             150,
             8,
             180,
             50
         ]
+    },
+    "TokenShop_EventNow_ToShop": {
+        "roi": [
+            890,
+            612,
+            120,
+            50
+        ]
+    },
+    "TokenShop_EventPast_Empty": {
+        "roi": [
+            1110,
+            12,
+            90,
+            40
+        ]
+    },
+    "TokenShop_Event_Rewind": {
+        "enabled": false
+    },
+    "TokenShop_Event_Down": {
+        "enabled": false
     },
     "Agt_TokenShop_List_Next": {
         "begin": [
