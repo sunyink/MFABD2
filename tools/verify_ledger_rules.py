@@ -16,7 +16,7 @@ from utils import ledger_rules  # noqa: E402
 from utils.ledger_rules import ALL_SCOPES, LedgerState, decide, game_day, settings, settle  # noqa: E402
 
 QUIET = ("Env_MultiSave_Config", "StartGame_Start", "Env_Ledger_Config",
-         "Collect_StartGame_HomePage", "Arbitrage_Start", "Close_HomePage", "Ledger_Settle_Manual")
+         "Collect_StartGame_HomePage", "Arbitrage_Start", "TokenShop_Start", "Close_HomePage", "Ledger_Settle_Manual")
 FULL = list(ALL_SCOPES)
 NOON = 1_763_208_000.0   # 2025-11-15 12:00 UTC，离游戏日分界远
 
@@ -274,9 +274,125 @@ class LedgerRuleTests(unittest.TestCase):
         self.assertEqual(play.at("end", "shop")["scopes"], ["A"])
         self.assertEqual(play.daily()["scopes"], ["B", "C"])
 
+    def token_shop(self, play, bought=True):
+        """代币商店一趟：进店前的 probe，买成过才在离店后留事后的始标记。返回 (probe 的判定, 始标记的判定或 None)。"""
+        play.task("TokenShop_Start")
+        probe = play.at("probe", "exchange")
+        return probe, (play.at("begin", "exchange") if bought else None)
+
+    def test_x1_token_shop_before_arbitrage_rides_its_closing_scan(self):
+        """代币商店接入计划 §2：排在吸取与套利之间，进店前不盘、离店后不盘，套利收尾那一盘 A 与 B 一趟扫完。"""
+        play = Play()
+        play.daily()
+        play.task("Collect_StartGame_HomePage").at("begin", "collect")
+        play.at("end", "collect")
+        probe, late = self.token_shop(play)
+        shop_begin = play.task("Arbitrage_Start").at("begin", "shop")
+        shop_end = play.at("end", "shop")
+        close = play.task("Close_HomePage").at("queue_end")
+        self.assertEqual(play.scans(), [FULL, FULL, ["A"], ["A", "B"]])
+        self.assertFalse(probe["scan"] or late["scan"] or shop_begin["scan"] or close["scan"])
+        self.assertTrue(shop_end["end_mark"])
+
+    def test_x2_token_shop_that_bought_nothing_is_invisible(self):
+        play = Play()
+        play.daily()
+        play.task("Collect_StartGame_HomePage").at("begin", "collect")
+        play.at("end", "collect")
+        self.token_shop(play, bought=False)
+        play.task("Arbitrage_Start").at("begin", "shop")
+        play.at("end", "shop")
+        self.assertEqual(play.scans(), [FULL, FULL, ["A"], ["A"]])
+
+    def test_x3_daily_straight_into_token_shop_scans_before_entering(self):
+        """没排吸取：上一阶段（日常）还没收尾，进店前补盘，盘上日常与整个商店阶段要的；套利开头就不用再盘。"""
+        play = Play()
+        play.daily()
+        probe, late = self.token_shop(play)
+        shop_begin = play.task("Arbitrage_Start").at("begin", "shop")
+        play.at("end", "shop")
+        self.assertEqual(probe["scopes"], FULL)
+        self.assertFalse(late["scan"] or shop_begin["scan"])
+        self.assertEqual(play.scans(), [FULL, FULL, ["A", "B"]])
+        nothing = Play()   # 一件没买成：进店前那一盘照样是日常的期末，套利开头一盘两用
+        nothing.daily()
+        self.token_shop(nothing, bought=False)
+        self.assertFalse(nothing.task("Arbitrage_Start").at("begin", "shop")["scan"])
+        self.assertEqual(nothing.at("end", "shop")["scopes"], ["A"])
+
+    def test_x4_token_shop_first_in_run_scans_everything_before_entering(self):
+        for gap in (3.0, 600.0):
+            play = Play()
+            if gap > 60:
+                play.daily()
+                play.task("Collect_StartGame_HomePage").at("begin", "collect")
+                play.at("end", "collect")
+            play.task("TokenShop_Start", gap=gap)
+            with self.subTest(gap=gap):
+                self.assertEqual(play.at("probe", "exchange")["scopes"], FULL)
+
+    def test_x5_token_shop_after_arbitrage_is_closed_by_queue_end(self):
+        play = Play()
+        play.daily()
+        play.task("Collect_StartGame_HomePage").at("begin", "collect")
+        play.at("end", "collect")
+        play.task("Arbitrage_Start").at("begin", "shop")
+        play.at("end", "shop")
+        probe, late = self.token_shop(play)
+        close = play.task("Close_HomePage").at("queue_end")
+        self.assertFalse(probe["scan"] or late["scan"])
+        self.assertEqual(close["scopes"], ["B"])
+
+    def test_x6_arbitrage_missing_its_scope_after_exchange_scans_both(self):
+        """上一次盘点（手动结账收日常）没盘 A：套利开头连同兑换的 B 一起盘，不能只补 A 把 B 留在半路。"""
+        play = Play()
+        play.daily()
+        settle_scan = play.task("Ledger_Settle_Manual").at("manual")
+        self.token_shop(play)
+        shop_begin = play.task("Arbitrage_Start").at("begin", "shop")
+        shop_end = play.at("end", "shop")
+        self.assertEqual(settle_scan["scopes"], ["B", "C"])
+        self.assertEqual(shop_begin["scopes"], ["A", "B"])
+        self.assertEqual(shop_end["scopes"], ["A"])
+
+    def test_x7_late_begin_never_scans(self):
+        """事后留的始标记处从不盘，哪怕是本次运行头一个位置：在这里盘会把兑换算进上一段。"""
+        play = Play()
+        play.task("TokenShop_Start")
+        late = play.at("begin", "exchange")
+        self.assertFalse(late["scan"])
+        self.assertEqual([item["kind"] for item in play.state.pending], ["exchange"])
+        self.assertEqual(play.task("Close_HomePage").at("queue_end")["scopes"], FULL)
+
+    def test_x8_probe_leaves_no_activity_behind(self):
+        play = Play()
+        play.daily()
+        play.task("Collect_StartGame_HomePage").at("begin", "collect")
+        play.at("end", "collect")
+        self.token_shop(play, bought=False)
+        self.assertEqual(play.state.pending, [])
+        self.assertFalse(play.task("Close_HomePage").at("queue_end")["scan"])
+
+    def test_x9_probe_scan_after_a_close_blocks_resuming_it(self):
+        """收尾之后进店前又补盘过：那一盘更新，重跑时不能拿收尾那一盘接（这一盘不留标记，只能看盘点记录）。"""
+        def stamp(seconds):
+            return datetime.fromtimestamp(seconds, timezone.utc).isoformat()
+
+        mark = {"kind": "ledger_mark", "mark": "manual", "session": "s1", "task": {"task_id": 7}, "node": "Ledger_Manual",
+                "recorded_at": stamp(NOON)}
+        origin = {key: mark[key] for key in ("mark", "session", "task", "node")}
+        scan = {"kind": "inventory_scan", "scan_id": "x1", "scope": ["B", "C"], "termination": "section_end", "unknown": {},
+                "origin": origin, "finished_at": stamp(NOON + 70), "recorded_at": stamp(NOON + 70)}
+        probe = {"kind": "inventory_scan", "scan_id": "x2", "scope": FULL, "termination": "section_end", "unknown": {},
+                 "origin": {"mark": "probe", "type": "exchange", "session": "s2", "task": {"task_id": 1},
+                            "node": "Ledger_Probe_Exchange"}, "finished_at": stamp(NOON + 90), "recorded_at": stamp(NOON + 90)}
+        finished = frozenset({"section_end"})
+        self.assertIsNotNone(ledger_rules.resume_from([mark, scan], now=NOON + 100, gap=60, finished=finished))
+        self.assertIsNone(ledger_rules.resume_from([mark, scan, probe], now=NOON + 100, gap=60, finished=finished))
+
     def test_bad_arguments_are_rejected(self):
         state = LedgerState()
-        for mark, kind in (("begin", None), ("end", "tower"), ("queue_end", "daily"), ("pause", None)):
+        for mark, kind in (("begin", None), ("end", "tower"), ("queue_end", "daily"), ("pause", None), ("probe", None)):
             with self.assertRaises(ValueError):
                 decide(mark, kind, state, task_id=1, rows=[], now=NOON)
 

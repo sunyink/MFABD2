@@ -79,7 +79,7 @@ def get_latest_scan(label: str) -> dict | None:
 
 _CURRENCY_FIELDS = (
     "label", "observed_at", "gold", "diamond", "tonic", "diamond_free", "diamond_paid", "diamond_paid_source",
-    "icons_found", "detail_error", "detail_closed", "scan_id",
+    "icons_found", "detail_error", "detail_closed", "scan_id", "origin",
 )
 
 
@@ -87,8 +87,9 @@ def save_currency_reading(record: dict) -> bool:
     """保存一次顶栏货币读数（钻石、金币、天赋神药，及钻石免费 / 付费）：事件进冷档，热档 latest.currency 留最近一次。
 
     读不到的项为 None，原样记下，不补零。货币不是背包物品，不写进 items。
+    跟着盘点读的挂 scan_id；不跟盘点的（商店兑换前后各一次）scan_id 为空、带 origin 指回读它的记账位置。
     """
-    event = {key: copy.deepcopy(record.get(key)) for key in _CURRENCY_FIELDS}
+    event = {key: copy.deepcopy(record.get(key)) for key in _CURRENCY_FIELDS if key != "origin" or record.get(key)}
     event["kind"] = "currency_reading"
     event["observed_at"] = event["observed_at"] or _base.utc_now()
     with _base._LOCK:
@@ -110,6 +111,24 @@ def save_ledger_mark(record: dict) -> bool:
     """
     event = {key: copy.deepcopy(record[key]) for key in _MARK_FIELDS if key in record}
     event["kind"] = "ledger_mark"
+    event["observed_at"] = event.get("at") or _base.utc_now()
+    with _base._LOCK:
+        data = _base.PersistentStore.load()
+        _base._inventory(data)["events"].append(event)
+        return bool(_base._save_inventory(data))
+
+
+_TOKEN_FIELDS = ("shop", "phase", "balance", "at", "session", "task")
+
+
+def save_token_balance(record: dict) -> bool:
+    """保存一次主页面商店的代币余额读数（进店、离店各一条，agent/action/token_shop.py 读的）：只进事件流。
+
+    代币不是背包物品、也不是顶栏货币，只在报表「商店兑换」一节列出每家店花掉多少（代币商店接入计划 §2.4）；
+    按店名记，不读代币名。读不到的余额为 None，原样记下。
+    """
+    event = {key: copy.deepcopy(record[key]) for key in _TOKEN_FIELDS if key in record}
+    event["kind"] = "token_balance"
     event["observed_at"] = event.get("at") or _base.utc_now()
     with _base._LOCK:
         data = _base.PersistentStore.load()

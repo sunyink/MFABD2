@@ -1,8 +1,10 @@
 """库存记账的位置动作：流程走到一个位置，留标记，按规则决定盘不盘。
 
 节点在 Ledger.json，参数只说明这是哪里：
-    {"mark": "begin" | "end" | "queue_end" | "manual", "type": "daily" | "collect" | "shop"}
+    {"mark": "begin" | "end" | "queue_end" | "manual" | "probe", "type": "daily" | "collect" | "shop" | "exchange"}
 begin 是任务开始动库存的地方，end 是只有做成才走得到的正常结束点；queue_end、manual 不带类型。
+商店兑换（代币商店）有两处：进店前的 probe 只判要不要补盘、不留标记；离店后真买成过才走到 begin（事后留的始标记，
+不在那里盘）。两处都另读一次顶栏货币，做账时拿它们把同一段里兑换与套利动的金币、天赋神药分开。
 盘不盘的规则在 utils/ledger_rules.py。这里只留凭证（标记、盘点读数、货币读数）；
 段怎么划、算谁的，是出报表时从凭证现算的事。
 永远返回 True：记账出什么错都不打断所在的业务。
@@ -30,7 +32,7 @@ from .currency_read import read_currency
 
 
 CONFIG = "Agt_Ledger_Config"   # 免记名单与连续阈值所在的节点，见 _settings
-KIND_NAMES = {"daily": "日常", "collect": "吸取", "shop": "商店"}
+KIND_NAMES = {"daily": "日常", "collect": "吸取", "shop": "商店", "exchange": "商店兑换"}
 # 只有存货（商店套利的食材与料理）没盘全才退出背包、再进来重扫一次（U61）；票券、养成、装备材料没盘全照旧跨过去。
 RETRY_SCOPE = "A"
 # 重扫也好不了的：物品表里没有它、任务被停了。
@@ -49,6 +51,10 @@ _SETTINGS: dict = {}  # 本进程从节点 Agt_Ledger_Config 读成过的名单�
 
 
 def _label(mark: str, kind) -> str:
+    if mark == "probe":
+        return f"记账·{KIND_NAMES[kind]}开头"
+    if mark == "begin" and kind in ledger_rules.LATE:
+        return f"记账·{KIND_NAMES[kind]}收尾"   # 事后留的始标记：位置在离店之后
     if mark == "begin":
         return f"记账·{KIND_NAMES[kind]}开头"
     if mark == "end":
@@ -151,6 +157,38 @@ def _read_currency(context, label: str, scan_id: str, *, roam: bool, here: bool 
             + (f"（钻石的免费 / 付费没读成：{record['detail_error']}）" if record.get("detail_error") else ""))
     except Exception as exc:
         mfaalog.warning(f"[Ledger] ⚠️ {label}：货币读数没存成：{exc}")
+
+
+# 商店兑换前后各读一次的顶栏：做账时用这两次的差把同一段里兑换与套利各自动的拆开（代币商店接入计划 §2.2）。
+BAR_NEEDED = (("gold", "金币"), ("tonic", "天赋神药"))
+
+
+def _read_bar(context, label: str, origin: dict) -> None:
+    """不跟盘点的一次顶栏读数（商店兑换的进店前、离店后），带 origin 指回这个位置，不挂在任何盘点名下。
+    只要金币与天赋神药：缺了原地隔一秒再读，最多 CURRENCY_TRIES 次；不点开钻石弹窗、不换页面（代币商店的开头与收尾
+    都先回了主页）。读不到的项记空，做账时那一样就不拆、整笔留在套利那一列。出错只记日志。"""
+    record = None
+    for attempt in range(CURRENCY_TRIES):
+        if attempt:
+            time.sleep(CURRENCY_WAIT)
+        try:
+            record = _merge_currency(record, read_currency(context, diamond_detail=False))
+        except Exception as exc:
+            mfaalog.warning(f"[Ledger] ⚠️ {label}：顶栏没读成：{exc}")
+            continue
+        if all(record.get(field) is not None for field, _ in BAR_NEEDED):
+            break
+    if record is None:
+        return
+    try:
+        record.update(label=label, scan_id=None, origin=origin)
+        saved = save_currency_reading(record)
+        missing = [name for field, name in BAR_NEEDED if record.get(field) is None]
+        (mfaalog.warning if missing else mfaalog.info)(
+            f"[Ledger] {'⚠️ ' if missing else ''}{label}：顶栏金币 {_shown(record['gold'])}、天赋神药 {_shown(record['tonic'])}"
+            + ("" if saved else "（⚠️ 存档未写入）") + (f"（还缺{'、'.join(missing)}）" if missing else ""))
+    except Exception as exc:
+        mfaalog.warning(f"[Ledger] ⚠️ {label}：顶栏读数没存成：{exc}")
 
 
 def _cycle_marks():
@@ -309,7 +347,7 @@ def _run(context: Context, argv: CustomAction.RunArg) -> None:
         decision["scopes"] = list(ledger_rules.ALL_SCOPES)   # 选项「每次全盘」：盘不盘照规则，范围一律全盘
 
     task = {"entry": entry, "task_id": task_id}
-    if mark != "end" or decision["end_mark"]:
+    if mark != "probe" and (mark != "end" or decision["end_mark"]):   # probe 只判盘不盘，不留标记
         saved = save_ledger_mark({
             "mark": mark, "type": kind, "at": utc_now(), "session": task_journal.SESSION, "task": task,
             "node": argv.node_name, **({"cards": _cycle_marks()} if kind == "collect" else {}),
@@ -322,17 +360,17 @@ def _run(context: Context, argv: CustomAction.RunArg) -> None:
             _CURSORS[account] = now
 
     scan, executed = None, False
+    origin = {"mark": mark, "type": kind, "node": argv.node_name, "task": task, "session": task_journal.SESSION}
     try:
         if decision["scan"]:
             mfaalog.info(f"[Ledger] {label}：盘点（{'+'.join(decision['scopes'])}）——{decision['reason']}")
-            origin = {"mark": mark, "type": kind, "node": argv.node_name, "task": task, "session": task_journal.SESSION}
             record = run_bag_scan(context, label=label, scope=decision["scopes"], origin=origin)
             executed = bool(record.get("executed"))
             if not executed:
                 mfaalog.warning(f"[Ledger] ⚠️ {label}：盘点没执行（{record.get('error')}），留给下一个位置；"
                                 "这个任务里出售与补查不认更早的库存读数")
             else:
-                closing = mark != "begin"   # 收尾位置：任务的最后一步，后面没有下一盘，可以换页面去把货币读到
+                closing = mark in ledger_rules.CLOSING   # 收尾位置：任务的最后一步，后面没有下一盘，可以换页面去把货币读到
                 record["returned"], filled = _retry(context, label, record, origin, closing=closing)
                 if record.get("returned") or closing:
                     if not record.get("returned"):
@@ -356,6 +394,8 @@ def _run(context: Context, argv: CustomAction.RunArg) -> None:
         # 该盘而没执行＝最近那次盘点之后的活动还没盘掉：记在任务行上，出售与补查看到就不认更早的读数
         # （utils/arbitrage_sale_skip.trust_since，穿透复核第 4 条）。半路断了的留有盘点记录，读到的那部分照认。
         task_journal.note(task_id, stock_current=not decision["scan"] or executed)
+    if mark == "probe" or (mark == "begin" and kind in ledger_rules.LATE):
+        _read_bar(context, label, origin)   # 补盘了也另读一次：盘点那次挂在盘点名下，这一次挂在这个位置名下
     # 盘了就出报表（半路断了的也出：读到的那部分已经进了凭证）；结束游戏与手动结账即使规则说不用盘也出一次：
     # 收个尾，把最后几个任务的起止补进去。手动结账（U61）与商店收尾盘（11-19 用户定：商店一般排在最后，跑完出个结果）
     # 出完自己打开。

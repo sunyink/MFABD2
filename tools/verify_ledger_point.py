@@ -172,6 +172,34 @@ class LedgerPointTests(unittest.TestCase):
         self.assertEqual([row["task_id"] for row in marks[1]["tasks"]], [101, 102])   # 上一条标记以来的任务起止
         self.assertIsNotNone(marks[1]["tasks"][0]["end"])
 
+    def test_token_shop_probe_leaves_no_mark_and_reads_the_top_bar(self):
+        """代币商店进店前：按需补盘（这里是本次运行第一盘，全盘），不留标记；另读一次顶栏，不挂盘点、带 origin。"""
+        self.task("TokenShop_Start", 101)
+        self.assertTrue(self.run_point("probe", "exchange", 101, "TokenShop_Start"))
+        self.assertEqual(self.events("ledger_mark"), [])
+        scan, = self.scans
+        self.assertEqual((scan["scope"], scan["label"], scan["origin"]["mark"]), (list(ALL_SCOPES), "记账·商店兑换开头", "probe"))
+        attached, bar = self.events("currency_reading")
+        self.assertEqual(attached["scan_id"], "scan1")
+        self.assertEqual((bar["scan_id"], bar["origin"]["mark"], bar["origin"]["type"], bar["gold"], bar["tonic"]),
+                         (None, "probe", "exchange", 12345, 9))
+        self.assertEqual(self.currency_calls[-1], False)   # 顶栏那一次不点开钻石弹窗
+
+    def test_token_shop_late_mark_never_scans(self):
+        """离店后（买成过）留事后的始标记：哪怕前面没盘过也不在这里盘，结束游戏收尾时盘掉。"""
+        self.task("TokenShop_Start", 101)
+        self.currency_queue = [{"tonic": None}]   # 顶栏第一下没读到神药，原地再读
+        self.run_point("begin", "exchange", 101, "TokenShop_Start")
+        mark, = self.events("ledger_mark")
+        self.assertEqual((mark["mark"], mark["type"]), ("begin", "exchange"))
+        self.assertEqual(self.scans, [])
+        bar, = self.events("currency_reading")
+        self.assertEqual((bar["label"], bar["tonic"], bar["origin"]["mark"]), ("记账·商店兑换收尾", 9, "begin"))
+        self.assertEqual(self.sleeps, [point.CURRENCY_WAIT])
+        self.task("Close_HomePage", 102)
+        self.run_point("queue_end", None, 102, "Close_HomePage")
+        self.assertEqual(self.scans[-1]["scope"], list(ALL_SCOPES))   # 之前没有可接的盘点：收尾全盘
+
     def test_k21_collect_marks_carry_the_cycle_records(self):
         MemoryAccountStore.data = {"cycles": {"Story_01_血骑士@g_weekly": "2025-11-15 20:00:00",
                                               "Daily_Mail@daily": "2025-11-15 20:01:00"}}   # 日常的完成记录不带

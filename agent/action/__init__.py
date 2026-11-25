@@ -15,6 +15,8 @@ from .arbitrage_sell_quantity import *
 from .arbitrage_sell_batch import *
 from .arbitrage_result import *
 from .arbitrage_buy_precise import *
+# token_shop 借 arbitrage_buy_precise / arbitrage_sell_quantity 的读数与调数，排在它们之后。
+from .token_shop import *
 from .account_save_checker import *
 from .arbitrage_buy_list import *
 from .shop_buy_fav_controller import *
