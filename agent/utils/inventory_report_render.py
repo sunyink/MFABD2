@@ -12,7 +12,8 @@ import re
 from .inventory_report import GOLD, GROUPS, KIND_LABEL, REASONS, VALUED
 
 KST = timezone(timedelta(hours=9))
-FLAG_LABEL = {"abnormal_end": "未正常结束", "unsettled": "未当场结清", "cross_day": "跨日", "partial_scan": "有一次盘点中断"}
+FLAG_LABEL = {"abnormal_end": "未正常结束", "unsettled": "未当场结清", "cross_day": "跨日", "partial_scan": "有一次盘点中断",
+              "unanchored": "兑换前没接上盘点"}
 STATUS_LABEL = {"interim": "期中（未结账）", "final": "期末（已结账）"}
 GROUP_TITLE = {"operating": "经营活动", "valuation": "估值调整", "outside": "未入账"}
 # 期初调整的差额是哪一种（inventory_report._gap_reason）：隔夜那一段的变化最平常；其余几种是本日开头的盘点没读到它，
@@ -30,7 +31,7 @@ CSS = r"""
 :root{
   --bg:#f3f5f2; --card:#ffffff; --fg:#1a1f1c; --mut:#5f6964; --line:#d7ddd8; --rule:#c3cbc6; --head:#eaefeb;
   --acc:#2b5d8a; --neg:#9a3d2e; --dim:#9aa39d;
-  --c-daily:#2a78d6; --c-collect:#1baf7a; --c-shop:#eb6834; --c-outside:#8a938e; --c-mixed:#c98500;
+  --c-daily:#2a78d6; --c-collect:#1baf7a; --c-shop:#eb6834; --c-outside:#8a938e; --c-mixed:#c98500; --c-exchange:#8a4fcf;
   --warn-bg:#fff6e0; --warn-fg:#6b4a00; --crit:#b4352f; --ok:#1d6b3a;
   --font:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei","Noto Sans CJK SC","Noto Sans SC",sans-serif;
   --serif:"Songti SC","STSong","SimSun","Noto Serif CJK SC","Noto Serif SC",Georgia,serif;
@@ -38,12 +39,12 @@ CSS = r"""
 @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
   --bg:#15181a; --card:#1d2124; --fg:#e6eae7; --mut:#9aa49e; --line:#2d3439; --rule:#3a434a; --head:#22282c;
   --acc:#7fb0dc; --neg:#e3907f; --dim:#6b756f;
-  --c-daily:#3987e5; --c-collect:#199e70; --c-shop:#d95926; --c-outside:#7b847f; --c-mixed:#eda100;
+  --c-daily:#3987e5; --c-collect:#199e70; --c-shop:#d95926; --c-outside:#7b847f; --c-mixed:#eda100; --c-exchange:#9d6fe0;
   --warn-bg:#3a2e12; --warn-fg:#f3d98a; --crit:#e46b65; --ok:#5fbf85; color-scheme:dark } }
 :root[data-theme="dark"]{
   --bg:#15181a; --card:#1d2124; --fg:#e6eae7; --mut:#9aa49e; --line:#2d3439; --rule:#3a434a; --head:#22282c;
   --acc:#7fb0dc; --neg:#e3907f; --dim:#6b756f;
-  --c-daily:#3987e5; --c-collect:#199e70; --c-shop:#d95926; --c-outside:#7b847f; --c-mixed:#eda100;
+  --c-daily:#3987e5; --c-collect:#199e70; --c-shop:#d95926; --c-outside:#7b847f; --c-mixed:#eda100; --c-exchange:#9d6fe0;
   --warn-bg:#3a2e12; --warn-fg:#f3d98a; --crit:#e46b65; --ok:#5fbf85; color-scheme:dark }
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.55 var(--font);padding-block:16px 40px;padding-inline:16px}
@@ -63,6 +64,7 @@ a{color:var(--acc)}
 .tag{display:inline-block;font-size:11px;line-height:1;padding:3px 6px;border-radius:3px;color:#fff;white-space:nowrap}
 .tag.daily{background:var(--c-daily)} .tag.collect{background:var(--c-collect)} .tag.shop{background:var(--c-shop)}
 .tag.outside{background:var(--c-outside)} .tag.mixed{background:var(--c-mixed);color:#1a1400}
+.tag.exchange{background:var(--c-exchange)}
 header.sheet{display:grid;gap:4px}
 header.sheet .meta{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:12px;color:var(--mut)}
 header.sheet .meta b{color:var(--fg);font-weight:500}
@@ -78,6 +80,7 @@ header.sheet .meta b{color:var(--fg);font-weight:500}
 .tl .seg{min-width:0;display:flex;align-items:center;justify-content:center;font-size:11px;color:#fff;overflow:hidden;white-space:nowrap;padding:0 4px}
 .tl .seg.daily{background:var(--c-daily)} .tl .seg.collect{background:var(--c-collect)} .tl .seg.shop{background:var(--c-shop)}
 .tl .seg.outside{background:repeating-linear-gradient(135deg,var(--c-outside) 0 4px,transparent 4px 8px);color:var(--fg)}
+.tl .seg.exchange{background:var(--c-exchange)}
 .tl .seg.mixed{background:repeating-linear-gradient(135deg,var(--c-mixed) 0 4px,var(--warn-bg) 4px 8px);color:var(--fg)}
 .tl .seg.compressed{flex:0 0 72px}
 .ticks{display:flex;justify-content:space-between;font-size:11px;color:var(--mut);margin-top:3px}
@@ -102,6 +105,8 @@ td.note{color:var(--mut);font-size:12px;white-space:normal;min-width:8em;max-wid
 td.bad{color:var(--crit);font-weight:600}
 .col-daily{box-shadow:inset 0 -2px 0 var(--c-daily)} .col-collect{box-shadow:inset 0 -2px 0 var(--c-collect)} .col-shop{box-shadow:inset 0 -2px 0 var(--c-shop)}
 .col-outside{box-shadow:inset 0 -2px 0 var(--c-outside)} .col-mixed{box-shadow:inset 0 -2px 0 var(--c-mixed)}
+.col-exchange{box-shadow:inset 0 -2px 0 var(--c-exchange)}
+.minor{font-size:11px;color:var(--mut)} th.minor{width:1%}
 details{border:1px solid var(--line);border-radius:6px;background:var(--card)}
 details>summary{cursor:pointer;padding:9px 12px;font-weight:600;list-style:none;display:flex;gap:8px;align-items:center}
 details>summary::-webkit-details-marker{display:none}
@@ -115,6 +120,7 @@ details.plain{border:0;background:transparent} details.plain>summary{padding:6px
 .segc{border:1px solid var(--line);border-left-width:4px;border-radius:4px;padding:8px 10px;background:var(--card);display:grid;gap:4px}
 .segc.daily{border-left-color:var(--c-daily)} .segc.collect{border-left-color:var(--c-collect)} .segc.shop{border-left-color:var(--c-shop)}
 .segc.outside{border-left-color:var(--c-outside)} .segc.mixed{border-left-color:var(--c-mixed)}
+.segc.exchange{border-left-color:var(--c-exchange)}
 .segc .hd{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center}
 .segc ul{margin:0;padding-left:18px;font-size:12px;color:var(--mut)}
 .chips{display:flex;flex-wrap:wrap;gap:4px}
@@ -193,7 +199,8 @@ RULES = (
                 "没有负债，资产合计即所有者权益。"),
     ("（五）存货计价", "存货按<b>当月出售列表最高价</b>计价，月内一般不变；没读到行情时用内置的参考价，并在单价格里标出。"
                   "数量变动按变动后的单价计入各列；单价本身变了，对原有存货的重估差额单列「公允价值变动」，不归任何一列。"),
-    ("（六）各列的归属", "每一段按流程留下的标记归到日常、吸取或商店；没有任何任务的一段记为期间外，通常是手动操作。"
+    ("（六）各列的归属", "每一段按流程留下的标记归到日常、吸取、商店或商店兑换；没有任何任务的一段记为期间外，通常是手动操作。"
+                    "商店兑换（代币商店）与商店套利同属商店阶段，同一段里两者都有时按类别拆开，见（十一）。"
                     "同一天同一类的各段把变化相加成一列。一段里混进了两类任务、或夹着没接记账的任务，整段单列「混合」，不拆。"
                     "任务没有当场结清（收尾的盘点隔了很久才来）时，变化仍记在它那一列，列头注明，其中混有期间外。"),
     ("（七）扫描范围与跨区间合并", "每类任务只盘它会动的科目。某次盘点不盘、或没读准某样东西时，它前后的几段合成一笔，"
@@ -208,6 +215,10 @@ RULES = (
     ("（十）吸取分卡产出", "放技能时读屏幕左侧的获得列表，每进一次卡记一笔。各张卡列它自己读到的数，不按盘点缩放；"
                      "盘点与各卡读数之和的差单列「卡带未知」，可正可负（走路碰到的、没读到的、吸完却没有记录的卡，说不清是哪张卡的）。"
                      "同一张卡一天里进了几次合成一行。盘点不扫的东西只列读数，不计入。"),
+    ("（十一）商店兑换", "代币商店买成过才算一段，它排在商店套利前面时，套利收尾那一盘把票券与养成材料一并盘上。"
+                   "同一段里按类别拆：票券与养成材料的差额归商店兑换（从上一次读到它算起，其间吸取与套利按设计不动这一类），"
+                   "存货归商店套利；金币与天赋神药按代币商店前后两次顶栏读数之差拆给兑换，其余归套利。"
+                   "主页面九家店进店、离店各读一次代币余额，差就是这家店花掉的，只列数量、不估值；赛季活动商店的代币不记。"),
 )
 
 
@@ -301,8 +312,8 @@ def _header(model, show):
 
 def _kpis(model):
     kpis, valued = model["kpis"], model["valuation"] is not None
-    parts = [f"{label} {fmt(kpis[key], sign=True)}" for label, key in (("商店", "shop_cash"), ("期间外", "outside_cash"))
-             if kpis[key] is not None]
+    parts = [f"{label} {fmt(kpis.get(key), sign=True)}" for label, key in
+             (("商店", "shop_cash"), ("兑换", "exchange_cash"), ("期间外", "outside_cash")) if kpis.get(key) is not None]
     out = ['<section class="kpis">',
            f'<div class="kpi"><div class="k">金币净变动</div><div class="v">{fmt(kpis["gold_delta"], sign=True)}</div>'
            f'<div class="s">{" · ".join(parts) or "顶栏金币的盘点差"}</div></div>']
@@ -353,9 +364,14 @@ def _stock_table(model, show):
         head.append('<th class="num">单价<span class="sub">月度最高价</span></th>')
     head.append(f'<th class="num">期初<span class="sub">{esc(show(first["at"]))}</span></th>')
     for col in cols:
-        notes = [f'{col["runs"]} 段'] + [FLAG_LABEL[flag] for flag in col["flags"] if flag in ("abnormal_end", "unsettled")]
+        notes = [f'{col["runs"]} 段'] + [FLAG_LABEL[flag] for flag in col["flags"]
+                                         if flag in ("abnormal_end", "unsettled", "unanchored")]
         if col["key"] in ("daily", "collect", "shop"):
             notes.append("盘 " + ("+".join(col["scopes"]) or "–"))
+        if col["key"] == "exchange":   # 不重要的一列（用户 11-25）：收窄，明细在「六、商店兑换」
+            head.append(f'<th class="num col-exchange minor" title="商店兑换；与商店同段的只收票券、养成材料与金币、神药">兑换'
+                        f'<span class="sub">{esc(notes[0])}</span></th>')
+            continue
         head.append(f'<th class="num col-{col["key"]}">{esc(col["label"])}<span class="sub">{esc(" · ".join(notes))}</span></th>')
     if with_spans:
         head.append('<th class="num">跨区间<span class="sub">几段合成一笔</span></th>')
@@ -382,8 +398,9 @@ def _stock_table(model, show):
             early = f'<span class="amt">{esc(item["opening_at"])}</span>' if item["opening_at"] != first["id"] else ""
             out.append(f'<td class="num">{cell(item["opening"], unit_open)}{early}</td>')
             for col in cols:
+                minor = " minor" if col["key"] == "exchange" else ""
                 if col["key"] in item["deltas"]:
-                    out.append(f'<td class="num">{cell(item["deltas"][col["key"]], unit, sign=True)}</td>')
+                    out.append(f'<td class="num{minor}">{cell(item["deltas"][col["key"]], unit, sign=True)}</td>')
                 elif col["key"] in item["gaps"]:
                     out.append('<td class="gap">不扫</td>')
                 else:
@@ -684,6 +701,55 @@ def _collect_section(model):
     return "".join(out)
 
 
+def _exchange_block(model, show):
+    """六、商店兑换：当天去过代币商店才有。资产表、收益表只给一行合计，明细都在这里（用户 11-25 定）。"""
+    section = model.get("exchange")
+    if not section:
+        return ""
+    chips = [f'<span class="chip">{section["runs"]} 段</span>'] if section["runs"] else []
+    chips += [f'<span class="chip warn">{esc(FLAG_LABEL.get(flag, flag))}</span>' for flag in section["flags"]]
+    if section["pending"]:
+        chips.append('<span class="chip warn">买到的还没盘</span>')
+    out = ['<section><h2>六、商店兑换 <small>代币商店：主页面九家与赛季活动</small></h2>'
+           + (f'<div class="chips">{"".join(chips)}</div>' if chips else ""),
+           cap(("期间", f'{esc(model["game_day"])} 游戏日'), ("单位", "个（数量表）；金币一行为金币，代币为各店自己的代币"))]
+    if section["items"] or section["spans"]:
+        out.append('<div class="tw"><table><thead><tr><th class="sticky">兑换所得</th><th class="num">变动</th></tr></thead><tbody>')
+        for row in section["items"]:
+            out.append(f'<tr><td class="sticky">{esc(row["name"])}</td><td class="num">{fmt(row["quantity"], sign=True)}</td></tr>')
+        for span in section["spans"]:
+            merged = "、".join(KIND_LABEL[kind] for kind in span["cols"])
+            out.append(f'<tr class="sub"><td class="sticky">{esc(span["name"])}</td><td class="num">{fmt(span["delta"], sign=True)}'
+                       f'<span class="amt">与{esc(merged)}合成一笔（{esc(span["from"])}→{esc(span["to"])}）</span></td></tr>')
+        out.append("</tbody></table></div>")
+    if section["runs"] and not (section["items"] or section["spans"]):
+        out.append('<p class="small mut">这一段的盘点里没有兑换带来的变化。</p>')
+    elif not section["runs"]:
+        out.append('<p class="small mut">' + ("买成过，买到的还没盘：下一个收尾位置（商店套利收尾、结束游戏、手动结账）盘到票券与养成材料才进表，"
+                                             "隔到次日才盘的记在次日的期初调整。" if section["pending"]
+                                             else "去过代币商店，一件没买成，库存不受影响。") + "</p>")
+    visits = section["visits"]
+    if visits:
+        out.append('<div class="tw"><table><thead><tr><th class="sticky">主页面商店</th><th class="num">进店余额</th>'
+                   '<th class="num">离店余额</th><th class="num">花掉</th><th>时刻</th></tr></thead><tbody>')
+        for visit in visits:
+            spent = '<span class="dim">·</span>' if visit["spent"] is None else fmt(visit["spent"])
+            out.append(f'<tr><td class="sticky">{esc(visit["shop"])}</td><td class="num">{fmt(visit["entered"])}</td>'
+                       f'<td class="num">{fmt(visit["left"])}</td><td class="num">{spent}</td>'
+                       f'<td>{esc(show(visit["entered_at"]))}' + (f'–{esc(show(visit["left_at"]))}' if visit["left_at"] else "")
+                       + "</td></tr>")
+        out.append("</tbody></table></div>")
+    notes = ["票券与养成材料的变动从上一次读到它算到收尾那一盘，其间吸取与商店套利按设计不动这一类"]
+    if section["combined"]:
+        notes.append("与商店套利同一段时，金币、天赋神药按代币商店前后两次顶栏读数之差拆给兑换，余下的归商店套利")
+    if section["unsplit"]:
+        notes.append(f'{"、".join(section["unsplit"])}的顶栏没读全，没有拆，整笔在商店套利那一列')
+    if visits:
+        notes.append("代币余额是各店右上角的读数，只列数量、不估值；赛季活动商店的代币不记")
+    out.append(f'<p class="small mut">{esc("。".join(notes))}。资产表与收益表里只有「商店兑换」一行合计。</p></section>')
+    return "".join(out)
+
+
 def _details(model, show):
     out = ['<details><summary>各段与任务明细 <small>每一段里跑过什么、怎么结束</small></summary><div class="body"><div class="segs">']
     for segment in model["segments"]:
@@ -691,6 +757,8 @@ def _details(model, show):
         chips = "".join(f'<span class="chip warn">{esc(FLAG_LABEL.get(flag, flag))}</span>' for flag in segment["flags"])
         if kind in ("collect", "shop") and "abnormal_end" not in segment["flags"]:
             chips += '<span class="chip ok">正常结束</span>'
+        if (segment.get("exchange") or {}).get("combined"):
+            chips += '<span class="chip">含商店兑换</span>'
         out.append(f'<div class="segc {kind}"><div class="hd"><span class="tag {kind}">{esc(KIND_LABEL[kind])}</span>'
                    f'<b>{esc(show(segment["start"]))} → {esc(show(segment["end"]))}</b>'
                    f'<span class="mut small">{segment["minutes"]} 分 · 盘点 {esc(segment["from"])}→{esc(segment["to"])}</span>'
@@ -770,7 +838,7 @@ def render_day_html(model) -> str:
                  + "".join(f'<div class="rule"><b>{esc(title)}</b><p>{text}</p></div>' for title, text in RULES)
                  + "</div></details>")
     parts += [_kpis(model), _timeline(model, show), _adjust_table(model, show), _stock_table(model, show), _shop_table(model),
-              _assets_table(model, show), _statement_table(model), _collect_section(model)]
+              _assets_table(model, show), _statement_table(model), _collect_section(model), _exchange_block(model, show)]
     parts.append(_details(model, show))
     parts.append(_balance_block(model, show))
     parts.append('<section><h2>自检</h2><div class="checks">' + "".join(

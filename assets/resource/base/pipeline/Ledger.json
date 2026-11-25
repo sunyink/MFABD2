@@ -56,6 +56,30 @@
         },
         "post_delay": 0
     },
+    "Ledger_Probe_Exchange": {
+        "desc": "库存记账位置·商店兑换开头（进店前）| 代币商店入口先回主页再到这里，不留标记：上一阶段还没收尾、本次运行第一盘、与上一次盘点不连续、跨日或夹着没接记账的任务时补盘（这一盘本来轮到下一个开头位置盘，提前到进店前，免得和兑换买到的混进同一段）；按预设顺序紧接吸取时不盘。盘不盘之后都另读一次顶栏金币与天赋神药，做账时拿它与离店后那次的差把兑换动的金币分出来。动作永远返回成功，不写 on_error。",
+        "max_hit": 1,
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "LedgerPoint",
+        "custom_action_param": {
+            "mark": "probe",
+            "type": "exchange"
+        },
+        "post_delay": 0
+    },
+    "Ledger_Begin_Exchange": {
+        "desc": "库存记账位置·商店兑换（离店后，事后留的始标记）| 代币商店三处都做完、回到主页后，本任务真买成过才走到（一件没买就当它不存在）。留商店兑换的始标记，这里从不盘：兑换买到的 B 类由下一个收尾的盘点一并盘（排在商店套利前面时就是套利收尾那一盘，A、B 一趟扫完）。另读一次顶栏金币与天赋神药。动作永远返回成功，不写 on_error。",
+        "max_hit": 1,
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "LedgerPoint",
+        "custom_action_param": {
+            "mark": "begin",
+            "type": "exchange"
+        },
+        "post_delay": 0
+    },
     "Ledger_End_Collect": {
         "desc": "库存记账位置·吸取正常结束 | 只挂在吸取的两个正常出口（次数用完、没有要进的卡带），后面必须紧跟 StopTask：盘完任务必停，否则盘完还在干活的那部分变化没有标记，会漏进下一阶段。本任务留过吸取的始标记才留正常结束标记；有还没盘掉的活动就当场盘。",
         "max_hit": 1,
@@ -92,7 +116,7 @@
         "post_delay": 0
     },
     "Agt_Ledger_Config": {
-        "desc": "py 独占，勿挂进管路：库存记账的名单与阈值，由 agent/action/ledger_point.py 读取。quiet 是「没留记账标记也不算活动」的任务入口——不动库存的（多存档、启动脚本、记账设置），以及接了标记、没走到始标记就等于没干活的（吸取、商店、结束游戏、手动结账）；名单外的任务夹在两次盘点之间，一律当作动过库存、下一个位置补盘。新增不动库存的任务要加进来。gap_seconds 是两个任务之间算「连续」的最大间隔。",
+        "desc": "py 独占，勿挂进管路：库存记账的名单与阈值，由 agent/action/ledger_point.py 读取。quiet 是「没留记账标记也不算活动」的任务入口——不动库存的（多存档、启动脚本、记账设置），以及接了标记、没走到始标记就等于没干活的（吸取、商店、代币商店、结束游戏、手动结账）；名单外的任务夹在两次盘点之间，一律当作动过库存、下一个位置补盘。新增不动库存的任务要加进来。gap_seconds 是两个任务之间算「连续」的最大间隔。",
         "enabled": false,
         "attach": {
             "quiet": [
@@ -102,6 +126,7 @@
                 "Collect_StartGame_HomePage",
                 "Collect_StartGame_HomePage_OnlyOnce",
                 "Arbitrage_Start",
+                "TokenShop_Start",
                 "Close_HomePage",
                 "Ledger_Settle_Manual"
             ],

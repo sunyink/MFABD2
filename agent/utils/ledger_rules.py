@@ -7,17 +7,27 @@
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
-# 位置：begin 任务从这里开始动库存；end 正常结束点；queue_end 结束游戏；manual 手动结账。
-MARKS = ("begin", "end", "queue_end", "manual")
+# 位置：begin 任务从这里开始动库存；end 正常结束点；queue_end 结束游戏；manual 手动结账；
+# probe 进店前：只决定要不要补盘、不留标记（代币商店开头，见 decide）。
+MARKS = ("begin", "end", "queue_end", "manual", "probe")
+# 收尾位置：任务的最后一步，后面没有下一盘。
+CLOSING = ("end", "queue_end", "manual")
 # 每种类型自己要的扫描类型（背包仓检 Agt_BagScan_Config 里的键：A 存货、B 票券与养成材料、C 装备制作材料）。
-NEEDS = {"daily": ("B", "C"), "collect": ("A",), "shop": ("A",)}
+# exchange 商店兑换（代币商店）：买到的全是 B 类（代币商店接入计划 §1）。
+NEEDS = {"daily": ("B", "C"), "collect": ("A",), "shop": ("A",), "exchange": ("B",)}
+# 同一阶段的几种类型互相接着做不补盘。商店兑换排在商店套利前面，两者是同一个「商店」阶段：
+# 套利收尾那一盘把兑换的 B 一并盘掉，做账时按类别轧差（代币商店接入计划 §2，用户 11-25 定）。
+PHASE = {"exchange": "shop"}
+# 事后才留始标记的类型：走到标记时活已经干完了，在这里盘会把这一段的变化算进上一段，所以标记处从不盘，
+# 变化由下一个收尾位置一并盘。商店兑换只在真买成过时留标记（一件没买就当它不存在），只能放在离店之后。
+LATE = ("exchange",)
 ALL_SCOPES = ("A", "B", "C")
 GAP_SECONDS = 60.0
 # 没留标记也不算活动的任务入口：不动库存的，以及接了标记、没走到始标记就等于没干活的。名单外的任务夹在中间一律当作动过库存。
 # 这份名单与上面的阈值以节点 Agt_Ledger_Config.attach 为准：运行时、出报表、离线重算都经 settings() 从节点取，
 # 这里写的只是节点读不到时的内置值（tools/verify_ledger_rules.py 守着两边一致）。
 QUIET = ("Env_MultiSave_Config", "StartGame_Start", "Env_Ledger_Config", "Collect_StartGame_HomePage",
-         "Collect_StartGame_HomePage_OnlyOnce", "Arbitrage_Start", "Close_HomePage", "Ledger_Settle_Manual")
+         "Collect_StartGame_HomePage_OnlyOnce", "Arbitrage_Start", "TokenShop_Start", "Close_HomePage", "Ledger_Settle_Manual")
 
 
 def settings(attach) -> dict:
@@ -69,6 +79,10 @@ def _union(kinds) -> list:
     return [scope for scope in ALL_SCOPES if scope in wanted]
 
 
+def phase(kind):
+    return PHASE.get(kind, kind)
+
+
 def decide(mark: str, kind: str | None, state: LedgerState, *, task_id: int, rows, now: float,
            quiet=(), gap: float = GAP_SECONDS) -> dict:
     """返回 {"scan", "scopes", "end_mark", "reason"}。
@@ -79,7 +93,7 @@ def decide(mark: str, kind: str | None, state: LedgerState, *, task_id: int, row
     """
     if mark not in MARKS:
         raise ValueError(f"未知位置: {mark}")
-    if (mark in ("begin", "end")) != (kind in NEEDS):
+    if (mark in ("begin", "end", "probe")) != (kind in NEEDS):
         raise ValueError(f"位置 {mark} 的类型不对: {kind}")
     last = state.last_scan
     connected = last is not None and _connected(rows, last["task_id"], task_id, gap)
@@ -93,7 +107,13 @@ def decide(mark: str, kind: str | None, state: LedgerState, *, task_id: int, row
     def result(scopes, reason):
         return {"scan": bool(scopes), "scopes": list(scopes), "end_mark": end_mark, "reason": reason}
 
-    if mark == "begin" and kind is not None:
+    if mark == "begin" and kind in LATE:
+        return result((), "活已经干完，事后留的标记处不盘，由下一个收尾位置一并盘")
+    if mark in ("begin", "probe") and kind is not None:
+        # probe 是同阶段里打头的那个任务进店之前：照「开头」判，只是不留标记。上一阶段没收尾、本次运行第一盘、
+        # 不连续、跨日、夹着名单外的任务，都在进店前补盘——这一盘本来轮到下一个开头位置盘，只是提前，免得
+        # 和兑换买到的混进同一段。本阶段几种类型要的一起盘上，后面同阶段的开头就不用再盘。
+        own = [other for other in NEEDS if phase(other) == phase(kind)] if mark == "probe" else [kind]
         if last is None:
             return result(ALL_SCOPES, "本次运行第一盘")
         if not connected:
@@ -102,11 +122,18 @@ def decide(mark: str, kind: str | None, state: LedgerState, *, task_id: int, row
             return result(ALL_SCOPES, "跨过游戏日")
         if strangers:
             return result(ALL_SCOPES, f"中间跑过没接记账的任务（{strangers[0]}）")
-        if any(other != kind for other in kinds):
-            return result(_union([kind, *kinds]), "类型变了，补上一阶段的期末")
-        if kinds:
-            return result((), "同类型接着做")
+        if any(phase(other) != phase(kind) for other in kinds):
+            return result(_union([*own, *kinds]), "类型变了，补上一阶段的期末")
+        if mark == "probe":
+            # 不补「上一次盘点没盘到的那几类」：兑换只动 B，B 沿用更早的读数，收尾那一盘一并轧差（代币商店接入计划 §3）。
+            return result((), "同一阶段接着做" if kinds else "上一次盘点之后没有别的活动")
         missing = [scope for scope in NEEDS[kind] if scope not in last["scopes"]]
+        if missing and any(other != kind for other in kinds):
+            # 前面是同阶段的另一种类型（兑换），上一次盘点又没盘到本类型要的：连同前面的一起盘，
+            # 只盘缺的那几类的话会把兑换的 B 留在半路（这一盘清掉了未盘掉的活动，收尾那一盘就不再盘 B）。
+            return result(_union([kind, *kinds]), "同一阶段接着做，上一次盘点没盘到这一类要的，连同前面的一起盘")
+        if kinds:
+            return result((), "同类型接着做" if all(other == kind for other in kinds) else "同一阶段接着做")
         if missing:
             return result(missing, "上一次盘点没盘到这一类要的")
         return result((), "上一次盘点一盘两用")
@@ -157,6 +184,8 @@ def resume_from(events, *, now: float, gap: float = GAP_SECONDS, finished=frozen
         return None
     key = _origin_key(mark)
     scans = [event for event in after if event.get("kind") == "inventory_scan" and _origin_key(event.get("origin")) == key]
+    if any(event.get("kind") == "inventory_scan" and _origin_key(event.get("origin")) != key for event in after):
+        return None   # 收尾之后别的位置又盘过（不留标记的进店前补盘）：那一盘更新，不能拿收尾那一盘接
     first = next((scan for scan in scans if not (scan.get("origin") or {}).get("retry_of")), None)
     if first is None or first.get("termination") not in finished:
         return None
@@ -177,7 +206,7 @@ def settle(state: LedgerState, *, mark: str, kind: str | None, task_id: int, ent
            scan: dict | None = None) -> None:
     """一个位置处理完之后更新状态。scan：盘点执行了就给 {"scan_id", "scopes"}；没盘、或盘点没执行，给 None。
 
-    盘点没执行时未盘掉的活动原样留着，由下一个位置再判。
+    盘点没执行时未盘掉的活动原样留着，由下一个位置再判。probe 不留标记：盘了就更新上一次盘点，别的不记。
     """
     state.seen.add(task_id)
     if scan is not None:

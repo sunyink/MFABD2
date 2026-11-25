@@ -1,13 +1,48 @@
 {
     "TokenShop_Start": {
-        "desc": "代币商店兑换入口：赛季活动上期、赛季活动当期、主页面商店各做一次，全部做完结束。启用由 interface 改各 Hub 的 enabled。上期排最前：它买完会把主页横幅滑回当期，当期接着就能认横幅上的天数。",
+        "desc": "代币商店兑换入口：赛季活动上期、赛季活动当期、主页面商店各做一次，全部做完结束。启用由 interface 改各 Hub 的 enabled。上期排最前：它买完会把主页横幅滑回当期，当期接着就能认横幅上的天数。库存记账两头各挂一处：进店前 TokenShop_LedgerBegin（回主页、按需补盘），三处做完 TokenShop_LedgerEnd（买成过才留兑换标记）。",
         "timeout": 2000,
         "next": [
             "Env_AgentLost_Stop",
+            "[JumpBack]TokenShop_LedgerBegin",
             "[JumpBack]TokenShop_EventPast_Hub",
             "[JumpBack]TokenShop_EventNow_Hub",
             "[JumpBack]TokenShop_Monthly_Hub",
+            "[JumpBack]TokenShop_LedgerEnd",
             "Global_Hub_End"
+        ]
+    },
+    "TokenShop_LedgerBegin": {
+        "desc": "进店前：清掉买成标记，回主页，到库存记账的商店兑换开头位置（Ledger_Probe_Exchange：按需补盘、读顶栏，不留标记）。记账关着时那个位置什么都不做，只多回一次主页（三处入口本来也要回）。",
+        "max_hit": 1,
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "ResetTag",
+        "custom_action_param": {
+            "tags": [
+                "TokenShop_Bought"
+            ]
+        },
+        "post_delay": 0,
+        "next": [
+            "[JumpBack]Global_ToHomePage",
+            "Ledger_Probe_Exchange"
+        ]
+    },
+    "TokenShop_LedgerEnd": {
+        "desc": "三处都做完：本任务买成过（标记 TokenShop_Bought 打开）才认得到——回主页，到库存记账的商店兑换位置（Ledger_Begin_Exchange：留事后的始标记、读顶栏，不盘）。一件没买成就认不到，任务照常结束，记账当它没来过。",
+        "max_hit": 1,
+        "recognition": "Custom",
+        "custom_recognition": "CheckTag",
+        "custom_recognition_param": {
+            "tag": "TokenShop_Bought",
+            "max": 0
+        },
+        "pre_delay": 0,
+        "post_delay": 0,
+        "next": [
+            "[JumpBack]Global_ToHomePage",
+            "Ledger_Begin_Exchange"
         ]
     },
     "Rec_TokenShop_ListArea_Clr": {
@@ -262,7 +297,10 @@
                 "TokenShop_Halt"
             ]
         },
-        "post_delay": 0
+        "post_delay": 0,
+        "next": [
+            "TokenShop_Balance_Leave"
+        ]
     },
     "TokenShop_Queue_HaltMark": {
         "desc": "打开标记 TokenShop_Halt：这家店的清单队列下一拍会从 TokenShop_Queue_Halt 退出。定数量的 py（TokenShopQuantity）在只买得了一部分时也会直接打开这个标记。",
@@ -279,6 +317,19 @@
     "TokenShop_Queue_End": {
         "desc": "清单轮完，退栈回商店队列。主页面商店各家清单队列的最后一项。",
         "pre_delay": 0,
+        "post_delay": 0,
+        "next": [
+            "TokenShop_Balance_Leave"
+        ]
+    },
+    "TokenShop_Balance_Leave": {
+        "desc": "离店前读一次右上角的代币余额（py TokenShopBalance，店名取本任务最近一次进的店），与进店那次一起给库存记账算这家店花掉多少；记账关着时不读。动作永远成功，之后退栈回商店队列。主页面商店两个离店出口（TokenShop_Queue_Halt、TokenShop_Queue_End）共用。",
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "TokenShopBalance",
+        "custom_action_param": {
+            "phase": "leave"
+        },
         "post_delay": 0
     },
     "TokenShop_Buy_Max": {
@@ -456,7 +507,21 @@
             ],
             "timeout": 4000
         },
-        "post_delay": 300
+        "post_delay": 300,
+        "next": [
+            "TokenShop_Buy_Bought"
+        ]
+    },
+    "TokenShop_Buy_Bought": {
+        "desc": "买成一件：打开标记 TokenShop_Bought，任务收尾时 TokenShop_LedgerEnd 据此给库存记账留商店兑换标记。之后退栈，与原来点完「确认」一样。",
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "UpdateTag",
+        "custom_action_param": {
+            "tag": "TokenShop_Bought",
+            "value": -1
+        },
+        "post_delay": 0
     },
     "Agt_TokenShop_Quantity": {
         "desc": "py独占数据节点（TokenShopQuantity 的配置），勿挂进管路。读数与调数的节点借套利买入的那一套（购买弹窗是同一个组件），余额另读本模块的 Agt_TokenShop_Balance_Ocr。",
@@ -3120,7 +3185,7 @@
         ]
     },
     "TokenShop_GoldThread_InShop": {
-        "desc": "子页签「金线」是亮的（已选中）：先跑必买那一档，再跑有余才买那一档，每一档里按清单顺序一件一件找；停下标记打开时从 TokenShop_Queue_Halt 离店，两档都完从 TokenShop_Queue_End 离店。attach 是档位表 {商品节点名: must | spare}，由 interface 注入（勾上写 spare，子开关选必买改 must，没勾的不在表里），每档开头的 PatchPipeline 按它开关商品。认到后等商品区静止：第一件直接在进店这一帧上认（不先回顶），列表还在动的话借来的框会过时。",
+        "desc": "子页签「金线」是亮的（已选中）：先跑必买那一档，再跑有余才买那一档，每一档里按清单顺序一件一件找；停下标记打开时从 TokenShop_Queue_Halt 离店，两档都完从 TokenShop_Queue_End 离店。attach 是档位表 {商品节点名: must | spare}，由 interface 注入（勾上写 spare，子开关选必买改 must，没勾的不在表里），每档开头的 PatchPipeline 按它开关商品。认到后等商品区静止：第一件直接在进店这一帧上认（不先回顶），列表还在动的话借来的框会过时。动作给库存记账读一次右上角的代币余额（py TokenShopBalance，记账关着时不读），离店前在 TokenShop_Balance_Leave 再读一次。",
         "recognition": "And",
         "all_of": [
             {
@@ -3133,6 +3198,12 @@
             "Sub_Ocr_Enable_Clr"
         ],
         "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "TokenShopBalance",
+        "custom_action_param": {
+            "phase": "enter",
+            "shop": "金线"
+        },
         "post_wait_freezes": {
             "time": 400,
             "target": [
@@ -4393,7 +4464,7 @@
         ]
     },
     "TokenShop_HopePowder_InShop": {
-        "desc": "子页签「希望粉末」是亮的（已选中）：先跑必买那一档，再跑有余才买那一档，每一档里按清单顺序一件一件找；停下标记打开时从 TokenShop_Queue_Halt 离店，两档都完从 TokenShop_Queue_End 离店。attach 是档位表 {商品节点名: must | spare}，由 interface 注入（勾上写 spare，子开关选必买改 must，没勾的不在表里），每档开头的 PatchPipeline 按它开关商品。认到后等商品区静止：第一件直接在进店这一帧上认（不先回顶），列表还在动的话借来的框会过时。",
+        "desc": "子页签「希望粉末」是亮的（已选中）：先跑必买那一档，再跑有余才买那一档，每一档里按清单顺序一件一件找；停下标记打开时从 TokenShop_Queue_Halt 离店，两档都完从 TokenShop_Queue_End 离店。attach 是档位表 {商品节点名: must | spare}，由 interface 注入（勾上写 spare，子开关选必买改 must，没勾的不在表里），每档开头的 PatchPipeline 按它开关商品。认到后等商品区静止：第一件直接在进店这一帧上认（不先回顶），列表还在动的话借来的框会过时。动作给库存记账读一次右上角的代币余额（py TokenShopBalance，记账关着时不读），离店前在 TokenShop_Balance_Leave 再读一次。",
         "recognition": "And",
         "all_of": [
             {
@@ -4406,6 +4477,12 @@
             "Sub_Ocr_Enable_Clr"
         ],
         "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "TokenShopBalance",
+        "custom_action_param": {
+            "phase": "enter",
+            "shop": "希望粉末"
+        },
         "post_wait_freezes": {
             "time": 400,
             "target": [
@@ -4780,7 +4857,7 @@
         ]
     },
     "TokenShop_RefineTrace_InShop": {
-        "desc": "子页签「精炼痕迹」是亮的（已选中）：先跑必买那一档，再跑有余才买那一档，每一档里按清单顺序一件一件找；停下标记打开时从 TokenShop_Queue_Halt 离店，两档都完从 TokenShop_Queue_End 离店。attach 是档位表 {商品节点名: must | spare}，由 interface 注入（勾上写 spare，子开关选必买改 must，没勾的不在表里），每档开头的 PatchPipeline 按它开关商品。认到后等商品区静止：第一件直接在进店这一帧上认（不先回顶），列表还在动的话借来的框会过时。",
+        "desc": "子页签「精炼痕迹」是亮的（已选中）：先跑必买那一档，再跑有余才买那一档，每一档里按清单顺序一件一件找；停下标记打开时从 TokenShop_Queue_Halt 离店，两档都完从 TokenShop_Queue_End 离店。attach 是档位表 {商品节点名: must | spare}，由 interface 注入（勾上写 spare，子开关选必买改 must，没勾的不在表里），每档开头的 PatchPipeline 按它开关商品。认到后等商品区静止：第一件直接在进店这一帧上认（不先回顶），列表还在动的话借来的框会过时。动作给库存记账读一次右上角的代币余额（py TokenShopBalance，记账关着时不读），离店前在 TokenShop_Balance_Leave 再读一次。",
         "recognition": "And",
         "all_of": [
             {
@@ -4793,6 +4870,12 @@
             "Sub_Ocr_Enable_Clr"
         ],
         "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "TokenShopBalance",
+        "custom_action_param": {
+            "phase": "enter",
+            "shop": "精炼痕迹"
+        },
         "post_wait_freezes": {
             "time": 400,
             "target": [
@@ -5497,7 +5580,7 @@
         ]
     },
     "TokenShop_MirrorWar_InShop": {
-        "desc": "子页签「镜中之战」是亮的（已选中）：先跑必买那一档，再跑有余才买那一档，每一档里按清单顺序一件一件找；停下标记打开时从 TokenShop_Queue_Halt 离店，两档都完从 TokenShop_Queue_End 离店。attach 是档位表 {商品节点名: must | spare}，由 interface 注入（勾上写 spare，子开关选必买改 must，没勾的不在表里），每档开头的 PatchPipeline 按它开关商品。认到后等商品区静止：第一件直接在进店这一帧上认（不先回顶），列表还在动的话借来的框会过时。",
+        "desc": "子页签「镜中之战」是亮的（已选中）：先跑必买那一档，再跑有余才买那一档，每一档里按清单顺序一件一件找；停下标记打开时从 TokenShop_Queue_Halt 离店，两档都完从 TokenShop_Queue_End 离店。attach 是档位表 {商品节点名: must | spare}，由 interface 注入（勾上写 spare，子开关选必买改 must，没勾的不在表里），每档开头的 PatchPipeline 按它开关商品。认到后等商品区静止：第一件直接在进店这一帧上认（不先回顶），列表还在动的话借来的框会过时。动作给库存记账读一次右上角的代币余额（py TokenShopBalance，记账关着时不读），离店前在 TokenShop_Balance_Leave 再读一次。",
         "recognition": "And",
         "all_of": [
             {
@@ -5510,6 +5593,12 @@
             "Sub_Ocr_Enable_Clr"
         ],
         "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "TokenShopBalance",
+        "custom_action_param": {
+            "phase": "enter",
+            "shop": "镜中之战"
+        },
         "post_wait_freezes": {
             "time": 400,
             "target": [
@@ -6104,7 +6193,7 @@
         ]
     },
     "TokenShop_EvilCastle_InShop": {
-        "desc": "子页签「恶魔城」是亮的（已选中）：先跑必买那一档，再跑有余才买那一档，每一档里按清单顺序一件一件找；停下标记打开时从 TokenShop_Queue_Halt 离店，两档都完从 TokenShop_Queue_End 离店。attach 是档位表 {商品节点名: must | spare}，由 interface 注入（勾上写 spare，子开关选必买改 must，没勾的不在表里），每档开头的 PatchPipeline 按它开关商品。认到后等商品区静止：第一件直接在进店这一帧上认（不先回顶），列表还在动的话借来的框会过时。",
+        "desc": "子页签「恶魔城」是亮的（已选中）：先跑必买那一档，再跑有余才买那一档，每一档里按清单顺序一件一件找；停下标记打开时从 TokenShop_Queue_Halt 离店，两档都完从 TokenShop_Queue_End 离店。attach 是档位表 {商品节点名: must | spare}，由 interface 注入（勾上写 spare，子开关选必买改 must，没勾的不在表里），每档开头的 PatchPipeline 按它开关商品。认到后等商品区静止：第一件直接在进店这一帧上认（不先回顶），列表还在动的话借来的框会过时。动作给库存记账读一次右上角的代币余额（py TokenShopBalance，记账关着时不读），离店前在 TokenShop_Balance_Leave 再读一次。",
         "recognition": "And",
         "all_of": [
             {
@@ -6117,6 +6206,12 @@
             "Sub_Ocr_Enable_Clr"
         ],
         "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "TokenShopBalance",
+        "custom_action_param": {
+            "phase": "enter",
+            "shop": "恶魔城"
+        },
         "post_wait_freezes": {
             "time": 400,
             "target": [
@@ -7600,7 +7695,7 @@
         ]
     },
     "TokenShop_Guild_InShop": {
-        "desc": "子页签「公会」是亮的（已选中）：先跑必买那一档，再跑有余才买那一档，每一档里按清单顺序一件一件找；停下标记打开时从 TokenShop_Queue_Halt 离店，两档都完从 TokenShop_Queue_End 离店。attach 是档位表 {商品节点名: must | spare}，由 interface 注入（勾上写 spare，子开关选必买改 must，没勾的不在表里），每档开头的 PatchPipeline 按它开关商品。认到后等商品区静止：第一件直接在进店这一帧上认（不先回顶），列表还在动的话借来的框会过时。",
+        "desc": "子页签「公会」是亮的（已选中）：先跑必买那一档，再跑有余才买那一档，每一档里按清单顺序一件一件找；停下标记打开时从 TokenShop_Queue_Halt 离店，两档都完从 TokenShop_Queue_End 离店。attach 是档位表 {商品节点名: must | spare}，由 interface 注入（勾上写 spare，子开关选必买改 must，没勾的不在表里），每档开头的 PatchPipeline 按它开关商品。认到后等商品区静止：第一件直接在进店这一帧上认（不先回顶），列表还在动的话借来的框会过时。动作给库存记账读一次右上角的代币余额（py TokenShopBalance，记账关着时不读），离店前在 TokenShop_Balance_Leave 再读一次。",
         "recognition": "And",
         "all_of": [
             {
@@ -7613,6 +7708,12 @@
             "Sub_Ocr_Enable_Clr"
         ],
         "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "TokenShopBalance",
+        "custom_action_param": {
+            "phase": "enter",
+            "shop": "公会"
+        },
         "post_wait_freezes": {
             "time": 400,
             "target": [
@@ -8650,7 +8751,7 @@
         ]
     },
     "TokenShop_GoldArena_InShop": {
-        "desc": "子页签「黄金竞技场」是亮的（已选中）：先跑必买那一档，再跑有余才买那一档，每一档里按清单顺序一件一件找；停下标记打开时从 TokenShop_Queue_Halt 离店，两档都完从 TokenShop_Queue_End 离店。attach 是档位表 {商品节点名: must | spare}，由 interface 注入（勾上写 spare，子开关选必买改 must，没勾的不在表里），每档开头的 PatchPipeline 按它开关商品。认到后等商品区静止：第一件直接在进店这一帧上认（不先回顶），列表还在动的话借来的框会过时。",
+        "desc": "子页签「黄金竞技场」是亮的（已选中）：先跑必买那一档，再跑有余才买那一档，每一档里按清单顺序一件一件找；停下标记打开时从 TokenShop_Queue_Halt 离店，两档都完从 TokenShop_Queue_End 离店。attach 是档位表 {商品节点名: must | spare}，由 interface 注入（勾上写 spare，子开关选必买改 must，没勾的不在表里），每档开头的 PatchPipeline 按它开关商品。认到后等商品区静止：第一件直接在进店这一帧上认（不先回顶），列表还在动的话借来的框会过时。动作给库存记账读一次右上角的代币余额（py TokenShopBalance，记账关着时不读），离店前在 TokenShop_Balance_Leave 再读一次。",
         "recognition": "And",
         "all_of": [
             {
@@ -8663,6 +8764,12 @@
             "Sub_Ocr_Enable_Clr"
         ],
         "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "TokenShopBalance",
+        "custom_action_param": {
+            "phase": "enter",
+            "shop": "黄金竞技场"
+        },
         "post_wait_freezes": {
             "time": 400,
             "target": [
@@ -9815,7 +9922,7 @@
         ]
     },
     "TokenShop_Fishing_InShop": {
-        "desc": "子页签「钓鱼」是亮的（已选中）：先跑必买那一档，再跑有余才买那一档，每一档里按清单顺序一件一件找；停下标记打开时从 TokenShop_Queue_Halt 离店，两档都完从 TokenShop_Queue_End 离店。attach 是档位表 {商品节点名: must | spare}，由 interface 注入（勾上写 spare，子开关选必买改 must，没勾的不在表里），每档开头的 PatchPipeline 按它开关商品。认到后等商品区静止：第一件直接在进店这一帧上认（不先回顶），列表还在动的话借来的框会过时。",
+        "desc": "子页签「钓鱼」是亮的（已选中）：先跑必买那一档，再跑有余才买那一档，每一档里按清单顺序一件一件找；停下标记打开时从 TokenShop_Queue_Halt 离店，两档都完从 TokenShop_Queue_End 离店。attach 是档位表 {商品节点名: must | spare}，由 interface 注入（勾上写 spare，子开关选必买改 must，没勾的不在表里），每档开头的 PatchPipeline 按它开关商品。认到后等商品区静止：第一件直接在进店这一帧上认（不先回顶），列表还在动的话借来的框会过时。动作给库存记账读一次右上角的代币余额（py TokenShopBalance，记账关着时不读），离店前在 TokenShop_Balance_Leave 再读一次。",
         "recognition": "And",
         "all_of": [
             {
@@ -9828,6 +9935,12 @@
             "Sub_Ocr_Enable_Clr"
         ],
         "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "TokenShopBalance",
+        "custom_action_param": {
+            "phase": "enter",
+            "shop": "钓鱼"
+        },
         "post_wait_freezes": {
             "time": 400,
             "target": [
@@ -10423,7 +10536,7 @@
         ]
     },
     "TokenShop_SoulDisk_InShop": {
-        "desc": "子页签「魂之盘」是亮的（已选中）：先跑必买那一档，再跑有余才买那一档，每一档里按清单顺序一件一件找；停下标记打开时从 TokenShop_Queue_Halt 离店，两档都完从 TokenShop_Queue_End 离店。attach 是档位表 {商品节点名: must | spare}，由 interface 注入（勾上写 spare，子开关选必买改 must，没勾的不在表里），每档开头的 PatchPipeline 按它开关商品。认到后等商品区静止：第一件直接在进店这一帧上认（不先回顶），列表还在动的话借来的框会过时。",
+        "desc": "子页签「魂之盘」是亮的（已选中）：先跑必买那一档，再跑有余才买那一档，每一档里按清单顺序一件一件找；停下标记打开时从 TokenShop_Queue_Halt 离店，两档都完从 TokenShop_Queue_End 离店。attach 是档位表 {商品节点名: must | spare}，由 interface 注入（勾上写 spare，子开关选必买改 must，没勾的不在表里），每档开头的 PatchPipeline 按它开关商品。认到后等商品区静止：第一件直接在进店这一帧上认（不先回顶），列表还在动的话借来的框会过时。动作给库存记账读一次右上角的代币余额（py TokenShopBalance，记账关着时不读），离店前在 TokenShop_Balance_Leave 再读一次。",
         "recognition": "And",
         "all_of": [
             {
@@ -10436,6 +10549,12 @@
             "Sub_Ocr_Enable_Clr"
         ],
         "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "TokenShopBalance",
+        "custom_action_param": {
+            "phase": "enter",
+            "shop": "魂之盘"
+        },
         "post_wait_freezes": {
             "time": 400,
             "target": [

@@ -1,4 +1,5 @@
-"""代币商店兑换里 pipeline 做不了的两处算术：主页面商店定购买数量（两档共用）、月末窗口。
+"""代币商店兑换里 pipeline 做不了的两处算术：主页面商店定购买数量（两档共用）、月末窗口；
+外加给库存记账读主页面商店的代币余额（进店、离店各一次）。
 
 别的判断（认商品、买得起买不起、翻页、停下）都在 pipeline 里，见 TokenShop.json。
 """
@@ -16,8 +17,10 @@ from maa.custom_recognition import CustomRecognition
 from .arbitrage_buy_precise import parse_available
 from .arbitrage_sell_quantity import QuantityAdjuster
 from recognition.counter import TAG_STORE
-from utils import mfaalog
+from utils import ledger_config, mfaalog, task_journal
+from utils.account_sync import current_session, sync_from_context
 from utils.arbitrage_quote import MONEY, clean
+from utils.inventory_store import save_token_balance, utc_now
 
 
 # 读数与调数用哪些节点，写在这个数据节点的 attach 里（PC 覆盖包改它的 slider_range）。
@@ -40,6 +43,19 @@ def total_from(text, quantity):
         return None
     total = int(match[1])
     return total if total and total % quantity == 0 else None
+
+
+def balance_from(result):
+    """主页面商店右上角的代币余额（Agt_TokenShop_Balance_Ocr 的识别结果）→ 数；读不到返回 None。
+    数字左边的代币图标偶尔被读成一个数字，所以只取最右边那个完整的数。"""
+    items = (getattr(result, "filtered_results", None) or []) if result is not None and result.hit else []
+    found = []
+    for item in items:
+        text = clean(item.get("text", "") if isinstance(item, dict) else getattr(item, "text", ""))
+        box = item.get("box") if isinstance(item, dict) else getattr(item, "box", None)
+        if box is not None and re.fullmatch(MONEY, text):
+            found.append((box[0] + box[2], int(text.replace(",", "").replace(".", ""))))
+    return max(found)[1] if found else None
 
 
 def days_left_in_month(now):
@@ -72,18 +88,11 @@ class _Adjuster(QuantityAdjuster):
         return None
 
     def balance(self, image):
-        """右上角余额。数字左边的代币图标偶尔被读成一个数字，所以只取最右边那个完整的数。"""
-        result = self.recognize("balance_node", image)
-        items = (getattr(result, "filtered_results", None) or []) if result.hit else []
-        found = []
-        for item in items:
-            text = clean(item.get("text", "") if isinstance(item, dict) else getattr(item, "text", ""))
-            box = item.get("box") if isinstance(item, dict) else getattr(item, "box", None)
-            if box is not None and re.fullmatch(MONEY, text):
-                found.append((box[0] + box[2], int(text.replace(",", "").replace(".", ""))))
-        if not found:
+        """右上角余额，见 balance_from。"""
+        value = balance_from(self.recognize("balance_node", image))
+        if value is None:
             raise ValueError(f"未读到余额: {self.config['balance_node']}")
-        return max(found)[1]
+        return value
 
     def settle_quantity(self, reserve):
         self.check_running()
@@ -145,6 +154,55 @@ class TokenShopQuantity(CustomAction):
         except Exception as exc:
             mfaalog.warning(f"[TokenShop] {argv.node_name} 定数量失败，这家店停下: {exc}")
             return False
+
+
+_ENTERED: dict = {}   # 任务号 → 这个任务最近一次进的店名；离店那次的店名取它（离店节点九家共用）
+
+
+@AgentServer.custom_action("TokenShopBalance")
+class TokenShopBalance(CustomAction):
+    """主页面商店进店、离店各读一次右上角的代币余额，记成凭证，报表「商店兑换」一节据此列每家店花掉多少
+    （代币商店接入计划 §2.4：按店名叫、不读代币名；赛季活动商店不记）。
+
+    参数 {"phase": "enter", "shop": "金线"}（挂在各家 _InShop 上）／ {"phase": "leave"}（九家共用的离店节点，
+    店名取本任务最近一次进的店）。只在库存记账开着、账号确认过时读。永远返回 True：读不到只记日志，不打断兑换。
+    """
+
+    def run(self, context, argv):
+        try:
+            raw = argv.custom_action_param
+            params = raw if isinstance(raw, dict) else json.loads(str(raw or "{}"))
+            phase, task_id = params.get("phase"), argv.task_detail.task_id
+            if phase == "enter":
+                shop = str(params.get("shop") or "")
+                _ENTERED.clear()   # 只留当前任务：任务号单调递增、不复用，旧的用不着
+                _ENTERED[task_id] = shop
+            elif phase == "leave":
+                shop = _ENTERED.get(task_id)
+            else:
+                raise ValueError(f"参数 phase 不对：{phase!r}")
+            if not shop:
+                mfaalog.warning(f"[TokenShop] ⚠️ 代币余额（{phase}）：不知道是哪家店，不记")
+                return True
+            if not ledger_config.ledger_options(current_session())["scan"]:
+                return True
+            if not sync_from_context(context, where="TokenShopBalance", stop=False):
+                mfaalog.warning(f"[TokenShop] ⚠️ 账号未确认，{shop}的代币余额不记")
+                return True
+            image = context.tasker.controller.post_screencap().wait().get()
+            if image is None or not getattr(image, "size", 0):
+                raise RuntimeError("截图失败")
+            attach = getattr(context.get_node_object(_CONFIG), "attach", None) or {}
+            balance = balance_from(context.run_recognition(attach.get("balance_node", "Agt_TokenShop_Balance_Ocr"), image))
+            saved = save_token_balance({"shop": shop, "phase": phase, "balance": balance, "at": utc_now(),
+                                        "session": task_journal.SESSION,
+                                        "task": {"entry": getattr(argv.task_detail, "entry", None), "task_id": task_id}})
+            (mfaalog.info if balance is not None else mfaalog.warning)(
+                f"[TokenShop] {'⚠️ ' if balance is None else ''}{shop}{'进店' if phase == 'enter' else '离店'}代币余额 "
+                + (f"{balance:,}" if balance is not None else "没读到") + ("" if saved else "（⚠️ 存档未写入）"))
+        except Exception as exc:
+            mfaalog.warning(f"[TokenShop] ⚠️ 代币余额没记成（不影响兑换）：{exc}")
+        return True
 
 
 @AgentServer.custom_recognition("TokenShopMonthEnd")
