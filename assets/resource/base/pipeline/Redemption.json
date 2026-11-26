@@ -24,6 +24,8 @@
         "next": [
             "Redemption_Mapck",
             "[JumpBack]Redemption_Evil_Settlement",
+            "[JumpBack]StartGame_Special",
+            "[JumpBack]PVP_PerOperationsMain_Error",
             "[JumpBack]Global_BackToQC_Battleplay_Anc",
             "[JumpBack]Global_WaitingForLoading",
             "[JumpBack]Global_ToSandBox"
@@ -41,7 +43,6 @@
         "template": [
             "Cartridges_EvilCas.png"
         ],
-        "green_mask": true,
         "action": "Click",
         "target_offset": [
             -30,
@@ -53,7 +54,7 @@
             "QCPack": ""
         },
         "post_delay": 2000,
-        "timeout": 3000,
+        "timeout": 6000,
         "next": [
             "Redemption_ToPack",
             "[JumpBack]Global_WaitingForLoading"
@@ -69,7 +70,8 @@
             124
         ],
         "expected": [
-            "赛季奖励"
+            "赛季奖励",
+            "賽季獎勵"
         ],
         "action": "Click",
         "post_delay": 2500
@@ -78,13 +80,35 @@
         "desc": "箱庭地图pin确认",
         "recognition": "And",
         "all_of": [
-            "Rec_EvilCion",
-            "Rec_EvilCuff"
+            {
+                "recognition": "Or",
+                "any_of": [
+                    "Rec_EvilCuff",
+                    "Rec_EvilCion"
+                ]
+            },
+            "Rec_SandBox_Pin3_Tpl",
+            "Sub_SandBox_Pin3_Bright_Clr"
+        ],
+        "post_delay": 5000,
+        "next": [
+            "Redemption_Sandplay_Again"
+        ],
+        "focus": "RM.恶魔城-箱庭确认,(1/2)"
+    },
+    "Redemption_Sandplay_Again": {
+        "recognition": "Or",
+        "any_of": [
+            "Redemption_Mapck"
         ],
         "next": [
+            "[JumpBack]Redemption_Evil_Settlement",
+            "[JumpBack]StartGame_Special",
+            "[JumpBack]PVP_PerOperationsMain_Error",
+            "Redemption_Evil_AltarStuck",
             "Redemption_Evil_Move"
         ],
-        "focus": "RM.已复位到箱庭"
+        "focus": "RM.恶魔城-箱庭确认,(2/2)"
     },
     "Rec_EvilCion": {
         "desc": "[识别]恶魔城代币",
@@ -134,9 +158,93 @@
         "focus": "MM.向上行走。BM.箱庭地图pin确认"
     },
     "Redemption_Evil_Redemption_Start": {
+        "desc": "等救赎之塔入口弹窗;8秒没等到就当卡在祭坛上,退一步再点红叉走回去 | 退一步放 on_error 不放 next:箱庭在走路和开页面途中一直认得出,放 next 会在弹窗出来前抢先命中(ADB 实测点红叉后3.8秒、往上走完后1.8秒才认到入口)。",
+        "timeout": 8000,
         "next": [
             "Redemption_Evil_Redemption_In"
+        ],
+        "on_error": [
+            "Redemption_Evil_AltarStepDown",
+            "Global_Null"
         ]
+    },
+    "Redemption_Evil_AltarStuck": {
+        "desc": "进场前查角色是否卡在祭坛法阵上(入口弹窗关掉后原地不再弹),是就先往下退一步 | 镜头始终把角色放在屏幕正中(640,360),红叉出现在以角色为中心的这一圈里就说明人站在法阵上。点红叉正下方170px(法阵前沿在红叉下方约113px):不论人站在法阵哪里都能退出法阵,走完红叉不会升进顶部货币栏(ADB 实测人会走过点击位置一点:按红叉往下220px时红叉落在 y≈73,按角色往下190px时 y≈60 被挡)。红叉被跟随队伍全压住时认不出来,照常往上走,走完没弹窗由 AltarStepDown 兜底。退完认不到红叉(跟随队伍落在后面、停在红叉上)就照常往上走:人已离开法阵,走进去就会弹窗。",
+        "recognition": "TemplateMatch",
+        "roi": [
+            440,
+            170,
+            400,
+            290
+        ],
+        "template": [
+            "Evil_AltarMark.png",
+            "Evil_AltarMark_Dim.png"
+        ],
+        "green_mask": true,
+        "threshold": 0.6,
+        "action": "Click",
+        "target_offset": [
+            0,
+            170,
+            0,
+            0
+        ],
+        "post_delay": 3000,
+        "next": [
+            "Redemption_Evil_AltarMark",
+            "Redemption_Evil_Move"
+        ],
+        "focus": "RM.卡在祭坛法阵上,先往下退一步"
+    },
+    "Redemption_Evil_AltarStepDown": {
+        "desc": "往上走完等不到入口弹窗时,点角色正下方200px退出法阵,再交给 AltarMark 点红叉走回去 | 这时不看红叉:人多半站在法阵后沿撞墙,红叉在脚下被跟随队伍压住。ADB 实测从后沿往下110px还在法阵里,点红叉不弹窗;200px 退到法阵前沿外。跟随队伍会落在后面停在法阵上压住红叉,认不到红叉就照常往上走。识别借 Redemption_Evil_Move,只确认人还在箱庭里。max_hit 2:点红叉后还不弹窗就再来一轮,第二轮仍不弹窗即退栈结束。",
+        "max_hit": 2,
+        "recognition": "Or",
+        "any_of": [
+            "Redemption_Evil_Move"
+        ],
+        "action": "Click",
+        "target": [
+            632,
+            556,
+            8,
+            8
+        ],
+        "post_delay": 3000,
+        "next": [
+            "Redemption_Evil_AltarMark",
+            "Redemption_Evil_Move"
+        ],
+        "focus": "RM.先往下退一步"
+    },
+    "Redemption_Evil_AltarMark": {
+        "desc": "点祭坛红叉走回法阵,触发救赎之塔入口弹窗 | 落点在红叉右下各30px(仍在法阵圈内):脚底贴着红叉时角色身体和跟随队伍会把红叉压住,下次进场前的卡阵判定就认不出来。roi 上沿贴着顶部货币栏下方:下台阶后红叉会升到 y≈100,再往上就被货币栏挡住;左边避开小地图(那里也有一个红叉)。两张模板分别是法阵发光(人站在上面)和不发光时的红叉,ADB 实测有红叉 0.89~1.0,被跟随队伍压住一半约0.69,全压住0.45认不出;无红叉最高 0.46。",
+        "recognition": "TemplateMatch",
+        "roi": [
+            260,
+            66,
+            700,
+            554
+        ],
+        "template": [
+            "Evil_AltarMark.png",
+            "Evil_AltarMark_Dim.png"
+        ],
+        "green_mask": true,
+        "threshold": 0.6,
+        "action": "Click",
+        "target_offset": [
+            30,
+            30,
+            0,
+            0
+        ],
+        "post_delay": 2000,
+        "next": [
+            "Redemption_Evil_Redemption_Start"
+        ],
+        "focus": "RM.点祭坛红叉走回法阵"
     },
     "Redemption_Evil_Redemption_In": {
         "recognition": "OCR",
@@ -165,6 +273,9 @@
             106
         ],
         "expected": "继续第",
+        "next": [
+            "Global_ToSandBox"
+        ],
         "focus": "REB.[ERROR]发现已存在的开局，退出流程"
     },
     "Redemption_Evil_Redemption_ListLast": {
@@ -439,6 +550,7 @@
         "focus": "REM.无法快速战斗"
     },
     "Redemption_Evil_Redemption_QuickBattNoAP": {
+        "max_hit": 5,
         "recognition": "OCR",
         "roi": [
             512,
@@ -455,8 +567,7 @@
         ],
         "post_delay": 2000,
         "next": [
-            "Redemption_Evil_Redemption_PageBackHub",
-            "Redemption_Evil_Redemption_QuickBattNoAP"
+            "Redemption_Evil_Redemption_PageBackHub"
         ]
     },
     "Redemption_Evil_Redemption_MAX": {
@@ -495,6 +606,7 @@
         ]
     },
     "Redemption_Evil_Redemption_Result": {
+        "max_hit": 4,
         "recognition": "OCR",
         "roi": [
             800,
@@ -508,6 +620,7 @@
         "action": "Click",
         "post_delay": 3000,
         "next": [
+            "Redemption_Evil_Redemption_Result",
             "Redemption_Daily_End"
         ]
     },
@@ -522,30 +635,16 @@
         },
         "post_delay": 0,
         "next": [
-            "Redemption_Evil_Redemption_PageBackHub",
-            "Redemption_Evil_Redemption_Result"
+            "Redemption_Evil_Redemption_PageBackHub"
         ],
         "focus": "REM.肉鸽塔日常完成,已记录"
     },
     "Redemption_Evil_Redemption_PageBackHub": {
-        "desc": "其他页面，返回按钮",
-        "recognition": "TemplateMatch",
-        "roi": [
-            1,
-            1,
-            231,
-            124
-        ],
-        "template": [
-            "BackButGe.png",
-            "BackButGe2.png"
-        ],
-        "green_mask": true,
-        "action": "Click",
-        "post_delay": 2500,
+        "desc": "其他页面，直接交给 Global_ToHomePage 回主界面",
+        "pre_delay": 0,
+        "post_delay": 0,
         "next": [
             "Global_ToHomePage"
-        ],
-        "focus": "G=1.页面非预期，点击返回按钮"
+        ]
     }
 }
