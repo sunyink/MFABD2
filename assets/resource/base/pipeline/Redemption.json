@@ -273,6 +273,7 @@
             106
         ],
         "expected": "继续第",
+        "next": ["Global_ToSandBox"],
         "focus": "REB.[ERROR]发现已存在的开局，退出流程"
     },
     "Redemption_Evil_Redemption_ListLast": {

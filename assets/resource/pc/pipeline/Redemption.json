@@ -127,10 +127,7 @@
             "放弃",
             "放棄"
         ],
-        "next": [
-            "Redemption_Evil_Redemption_PageBackHub"
-        ],
-        "focus": "REB.[ERROR]发现已存在的开局，安全退回主界面"
+        "focus": "REB.[ERROR]发现已存在的开局，安全退回箱庭"
     },
     "Redemption_Evil_Redemption_ListLast": {
         "desc": "先选中列表底部最高难度(LV.10)再自下而上查找已通关最高层。|[PC覆盖] PC端LV.1-LV.10同屏完整展示,无需ListSwip滑动。",
