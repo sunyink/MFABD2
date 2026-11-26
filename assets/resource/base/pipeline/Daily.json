@@ -1777,7 +1777,8 @@
             "[JumpBack]Daily_Intimacy_FreeMark",
             "[JumpBack]Daily_Intimacy_Up",
             "[JumpBack]Daily_Intimacy_Turn_NextPerson",
-            "Daily_Intimacy_Swip"
+            "Daily_Intimacy_Swip",
+            "Daily_Intimacy_Swip_Limit"
         ],
         "focus": "亲密度目录"
     },
@@ -1960,7 +1961,8 @@
         "pre_delay": 0,
         "post_delay": 0,
         "next": [
-            "Daily_Intimacy_Swip"
+            "Daily_Intimacy_Swip",
+            "Daily_Intimacy_Swip_Limit"
         ]
     },
     "Daily_Intimacy_Up": {
@@ -2167,7 +2169,8 @@
         "focus": "谈心次数已耗尽"
     },
     "Daily_Intimacy_Swip": {
-        "desc": "左栏上翻约5格,选中卡仍留在屏内供Set_Selected重新登记。拉不动=列表到底 → 回网格结束本档",
+        "desc": "左栏上翻约5格,选中卡仍留在屏内供Set_Selected重新登记。拉不动=列表到底 → 回网格结束本档。只比对到底时第2格头像内部(圆心(130,241),格距86):左栏背后立绘的头发叶子会动,静止时整列帧差可到3.8、名字到11,头像内部恒为0;松手后约600ms回弹停稳,settle_delay留到800。不足一屏滑不动的短列表,框落在第1格名字上会一直判成翻过,靠max_hit兜底:本task三档合计,33人时从头翻到底约7次、三档合计不超过10次,留到15(约60人)",
+        "max_hit": 15,
         "pre_delay": 0,
         "action": "Custom",
         "custom_action": "SmartAction",
@@ -2187,13 +2190,13 @@
                 "end_hold": 1000
             },
             "detect_roi": [
-                100,
-                170,
-                60,
-                540
+                117,
+                229,
+                27,
+                26
             ],
             "threshold": 3.0,
-            "settle_delay": 500,
+            "settle_delay": 800,
             "on_changed": "next",
             "on_unchanged": "error",
             "unchanged_streak": 3
@@ -2207,6 +2210,15 @@
             "Global_BackPageHub_Once",
             "Global_Null"
         ]
+    },
+    "Daily_Intimacy_Swip_Limit": {
+        "desc": "翻页次数用满(Swip的max_hit) → 当列表到底处理,回网格结束本档。兜住到底判不出的情况,如不足一屏的短列表",
+        "pre_delay": 0,
+        "post_delay": 0,
+        "next": [
+            "Global_BackPageHub_Once"
+        ],
+        "focus": "[WRN]亲密度翻页次数到上限,按列表到底处理"
     },
     "Daily_Intimacy_Swich_Reset": {
         "action": "Custom",

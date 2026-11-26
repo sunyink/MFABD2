@@ -34,6 +34,16 @@ from .rdd_hsv_rescue import (
     sort_parents,
     strict_profile,
 )
+from .rdd_relevel import (
+    coarse_levels,
+    configured_floor,
+    fine_neighbors,
+    label_runs,
+    level_profile,
+    normalize_relevel_config,
+    same_spot,
+)
+from .rdd_shape import public_features, shape_features, shape_verdict
 
 
 # ================================================================
@@ -388,6 +398,11 @@ class HSVShapeMatching(CustomRecognition):
 #                          后才可命中。默认 off；预算/歧义/异常均 fail closed。
 #                          max_depth>1 时分层：一层没结论，就在切剩、仍卡住的子块上重算
 #                          切点再切一层（缺省 1 = 单层）。见 _run_hsv_rescue。
+#   flt_relevel    (object) 换档重看。mode=off/shadow/active，缺省 off。标准档与上面的救援
+#                          都没认出时，沿饱和度下限换档重跑本链（s_min~s_max，步长 step）：
+#                          往下补回被洗淡的红，往上切开连片的红；色相带与亮度下限不动。
+#                          候选须过形状闸（菱形贴合 / 外接框近方 / 白芯居中，见 rdd_shape），
+#                          且相邻半步的一档认出同一处才采纳。见 _run_relevel。
 #
 #   旧名对照(存量节点仍可用，由 _PARAM_ALIAS 翻译；同时写则新名优先)：
 #       flt_red_hsv ← hsv_ranges      flt_area     ← red_area
@@ -600,7 +615,8 @@ class HSVShapeMatching(CustomRecognition):
 # 筛选·红掩膜(red_mask)  → red_mask 全白：降 flt_red_hsv S/V 下限 / 校 roi
 # 筛选·面积(area)        → area_pass=0：降 flt_area min（或升 max）
 # 筛选·长宽比(aspect)    → 连片真货仅走 flt_hsv_rescue；不要放宽 flt_aspect
-# 筛选·内部(interior)    → inner 全白：红圈破损或模糊填满，缩小 roi / 等清晰帧
+# 筛选·内部(interior)    → inner 全白：红圈破损或模糊填满，缩小 roi / 等清晰帧；
+#                          红点被背景洗淡导致的断圈由 flt_relevel 换档认回，看 detail.换档
 # 打分(confidence)       → 看明细贡献列：竖长/偏白低=非感叹号(拒对了)；真货被拒才降 sc_min_conf
 # 大 ROI 误判杂红         → 提高 sc_min_conf 到 0.58
 #
@@ -889,6 +905,9 @@ class RedDotDetector(CustomRecognition):
         rescue_cfg, rescue_error = normalize_rescue_config(params.get("flt_hsv_rescue"))
         if rescue_error and "flt_hsv_rescue" in params:
             mfaalog.debug(f"[RedDotDetector] HSV 救援配置无效，已关闭: {rescue_error}")
+        relevel_cfg, relevel_error = normalize_relevel_config(params.get("flt_relevel"))
+        if relevel_error and "flt_relevel" in params:
+            mfaalog.debug(f"[RedDotDetector] 换档重看配置无效，已关闭: {relevel_error}")
 
         # 1. 按 roi 裁剪
         roi = argv.roi
@@ -981,6 +1000,53 @@ class RedDotDetector(CustomRecognition):
                         rescue=self._public_rescue(rescue),
                     )
 
+        # 换档重看：排在上面的救援之后，只接最终仍未中的帧 —— 原来认得出、救得回的
+        # 一帧都不经过这里，结果逐位不变。
+        relevel = None
+        if relevel_cfg["mode"] != "off":
+            try:
+                relevel = self._run_relevel(
+                    hsv_np=hsv_np, hsv_ranges=hsv_ranges,
+                    area_range=(area_min, area_max), aspect_range=(asp_lo, asp_hi),
+                    gap_ratio=gap_ratio, min_conf=min_conf, rx=rx, ry=ry,
+                    config=relevel_cfg,
+                )
+            except Exception:
+                relevel = {
+                    "模式": relevel_cfg["mode"], "结论": "异常", "停因": "异常",
+                    "_decision": "error", "_winner": None,
+                    "错误": traceback.format_exc().strip().splitlines()[-1],
+                }
+                mfaalog.debug(f"[RedDotDetector] 换档重看异常，保持 miss:\n"
+                              f"{traceback.format_exc()}")
+            self._log_relevel(node, relevel)
+            winner = relevel.get("_winner")
+            if winner is not None and relevel_cfg["mode"] == "active":
+                confirmed = self._relevel_confirm_full(
+                    hsv_np=hsv_np, winner=winner,
+                    area_range=(area_min, area_max),
+                    aspect_range=(asp_lo, asp_hi), gap_ratio=gap_ratio,
+                    min_conf=min_conf, rx=rx, ry=ry)
+                if confirmed is None:
+                    relevel["结论"] = "复核不一致"
+                    relevel["停因"] = "全区复核不一致"
+                    relevel["_decision"] = "unconfirmed"
+                    mfaalog.debug(f"[RedDotDetector] 换档 {node} | 全区复核不一致，维持 miss")
+                else:
+                    outcome_full, candidate_full = confirmed
+                    return self._finalize_hit(
+                        context=context, argv=argv, node=node, key_roi=key_roi,
+                        caller=caller, work_bgr=work_bgr,
+                        roi_tuple=(rx, ry, rw, rh),
+                        params=params, area_range=(area_min, area_max),
+                        aspect_range=(asp_lo, asp_hi), gap_ratio=gap_ratio,
+                        min_conf=min_conf, outcome=outcome_full,
+                        candidate=candidate_full,
+                        effective_hsv=winner["profile"],
+                        rescue=self._public_rescue(rescue),
+                        relevel=self._public_rescue(relevel),
+                    )
+
         return self._finalize_miss(
             context=context, argv=argv, node=node, key_roi=key_roi,
             caller=caller, work_bgr=work_bgr, roi_tuple=(rx, ry, rw, rh),
@@ -989,6 +1055,7 @@ class RedDotDetector(CustomRecognition):
             aspect_range=(asp_lo, asp_hi), min_conf=min_conf,
             baseline=baseline, stage=stage, hint=hint,
             rescue=self._public_rescue(rescue),
+            relevel=self._public_rescue(relevel),
         )
 
     def _detect_once(self, hsv_np, hsv_ranges, area_min, area_max,
@@ -1675,10 +1742,201 @@ class RedDotDetector(CustomRecognition):
             return None
         return {k: v for k, v in rescue.items() if not k.startswith("_")}
 
+    # ------------------------------------------------------------------
+    # 换档重看：颜色换档提名，形状定案
+    # ------------------------------------------------------------------
+
+    def _run_relevel(self, *, hsv_np, hsv_ranges, area_range, aspect_range,
+                     gap_ratio, min_conf, rx, ry, config):
+        """沿饱和度下限换档重跑原链，找「换一档就认得出、且长得像红点」的候选。
+
+        流程：
+          1. 最松一档（s_min）的红掩膜标一遍连通块。够面积下限的块各取外接框作窗口；
+             一个都没有就收工 —— 更紧的档只会更少红像素，不可能凭空多出一块。
+          2. 提名档由近到远依次试（离配置档最近的先试）。每档在各窗口里跑完整的原链，
+             白芯、打分、阈值一行不动；候选须整块落在该窗口的父块里（血统），再过形状闸。
+          3. 过闸的候选，到相邻半步的一档复核：那一档也认出同一处且同样过闸才算数。
+          4. 某一档出现算数的候选就停；同档有多处时取最靠上、其次最靠左的一处，
+             与标准档「按扫描次序取第一个」一致。
+
+        只挪饱和度下限。色相带、亮度下限不放宽，所以别的颜色的点（游戏里的黄色圆点）
+        在任何一档都进不了红掩膜。
+
+        时间预算：第一档必定在所有窗口跑完，之后每跑一次前看墙钟，超了就停、维持 miss。
+        预算与上面的 HSV 救援各算各的 —— 那边防的是「试得越多越容易撞出答案」，
+        这里定案靠形状闸，不靠试的次数少。
+        """
+        started = time.perf_counter()
+        budget_ms = config["time_budget_ms"]
+        floor = configured_floor(hsv_ranges)
+        levels = coarse_levels(config, floor)
+        area_min, area_max = area_range
+
+        def elapsed():
+            return round((time.perf_counter() - started) * 1000, 2)
+
+        def timed_out():
+            return (time.perf_counter() - started) * 1000 >= budget_ms
+
+        public = {
+            "模式": config["mode"], "结论": "未命中", "停因": "档位用尽",
+            "配置档": floor,
+            "档位": {"范围": [config["s_min"], config["s_max"]], "步长": config["step"]},
+            "窗口": 0, "尝试": [], "重跑": 0, "耗时ms": 0.0, "上限ms": budget_ms,
+            "_decision": "no_hit", "_winner": None,
+        }
+
+        # 色相与亮度过关的像素。各档只在它上面按饱和度再筛。
+        band = _compute_hsv_mask(hsv_np, level_profile(hsv_ranges, 0))
+        sat = hsv_np[..., 1]
+        loose_lab, loose_n = label_runs(band & (sat >= config["s_min"]))
+        windows = []
+        if loose_n:
+            areas = np.bincount(loose_lab.ravel(), minlength=loose_n + 1)
+            h, w = loose_lab.shape
+            for label in (np.nonzero(areas[1:] >= area_min)[0] + 1).tolist():
+                ys, xs = np.nonzero(loose_lab == label)
+                windows.append((int(areas[label]),
+                                max(0, int(xs.min()) - _RESCUE_PAD),
+                                max(0, int(ys.min()) - _RESCUE_PAD),
+                                min(w, int(xs.max()) + 1 + _RESCUE_PAD),
+                                min(h, int(ys.max()) + 1 + _RESCUE_PAD),
+                                label))
+            windows.sort()      # 小块先试：孤立的淡红点就在小块里，也最便宜
+        public["窗口"] = len(windows)
+        if not windows:
+            public["停因"] = "最松档没有够大的红块"
+            public["耗时ms"] = elapsed()
+            return public
+
+        cache = {}
+
+        def run(level, wi):
+            """在一个窗口里按某一档跑原链，返回该父块名下的候选（含形状结论）。"""
+            if (level, wi) in cache:
+                return cache[(level, wi)]
+            public["重跑"] += 1
+            _, x0, y0, x1, y1, parent = windows[wi]
+            mask = band[y0:y1, x0:x1] & (sat[y0:y1, x0:x1] >= level)
+            lab, n = label_runs(mask)
+            hits = []
+            if n:
+                flat = lab.ravel()
+                where = np.nonzero(flat)[0]
+                labels, first = np.unique(flat[where], return_index=True)
+                owner = loose_lab[y0:y1, x0:x1].ravel()[where[first]]
+                sizes = np.bincount(flat, minlength=n + 1)[labels]
+                keep = labels[(owner == parent) & (sizes >= area_min)]
+                if keep.size:
+                    remap = np.zeros(n + 1, dtype=np.int32)
+                    remap[keep] = np.arange(1, keep.size + 1)
+                    out = self._detect_once(
+                        hsv_np[y0:y1, x0:x1], level_profile(hsv_ranges, level),
+                        area_min, area_max, aspect_range[0], aspect_range[1],
+                        gap_ratio, min_conf, rx + x0, ry + y0,
+                        red_mask=mask, labeled=remap[lab], collect_all=True)
+                    for cand in out["candidates"]:
+                        bx, by, bw, bh = cand["box_local"]
+                        feat = shape_features(
+                            cand["blob_mask"][by:by + bh, bx:bx + bw], cand["inner"])
+                        ok, blocked = shape_verdict(feat)
+                        iy, ix = np.nonzero(cand["inner"])
+                        hits.append({
+                            "level": level, "box": (bx + x0, by + y0, bw, bh),
+                            "core": frozenset(zip((iy + by + y0).tolist(),
+                                                  (ix + bx + x0).tolist())),
+                            "conf": cand["conf"], "feat": feat,
+                            "ok": ok, "blocked": blocked,
+                        })
+            cache[(level, wi)] = hits
+            return hits
+
+        winner = mate_level = None
+        others = 0
+        for li, level in enumerate(levels):
+            if li and timed_out():
+                public["停因"] = "超时"
+                break
+            nominated, seen, cut_short = [], 0, False
+            for wi in range(len(windows)):
+                if li and timed_out():
+                    cut_short = True
+                    break
+                hits = run(level, wi)
+                seen += len(hits)
+                nominated.extend((wi, hit) for hit in hits if hit["ok"])
+            row = {"档": level, "候选": seen, "过闸": len(nominated)}
+            public["尝试"].append(row)
+
+            confirmed = []
+            for wi, hit in nominated:
+                for neighbor in fine_neighbors(config, floor, level):
+                    if any(other["ok"] and same_spot(hit, other)
+                           for other in run(neighbor, wi)):
+                        confirmed.append((hit, neighbor))
+                        break
+            if nominated:
+                row["复现"] = len(confirmed)
+            if confirmed:
+                confirmed.sort(key=lambda pair: (pair[0]["box"][1], pair[0]["box"][0]))
+                winner, mate_level = confirmed[0]
+                others = len(confirmed) - 1
+                public["停因"] = "稳定命中"
+                break
+            if cut_short:
+                public["停因"] = "超时"
+                break
+
+        public["耗时ms"] = elapsed()
+        if winner is not None:
+            public["结论"] = "稳定命中"
+            public["_decision"] = "stable_hit"
+            public["_winner"] = {
+                "profile": level_profile(hsv_ranges, winner["level"]),
+                "box_local": winner["box"],
+            }
+            public["胜出"] = {
+                "档": winner["level"], "复现档": mate_level,
+                "框": list(winner["box"]), "分": winner["conf"],
+                "形状": public_features(winner["feat"]),
+            }
+            if others:
+                public["胜出"]["同档其他解"] = others
+        return public
+
+    def _relevel_confirm_full(self, *, hsv_np, winner, area_range, aspect_range,
+                              gap_ratio, min_conf, rx, ry):
+        """改判前在整幅 ROI 上按胜出档复跑：要跑出同一个框，且那个候选自己也过形状闸。"""
+        confirmed = self._rescue_confirm_full(
+            hsv_np=hsv_np, winner=winner, area_range=area_range,
+            aspect_range=aspect_range, gap_ratio=gap_ratio,
+            min_conf=min_conf, rx=rx, ry=ry)
+        if confirmed is None:
+            return None
+        cand = confirmed[1]
+        bx, by, bw, bh = cand["box_local"]
+        feat = shape_features(cand["blob_mask"][by:by + bh, bx:bx + bw], cand["inner"])
+        return confirmed if shape_verdict(feat)[0] else None
+
+    @staticmethod
+    def _log_relevel(node, relevel):
+        """换档摘要走 debug；完整数据在 detail.换档。"""
+        if not relevel:
+            return
+        win = relevel.get("胜出")
+        if win:
+            tail = (f"档{win['档']}(复现档{win['复现档']}) → box={win['框']} "
+                    f"分{win['分']} 菱形贴合{win['形状']['菱形贴合']}")
+        else:
+            tail = f"停因={relevel.get('停因')}"
+        mfaalog.debug(f"[RedDotDetector] 换档 {node} | {relevel.get('结论')} | {tail} | "
+                      f"{relevel.get('窗口', 0)}窗口 {relevel.get('重跑', 0)}重跑 "
+                      f"{relevel.get('耗时ms', 0)}ms")
+
     def _finalize_hit(self, *, context, argv, node, key_roi, caller,
                       work_bgr, roi_tuple, params, area_range, aspect_range,
                       gap_ratio, min_conf, outcome, candidate,
-                      effective_hsv, rescue):
+                      effective_hsv, rescue, relevel=None):
         area_min, area_max = area_range
         asp_lo, asp_hi = aspect_range
         result_box = candidate["result_box"]
@@ -1714,10 +1972,13 @@ class RedDotDetector(CustomRecognition):
                        "flt_aspect": [asp_lo, asp_hi],
                        "gap_ratio": gap_ratio,
                        "min_conf": min_conf,
-                       "flt_hsv_rescue": params.get("flt_hsv_rescue")},
+                       "flt_hsv_rescue": params.get("flt_hsv_rescue"),
+                       "flt_relevel": params.get("flt_relevel")},
         }
         if rescue:
             meta["救援"] = rescue
+        if relevel:
+            meta["换档"] = relevel
         _SAMPLER.record(
             node=node, roi=key_roi, result="hit",
             images={"roi_crop": work_bgr, "red_mask": outcome["red_mask"],
@@ -1739,11 +2000,14 @@ class RedDotDetector(CustomRecognition):
         }
         if rescue:
             detail["救援"] = rescue
+        if relevel:
+            detail["换档"] = relevel
         return CustomRecognition.AnalyzeResult(box=result_box, detail=detail)
 
     def _finalize_miss(self, *, context, argv, node, key_roi, caller,
                        work_bgr, roi_tuple, params, hsv_ranges, area_range,
-                       aspect_range, min_conf, baseline, stage, hint, rescue):
+                       aspect_range, min_conf, baseline, stage, hint, rescue,
+                       relevel=None):
         area_min, area_max = area_range
         asp_lo, asp_hi = aspect_range
         stat = baseline["stat"]
@@ -1785,11 +2049,14 @@ class RedDotDetector(CustomRecognition):
                        "flt_aspect": [asp_lo, asp_hi],
                        "gap_ratio": params.get("gap_ratio", _SC_GAP_RATIO_DEFAULT),
                        "min_conf": min_conf,
-                       "flt_hsv_rescue": params.get("flt_hsv_rescue")},
+                       "flt_hsv_rescue": params.get("flt_hsv_rescue"),
+                       "flt_relevel": params.get("flt_relevel")},
             "failure_dump": dump_info,
         }
         if rescue:
             meta["救援"] = rescue
+        if relevel:
+            meta["换档"] = relevel
         _SAMPLER.record(
             node=node, roi=key_roi, result="miss", stage=stage,
             images=miss_imgs, meta=meta,
@@ -1800,6 +2067,8 @@ class RedDotDetector(CustomRecognition):
         extra = {"failure_dump": dump_info}
         if rescue:
             extra["救援"] = rescue
+        if relevel:
+            extra["换档"] = relevel
         return self._miss(
             "preset" if caller else "standalone", stage, hint, stat, effective_params,
             dbg_text, min_conf, extra=extra)
@@ -1999,6 +2268,15 @@ class RedDotDetector(CustomRecognition):
                     f"，已 fail closed 维持 miss")
         elif rescue.get("attempted") or rescue.get("尝试"):
             tail = f"｜救援未成立({rescue.get('结论')})"
+        # 换档同理：有稳定解却仍 miss，要么是 shadow 不改判，要么是全区复核没对上。
+        relevel = (extra or {}).get("换档") or {}
+        win = relevel.get("胜出") or {}
+        if relevel.get("结论") == "稳定命中":
+            tail += (f"｜换档重看已找到稳定解 档{win.get('档')} box={win.get('框')}"
+                     f"，当前 mode={relevel.get('模式')} 不改判")
+        elif relevel.get("结论") == "复核不一致":
+            tail += (f"｜换档重看的解 档{win.get('档')} box={win.get('框')} "
+                     f"未能在整幅 ROI 复现，维持 miss")
         mfaalog.debug(f"[RedDotDetector] miss@{stage} | "
                         f"{_MISS_BRIEF.get(stage, stage)}{tail}")
         mfaalog.debug(f"[RedDotDetector] miss\n{dbg_text}" if dbg_text else f"[RedDotDetector] miss stat={stat}")
