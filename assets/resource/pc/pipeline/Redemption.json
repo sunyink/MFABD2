@@ -8,10 +8,6 @@
             1214,
             120
         ],
-        "template": [
-            "Cartridges_EvilCas.png"
-        ],
-        "green_mask": false,
         "threshold": [
             0.75
         ],
@@ -29,24 +25,6 @@
             120,
             650,
             480
-        ],
-        "expected": [
-            "赛季奖励",
-            "賽季獎勵"
-        ]
-    },
-    "Redemption_Mapck": {
-        "recognition": "And",
-        "all_of": [
-            {
-                "recognition": "Or",
-                "any_of": [
-                    "Rec_EvilCuff",
-                    "Rec_EvilCion"
-                ]
-            },
-            "Rec_SandBox_Pin3_Tpl",
-            "Sub_SandBox_Pin3_Bright_Clr"
         ]
     },
     "Rec_EvilCion": {
@@ -60,9 +38,6 @@
         "template": [
             "Evil_Coin_PC.png",
             "Evil_Coin.png"
-        ],
-        "threshold": [
-            0.75
         ]
     },
     "Rec_EvilCuff": {
@@ -83,13 +58,11 @@
         ]
     },
     "Redemption_Evil_Move": {
-        "recognition": "Or",
         "any_of": [
             "Rec_EvilCion",
             "Rec_SandBox_Pin_Tpl",
             "Rec_SandBox_Run_Tpl"
         ],
-        "action": "LongPress",
         "target": [
             651,
             171,
@@ -98,6 +71,16 @@
         ],
         "duration": 4800,
         "post_delay": 2800
+    },
+    "Redemption_Evil_AltarStuck": {
+        "template": [
+            "Evil_AltarMark_PC.png"
+        ]
+    },
+    "Redemption_Evil_AltarMark": {
+        "template": [
+            "Evil_AltarMark_PC.png"
+        ]
     },
     "Redemption_Evil_Redemption_In": {
         "desc": "点击救赎之塔入口。|[PC覆盖] 适配PC入口文字ROI并兼容简繁体。",
@@ -110,8 +93,7 @@
         "expected": [
             "救赎之塔",
             "救贖之塔"
-        ],
-        "post_delay": 3000
+        ]
     },
     "Redemption_Evil_Redemption_ExistingOpening": {
         "desc": "发现未结算开局则不放弃存档,安全退出返回主界面。|[PC覆盖] 适配PC右下按钮ROI并兼容简繁体。",
@@ -141,7 +123,6 @@
             "10",
             "[Ll][vV]"
         ],
-        "action": "Click",
         "post_delay": 1500
     },
     "Redemption_Evil_Redemption_ListSwip": {
@@ -158,14 +139,6 @@
         ],
         "template": [
             "RglikeGouGe_PC.png"
-        ],
-        "green_mask": true,
-        "threshold": [
-            0.7
-        ],
-        "next": [
-            "Redemption_Evil_Redemption_QuickBattUnable",
-            "Redemption_Evil_Redemption_QuickBatt"
         ]
     },
     "Redemption_Evil_Redemption_Lv1": {
@@ -177,7 +150,6 @@
             68,
             50
         ],
-        "method": 4,
         "lower": [
             [
                 215,
@@ -192,11 +164,7 @@
                 255
             ]
         ],
-        "count": 25,
-        "next": [
-            "Redemption_Evil_Redemption_QuickBattUnable",
-            "Redemption_Evil_Redemption_QuickBatt"
-        ]
+        "count": 25
     },
     "Redemption_Evil_Redemption_SelLv-1": {
         "desc": "定位当前高亮选中的难度行并向上偏移65px点击上一级难度。|[PC覆盖] 改为ColorMatch定位高亮白字,显式box_index=0。",
@@ -208,7 +176,6 @@
             68,
             638
         ],
-        "method": 4,
         "lower": [
             [
                 215,
@@ -225,7 +192,6 @@
         ],
         "connected": true,
         "count": 30,
-        "action": "Click",
         "target_offset": [
             0,
             -65,
@@ -234,40 +200,9 @@
         ],
         "post_delay": 800
     },
-    "Redemption_Evil_Redemption_QuickBattUnable": {
-        "desc": "快速战斗按钮置灰(尚未通关任何难度)时安全退出,不记录完成。|[PC覆盖] 适配PC按钮灰底色ROI。",
-        "recognition": "ColorMatch",
-        "roi": [
-            895,
-            640,
-            28,
-            28
-        ],
-        "method": 4,
-        "lower": [
-            [
-                75,
-                75,
-                73
-            ]
-        ],
-        "upper": [
-            [
-                95,
-                95,
-                93
-            ]
-        ],
-        "count": 200,
-        "next": [
-            "Redemption_Evil_Redemption_PageBackHub"
-        ],
-        "focus": "REM.无法快速战斗"
-    },
     "Redemption_Evil_Redemption_QuickBatt": {
         "desc": "点击已启用的快速战斗按钮打开弹窗。|[PC覆盖] 联合校验按钮文字与亮白底色,兼容简繁体。",
         "max_hit": 6,
-        "recognition": "And",
         "all_of": [
             {
                 "sub_name": "OCR",
@@ -284,6 +219,7 @@
                 ]
             },
             {
+                "sub_name": "ColorMatch",
                 "recognition": "ColorMatch",
                 "roi": [
                     895,
@@ -291,7 +227,6 @@
                     28,
                     28
                 ],
-                "method": 4,
                 "lower": [
                     [
                         190,
@@ -309,21 +244,15 @@
                 "count": 200
             }
         ],
-        "box_index": 0,
-        "action": "Click",
         "post_wait_freezes": {
-            "time": 600,
             "target": [
                 400,
                 155,
                 480,
                 415
-            ]
-        },
-        "next": [
-            "Redemption_Evil_Redemption_QuickBatt_Submenu",
-            "Redemption_Evil_Redemption_QuickBatt"
-        ]
+            ],
+            "time": 600
+        }
     },
     "Redemption_Evil_Redemption_QuickBatt_Submenu": {
         "desc": "确认进入快速战斗弹窗。|[PC覆盖] 适配PC弹窗标题ROI并兼容简繁体。",
@@ -336,16 +265,10 @@
         "expected": [
             "快速战斗",
             "快速戰鬥"
-        ],
-        "timeout": 8000,
-        "next": [
-            "Redemption_Evil_Redemption_JustFree_Ok",
-            "Redemption_Evil_Redemption_JustFree_No"
         ]
     },
     "Redemption_Evil_Redemption_JustFree_No": {
         "desc": "检测'仅使用免费救赎之钥匙'开关关闭(灰),点击开启。|[PC覆盖] 适配PC弹窗开关ROI[814,281,36,20],复用base Rec_SliderSwitch_GryOff_Clr。",
-        "max_hit": 3,
         "all_of": [
             {
                 "sub_name": "Clr",
@@ -373,9 +296,7 @@
             },
             "Rec_SliderSwitch_GryOff_Clr"
         ],
-        "action": "Click",
         "post_delay": 1200,
-        "timeout": 5000,
         "next": [
             "Redemption_Evil_Redemption_QuickBattNoAP",
             "Redemption_Evil_Redemption_JustFree_Ok",
@@ -417,16 +338,24 @@
             "Redemption_Evil_Redemption_MAX"
         ]
     },
-    "Redemption_Evil_Redemption_OnDisabled_PC": {
-        "desc": "[PC新增] 开启仅使用免费钥匙后若战斗按钮置灰(免费钥匙为0),点击取消安全退出,绝不消耗付费钥匙也不误标完成。",
-        "recognition": "ColorMatch",
+    "Redemption_Evil_Redemption_JustFree_Err": {
+        "desc": "点击快速战斗弹窗取消按钮并退出。|[PC覆盖] 适配PC取消按钮ROI。",
         "roi": [
-            605,
-            522,
-            24,
-            24
+            475,
+            510,
+            120,
+            50
         ],
-        "method": 4,
+        "post_delay": 1500
+    },
+    "Redemption_Evil_Redemption_QuickBattUnable": {
+        "desc": "快速战斗按钮置灰(尚未通关任何难度)时安全退出,不记录完成。|[PC覆盖] 适配PC按钮灰底色ROI。",
+        "roi": [
+            895,
+            640,
+            28,
+            28
+        ],
         "lower": [
             [
                 75,
@@ -441,33 +370,11 @@
                 93
             ]
         ],
-        "count": 200,
-        "next": [
-            "Redemption_Evil_Redemption_JustFree_Err"
-        ],
-        "focus": "REM.免费钥匙已耗尽(战斗按钮置灰),安全退出"
-    },
-    "Redemption_Evil_Redemption_JustFree_Err": {
-        "desc": "点击快速战斗弹窗取消按钮并退出。|[PC覆盖] 适配PC取消按钮ROI。",
-        "roi": [
-            475,
-            510,
-            120,
-            50
-        ],
-        "expected": [
-            "取消"
-        ],
-        "action": "Click",
-        "post_delay": 1500,
-        "next": [
-            "Redemption_Evil_Redemption_PageBackHub"
-        ]
+        "count": 200
     },
     "Redemption_Evil_Redemption_QuickBattNoAP": {
         "desc": "出现免费钥匙不足提示时点击确认关闭弹窗并安全退出,不记录完成。|[PC覆盖] 适配PC弹窗ROI与确认点并兼容简繁体。",
         "max_hit": 4,
-        "recognition": "OCR",
         "roi": [
             380,
             180,
@@ -501,10 +408,6 @@
             95,
             46
         ],
-        "expected": [
-            "MAX"
-        ],
-        "action": "Click",
         "post_delay": 600,
         "next": [
             "Redemption_Evil_Redemption_QuickBattNoAP",
@@ -532,6 +435,7 @@
                 ]
             },
             {
+                "sub_name": "ColorMatch",
                 "recognition": "ColorMatch",
                 "roi": [
                     605,
@@ -539,7 +443,6 @@
                     24,
                     24
                 ],
-                "method": 4,
                 "lower": [
                     [
                         190,
@@ -582,8 +485,6 @@
             },
             "Rec_SliderSwitch_YewOn_Clr"
         ],
-        "box_index": 0,
-        "action": "Click",
         "post_delay": 3500,
         "next": [
             "Redemption_Evil_Redemption_QuickBattNoAP",
@@ -604,12 +505,8 @@
             "点击画面",
             "點擊畫面"
         ],
-        "action": "Click",
         "post_delay": 2500,
-        "timeout": 15000,
-        "next": [
-            "Redemption_Daily_End"
-        ]
+        "timeout": 15000
     },
     "Redemption_Daily_End": {
         "desc": "仅从快速战斗结果页进入,记录本游戏日完成后继续收尾;取消及异常退出不记录。|[PC覆盖] 优先消完可能残留的二次结算提示再返回箱庭。",
@@ -618,14 +515,33 @@
             "Redemption_Evil_Redemption_PageBackHub"
         ]
     },
-    "Redemption_Evil_AltarStuck": {
-        "template": [
-            "Evil_AltarMark_PC.png"
-        ]
-    },
-    "Redemption_Evil_AltarMark": {
-        "template": [
-            "Evil_AltarMark_PC.png"
-        ]
+    "Redemption_Evil_Redemption_OnDisabled_PC": {
+        "desc": "[PC新增] 开启仅使用免费钥匙后若战斗按钮置灰(免费钥匙为0),点击取消安全退出,绝不消耗付费钥匙也不误标完成。",
+        "recognition": "ColorMatch",
+        "roi": [
+            605,
+            522,
+            24,
+            24
+        ],
+        "lower": [
+            [
+                75,
+                75,
+                73
+            ]
+        ],
+        "upper": [
+            [
+                95,
+                95,
+                93
+            ]
+        ],
+        "count": 200,
+        "next": [
+            "Redemption_Evil_Redemption_JustFree_Err"
+        ],
+        "focus": "REM.免费钥匙已耗尽(战斗按钮置灰),安全退出"
     }
 }

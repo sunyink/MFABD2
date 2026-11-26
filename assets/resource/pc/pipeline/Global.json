@@ -154,6 +154,84 @@
             214
         ]
     },
+    "Global_BackToQC_RewardBubble_TurnOFF": {
+        "desc": "检查QC,卡带奖励气泡,若黄则点击关闭。|[PC覆盖] base roi[1135,551,35,13]在PC快速卡带战斗玩法页签误命中背景黄像素导致循环空点;改为联合校验右侧白钮[1177,575,13,7]+左侧黄轨[1154,575,16,17]+'查看战场奖励'文字OCR[1050,564,102,37],仅在开关实际开启时点击(1169,582)关闭。",
+        "all_of": [
+            {
+                "sub_name": "ColorMatch",
+                "recognition": "ColorMatch",
+                "roi": [
+                    1177,
+                    575,
+                    13,
+                    7
+                ],
+                "method": 40,
+                "lower": [
+                    [
+                        0,
+                        0,
+                        170
+                    ]
+                ],
+                "upper": [
+                    [
+                        180,
+                        70,
+                        255
+                    ]
+                ],
+                "count": 30
+            },
+            {
+                "sub_name": "ColorMatch",
+                "recognition": "ColorMatch",
+                "roi": [
+                    1154,
+                    575,
+                    16,
+                    17
+                ],
+                "method": 40,
+                "lower": [
+                    [
+                        15,
+                        80,
+                        120
+                    ]
+                ],
+                "upper": [
+                    [
+                        35,
+                        255,
+                        255
+                    ]
+                ],
+                "count": 80
+            },
+            {
+                "sub_name": "OCR",
+                "recognition": "OCR",
+                "roi": [
+                    1050,
+                    564,
+                    102,
+                    37
+                ],
+                "expected": [
+                    "查看战场奖励",
+                    "查看戰場獎勵"
+                ]
+            }
+        ],
+        "target": [
+            1169,
+            582,
+            3,
+            3
+        ],
+        "focus": "GO.QC.PC关闭战场奖励气泡"
+    },
     "Global_CardMenu_RewardBubble_TurnOFF": {
         "desc": "检查QC,卡带奖励气泡,若黄则点击关闭。|[PC覆盖·2026-07-19] And追加'游戏卡珍藏集'标题OCR守卫(第三成员,尾插不改And box=首子项即点击落点):base裸判定=[1098,35,44,10]数黄像素>=10,竞技场准备界面右上阵形/补充次数面板实测53黄px假阳性(07-18 19:51实录)→复位链误入竞技场后本节点每轮抢答点(1122,42)空点25s,压制链条自带的HomeButton逃生,套利整任务静默零执行。守卫roi/expected与Tp1同源,气泡开关在右上与左上标题互不遮挡。",
         "all_of": [
@@ -184,81 +262,6 @@
             "Sub_SieveExpand_Yew_Clr",
             "Global_BackToPve_CardMenu_Tp1"
         ]
-    },
-    "Global_BackToQC_RewardBubble_TurnOFF": {
-        "desc": "检查QC,卡带奖励气泡,若黄则点击关闭。|[PC覆盖] base roi[1135,551,35,13]在PC快速卡带战斗玩法页签误命中背景黄像素导致循环空点;改为联合校验右侧白钮[1177,575,13,7]+左侧黄轨[1154,575,16,17]+'查看战场奖励'文字OCR[1050,564,102,37],仅在开关实际开启时点击(1169,582)关闭。",
-        "all_of": [
-            {
-                "recognition": "ColorMatch",
-                "roi": [
-                    1177,
-                    575,
-                    13,
-                    7
-                ],
-                "method": 40,
-                "lower": [
-                    [
-                        0,
-                        0,
-                        170
-                    ]
-                ],
-                "upper": [
-                    [
-                        180,
-                        70,
-                        255
-                    ]
-                ],
-                "count": 30
-            },
-            {
-                "recognition": "ColorMatch",
-                "roi": [
-                    1154,
-                    575,
-                    16,
-                    17
-                ],
-                "method": 40,
-                "lower": [
-                    [
-                        15,
-                        80,
-                        120
-                    ]
-                ],
-                "upper": [
-                    [
-                        35,
-                        255,
-                        255
-                    ]
-                ],
-                "count": 80
-            },
-            {
-                "recognition": "OCR",
-                "roi": [
-                    1050,
-                    564,
-                    102,
-                    37
-                ],
-                "expected": [
-                    "查看战场奖励",
-                    "查看戰場獎勵"
-                ]
-            }
-        ],
-        "target": [
-            1169,
-            582,
-            3,
-            3
-        ],
-        "focus": "GO.QC.PC关闭战场奖励气泡"
     },
     "Global_BackToQC_StoryCor": {
         "desc": "剧情页签色核。|[PC覆盖·2026-07-12日志实测] PC高亮白像素214~295(本节点色下限203较严故基数小),base count:200贴地飞行(最低仅高出14px,任意抗锯齿/动画抖动就翻车)。count降150留~30%余量。",
@@ -433,6 +436,78 @@
             "格魯菲餐廳"
         ]
     },
+    "Agt_Currency_Gold_Icon_Tpl": {
+        "template": [
+            "Currency/Gold_PC.png"
+        ]
+    },
+    "Agt_Currency_Tonic_Icon_Tpl": {
+        "template": [
+            "Currency/Tonic_PC.png"
+        ]
+    },
+    "Agt_Currency_Number_Ocr": {
+        "attach": {
+            "half_height": 14,
+            "tail_width": 100
+        }
+    },
+    "Agt_Currency_Diamond_Free_Ocr": {
+        "roi": [
+            440,
+            314,
+            150,
+            22
+        ]
+    },
+    "Agt_Currency_Diamond_Paid_Ocr": {
+        "roi": [
+            440,
+            335,
+            150,
+            24
+        ]
+    },
+    "Global_DiamondDetail_Open": {
+        "template": [
+            "Currency/Diamond_PC.png"
+        ]
+    },
+    "Rec_DiamondPopup_Title_Ocr": {
+        "roi": [
+            318,
+            212,
+            90,
+            46
+        ]
+    },
+    "Rec_DiamondPopup_Expand_Tpl": {
+        "roi": [
+            380,
+            256,
+            200,
+            32
+        ],
+        "template": [
+            "Currency/Expand_PC.png"
+        ]
+    },
+    "Global_DiamondDetail_Shown": {
+        "roi": [
+            334,
+            280,
+            100,
+            34
+        ]
+    },
+    "Global_DiamondDetail_Close": {
+        "target": [
+            933,
+            203,
+            25,
+            25
+        ]
+    },
     "Global_ArenaEscape_PC": {
         "desc": "[PC新增·2026-07-22] 复位链误入竞技场准备界面的逃生口。触发路径:主页右下QC区在竞技场会话挂起时会多出'返回战场'与'游戏中'两块(#394),base Global_BackToPve_ToCardMenu 的固定 target(1111,650)正落在'游戏中'卡带块上→点下去回到竞技场准备界面(07-18 19:51 / 07-22 10:14 两次实录),此后复位链所有识别在该界面全 miss 空转至超时,套利整任务静默 SUCCEEDED。|挂点说明:PR#396 曾把 Home 逃生挂在 Global_BackToPve_Anc.next,但链条一旦进入 CardMenu_Tp1 的 JumpBack 子循环,候选集就固定为{Tp1,RewardBubble,Tp2,PVEBookSwipe}再不回 Anc 层——07-22 实录 23 秒内 HomeButton_Once 一次都没被评估。故本节点改挂 Tp1.next 首位,进入真正在轮询的候选集。|模板 MainHome_ArenaPrep_PC.png 为竞技场准备界面右上 Home 药丸(07-18 尸检帧裁,自匹配1.000/次日竞技场帧0.847/主页负样本0.366/图鉴页-0.04),阈0.75 两侧余量充足,珍藏集正常态不误伤。max_hit:3 防止挂起会话未清导致'逃生→再误入'无限循环。",
         "max_hit": 3,
@@ -531,78 +606,5 @@
     },
     "Rec_「Global_WaitingForLoading」_05": {
         "desc": "[识别]转场等待03,大色块-黑"
-    },
-    "Agt_Currency_Gold_Icon_Tpl": {
-        "template": [
-            "Currency/Gold_PC.png"
-        ]
-    },
-    "Agt_Currency_Tonic_Icon_Tpl": {
-        "template": [
-            "Currency/Tonic_PC.png"
-        ]
-    },
-    "Agt_Currency_Number_Ocr": {
-        "attach": {
-            "tail_width": 100,
-            "max_lead": 20,
-            "half_height": 14
-        }
-    },
-    "Agt_Currency_Diamond_Free_Ocr": {
-        "roi": [
-            440,
-            314,
-            150,
-            22
-        ]
-    },
-    "Agt_Currency_Diamond_Paid_Ocr": {
-        "roi": [
-            440,
-            335,
-            150,
-            24
-        ]
-    },
-    "Global_DiamondDetail_Open": {
-        "template": [
-            "Currency/Diamond_PC.png"
-        ]
-    },
-    "Rec_DiamondPopup_Title_Ocr": {
-        "roi": [
-            318,
-            212,
-            90,
-            46
-        ]
-    },
-    "Rec_DiamondPopup_Expand_Tpl": {
-        "roi": [
-            380,
-            256,
-            200,
-            32
-        ],
-        "template": [
-            "Currency/Expand_PC.png"
-        ]
-    },
-    "Global_DiamondDetail_Shown": {
-        "roi": [
-            334,
-            280,
-            100,
-            34
-        ]
-    },
-    "Global_DiamondDetail_Close": {
-        "target": [
-            933,
-            203,
-            25,
-            25
-        ]
     }
 }
