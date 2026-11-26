@@ -258,6 +258,22 @@
             53
         ]
     },
+    "Collect_S18_Return_OpenMap": {
+        "target": [
+            128,
+            104,
+            19,
+            23
+        ]
+    },
+    "Collect_S18_Return_Nursery": {
+        "roi": [
+            149,
+            10,
+            372,
+            53
+        ]
+    },
     "Collect_TargetMap1_Special_PerRight": {
         "roi": [
             452,

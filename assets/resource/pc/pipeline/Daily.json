@@ -532,7 +532,7 @@
         ]
     },
     "Daily_Intimacy_Swip": {
-        "desc": "[PC] 左栏每格72px,上翻约7格(654→155),选中卡仍留在屏内",
+        "desc": "[PC] 左栏每格72px,上翻约7格(654→155),选中卡仍留在屏内。只比对到底时第1格头像内部(圆心(109,177.5),格距72):静止时头像内恒为0;松手后约600ms回弹停稳,settle_delay留到800。不足一屏的短列表停在顶格对齐,框下半落到头像下方空隙,帧差可到4.9,靠base的max_hit兜底",
         "custom_action_param": {
             "proxy_node": "Agt_Proxy_Blank",
             "proxy_override": {
@@ -549,13 +549,13 @@
                 "end_hold": 1000
             },
             "detect_roi": [
-                80,
-                140,
-                60,
-                560
+                97,
+                166,
+                22,
+                23
             ],
             "threshold": 3.0,
-            "settle_delay": 500,
+            "settle_delay": 800,
             "on_changed": "next",
             "on_unchanged": "error",
             "unchanged_streak": 3

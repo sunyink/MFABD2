@@ -77,6 +77,7 @@
         "next": [
             "SeasonEvent_Battle_Start",
             "[JumpBack]Event_GoinEvent",
+            "[JumpBack]StartGame_7dAD_Check",
             "[JumpBack]Global_BackPageHub_Once"
         ],
         "focus": "赛季活动-15战模块"
@@ -116,6 +117,7 @@
         "next": [
             "SeasonEvent_Mamono_Start",
             "[JumpBack]Event_GoinEvent",
+            "[JumpBack]StartGame_7dAD_Check",
             "[JumpBack]Global_BackPageHub_Once"
         ]
     },
@@ -142,6 +144,7 @@
             "SeasonEvent_MiniGame_Run_Start",
             "[JumpBack]Global_WaitingForLoading",
             "[JumpBack]Event_GoinEvent",
+            "[JumpBack]StartGame_7dAD_Check",
             "[JumpBack]Global_BackPageHub_Once"
         ]
     },
@@ -330,6 +333,7 @@
         "only_rec": true,
         "next": [
             "SeasonEvent_Main_Return",
+            "[JumpBack]StartGame_7dAD_Check",
             "[JumpBack]Global_BackPageHub_Once"
         ],
         "focus": "AP为空,复位赛季界面后,模块退出"
@@ -449,6 +453,7 @@
         ],
         "next": [
             "SeasonEvent_BackedToSubMain",
+            "[JumpBack]StartGame_7dAD_Check",
             "[JumpBack]Global_BackPageHub_Once"
         ],
         "focus": "E.常规战斗-不可用"
@@ -472,6 +477,7 @@
         },
         "next": [
             "SeasonEvent_Battle_Start",
+            "[JumpBack]StartGame_7dAD_Check",
             "[JumpBack]Global_BackPageHub_Once"
         ],
         "focus": "挑战模式无快速战斗,前往普通模式进一步确认"
@@ -502,6 +508,7 @@
         },
         "next": [
             "SeasonEvent_Battle_Start",
+            "[JumpBack]StartGame_7dAD_Check",
             "[JumpBack]Global_BackPageHub_Once"
         ],
         "focus": "普通模式存在快速战斗,前往挑战模式"
@@ -578,6 +585,7 @@
         "next": [
             "SeasonEvent_Main_Return",
             "[JumpBack]SeasonEvent_FreeAP_Err",
+            "[JumpBack]StartGame_7dAD_Check",
             "[JumpBack]Global_BackPageHub_Once"
         ],
         "focus": "EM.免费AP未能被选中"
@@ -966,6 +974,7 @@
         "next": [
             "Event_NormalBattleIsOver",
             "SeasonEvent_Main_Return",
+            "[JumpBack]StartGame_7dAD_Check",
             "[JumpBack]Global_BackPageHub_Once"
         ],
         "focus": "EM.活动.AP不足"
@@ -1049,6 +1058,7 @@
             "Event_TouchNormalBattle",
             "Event_Event_Main",
             "[JumpBack]Event_GoinEvent",
+            "[JumpBack]StartGame_7dAD_Check",
             "[JumpBack]Global_BackPageHub_Once"
         ]
     },
@@ -1084,6 +1094,7 @@
         "post_delay": 1000,
         "next": [
             "SeasonEvent_Main_Return",
+            "[JumpBack]StartGame_7dAD_Check",
             "[JumpBack]Global_BackPageHub_Once"
         ],
         "focus": "EM.活动.战斗结算(无对象)"
@@ -1102,6 +1113,7 @@
         "post_delay": 8000,
         "next": [
             "SeasonEvent_Main_Return",
+            "[JumpBack]StartGame_7dAD_Check",
             "[JumpBack]Global_BackPageHub_Once"
         ],
         "focus": "EM.活动.打完活动关卡页面位置Dubck"
@@ -1120,6 +1132,7 @@
         "post_delay": 8000,
         "next": [
             "SeasonEvent_Main_Return",
+            "[JumpBack]StartGame_7dAD_Check",
             "[JumpBack]Global_BackPageHub_Once"
         ],
         "focus": "EM.活动.打完活动关卡页面位置ck"
@@ -1231,6 +1244,7 @@
         ],
         "next": [
             "SeasonEvent_Main_Return",
+            "[JumpBack]StartGame_7dAD_Check",
             "[JumpBack]Global_BackPageHub_Once"
         ],
         "focus": "E.当前魔兽为演习,退出"
@@ -1314,6 +1328,7 @@
         "post_delay": 0,
         "next": [
             "SeasonEvent_Main_Return",
+            "[JumpBack]StartGame_7dAD_Check",
             "[JumpBack]Global_BackPageHub_Once"
         ],
         "focus": "EM.魔兽讨伐本周期已挑战,已记录"
@@ -1479,6 +1494,7 @@
         "next": [
             "SeasonEvent_BackedToSubMain",
             "[JumpBack]Global_WaitingForLoading",
+            "[JumpBack]StartGame_7dAD_Check",
             "[JumpBack]Global_BackPageHub_Once"
         ],
         "on_error": [
@@ -1603,6 +1619,7 @@
         "next": [
             "SeasonEvent_MamonoFollow_Team_End",
             "SeasonEvent_MamonoFollow_Team_FindPreset",
+            "[JumpBack]StartGame_7dAD_Check",
             "[JumpBack]Global_BackPageHub_Once"
         ],
         "focus": "使用推荐部署覆盖本地部署"
@@ -1677,6 +1694,7 @@
         ],
         "next": [
             "SeasonEvent_Main_Return",
+            "[JumpBack]StartGame_7dAD_Check",
             "[JumpBack]Global_BackPageHub_Once"
         ]
     },
@@ -1868,6 +1886,7 @@
         "next": [
             "Event_MiniGame_Run_Entry",
             "SeasonEvent_MiniGame_Run_BackToMain",
+            "[JumpBack]StartGame_7dAD_Check",
             "[JumpBack]Global_BackPageHub_Once",
             "[JumpBack]Global_WaitingForLoading"
         ]
@@ -1991,6 +2010,7 @@
         "next": [
             "SeasonEvent_MiniGame_Run_BackToMain",
             "[JumpBack]Global_WaitingForLoading",
+            "[JumpBack]StartGame_7dAD_Check",
             "[JumpBack]Global_BackPageHub_Once"
         ]
     },
@@ -2125,6 +2145,7 @@
         "next": [
             "Event_Battle_TabAutoBattle_ChangeDifficulty_ToMain",
             "[JumpBack]Event_GoinEvent",
+            "[JumpBack]StartGame_7dAD_Check",
             "[JumpBack]Global_BackPageHub_Once"
         ],
         "focus": "当前在挑战难度,为增加成功率，尝试一次性切换到普通。"
@@ -2170,6 +2191,7 @@
         "next": [
             "Event_Battle_TabAutoBattle_ChangeDifficulty_Back_ToMain",
             "[JumpBack]Event_GoinEvent",
+            "[JumpBack]StartGame_7dAD_Check",
             "[JumpBack]Global_BackPageHub_Once"
         ],
         "focus": "当前在普通难度,且已打完15个关卡，尝试一次性切换到挑战不浪费。"

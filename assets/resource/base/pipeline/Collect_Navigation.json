@@ -598,7 +598,9 @@
         "custom_action_param": {
             "node_name": [
                 "Collect_S18_Locate",
-                "Collect_S18_ReturnOnce"
+                "Collect_S18_ReturnOnce",
+                "Collect_S18_Return_OpenMap",
+                "Collect_S18_Return_PageRight"
             ]
         },
         "post_delay": 0,
@@ -693,7 +695,7 @@
         ]
     },
     "Collect_S18_ReturnOnce": {
-        "desc": "从暗黑神殿回到传送阵，每次进卡只调用一次 | 调用 Collect_TeleporCircle_OnFoot_Entry，寻路列表额度用完时由它退到纯步行。 | 本节点 max_hit 1 由 Collect_S18_Entry 清零。",
+        "desc": "从暗黑神殿回到传送阵，每次进卡只调用一次 | 走本卡专用回程：导航地图往右翻到儿童房，点那一页的传送阵快速移动过去。不借通用步行回阵——暗黑神殿是本卡最左一张图、这一页没有阵，通用回阵只会往左翻，在这里两头落空（2026-11-21 PC 实机两次各等 40 秒后整体复位，本卡常规图没采）。 | 本节点 max_hit 1 由 Collect_S18_Entry 清零。",
         "max_hit": 1,
         "recognition": "Or",
         "any_of": [
@@ -702,9 +704,68 @@
         "pre_delay": 0,
         "post_delay": 0,
         "next": [
-            "Collect_TeleporCircle_OnFoot_Entry"
+            "Collect_S18_Return_OpenMap"
         ],
         "focus": "S18.回到传送阵"
+    },
+    "Collect_S18_Return_OpenMap": {
+        "desc": "暗黑神殿回程：点左上小地图打开导航地图 | 开图点击位与判据同 Collect_S18_Locate；地图开了就看当前页是不是儿童房，不是就往右翻。max_hit 3 由 Collect_S18_Entry 清零。",
+        "max_hit": 3,
+        "recognition": "Or",
+        "any_of": [
+            "Rec_SandBox_Pin_Tpl",
+            "Rec_SandBox_Run_Tpl"
+        ],
+        "action": "Click",
+        "target": [
+            148,
+            119,
+            34,
+            38
+        ],
+        "post_delay": 2000,
+        "timeout": 5000,
+        "next": [
+            "Collect_S18_Return_Nursery",
+            "Collect_S18_Return_PageRight",
+            "Collect_S18_Return_OpenMap"
+        ],
+        "focus": "S18.回阵-打开导航地图"
+    },
+    "Collect_S18_Return_PageRight": {
+        "desc": "导航地图往右翻一页 | 当前页不是儿童房时点右侧「>」，识别借 Rec_NavMap_Right。本卡面板页序为暗黑神殿、记忆岔路口、科库托斯圣域、儿童房，导航地图上要翻几页未实测，max_hit 4 封顶，由 Collect_S18_Entry 清零。",
+        "max_hit": 4,
+        "recognition": "Or",
+        "any_of": [
+            "Rec_NavMap_Right"
+        ],
+        "action": "Click",
+        "post_delay": 1000,
+        "timeout": 5000,
+        "next": [
+            "Collect_S18_Return_Nursery",
+            "Collect_S18_Return_PageRight"
+        ],
+        "focus": "S18.回阵-导航地图往右翻"
+    },
+    "Collect_S18_Return_Nursery": {
+        "desc": "翻到儿童房：点这一页的传送阵快速移动回阵 | 标题只认子串「儿童房」，roi 同 Collect_S18_InTemple。找阵、点阵、确认弹框、行路与到阵判据都借通用的 Collect_TeleporCircle_OnFoot_TPIco 一串；到阵后退栈回 InTemple / Entry_Done，由 Collect_S18_Rehome_Ck 认手标后交通用流程。",
+        "recognition": "OCR",
+        "roi": [
+            171,
+            15,
+            555,
+            48
+        ],
+        "expected": [
+            "[儿兒]童房"
+        ],
+        "post_delay": 0,
+        "timeout": 5000,
+        "next": [
+            "Collect_TeleporCircle_OnFoot_TPIco"
+        ],
+        "focus": "S18.回阵-儿童房，点传送阵快速移动"
     },
     "Collect_S18_Rehome_Ck": {
         "desc": "确认已站上传送阵再交通用流程 | 看得到传送阵手标才进通用箱庭入口；复位没成功时不命中，调用方超时退栈，本卡不写完成。",
