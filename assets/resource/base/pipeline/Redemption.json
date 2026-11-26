@@ -273,7 +273,9 @@
             106
         ],
         "expected": "继续第",
-        "next": ["Global_ToSandBox"],
+        "next": [
+            "Global_ToSandBox"
+        ],
         "focus": "REB.[ERROR]发现已存在的开局，退出流程"
     },
     "Redemption_Evil_Redemption_ListLast": {
@@ -637,24 +639,11 @@
         "focus": "REM.肉鸽塔日常完成,已记录"
     },
     "Redemption_Evil_Redemption_PageBackHub": {
-        "desc": "其他页面，返回按钮",
-        "recognition": "TemplateMatch",
-        "roi": [
-            1,
-            1,
-            231,
-            124
-        ],
-        "template": [
-            "BackButGe.png",
-            "BackButGe2.png"
-        ],
-        "green_mask": true,
-        "action": "Click",
-        "post_delay": 2500,
+        "desc": "其他页面，直接交给 Global_ToHomePage 回主界面",
+        "pre_delay": 0,
+        "post_delay": 0,
         "next": [
             "Global_ToHomePage"
-        ],
-        "focus": "G=1.页面非预期，点击返回按钮"
+        ]
     }
 }

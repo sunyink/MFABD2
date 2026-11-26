@@ -142,12 +142,7 @@
             "[Ll][vV]"
         ],
         "action": "Click",
-        "post_delay": 1500,
-        "next": [
-            "Redemption_Evil_Redemption_DetPassLv",
-            "Redemption_Evil_Redemption_Lv1",
-            "[JumpBack]Redemption_Evil_Redemption_SelLv-1"
-        ]
+        "post_delay": 1500
     },
     "Redemption_Evil_Redemption_ListSwip": {
         "desc": "[PC覆盖] PC端左侧LV.1-LV.10全部同屏可见,禁用移动端下滑操作。",
@@ -230,7 +225,6 @@
         ],
         "connected": true,
         "count": 30,
-        "box_index": 0,
         "action": "Click",
         "target_offset": [
             0,
@@ -622,26 +616,6 @@
         "next": [
             "Redemption_Evil_Redemption_Result",
             "Redemption_Evil_Redemption_PageBackHub"
-        ]
-    },
-    "Redemption_Evil_Redemption_PageBackHub": {
-        "desc": "其他页面,返回按钮。|[PC覆盖] 追加PC暗色胶囊返回按钮模板(含光标停驻态),沿用base green_mask=true。",
-        "roi": [
-            1,
-            1,
-            231,
-            124
-        ],
-        "template": [
-            "BackBut_DarkCapsule_PC.png",
-            "BackBut_DarkCapsule_PC2.png",
-            "BackButGe.png",
-            "BackButGe2.png"
-        ],
-        "action": "Click",
-        "post_delay": 2500,
-        "next": [
-            "Global_ToHomePage"
         ]
     },
     "Redemption_Evil_AltarStuck": {
