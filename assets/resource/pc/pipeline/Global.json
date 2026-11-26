@@ -36,6 +36,34 @@
         ],
         "focus": "G=1.餐馆场景,点Home退出"
     },
+    "Global_ToHomePage": {
+        "desc": "[PC覆盖] base 原列表在 Reset 前插入「点击画面」结算提示的处理;base 改这里的 next 时要同步",
+        "next": [
+            "Global_ToHomePage_Enter",
+            "Global_ToHomePage_HomeButton",
+            "[JumpBack]StartGame_7dAD_Check",
+            "[JumpBack]Global_ToHomePage_TapScreen_PC",
+            "Global_ToHomePage_Reset"
+        ]
+    },
+    "Global_ToHomePage_TapScreen_PC": {
+        "desc": "[PC新增] 回主界面途中遇到「点击画面…」结算提示就点掉(如救赎之塔快速战斗的二次结算);PC 关了 Panic 重启兜底,卡在这种提示上就回不去。roi 与文字同 Redemption_Evil_Redemption_Result",
+        "max_hit": 5,
+        "recognition": "OCR",
+        "roi": [
+            360,
+            415,
+            870,
+            290
+        ],
+        "expected": [
+            "点击画面",
+            "點擊畫面"
+        ],
+        "action": "Click",
+        "post_delay": 2500,
+        "focus": "GO.点掉结算提示「点击画面」"
+    },
     "Global_BackToPve_Anc": {
         "desc": "【传统卡带识别链-标准入口】|[PC覆盖·2026-07-21] next前插段位结算弹窗确认(见Global_RankSettleModal_Confirm)。Anc是DirectHit纯路由节点,每轮复位必经→弹窗在则先OCR命中点确认、JumpBack回起点重走复位;弹窗不在则miss,照常走ToCardMenu。只前插一个识别分支,不碰锚点BackToPack逻辑。",
         "next": [
@@ -155,7 +183,7 @@
         ]
     },
     "Global_BackToQC_RewardBubble_TurnOFF": {
-        "desc": "检查QC,卡带奖励气泡,若黄则点击关闭。|[PC覆盖] base roi[1135,551,35,13]在PC快速卡带战斗玩法页签误命中背景黄像素导致循环空点;改为联合校验右侧白钮[1177,575,13,7]+左侧黄轨[1154,575,16,17]+'查看战场奖励'文字OCR[1050,564,102,37],仅在开关实际开启时点击(1169,582)关闭。",
+        "desc": "[PC覆盖] base 的 roi 在 PC 快速卡带「战斗玩法」页签会误中背景黄像素、反复空点;改成白钮、黄轨、「查看战场奖励」文字三项都成立才点",
         "all_of": [
             {
                 "sub_name": "ColorMatch",

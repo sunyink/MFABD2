@@ -550,6 +550,7 @@
         "focus": "REM.无法快速战斗"
     },
     "Redemption_Evil_Redemption_QuickBattNoAP": {
+        "max_hit": 5,
         "recognition": "OCR",
         "roi": [
             512,
@@ -566,8 +567,7 @@
         ],
         "post_delay": 2000,
         "next": [
-            "Redemption_Evil_Redemption_PageBackHub",
-            "Redemption_Evil_Redemption_QuickBattNoAP"
+            "Redemption_Evil_Redemption_PageBackHub"
         ]
     },
     "Redemption_Evil_Redemption_MAX": {
@@ -606,6 +606,7 @@
         ]
     },
     "Redemption_Evil_Redemption_Result": {
+        "max_hit": 4,
         "recognition": "OCR",
         "roi": [
             800,
@@ -619,6 +620,7 @@
         "action": "Click",
         "post_delay": 3000,
         "next": [
+            "Redemption_Evil_Redemption_Result",
             "Redemption_Daily_End"
         ]
     },
@@ -633,8 +635,7 @@
         },
         "post_delay": 0,
         "next": [
-            "Redemption_Evil_Redemption_PageBackHub",
-            "Redemption_Evil_Redemption_Result"
+            "Redemption_Evil_Redemption_PageBackHub"
         ],
         "focus": "REM.肉鸽塔日常完成,已记录"
     },
