@@ -83,8 +83,6 @@
         ]
     },
     "Redemption_Evil_Move": {
-        "desc": "恶魔城箱庭向上行走触发救赎之塔入口。|[PC覆盖] PC端长按向上行走4.8s;若角色原本已停在悬崖传送阵上未触发弹窗,先回退一步重入。",
-        "max_hit": 4,
         "recognition": "Or",
         "any_of": [
             "Rec_EvilCion",
@@ -99,34 +97,7 @@
             2
         ],
         "duration": 4800,
-        "post_delay": 2800,
-        "next": [
-            "Redemption_Evil_Redemption_In",
-            "Redemption_Evil_Move_StepBack_PC"
-        ]
-    },
-    "Redemption_Evil_Move_StepBack_PC": {
-        "desc": "[PC新增] 角色已站在救赎之塔传送点上时先向左下方回退一步,再重新向前走入触发入口弹窗。",
-        "max_hit": 3,
-        "recognition": "Or",
-        "any_of": [
-            "Rec_EvilCion",
-            "Rec_SandBox_Pin_Tpl",
-            "Rec_SandBox_Run_Tpl"
-        ],
-        "action": "LongPress",
-        "target": [
-            460,
-            610,
-            2,
-            2
-        ],
-        "duration": 1800,
-        "post_delay": 600,
-        "next": [
-            "Redemption_Evil_Move"
-        ],
-        "focus": "MM.悬崖传送阵重入回退一步(PC)"
+        "post_delay": 2800
     },
     "Redemption_Evil_Redemption_In": {
         "desc": "点击救赎之塔入口。|[PC覆盖] 适配PC入口文字ROI并兼容简繁体。",
@@ -674,6 +645,16 @@
         "post_delay": 2500,
         "next": [
             "Global_ToHomePage"
+        ]
+    },
+    "Redemption_Evil_AltarStuck": {
+        "template": [
+            "Evil_AltarMark_PC.png"
+        ]
+    },
+    "Redemption_Evil_AltarMark": {
+        "template": [
+            "Evil_AltarMark_PC.png"
         ]
     }
 }
