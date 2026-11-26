@@ -24,6 +24,8 @@
         "next": [
             "Redemption_Mapck",
             "[JumpBack]Redemption_Evil_Settlement",
+            "[JumpBack]StartGame_Special",
+            "[JumpBack]PVP_PerOperationsMain_Error",
             "[JumpBack]Global_BackToQC_Battleplay_Anc",
             "[JumpBack]Global_WaitingForLoading",
             "[JumpBack]Global_ToSandBox"
@@ -41,7 +43,6 @@
         "template": [
             "Cartridges_EvilCas.png"
         ],
-        "green_mask": true,
         "action": "Click",
         "target_offset": [
             -30,
@@ -53,7 +54,7 @@
             "QCPack": ""
         },
         "post_delay": 2000,
-        "timeout": 3000,
+        "timeout": 6000,
         "next": [
             "Redemption_ToPack",
             "[JumpBack]Global_WaitingForLoading"
@@ -69,7 +70,8 @@
             124
         ],
         "expected": [
-            "赛季奖励"
+            "赛季奖励",
+            "賽季獎勵"
         ],
         "action": "Click",
         "post_delay": 2500
@@ -78,13 +80,32 @@
         "desc": "箱庭地图pin确认",
         "recognition": "And",
         "all_of": [
-            "Rec_EvilCion",
-            "Rec_EvilCuff"
+            {
+                "recognition": "Or",
+                "any_of": [
+                    "Rec_EvilCuff",
+                    "Rec_EvilCion"
+                ]
+            },
+            "Rec_SandBox_Pin3_Tpl",
+            "Sub_SandBox_Pin3_Bright_Clr"
         ],
+        "post_delay": 5000,
         "next": [
+            "Redemption_Sandplay_Again"
+        ],
+        "focus": "RM.恶魔城-箱庭确认,(1/2)"
+    },
+    "Redemption_Sandplay_Again": {
+        "recognition": "Or",
+        "any_of": ["Redemption_Mapck"],
+        "next": [
+            "[JumpBack]Redemption_Evil_Settlement",
+            "[JumpBack]StartGame_Special",
+            "[JumpBack]PVP_PerOperationsMain_Error",
             "Redemption_Evil_Move"
         ],
-        "focus": "RM.已复位到箱庭"
+        "focus": "RM.恶魔城-箱庭确认,(2/2)"
     },
     "Rec_EvilCion": {
         "desc": "[识别]恶魔城代币",

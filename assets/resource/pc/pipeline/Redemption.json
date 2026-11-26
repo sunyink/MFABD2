@@ -1,14 +1,4 @@
 {
-    "Redemption_Daily_Switch": {
-        "desc": "读取当前存档的肉鸽塔日常记录,未完成才进入;可通过强制重跑选项绕过。|[PC覆盖] 将赛季奖励弹窗消除前置到箱庭判定之前,避免遮挡恶魔城顶部代币/Buff识别。",
-        "next": [
-            "[JumpBack]Redemption_Evil_Settlement",
-            "Redemption_Mapck",
-            "[JumpBack]Global_BackToQC_Battleplay_Anc",
-            "[JumpBack]Global_WaitingForLoading",
-            "[JumpBack]Global_ToSandBox"
-        ]
-    },
     "Redemption_ToPack": {
         "desc": "点击恶魔城卡带。|[PC覆盖] 适配PC快速卡带底部条ROI与PC版Cartridges_EvilCas.png(无绿幕),补充max_hit防死循环。",
         "max_hit": 5,
@@ -30,9 +20,7 @@
             15,
             0,
             0
-        ],
-        "post_delay": 2500,
-        "timeout": 5000
+        ]
     },
     "Redemption_Evil_Settlement": {
         "desc": "赛季奖励消除。|[PC覆盖] 放宽PC端弹窗ROI并兼容简繁体。",
@@ -48,23 +36,18 @@
         ]
     },
     "Redemption_Mapck": {
-        "desc": "恶魔城箱庭确认。|[PC覆盖] PC端恶魔城入口允许以Rec_EvilCion搭配Rec_EvilCuff或箱庭图钉/奔跑图标联合确认。",
         "recognition": "And",
         "all_of": [
-            "Rec_EvilCion",
             {
                 "recognition": "Or",
                 "any_of": [
                     "Rec_EvilCuff",
-                    "Rec_SandBox_Pin_Tpl",
-                    "Rec_SandBox_Run_Tpl"
+                    "Rec_EvilCion"
                 ]
-            }
-        ],
-        "next": [
-            "Redemption_Evil_Move"
-        ],
-        "focus": "RM.已复位到恶魔城箱庭(PC)"
+            },
+            "Rec_SandBox_Pin3_Tpl",
+            "Sub_SandBox_Pin3_Bright_Clr"
+        ]
     },
     "Rec_EvilCion": {
         "desc": "[识别]恶魔城代币。|[PC覆盖] 适配PC顶部代币栏ROI(覆盖不同位数金币/结晶偏移),使用绿幕圆形模板Evil_Coin_PC.png(17x17,排除背景干扰)并保留base模板兜底。",
@@ -78,7 +61,6 @@
             "Evil_Coin_PC.png",
             "Evil_Coin.png"
         ],
-        "green_mask": true,
         "threshold": [
             0.75
         ]
