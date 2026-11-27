@@ -1687,7 +1687,8 @@
         },
         "anchor": {
             "Pack_Bypass": "",
-            "Skirmish_Resume": ""
+            "Skirmish_Resume": "",
+            "Steal_Merchant": ""
         },
         "post_delay": 0,
         "timeout": 1,
@@ -1756,7 +1757,8 @@
         "anchor": {
             "Pack_Click": "Collect_Pack_Story_1",
             "CurrentCollectPack": "Collect_Pack_Story_1",
-            "PackScan_Return": "Collect_PackScan_Prepare"
+            "PackScan_Return": "Collect_PackScan_Prepare",
+            "Steal_Merchant": "Collect_Steal_Entry"
         },
         "post_delay": 0,
         "next": [
@@ -1820,7 +1822,8 @@
         "anchor": {
             "Pack_Click": "Collect_Pack_Story_3",
             "CurrentCollectPack": "Collect_Pack_Story_3",
-            "PackScan_Return": "Collect_PackScan_Prepare"
+            "PackScan_Return": "Collect_PackScan_Prepare",
+            "Steal_Merchant": "Collect_Steal_Entry"
         },
         "post_delay": 0,
         "next": [
@@ -1884,7 +1887,8 @@
         "anchor": {
             "Pack_Click": "Collect_Pack_Story_5",
             "CurrentCollectPack": "Collect_Pack_Story_5",
-            "PackScan_Return": "Collect_PackScan_Prepare"
+            "PackScan_Return": "Collect_PackScan_Prepare",
+            "Steal_Merchant": "Collect_Steal_Entry"
         },
         "post_delay": 0,
         "next": [
@@ -1917,7 +1921,8 @@
             "Pack_Click": "Collect_Pack_Story_6",
             "CurrentCollectPack": "Collect_Pack_Story_6",
             "PackScan_Return": "Collect_PackScan_Prepare",
-            "Pack_Bypass": "Collect_S06_Entry"
+            "Pack_Bypass": "Collect_S06_Entry",
+            "Steal_Merchant": "Collect_Steal_Entry"
         },
         "post_delay": 0,
         "next": [
