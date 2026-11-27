@@ -25,6 +25,7 @@ import numpy as np
 from maa.agent.agent_server import AgentServer
 from maa.context import Context
 from maa.custom_action import CustomAction
+from maa.custom_recognition import CustomRecognition
 
 
 # ==================== 参数来源 ====================
@@ -219,6 +220,81 @@ def _load_coords(context: Context) -> CoordCfg:
     if settle and len(settle) >= 2:
         c.settle = (int(settle[0]), int(settle[1]))
     return c
+
+
+def _pc_press_delay(previous, current, now):
+    """Return seconds to wait for this crossing, or None to observe another frame."""
+    stamp, lo, hi, cursor = current
+    if previous is None:
+        return 0.0 if lo <= cursor <= hi else None
+    old_stamp, old_lo, old_hi, old_cursor = previous
+    dt = stamp - old_stamp
+    if not .008 <= dt <= .18 or abs(lo-old_lo)+abs(hi-old_hi) > (hi-lo):
+        return 0.0 if lo <= cursor <= hi else None
+    speed = (cursor-old_cursor)/dt
+    if abs(speed) < 20 or abs(speed) > 1400:
+        return 0.0 if lo <= cursor <= hi else None
+    # Estimate the cursor when the next key-down reaches the game.
+    arrival = cursor + speed*(now-stamp+.012)
+    wait = ((lo+hi)/2-arrival)/speed
+    if 0 <= wait <= min(dt, .045):
+        return wait
+    if lo <= arrival <= hi:
+        return 0.0
+    return None
+
+
+def _pc_gauge(frame):
+    """Measure the cursor and yellow zone across the interior of the same slot."""
+    if frame is None:
+        return None
+    h, w = frame.shape[:2]
+    region = frame[h//3:, w//6:5*w//6, :3]
+    b, g, r = region.transpose(2, 0, 1)
+    yellow = (r > 195) & (g > 155) & (r.astype(np.int16)-b > 40) & (g > b)
+    # 细游标叠在蓝区时会偏青，按亮度和绿蓝通道差保留这些像素。
+    white = (r > 145) & (g > 207) & (b > 221) & (np.abs(g.astype(np.int16)-b) < 35)
+    dark = (r < 100) & (g < 140) & (b < 145) & (g > r) & (b > r)
+    blue = (b > 175) & (g > 105) & (b.astype(np.int16)-r > 45)
+    # 先用黄区和深色槽底共同定位横槽，再取槽内多行测量，避开上下边缘的高光。
+    eligible = (yellow.sum(axis=1) >= max(5,w//200)) & (dark.sum(axis=1) >= w*.10)
+    edges = np.flatnonzero(np.diff(np.r_[False, eligible, False]))
+    best = None
+    best_score = 0
+    for top, bottom in edges.reshape(-1,2):
+        height = bottom-top
+        if not h*.012 <= height <= h*.09:
+            continue
+        rows = slice(top+height//5, bottom-height//5)
+        zone = np.flatnonzero(yellow[rows].mean(axis=0) >= .40)
+        cursors = np.flatnonzero(white[rows].mean(axis=0) >= .84)
+        if not zone.size or not cursors.size:
+            continue
+        surface = (dark[rows] | blue[rows] | yellow[rows] | white[rows]).mean(axis=0)
+        # 合并被斜纹或游标遮断的黄色列，再用宽度和黄色占比筛出完整黄区。
+        for part in np.split(zone, np.flatnonzero(np.diff(zone)>max(6,w//85))+1):
+            lo, hi = int(part[0]), int(part[-1])
+            if not w*.009 < hi-lo < w*.12 or len(part)<.48*(hi-lo):
+                continue
+            for stripe in np.split(cursors,np.flatnonzero(np.diff(cursors)>1)+1):
+                if len(stripe)>max(5,w//110):
+                    continue
+                cx = (int(stripe[0])+int(stripe[-1]))/2
+                if abs(cx-(lo+hi)/2)>w*.38:
+                    continue
+                a, z = min(int(cx),lo), max(int(cx),hi)+1
+                support = surface[a:z].mean()
+                if support < .78:
+                    continue
+                # 综合槽面连续性、亮线贯穿槽高的比例和槽高评分，选出同一横槽内的黄区与游标。
+                persistence = white[top:bottom,stripe].mean()
+                score = support * persistence * min(height, h*.045)
+                if score > best_score:
+                    best_score, best = score, (lo,hi,cx)
+    return best
+
+
+
 
 
 class FishingBot:
@@ -534,6 +610,68 @@ class FishingBot:
             self.delay(self.timing.wait_fish_interval)
         return False, True
 
+    def play_pc_minigame(self):
+        started = time.monotonic()
+        last_seen = None
+        pressed = inside = False
+        previous = None
+        retried_lift = False
+        last_frame = None
+        while self.running and not self.context.tasker.stopping:
+            requested = time.monotonic()
+            frame = self.get_screenshot()
+            now = time.monotonic()
+            if frame is not None:
+                last_frame = frame
+            gauge = _pc_gauge(frame)
+            if gauge is not None:
+                if last_seen is None:
+                    print("PC 已定位拉扯横槽", flush=True)
+                last_seen = now
+                lo, hi, cursor = gauge
+                sample = ((requested+now)/2, lo, hi, cursor)
+                wait = _pc_press_delay(previous, sample, time.monotonic())
+                previous = sample
+                if inside and (cursor < lo-(hi-lo) or cursor > hi+(hi-lo)):
+                    inside = False
+                if wait is not None and not inside:
+                    self.delay(wait)
+                    if self.context.tasker.stopping:
+                        return False
+                    action = self.context.run_action("Fishing_KeyboardTap")
+                    if not action or not action.success:
+                        self.running = False
+                        return False
+                    pressed = True
+                    inside = True
+            elif (last_seen is None and not retried_lift and frame is not None
+                  and now-started >= .35):
+                bite = self.context.run_recognition("Detect_Took_Bait", frame)
+                if bite and bite.hit and bite.best_result and not self.context.tasker.stopping:
+                    x, y, w, h = bite.best_result.box
+                    retried_lift = True
+                    print("空格后倒计时仍在，点击水花圆盘补提一次。", flush=True)
+                    self.controller.post_click(x+w//2, y+h//2).wait()
+            elif last_seen is not None and now-last_seen > 1:
+                return pressed
+            if (last_seen is None and now-started >= 6) or now-started >= 23:
+                self.running = False
+                print("PC 拉扯识别超时，停止本次任务。", flush=True)
+                if last_frame is not None:
+                    from pathlib import Path
+                    from PIL import Image
+                    path = Path(__file__).resolve().parents[1]/"assets/debug/pc_fishing_bar.png"
+                    try:
+                        path.parent.mkdir(parents=True, exist_ok=True)
+                        Image.fromarray(last_frame[:,:,2::-1]).save(path)
+                        print(f"最后一帧：{path}", flush=True)
+                    except OSError as exc:
+                        print(f"保存诊断画面失败：{exc}", flush=True)
+                return False
+            self.delay(.01)
+        return False
+
+
     def play_minigame(self) -> bool:
         """玩钓鱼小游戏 - 预测式策略
         
@@ -670,7 +808,6 @@ class FishingBot:
             else:
                 print(f"    ⚡ 立即点击 (预测时间: {wait_time:.3f}s)")
             
-            # 4. 点击！
             self.tap(*self.coords.cast_rod)
             click_count += 1
             
@@ -908,6 +1045,10 @@ class FishingBot:
             print("warn: ⚠️ 抛竿任务未能启动（节点缺失或正在停止）")
             return False
         if not casting_result.status.succeeded:
+            if self.controller.info.get("type") == "win32":
+                self.running = False
+                print("PC 未完成抛竿或提线，本次任务停止。", flush=True)
+                return False
             print("  等待鱼上钩超时或未检测到，重试")
             return False
         try:
@@ -923,7 +1064,12 @@ class FishingBot:
         print("  鱼上钩! 进入小游戏...")
         self.delay(self.timing.after_cast)
 
-        success = self.play_minigame()
+        if self.controller.info.get("type") == "win32":
+            success = self.play_pc_minigame()
+            if not self.running or self.context.tasker.stopping:
+                return False
+        else:
+            success = self.play_minigame()
         if success:
             self.success_count += 1
             self.fish_since_last_sell += 1
@@ -967,12 +1113,56 @@ class FishingBot:
                     break
                 self.main_loop()
         finally:
+            normal_exit = self.running and not self.context.tasker.stopping
             self.running = False
             # 兜底：结束后卖出剩余鱼获
-            if self.fish_since_last_sell > 0:
+            if self.fish_since_last_sell > 0 and normal_exit:
                 print(f"\n📦 钓鱼结束，卖出剩余 {self.fish_since_last_sell} 条鱼")
                 self.sell_all_fish()
         return self.success_count > 0
+
+
+@AgentServer.custom_recognition("FishingKeyboardBite")
+class FishingKeyboardBite(CustomRecognition):
+    cached_box = None
+    cached_patch = None
+
+    def locate_splash(self, context, frame):
+        # The centre artwork stays fixed while the countdown animates on the rim.
+        if self.cached_box is not None:
+            x, y, w, h = self.cached_box
+            patch = frame[y:y+h:3, x:x+w:3, :3]
+            if patch.shape == self.cached_patch.shape and np.abs(
+                patch.astype(np.int16) - self.cached_patch
+            ).mean() < 10:
+                return self.cached_box
+        splash = context.run_recognition("Fishing_KeyboardSplash", frame)
+        if not splash or not splash.hit or not splash.best_result:
+            self.cached_box = None
+            return None
+        x, y, w, h = splash.best_result.box
+        self.cached_patch = frame[y:y+h:3, x:x+w:3, :3].astype(np.int16)
+        self.cached_box = (x, y, w, h)
+        return self.cached_box
+
+    def analyze(self, context, argv):
+        frame = argv.image
+        box = self.locate_splash(context, frame)
+        if box is None:
+            return None
+        x, y, w, h = box
+        # A 160 px template is centred inside the 230 px dial.
+        angles = np.deg2rad(np.arange(180, 272))
+        radius = np.arange(105, 117)[:, None]
+        xx = np.rint(x+w/2+radius*w/160*np.cos(angles)).astype(int)
+        yy = np.rint(y+h/2+radius*h/160*np.sin(angles)).astype(int)
+        if xx.min()<0 or yy.min()<0 or xx.max()>=frame.shape[1] or yy.max()>=frame.shape[0]:
+            return None
+        white = frame[yy, xx, :3].min(axis=2) > 237
+        thick = white.sum(axis=0) >= 3
+        if np.convolve(thick, np.ones(7), "valid").max() >= 7:
+            return self.AnalyzeResult(box=box, detail={"countdown": True})
+        return None
 
 
 @AgentServer.custom_action("FishingAction")
