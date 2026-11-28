@@ -172,6 +172,22 @@ class LedgerPointTests(unittest.TestCase):
         self.assertEqual([row["task_id"] for row in marks[1]["tasks"]], [101, 102])   # 上一条标记以来的任务起止
         self.assertIsNotNone(marks[1]["tasks"][0]["end"])
 
+    def test_cutoff_marks_and_scans_only_after_crossing(self):
+        self.clock[0] = T0 + 12 * 3600 - 400   # T0 是 UTC 正午：离 09:00 KST 不到 7 分钟
+        self.task("Arbitrage_Start", 101)
+        self.run_point("begin", "shop", 101, "Arbitrage_Start")
+        self.run_point("cutoff", "shop", 101, "Arbitrage_Start")          # 还没跨日：不盘、不留标记
+        self.assertEqual([mark["mark"] for mark in self.events("ledger_mark")], ["begin"])
+        self.clock[0] += 600
+        self.run_point("cutoff", "shop", 101, "Arbitrage_Start")
+        cut = self.events("ledger_mark")[-1]
+        self.assertEqual((cut["mark"], cut["type"]), ("cutoff", "shop"))
+        self.assertEqual((self.scans[-1]["label"], self.scans[-1]["scope"]), ("记账·商店换日切点", list(ALL_SCOPES)))
+        self.assertEqual(self.scans[-1]["origin"]["mark"], "cutoff")
+        self.run_point("end", "shop", 101, "Arbitrage_Start")
+        self.assertEqual([scan["scope"] for scan in self.scans], [list(ALL_SCOPES), list(ALL_SCOPES), ["A"]])
+        self.assertEqual([mark["mark"] for mark in self.events("ledger_mark")], ["begin", "cutoff", "end"])
+
     def test_token_shop_probe_leaves_no_mark_and_reads_the_top_bar(self):
         """代币商店进店前：按需补盘（这里是本次运行第一盘，全盘），不留标记；另读一次顶栏，不挂盘点、带 origin。"""
         self.task("TokenShop_Start", 101)

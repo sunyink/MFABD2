@@ -189,11 +189,19 @@ def write_entry(store_dir, entry_dir) -> Path | None:
         model = _read_json(folder / f"{days[-1]}.json") if days else None
         if not latest.is_file() or not isinstance(model, dict):
             continue
+        page = latest
+        # 最新一天只有与上日期末共用的那一盘（U82：跨日段并进了上一日）：那一页没有可看的变动，入口改指上一日。
+        shared = (model.get("overnight") or {}).get("shared") and len(model.get("scans") or ()) == 1
+        earlier = _read_json(folder / f"{days[-2]}.json") if shared and len(days) > 1 else None
+        if isinstance(earlier, dict) and (folder / f"{days[-2]}.html").is_file():
+            note = f"{str(model.get('game_day'))[5:]} 只有与上日期末共用的那一盘"
+            model = {**earlier, "summary": f"{earlier.get('summary') or ''}（{note}）"}
+            page = folder / f"{days[-2]}.html"
         alias = (model.get("account") or {}).get("alias")
         index = folder / "index.html"
         accounts.append({"name": f"存档 {alias}" if alias else "默认存档", "day": model.get("game_day") or days[-1],
                          "status": model.get("status"), "summary": model.get("summary"), "as_of": model.get("as_of"),
-                         "latest": latest.resolve().as_uri(), "index": index.resolve().as_uri() if index.is_file() else None,
+                         "latest": page.resolve().as_uri(), "index": index.resolve().as_uri() if index.is_file() else None,
                          "touched": latest.stat().st_mtime})
     if not accounts:
         return None

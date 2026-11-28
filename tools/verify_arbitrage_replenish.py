@@ -289,7 +289,8 @@ class PurchaseSupplyTests(unittest.TestCase):
         self.prepare()
         purchased = lists.completed_purchase_items(99, DAY)
         plan = salt_plan(purchased)
-        self.context.run_task = lambda name: NS(status=NS(succeeded=True))
+        ran = []
+        self.context.run_task = lambda name: ran.append(name) or NS(status=NS(succeeded=True))
         with patch.object(replenish, "sync_from_context", return_value=True), \
              patch.object(replenish, "completed_purchase_items", return_value=purchased,
                           side_effect=ValueError("purchase context lost") if unavailable else None), \
@@ -303,6 +304,8 @@ class PurchaseSupplyTests(unittest.TestCase):
              patch.object(replenish, "execute_replenish_purchases", return_value={"status": "prepared"}):
             result = replenish.run_replenishment(self.context, 99, {"dry_run": True})
         self.assertEqual(result["status"], "prepared")
+        # 确有要买的、进店之前过一次换日切点（U82-2）
+        self.assertEqual(ran, ["Arbitrage_GlobalMarket_Ensure", "Ledger_Cutoff_Shop"])
         self.assertEqual(self.context.get_anchor("Replenish_ShopEntry"), "Arbitrage_Merchant_Entry")
         self.assertEqual(build.call_count, 2)
         ceiling = sum(discounted_purchase_price(item["price_reference"]) * min(item["daily_limit_reference"], 99999)

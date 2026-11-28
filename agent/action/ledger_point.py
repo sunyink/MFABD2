@@ -59,6 +59,8 @@ def _label(mark: str, kind) -> str:
         return f"记账·{KIND_NAMES[kind]}开头"
     if mark == "end":
         return f"记账·{KIND_NAMES[kind]}结束"
+    if mark == "cutoff":
+        return f"记账·{KIND_NAMES[kind]}换日切点"
     return "记账·结束游戏" if mark == "queue_end" else "记账·手动结账"
 
 
@@ -347,7 +349,8 @@ def _run(context: Context, argv: CustomAction.RunArg) -> None:
         decision["scopes"] = list(ledger_rules.ALL_SCOPES)   # 选项「每次全盘」：盘不盘照规则，范围一律全盘
 
     task = {"entry": entry, "task_id": task_id}
-    if mark != "probe" and (mark != "end" or decision["end_mark"]):   # probe 只判盘不盘，不留标记
+    # probe 只判盘不盘，不留标记；换日切点只在真盘时留（没跨日的那几次经过不进凭证）
+    if mark != "probe" and (mark != "end" or decision["end_mark"]) and (mark != "cutoff" or decision["scan"]):
         saved = save_ledger_mark({
             "mark": mark, "type": kind, "at": utc_now(), "session": task_journal.SESSION, "task": task,
             "node": argv.node_name, **({"cards": _cycle_marks()} if kind == "collect" else {}),

@@ -104,6 +104,17 @@
         },
         "post_delay": 0
     },
+    "Ledger_Cutoff_Shop": {
+        "desc": "库存记账位置·商店换日切点 | 套利中途要动用 09:00 KST 刷新的额度之前经过：② 进购入之前（Arbitrage_Buy_Cutoff）、③ 补买算完确有要买的、进店之前（ArbitrageReplenishController 用 run_task 调起）。上一次盘点之后跨过了游戏日才全盘（新游戏日第一盘），没跨日什么都不做、不留标记。盘了留换日切点标记，本任务照样由位置 B 收尾盘。盘完人可能在主页或箱庭，回店由调用方负责。同一任务会经过不止一次，不设 max_hit；动作永远返回成功，不写 on_error。吸取的换日切点不在这里，是 Collect_PackScan_Prepare（回选卡列表）自己的动作。",
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "LedgerPoint",
+        "custom_action_param": {
+            "mark": "cutoff",
+            "type": "shop"
+        },
+        "post_delay": 0
+    },
     "Ledger_QueueEnd": {
         "desc": "库存记账位置·结束游戏 | 结束游戏关游戏之前以 [JumpBack] 挂入：上一次盘点之后有还没盘掉的活动就盘，没有就不盘。",
         "max_hit": 1,

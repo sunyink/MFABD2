@@ -8,8 +8,9 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
 # 位置：begin 任务从这里开始动库存；end 正常结束点；queue_end 结束游戏；manual 手动结账；
-# probe 进店前：只决定要不要补盘、不留标记（代币商店开头，见 decide）。
-MARKS = ("begin", "end", "queue_end", "manual", "probe")
+# probe 进店前：只决定要不要补盘、不留标记（代币商店开头，见 decide）；
+# cutoff 换日切点：任务中途要动用 09:00 KST 刷新的额度（② 购入、③ 补买、吸取下一张卡）之前，跨过游戏日才盘（U82）。
+MARKS = ("begin", "end", "queue_end", "manual", "probe", "cutoff")
 # 收尾位置：任务的最后一步，后面没有下一盘。
 CLOSING = ("end", "queue_end", "manual")
 # 每种类型自己要的扫描类型（背包仓检 Agt_BagScan_Config 里的键：A 存货、B 票券与养成材料、C 装备制作材料）。
@@ -93,7 +94,7 @@ def decide(mark: str, kind: str | None, state: LedgerState, *, task_id: int, row
     """
     if mark not in MARKS:
         raise ValueError(f"未知位置: {mark}")
-    if (mark in ("begin", "end", "probe")) != (kind in NEEDS):
+    if (mark in ("begin", "end", "probe", "cutoff")) != (kind in NEEDS):
         raise ValueError(f"位置 {mark} 的类型不对: {kind}")
     last = state.last_scan
     connected = last is not None and _connected(rows, last["task_id"], task_id, gap)
@@ -109,6 +110,12 @@ def decide(mark: str, kind: str | None, state: LedgerState, *, task_id: int, row
 
     if mark == "begin" and kind in LATE:
         return result((), "活已经干完，事后留的标记处不盘，由下一个收尾位置一并盘")
+    if mark == "cutoff":
+        # 任务中途、要动用新一天额度之前：上一次盘点之后跨过了 09:00 KST 才盘，这一盘是新游戏日的第一盘，全盘（U67-1）。
+        # 没跨日什么都不做。上一次盘点不在本次运行里（开头那盘没盘成）时也不盘：没有可比的读数，留给收尾位置。
+        if last is None or last["game_day"] == game_day(now):
+            return result((), "没跨游戏日")
+        return result(ALL_SCOPES, "换日切点：跨过游戏日")
     if mark in ("begin", "probe") and kind is not None:
         # probe 是同阶段里打头的那个任务进店之前：照「开头」判，只是不留标记。上一阶段没收尾、本次运行第一盘、
         # 不连续、跨日、夹着名单外的任务，都在进店前补盘——这一盘本来轮到下一个开头位置盘，只是提前，免得
@@ -215,4 +222,7 @@ def settle(state: LedgerState, *, mark: str, kind: str | None, task_id: int, ent
         state.pending = []
     if mark == "begin":
         state.begun.add((task_id, kind))
+        state.pending.append({"kind": kind, "task_id": task_id, "entry": entry})
+    elif mark == "cutoff" and scan is not None:
+        # 换日切点盘过：本任务接着干活，照始标记处理，收尾位置照样要盘它（U82）。没盘就什么都不变。
         state.pending.append({"kind": kind, "task_id": task_id, "entry": entry})

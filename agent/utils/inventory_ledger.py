@@ -17,12 +17,14 @@ from datetime import datetime, timezone
 
 from .ledger_rules import GAP_SECONDS, _connected, game_day
 
-RULE_VERSION = 8   # 3：吸取分卡产出；4：存货没盘全时退出重扫，重扫的读数并进原来那次盘点；5：回读库存确认的出售按报价记金币，取不到记未知
+RULE_VERSION = 9   # 3：吸取分卡产出；4：存货没盘全时退出重扫，重扫的读数并进原来那次盘点；5：回读库存确认的出售按报价记金币，取不到记未知
                    # 6：跨过开始那天结账盘点的一笔变化，记成补上读数那天的期初调整（inventory_report，U67-1）
                    # 7：一日的账只算到当天最后一盘，定稿等于最后一次记账；定稿的表带期末余额，下一日第一盘与它的差额
                    #    全部记成期初调整，隔夜那一段不再归上一日（inventory_report，U75、U76）
                    # 8：商店兑换（代币商店）与商店套利同一阶段：同一段里两者都有时按类别拆，B 类归兑换、其余归套利，
                    #    金币与天赋神药按兑换前后两次顶栏读数拆；B 类跨过吸取、套利段的一笔整笔归兑换（代币商店接入计划 §2）
+                   # 9：连续的跨日段（同一会话、接得上、没有名单外任务）整段并入开始那天，期末取换日后那一盘；
+                   #    换日切点（cutoff）标记与始标记一样定区间类型；换日后的补买花费移到次日（inventory_report，U82）
 # 顶栏货币在账里的名字 → 货币读数里的字段。
 CURRENCY = (("金币", "gold"), ("钻石", "diamond"), ("钻石（免费）", "diamond_free"),
             ("钻石（付费）", "diamond_paid"), ("天赋神药", "tonic"))
@@ -36,6 +38,15 @@ CARD_PREFIXES = ("Story_", "Event_", "Character_")
 # 定得偏大是因为有上限的小额物品（用光、次日补满）会合法地出现「有 → 0 → 同一个数」。
 SUSPECT_MIN = 100
 _SALE, _BUY, _UNSURE = "sale_confirmed", "replenish_purchase", "sale_unconfirmed"
+# 开头盘点归这一段的标记：始标记，以及任务中途的换日切点（盘了才留，U82）。
+_OPENERS = ("begin", "cutoff")
+# 跨日之后能整段并入开始那天的区间类型（U82）：一种业务从头做到尾、两头的盘点接得上。
+ATTACHABLE = ("daily", "collect", "shop", EXCHANGE)
+
+
+def _day_start(day: str) -> float:
+    """游戏日 day 的开始时刻：09:00 KST，正好是 UTC 零点。"""
+    return datetime.fromisoformat(day).replace(tzinfo=timezone.utc).timestamp()
 
 
 def ts(text) -> float | None:
@@ -372,6 +383,31 @@ def _settled(interval_tasks, closing, tasks, gap) -> bool:
     return _connected(rows, last["task_id"], closer, gap)
 
 
+def _attach(kind, flags, strangers, sessions, opening, closing, shown, events, visits):
+    """连续的跨日段（U82）：这一段两头跨过 09:00 KST，又是一种业务从头做到尾、两头的盘点接得上——同一个会话、
+    没有名单外的任务、收尾那次盘点紧接着最后一个任务、只跨一个游戏日。它整段并入开始那天，期末取换日后那一盘。
+    返回换日之后那一截做了什么（期后事项、补买花费移到次日要用），接不上返回 None（照 U76 记成次日的期初调整）。
+
+    「换日后没动用新一天的额度」由运行时保证：要动用之前设了换日切点，盘过的那一盘就是边界（ledger_rules）。
+    切点没拦住的残留——换日后的补买、② 一键购买——在这里一并列出，由制表决定怎么记。
+    """
+    if "cross_day" not in flags or kind not in ATTACHABLE or strangers or len(sessions) != 1 or "unsettled" in flags:
+        return None
+    boundary = _day_start(closing["day"])
+    if game_day(boundary - 1) != opening["day"]:
+        return None   # 跨了不止一个游戏日：中间隔夜过，不可能接得上
+    upper = closing["started"]
+    after = [task for task in shown if task["start"] is not None and task["start"] < upper
+             and (task["end"] is None or task["end"] > boundary)]
+    purchases = sorted(at for event in events
+                       if event.get("kind") == "inventory_invalidate" and str(event.get("reason") or "").startswith("purchase_")
+                       for at in (ts(event.get("observed_at")),) if at is not None and boundary < at <= upper)
+    return {"boundary": iso(boundary), "closing": iso(closing["at"]),
+            "tasks": [{"entry": task["entry"], "task_id": task["task_id"]} for task in sorted(after, key=lambda task: task["start"])],
+            "book": _book(events, boundary, upper), "purchases": [iso(at) for at in purchases],
+            "loot": _visits_between(visits, boundary, upper)}
+
+
 def _intervals(scans, marks, tasks, events, quiet, gap, visits=(), bars=None):
     quiet = frozenset(quiet)
     orphans = _orphan_pages(events, scans)
@@ -379,8 +415,8 @@ def _intervals(scans, marks, tasks, events, quiet, gap, visits=(), bars=None):
     tail = {"marks": [], "tasks": [], "types": [], "loot": []}
 
     def slot(mark):
-        """标记落进哪个区间：始标记触发了盘点 → 以那次盘点开头的区间；其余按时刻。"""
-        if mark["mark"] == "begin" and mark["scan"] is not None:
+        """标记落进哪个区间：始标记、换日切点触发了盘点 → 以那次盘点开头的区间；其余按时刻。"""
+        if mark["mark"] in _OPENERS and mark["scan"] is not None:
             return mark["scan"]
         for index in range(len(scans) - 1, -1, -1):
             if mark["at"] > scans[index]["at"]:
@@ -398,7 +434,8 @@ def _intervals(scans, marks, tasks, events, quiet, gap, visits=(), bars=None):
         closing = scans[index + 1] if index + 1 < len(scans) else None
         upper = closing["at"] if closing else float("inf")
         inside = slots.get(index, [])
-        begins = [mark for mark in inside if mark["mark"] == "begin"]
+        # 换日切点之后的一段没有自己的始标记：切点标记顶替它，说明这一段是同一任务接着干的同一种活（U82）。
+        begins = [mark for mark in inside if mark["mark"] in _OPENERS]
         active = {(mark["session"], mark["task_id"]) for mark in begins}
         overlapping = [task for task in tasks.values()
                        if (task["session"], task["task_id"]) in active
@@ -440,15 +477,18 @@ def _intervals(scans, marks, tasks, events, quiet, gap, visits=(), bars=None):
             flags.append("cross_day")
         if any(opening["at"] < at <= closing["at"] for at in orphans):
             flags.append("partial_scan")
-        cards = _cards(inside, kind)
+        # 收尾那次盘点是换日切点时，它的标记归了下一段；这一段吸完了哪几张卡，要拿它带的周期快照来比（U82）。
+        closers = [mark for mark in slots.get(index + 1, []) if mark["mark"] == "cutoff" and mark["scan"] == index + 1]
+        cards = _cards(inside + closers, kind)
         sessions = {mark["session"] for mark in inside} | {task["session"] for task in shown}
+        attach = _attach(kind, flags, strangers, sessions, opening, closing, shown, events, visits)
         intervals.append({
             "id": f"I{index + 1}", "from": opening["id"], "to": closing["id"], "start": iso(opening["at"]),
             "end": iso(closing["at"]), "minutes": round((closing["at"] - opening["at"]) / 60), "day": opening["day"],
             "kind": kind, "types": types, "flags": flags, "tasks": brief,
             "strangers": [task["entry"] for task in strangers], "cards": cards, "sessions": len(sessions),
             "closed_by": closing["origin"].get("mark"), "book": _book(events, opening["at"], closing["at"]),
-            "loot": _visits_between(visits, opening["at"], closing["at"]), "exchange": exchange})
+            "loot": _visits_between(visits, opening["at"], closing["at"]), "exchange": exchange, "attach": attach})
     return intervals, tail
 
 

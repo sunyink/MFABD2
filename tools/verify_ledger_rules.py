@@ -217,6 +217,34 @@ class LedgerRuleTests(unittest.TestCase):
         self.assertFalse(again["scan"])
         self.assertEqual(play.at("end", "shop")["scopes"], ["A"])
 
+    def test_c1_cutoff_scans_everything_only_after_crossing(self):
+        play = Play(start=NOON + 12 * 3600 - 400)          # 08:53 KST 进店
+        play.task("Arbitrage_Start").at("begin", "shop")   # 本次运行第一盘
+        self.assertFalse(play.at("cutoff", "shop")["scan"])   # ② 之前还没到 09:00：不盘
+        play.now += 600                                    # ③ 补买时已过 09:00 KST
+        cut = play.at("cutoff", "shop")
+        self.assertEqual((cut["scopes"], cut["reason"]), (FULL, "换日切点：跨过游戏日"))
+        self.assertFalse(cut["end_mark"])
+        self.assertFalse(play.at("cutoff", "shop")["scan"])   # 同一任务再经过（吸取下一张卡）：已在新的一天，不盘
+        self.assertEqual(play.at("end", "shop")["scopes"], ["A"])   # 切点之后接着干的活，收尾照样盘
+        self.assertEqual(play.scans(), [FULL, FULL, ["A"]])
+
+    def test_c2_cutoff_crossing_inside_collect_then_shop_rides_the_end(self):
+        play = Play(start=NOON + 12 * 3600 - 400)
+        play.daily("Mail_HomePage")
+        play.task("Collect_StartGame_HomePage").at("begin", "collect")
+        play.now += 600
+        self.assertEqual(play.at("cutoff", "collect")["scopes"], FULL)   # 换卡时
+        self.assertEqual(play.at("end", "collect")["scopes"], ["A"])
+        self.assertFalse(play.task("Arbitrage_Start").at("begin", "shop")["scan"])
+
+    def test_c3_cutoff_without_a_scan_in_this_run_does_nothing(self):
+        play = Play(start=NOON + 12 * 3600 + 60)
+        play.task("Arbitrage_Start").at("begin", "shop", executed=False)   # 开头那盘没盘成
+        play.now += 600
+        self.assertFalse(play.at("cutoff", "shop")["scan"])
+        self.assertTrue(play.at("end", "shop")["scan"])                    # 未盘掉的活动留给收尾
+
     def test_settings_come_from_the_node_and_fall_back_item_by_item(self):
         """免记名单与连续阈值以节点 Agt_Ledger_Config.attach 为准；内置值只是节点读不到时的替身，两边要一致。"""
         built_in = {"quiet": ledger_rules.QUIET, "gap": ledger_rules.GAP_SECONDS}
@@ -392,7 +420,7 @@ class LedgerRuleTests(unittest.TestCase):
 
     def test_bad_arguments_are_rejected(self):
         state = LedgerState()
-        for mark, kind in (("begin", None), ("end", "tower"), ("queue_end", "daily"), ("pause", None), ("probe", None)):
+        for mark, kind in (("begin", None), ("end", "tower"), ("queue_end", "daily"), ("pause", None), ("probe", None), ("cutoff", None)):
             with self.assertRaises(ValueError):
                 decide(mark, kind, state, task_id=1, rows=[], now=NOON)
 
