@@ -129,8 +129,11 @@ class StaticWiringTests(unittest.TestCase):
         for (name, _tag, setup, mark), select_type in zip(BRANCHES, select_types):
             with self.subTest(node=setup):
                 self.assertEqual(self.d[name]["next"], ["[JumpBack]Global_QuickCart_MenuReset", setup])
-                self.assertEqual(self.d[name]["anchor"], {"PackScan_End": ""})
-                self.assertEqual(self.d[setup]["anchor"], {"PackScan_End": mark})
+                self.assertEqual(
+                    self.d[name]["anchor"],
+                    {"PackScan_End": "", "PackScan_Reselect": "", "PackScan_ReselectExit": ""},
+                )
+                self.assertEqual(self.d[setup]["anchor"], {"PackScan_End": mark, "PackScan_Reselect": setup})
                 self.assertEqual(self.d[setup].get("recognition", "DirectHit"), "DirectHit")
                 self.assertNotIn("custom_action", self.d[setup])
                 self.assertEqual(self.d[setup]["next"][0], select_type)
@@ -140,6 +143,39 @@ class StaticWiringTests(unittest.TestCase):
             with self.subTest(node=exit_node):
                 self.assertEqual(self.d[exit_node]["next"], ["[Anchor]PackScan_End"])
                 self.assertNotIn("custom_action", self.d[exit_node])
+
+    def test_reopen_list_reselects_current_category(self):
+        """重开列表后经本类准备节点点回页签；色核由退出锚点退栈，不清目标滑动预算。"""
+        open_list = self.d["Collect_PackScan_OpenList"]
+        # 回入锚不能加 [JumpBack]：准备节点必中，退栈回来会再次命中而死循环。
+        self.assertEqual(
+            open_list["next"],
+            [
+                "[JumpBack]Global_QuickCart_MenuReset",
+                "[Anchor]PackScan_Reselect",
+                "Global_QuickCart_MenuReset_Ocr",
+            ],
+        )
+        # 退出锚只在重开列表时设；设在色核自身会在同一拍生效，正常开扫也会退栈。
+        self.assertEqual(open_list["anchor"], {"PackScan_ReselectExit": "Collect_PackScan_ReselectDone"})
+        done = self.d["Collect_PackScan_ReselectDone"]
+        self.assertEqual(done.get("recognition", "DirectHit"), "DirectHit")
+        self.assertNotIn("next", done)
+        self.assertNotIn("action", done)
+
+        budget = self.d["Collect_PackScan_ResetBudget"]
+        self.assertEqual(budget["custom_action"], "RestorePipeline")
+        self.assertEqual(budget["custom_action_param"], {"target": "Collect_PackScroll_Restore"})
+        self.assertEqual(budget["anchor"], {"PackScroll_Next": "Collect_PackScroll_ToPage2"})
+        self.assertEqual(budget["next"], ["Collect_FirstBootPack"])
+
+        for pack in ("StoryPack", "CharacterPack", "EventPack"):
+            with self.subTest(pack=pack):
+                check = self.d[f"Collect_QuickCart_{pack}_OcrCheck"]
+                # 预算归零只能在退出锚之后，否则重开列表会丢掉页位。
+                self.assertNotIn("action", check)
+                self.assertNotIn("anchor", check)
+                self.assertEqual(check["next"], ["[Anchor]PackScan_ReselectExit", "Collect_PackScan_ResetBudget"])
 
     def test_only_once_stops_after_success_and_disable(self):
         """单卡模式仍先写完成记录、落盘这张卡的掉落、禁用当前卡，随后才写每周一次记录并停止。"""

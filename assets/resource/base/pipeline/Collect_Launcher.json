@@ -261,7 +261,9 @@
             "max": 1
         },
         "anchor": {
-            "PackScan_End": ""
+            "PackScan_End": "",
+            "PackScan_Reselect": "",
+            "PackScan_ReselectExit": ""
         },
         "timeout": 1,
         "next": [
@@ -280,7 +282,9 @@
             "max": 1
         },
         "anchor": {
-            "PackScan_End": ""
+            "PackScan_End": "",
+            "PackScan_Reselect": "",
+            "PackScan_ReselectExit": ""
         },
         "timeout": 1,
         "next": [
@@ -299,7 +303,9 @@
             "max": 1
         },
         "anchor": {
-            "PackScan_End": ""
+            "PackScan_End": "",
+            "PackScan_Reselect": "",
+            "PackScan_ReselectExit": ""
         },
         "timeout": 1,
         "next": [
@@ -312,7 +318,9 @@
         "enabled": false,
         "max_hit": 1,
         "anchor": {
-            "PackScan_End": ""
+            "PackScan_End": "",
+            "PackScan_Reselect": "",
+            "PackScan_ReselectExit": ""
         },
         "timeout": 1,
         "next": [
@@ -321,27 +329,30 @@
         ]
     },
     "Collect_StoryPack_PrepareScan": {
-        "desc": "设置剧情类扫描收尾后选择分类；触底或达到滑动上限时只记录本轮扫描结束。",
+        "desc": "设置剧情类扫描收尾，并把重开列表的回入点设为本节点，再选择分类；触底或达到滑动上限时只记录本轮扫描结束。",
         "anchor": {
-            "PackScan_End": "Collect_QC_Scan_Mark_Story"
+            "PackScan_End": "Collect_QC_Scan_Mark_Story",
+            "PackScan_Reselect": "Collect_StoryPack_PrepareScan"
         },
         "next": [
             "Collect_QuickCart_SelectType_StoryPack"
         ]
     },
     "Collect_CharacterPack_PrepareScan": {
-        "desc": "设置角色类扫描收尾后选择分类；触底或达到滑动上限时只记录本轮扫描结束。",
+        "desc": "设置角色类扫描收尾，并把重开列表的回入点设为本节点，再选择分类；触底或达到滑动上限时只记录本轮扫描结束。",
         "anchor": {
-            "PackScan_End": "Collect_QC_Scan_Mark_Character"
+            "PackScan_End": "Collect_QC_Scan_Mark_Character",
+            "PackScan_Reselect": "Collect_CharacterPack_PrepareScan"
         },
         "next": [
             "Collect_QuickCart_SelectType_CharacterPack"
         ]
     },
     "Collect_EventPack_PrepareScan": {
-        "desc": "设置活动类扫描收尾后选择分类；触底或达到滑动上限时只记录本轮扫描结束。",
+        "desc": "设置活动类扫描收尾，并把重开列表的回入点设为本节点，再选择分类（页签看不到时先左滑页签行）；触底或达到滑动上限时只记录本轮扫描结束。",
         "anchor": {
-            "PackScan_End": "Collect_QC_Scan_Mark_Event"
+            "PackScan_End": "Collect_QC_Scan_Mark_Event",
+            "PackScan_Reselect": "Collect_EventPack_PrepareScan"
         },
         "next": [
             "Collect_QuickCart_SelectType_EventPack",
@@ -473,7 +484,7 @@
         "focus": "CM.L.生活玩法游戏卡带集"
     },
     "Collect_QuickCart_StoryPack_OcrCheck": {
-        "desc": "确认分类已选中，恢复本类滑动预算为零，再从列表左端开始探测；不预先进第一张卡。",
+        "desc": "确认分类已选中；重开列表时经退出锚点退栈、保留目标滑动预算，否则进入本类扫描初始化。",
         "recognition": "ColorMatch",
         "roi": "Collect_QuickCart_SelectType_StoryPack",
         "lower": [
@@ -487,21 +498,14 @@
             255
         ],
         "count": 200,
-        "action": "Custom",
-        "custom_action": "RestorePipeline",
-        "custom_action_param": {
-            "target": "Collect_PackScroll_Restore"
-        },
-        "anchor": {
-            "PackScroll_Next": "Collect_PackScroll_ToPage2"
-        },
         "next": [
-            "Collect_FirstBootPack"
+            "[Anchor]PackScan_ReselectExit",
+            "Collect_PackScan_ResetBudget"
         ],
         "focus": "CM.L.剧情-卡带调取完毕"
     },
     "Collect_QuickCart_CharacterPack_OcrCheck": {
-        "desc": "确认分类已选中，恢复本类滑动预算为零，再从列表左端开始探测；不预先进第一张卡。",
+        "desc": "确认分类已选中；重开列表时经退出锚点退栈、保留目标滑动预算，否则进入本类扫描初始化。",
         "recognition": "ColorMatch",
         "roi": "Collect_QuickCart_SelectType_CharacterPack",
         "lower": [
@@ -515,21 +519,14 @@
             255
         ],
         "count": 300,
-        "action": "Custom",
-        "custom_action": "RestorePipeline",
-        "custom_action_param": {
-            "target": "Collect_PackScroll_Restore"
-        },
-        "anchor": {
-            "PackScroll_Next": "Collect_PackScroll_ToPage2"
-        },
         "next": [
-            "Collect_FirstBootPack"
+            "[Anchor]PackScan_ReselectExit",
+            "Collect_PackScan_ResetBudget"
         ],
         "focus": "CM.L.角色-卡带调取完毕"
     },
     "Collect_QuickCart_EventPack_OcrCheck": {
-        "desc": "确认分类已选中，恢复本类滑动预算为零，再从列表左端开始探测；不预先进第一张卡。",
+        "desc": "确认分类已选中；重开列表时经退出锚点退栈、保留目标滑动预算，否则进入本类扫描初始化。",
         "recognition": "ColorMatch",
         "roi": "Collect_QuickCart_SelectType_EventPack",
         "lower": [
@@ -543,21 +540,14 @@
             255
         ],
         "count": 500,
-        "action": "Custom",
-        "custom_action": "RestorePipeline",
-        "custom_action_param": {
-            "target": "Collect_PackScroll_Restore"
-        },
-        "anchor": {
-            "PackScroll_Next": "Collect_PackScroll_ToPage2"
-        },
         "next": [
-            "Collect_FirstBootPack"
+            "[Anchor]PackScan_ReselectExit",
+            "Collect_PackScan_ResetBudget"
         ],
         "focus": "CM.L.活动-卡带调取完毕"
     },
     "Collect_QuickCart_ManagerPack_OcrCheck": {
-        "desc": "确认分类已选中，恢复本类滑动预算为零，再从列表左端开始探测；不预先进第一张卡。",
+        "desc": "确认分类已选中，再经 Collect_PackScan_ResetBudget 初始化本类扫描。",
         "recognition": "ColorMatch",
         "roi": "Collect_QuickCart_SelectType_ManagerPack",
         "lower": [
@@ -571,21 +561,13 @@
             255
         ],
         "count": 500,
-        "action": "Custom",
-        "custom_action": "RestorePipeline",
-        "custom_action_param": {
-            "target": "Collect_PackScroll_Restore"
-        },
-        "anchor": {
-            "PackScroll_Next": "Collect_PackScroll_ToPage2"
-        },
         "next": [
-            "Collect_FirstBootPack"
+            "Collect_PackScan_ResetBudget"
         ],
         "focus": "CM.L.店长-卡带调取完毕"
     },
     "Collect_QuickCart_BattleplayPack_OcrCheck": {
-        "desc": "确认分类已选中，恢复本类滑动预算为零，再从列表左端开始探测；不预先进第一张卡。",
+        "desc": "确认分类已选中，再经 Collect_PackScan_ResetBudget 初始化本类扫描。",
         "recognition": "ColorMatch",
         "roi": "Collect_QuickCart_SelectType_BattleplayPack",
         "lower": [
@@ -599,21 +581,13 @@
             255
         ],
         "count": 500,
-        "action": "Custom",
-        "custom_action": "RestorePipeline",
-        "custom_action_param": {
-            "target": "Collect_PackScroll_Restore"
-        },
-        "anchor": {
-            "PackScroll_Next": "Collect_PackScroll_ToPage2"
-        },
         "next": [
-            "Collect_FirstBootPack"
+            "Collect_PackScan_ResetBudget"
         ],
         "focus": "CM.L.战斗玩法-卡带调取完毕"
     },
     "Collect_QuickCart_LifeplayPack_OcrCheck": {
-        "desc": "确认分类已选中，恢复本类滑动预算为零，再从列表左端开始探测；不预先进第一张卡。",
+        "desc": "确认分类已选中，再经 Collect_PackScan_ResetBudget 初始化本类扫描。",
         "recognition": "ColorMatch",
         "roi": "Collect_QuickCart_SelectType_LifeplayPack",
         "lower": [
@@ -627,6 +601,14 @@
             255
         ],
         "count": 500,
+        "next": [
+            "Collect_PackScan_ResetBudget"
+        ],
+        "focus": "CM.L.生活玩法-卡带调取完毕"
+    },
+    "Collect_PackScan_ResetBudget": {
+        "desc": "新类别开扫：目标滑动预算归零、下一次推进从第2页起算，再从列表左端开始探测；不预先进第一张卡。",
+        "pre_delay": 0,
         "action": "Custom",
         "custom_action": "RestorePipeline",
         "custom_action_param": {
@@ -635,10 +617,10 @@
         "anchor": {
             "PackScroll_Next": "Collect_PackScroll_ToPage2"
         },
+        "post_delay": 0,
         "next": [
             "Collect_FirstBootPack"
-        ],
-        "focus": "CM.L.生活玩法-卡带调取完毕"
+        ]
     },
     "Collect_FirstBootPack": {
         "desc": "新类别扫描初始化：仅清本次滑动计数，随后选择普通或调试探针。",
@@ -780,7 +762,7 @@
         ]
     },
     "Collect_PackScan_OpenList": {
-        "desc": "列表重开会回到本类最左端，先清本次计数；目标滑动预算保留。",
+        "desc": "重开列表并点回本类页签：重开后游戏选中的是当前所在卡带的类别，不一定是正在扫的这一类。经回入锚重走本类准备、选页签与色核，色核后由退出锚点退栈；列表回到最左端，先清本次计数，目标滑动预算保留。未设回入锚时由末项「列表已开」直接退栈。",
         "recognition": "Or",
         "any_of": [
             "Global_QuickCart_MenuReset"
@@ -793,10 +775,21 @@
                 "LocPage_SmartSwip"
             ]
         },
+        "anchor": {
+            "PackScan_ReselectExit": "Collect_PackScan_ReselectDone"
+        },
         "post_delay": 0,
         "next": [
-            "Global_QuickCart_MenuReset"
+            "[JumpBack]Global_QuickCart_MenuReset",
+            "[Anchor]PackScan_Reselect",
+            "Global_QuickCart_MenuReset_Ocr"
         ]
+    },
+    "Collect_PackScan_ReselectDone": {
+        "desc": "重开列表后本类页签已选中，退栈回 Collect_PackScan_Prepare 续扫；不经 Collect_PackScan_ResetBudget，目标滑动预算保留。",
+        "pre_delay": 0,
+        "post_delay": 0,
+        "focus": "CM.L.重开列表后已点回本类页签"
     },
     "Collect_PackScan_ListReady": {
         "desc": "确认列表已开，必要时开启战场奖励显示，再等待徽章形状出现。",
