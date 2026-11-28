@@ -15,9 +15,15 @@
                 "Collect_Steal_Shop",
                 "Collect_Steal_MoveConfirm",
                 "Collect_Steal_Open",
+                "Collect_Steal_Up",
+                "Collect_Steal_UpBack",
                 "Collect_Steal_Go",
                 "Collect_Steal_Confirm",
-                "Collect_Steal_Close"
+                "Collect_Steal_Close",
+                "Collect_Steal_UpConfirm",
+                "Collect_Steal_UpSkip",
+                "Collect_Steal_UpDone",
+                "Collect_Steal_SkipAnim"
             ]
         },
         "anchor": {
@@ -118,6 +124,7 @@
         },
         "post_delay": 0,
         "next": [
+            "Collect_Steal_Up",
             "Collect_Steal_Cd",
             "Collect_Steal_Go",
             "Collect_Steal_Card",
@@ -140,6 +147,7 @@
         },
         "post_delay": 0,
         "next": [
+            "Collect_Steal_Up",
             "Collect_Steal_Cd",
             "Collect_Steal_Go",
             "Collect_Steal_Card",
@@ -213,6 +221,98 @@
             "Collect_Steal_Close"
         ]
     },
+    "Collect_Steal_Up": {
+        "desc": "这一格能升星就先升星 | 卡片等级那一行出现「升星」时点它（借游标框往下取等级行）。没进升星页、卡上「升星」还在就自环再点；升星消耗金币与天赋特效药，材料不够时确认按钮是暗的，由 Collect_Steal_UpBack 退出、接着偷。流程照 Practise_Skill_Bargaining_Upgrade*（生活技能刷级），但不在失败时停任务。限 4 次（最多 4 张卡），入口清零。",
+        "max_hit": 4,
+        "recognition": "OCR",
+        "roi": "[Anchor]StealSlot",
+        "roi_offset": [
+            2,
+            66,
+            -6,
+            -28
+        ],
+        "expected": [
+            "升星"
+        ],
+        "pre_delay": 0,
+        "action": "Click",
+        "post_wait_freezes": 500,
+        "post_delay": 0,
+        "next": [
+            "Collect_Steal_UpConfirm",
+            "Collect_Steal_Up",
+            "Collect_Steal_UpBack"
+        ],
+        "focus": "偷商人：天赋升星"
+    },
+    "Collect_Steal_UpConfirm": {
+        "desc": "升星页确认：按钮亮着才点 | 识别借 Practise_Skill_Bargaining_Upgrade_Ck（OCR「升星」＋亮色核，PC 有覆盖）。不等画面静止，否则会等到升星动画演完（11-28 PC 日志：确认后 6–7 秒才认到结果页）。点后按钮还在说明没点上，自环再点；按钮消失后交 Collect_Steal_UpSkip 点一下跳动画。限 6 次，入口清零。",
+        "max_hit": 6,
+        "recognition": "Or",
+        "any_of": [
+            "Practise_Skill_Bargaining_Upgrade_Ck"
+        ],
+        "pre_delay": 0,
+        "action": "Click",
+        "post_delay": 800,
+        "next": [
+            "Collect_Steal_UpDone",
+            "Collect_Steal_UpConfirm",
+            "Collect_Steal_UpSkip"
+        ],
+        "focus": "偷商人：确认升星"
+    },
+    "Collect_Steal_UpSkip": {
+        "desc": "升星确认后、按钮已消失而结果页还没出来：在画面中上 (640,200) 点一下试着跳过动画，然后只等结果页 | 这一点在升星页是右侧场景图、在结果页是标题字，都不是按钮，避开左上返回、右下确认与下方结果按钮（11-28 PC 截图）。跳不过也无妨，等动画演完。每次升星点一下，限 4 次，入口清零。",
+        "max_hit": 4,
+        "recognition": "DirectHit",
+        "pre_delay": 0,
+        "action": "Click",
+        "target": [
+            640,
+            200,
+            1,
+            1
+        ],
+        "post_delay": 500,
+        "next": [
+            "Collect_Steal_UpDone"
+        ],
+        "focus": "偷商人：跳过升星动画"
+    },
+    "Collect_Steal_UpDone": {
+        "desc": "升星结果页，点「升星」收下 | 识别借 Practise_Skill_Bargaining_Upgrade_Return（PC 实跑认得到）。实测每次要点两下；之后回面板，回不去就退出升星页。限 8 次（每次两下×4），入口清零。",
+        "max_hit": 8,
+        "recognition": "Or",
+        "any_of": [
+            "Practise_Skill_Bargaining_Upgrade_Return"
+        ],
+        "pre_delay": 0,
+        "action": "Click",
+        "post_wait_freezes": 500,
+        "post_delay": 0,
+        "next": [
+            "Collect_Steal_Panel",
+            "Collect_Steal_UpDone",
+            "Collect_Steal_UpBack"
+        ]
+    },
+    "Collect_Steal_UpBack": {
+        "desc": "退出升星页回到商人对话 | 识别借 Global_BackPageHub_Once（左上返回键，含 PC 素材），借识别不占它的计数。排在面板之后：商人对话的左上也有返回键，面板认得到时绝不点。材料不够时也从这里退。限 6 次（11-28 PC 一次进店升星 3 张，每张退一次），入口清零。",
+        "max_hit": 6,
+        "recognition": "Or",
+        "any_of": [
+            "Global_BackPageHub_Once"
+        ],
+        "pre_delay": 0,
+        "action": "Click",
+        "post_delay": 1500,
+        "next": [
+            "Collect_Steal_Panel",
+            "Collect_Steal_UpBack"
+        ]
+    },
     "Collect_Steal_Confirm": {
         "desc": "确认框里点偷窃 | 框里再认一次「偷窃」并点（ADB、PC 都实跑过）。不等画面静止：技能动画一直在动，等静止会拖到动画演完，跳过就白做了（11-28 PC 日志）。限 6 次，Entry 每卡清零。",
         "max_hit": 6,
@@ -236,7 +336,8 @@
         "focus": "偷商人：确认偷窃"
     },
     "Collect_Steal_SkipAnim": {
-        "desc": "技能动画中，「天赋技能」面板不在就左键点一下跳过 | NotRecognition 反转 Rec_<Arbitrage_Merchant_Dialog>_Ocr，ADB 与 PC 共用这一判据（PC 覆盖只改点击位置）。排在 Collect_Steal_Panel 之后，面板一回来就不再点。点这个位置不会关掉偷窃菜单（用户确认）。NotRecognition 命中时框是空的，所以 target 写死，且「非」这一侧不写 roi。",
+        "desc": "技能动画中，「天赋技能」面板不在就左键点一下跳过 | NotRecognition 反转 Rec_<Arbitrage_Merchant_Dialog>_Ocr，ADB 与 PC 共用这一判据（PC 覆盖只改点击位置）。排在 Collect_Steal_Panel 之后，面板一回来就不再点。点这个位置不会关掉偷窃菜单（用户确认）。NotRecognition 命中时框是空的，所以 target 写死，且「非」这一侧不写 roi。 限 15 次（每次偷窃约点 2–4 下），入口清零：防弹窗盖住面板时一直点下去。",
+        "max_hit": 15,
         "recognition": "Custom",
         "custom_recognition": "NotRecognition",
         "custom_recognition_param": {
