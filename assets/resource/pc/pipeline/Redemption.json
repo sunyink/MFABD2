@@ -1,8 +1,523 @@
 {
-    "Redemption_Evil_Settlement": {
-        "expected": [
-            "赛季奖励",
-            "賽季獎勵"
+    "Redemption_ToPack": {
+        "max_hit": 5,
+        "roi": [
+            28,
+            585,
+            1214,
+            120
+        ],
+        "threshold": [
+            0.75
+        ],
+        "target_offset": [
+            0,
+            15,
+            0,
+            0
         ]
+    },
+    "Redemption_Evil_Settlement": {
+        "roi": [
+            400,
+            120,
+            650,
+            480
+        ]
+    },
+    "Rec_EvilCion": {
+        "roi": [
+            600,
+            12,
+            340,
+            56
+        ],
+        "template": [
+            "Evil_Coin_PC.png",
+            "Evil_Coin.png"
+        ]
+    },
+    "Rec_EvilCuff": {
+        "desc": "[PC覆盖] 用绿幕模板避开火光、夜空背景;base 模板留作兜底",
+        "roi": [
+            18,
+            14,
+            220,
+            52
+        ],
+        "template": [
+            "Evil_Buff_PC.png",
+            "Evil_Buff.png"
+        ],
+        "green_mask": true,
+        "threshold": [
+            0.75
+        ]
+    },
+    "Redemption_Evil_Move": {
+        "any_of": [
+            "Rec_EvilCion",
+            "Rec_SandBox_Pin_Tpl",
+            "Rec_SandBox_Run_Tpl"
+        ],
+        "target": [
+            651,
+            171,
+            2,
+            2
+        ],
+        "duration": 4800,
+        "post_delay": 2800
+    },
+    "Redemption_Evil_AltarStuck": {
+        "template": [
+            "Evil_AltarMark_PC.png"
+        ]
+    },
+    "Redemption_Evil_AltarMark": {
+        "template": [
+            "Evil_AltarMark_PC.png"
+        ]
+    },
+    "Redemption_Evil_Redemption_In": {
+        "roi": [
+            500,
+            380,
+            250,
+            90
+        ],
+        "expected": [
+            "救赎之塔",
+            "救贖之塔"
+        ]
+    },
+    "Redemption_Evil_Redemption_ExistingOpening": {
+        "roi": [
+            860,
+            585,
+            380,
+            115
+        ],
+        "expected": [
+            "继续",
+            "繼續",
+            "放弃",
+            "放棄"
+        ],
+        "focus": "REB.[ERROR]发现已存在的开局，安全退回箱庭"
+    },
+    "Redemption_Evil_Redemption_ListLast": {
+        "roi": [
+            135,
+            655,
+            120,
+            62
+        ],
+        "expected": [
+            "10",
+            "[Ll][vV]"
+        ],
+        "post_delay": 1500
+    },
+    "Redemption_Evil_Redemption_ListSwip": {
+        "desc": "[PC覆盖] PC端左侧LV.1-LV.10全部同屏可见,禁用移动端下滑操作。",
+        "enabled": false
+    },
+    "Redemption_Evil_Redemption_DetPassLv": {
+        "desc": "[PC覆盖] 模板只留白色圆环对勾,兼容各难度不同的奖励底图",
+        "roi": [
+            515,
+            625,
+            75,
+            70
+        ],
+        "template": [
+            "RglikeGouGe_PC.png"
+        ]
+    },
+    "Redemption_Evil_Redemption_Lv1": {
+        "desc": "[PC覆盖] 看 LV.1 那一行是不是高亮白字(已选中)",
+        "recognition": "ColorMatch",
+        "roi": [
+            148,
+            75,
+            68,
+            50
+        ],
+        "lower": [
+            [
+                215,
+                215,
+                215
+            ]
+        ],
+        "upper": [
+            [
+                255,
+                255,
+                255
+            ]
+        ],
+        "count": 25
+    },
+    "Redemption_Evil_Redemption_SelLv-1": {
+        "desc": "[PC覆盖] 找高亮白字所在的行(当前选中),往上 65px 点上一级",
+        "max_hit": 15,
+        "recognition": "ColorMatch",
+        "roi": [
+            148,
+            75,
+            68,
+            638
+        ],
+        "lower": [
+            [
+                215,
+                215,
+                215
+            ]
+        ],
+        "upper": [
+            [
+                255,
+                255,
+                255
+            ]
+        ],
+        "connected": true,
+        "count": 30,
+        "target_offset": [
+            0,
+            -65,
+            0,
+            0
+        ],
+        "post_delay": 800
+    },
+    "Redemption_Evil_Redemption_QuickBatt": {
+        "max_hit": 6,
+        "all_of": [
+            {
+                "sub_name": "OCR",
+                "recognition": "OCR",
+                "roi": [
+                    880,
+                    625,
+                    165,
+                    58
+                ],
+                "expected": [
+                    "快速战斗",
+                    "快速戰鬥"
+                ]
+            },
+            {
+                "sub_name": "ColorMatch",
+                "recognition": "ColorMatch",
+                "roi": [
+                    895,
+                    640,
+                    28,
+                    28
+                ],
+                "lower": [
+                    [
+                        190,
+                        190,
+                        185
+                    ]
+                ],
+                "upper": [
+                    [
+                        255,
+                        255,
+                        255
+                    ]
+                ],
+                "count": 200
+            }
+        ],
+        "post_wait_freezes": {
+            "target": [
+                400,
+                155,
+                480,
+                415
+            ],
+            "time": 600
+        }
+    },
+    "Redemption_Evil_Redemption_QuickBatt_Submenu": {
+        "roi": [
+            500,
+            155,
+            280,
+            65
+        ],
+        "expected": [
+            "快速战斗",
+            "快速戰鬥"
+        ]
+    },
+    "Redemption_Evil_Redemption_JustFree_No": {
+        "all_of": [
+            {
+                "sub_name": "Clr",
+                "recognition": "ColorMatch",
+                "roi": [
+                    814,
+                    281,
+                    36,
+                    20
+                ],
+                "lower": [
+                    [
+                        0,
+                        0,
+                        0
+                    ]
+                ],
+                "upper": [
+                    [
+                        255,
+                        255,
+                        255
+                    ]
+                ]
+            },
+            "Rec_SliderSwitch_GryOff_Clr"
+        ],
+        "post_delay": 1200,
+        "next": [
+            "Redemption_Evil_Redemption_QuickBattNoAP",
+            "Redemption_Evil_Redemption_JustFree_Ok",
+            "Redemption_Evil_Redemption_JustFree_No"
+        ]
+    },
+    "Redemption_Evil_Redemption_JustFree_Ok": {
+        "all_of": [
+            {
+                "sub_name": "Clr",
+                "recognition": "ColorMatch",
+                "roi": [
+                    814,
+                    281,
+                    36,
+                    20
+                ],
+                "lower": [
+                    [
+                        0,
+                        0,
+                        0
+                    ]
+                ],
+                "upper": [
+                    [
+                        255,
+                        255,
+                        255
+                    ]
+                ]
+            },
+            "Rec_SliderSwitch_YewOn_Clr"
+        ],
+        "next": [
+            "Redemption_Evil_Redemption_QuickBattNoAP",
+            "Redemption_Evil_Redemption_OnDisabled_PC",
+            "Redemption_Evil_Redemption_MAX"
+        ]
+    },
+    "Redemption_Evil_Redemption_JustFree_Err": {
+        "roi": [
+            475,
+            510,
+            120,
+            50
+        ],
+        "post_delay": 1500
+    },
+    "Redemption_Evil_Redemption_QuickBattUnable": {
+        "roi": [
+            895,
+            640,
+            28,
+            28
+        ],
+        "lower": [
+            [
+                75,
+                75,
+                73
+            ]
+        ],
+        "upper": [
+            [
+                95,
+                95,
+                93
+            ]
+        ],
+        "count": 200
+    },
+    "Redemption_Evil_Redemption_QuickBattNoAP": {
+        "roi": [
+            380,
+            180,
+            520,
+            320
+        ],
+        "expected": [
+            "钥匙不足",
+            "鑰匙不足"
+        ],
+        "action": "Click",
+        "target": [
+            640,
+            460,
+            10,
+            10
+        ],
+        "post_delay": 1500,
+        "next": [
+            "Redemption_Evil_Redemption_JustFree_Err",
+            "Redemption_Evil_Redemption_PageBackHub"
+        ],
+        "focus": "REM.免费钥匙不足弹窗,点击确认退出"
+    },
+    "Redemption_Evil_Redemption_MAX": {
+        "roi": [
+            730,
+            338,
+            95,
+            46
+        ],
+        "post_delay": 600,
+        "next": [
+            "Redemption_Evil_Redemption_QuickBattNoAP",
+            "Redemption_Evil_Redemption_OnDisabled_PC",
+            "Redemption_Evil_Redemption_On"
+        ]
+    },
+    "Redemption_Evil_Redemption_On": {
+        "desc": "[PC覆盖] 战斗钮亮起、且「仅使用免费钥匙」开关为开时才点,不动付费钥匙",
+        "max_hit": 5,
+        "recognition": "And",
+        "all_of": [
+            {
+                "sub_name": "OCR",
+                "recognition": "OCR",
+                "roi": [
+                    595,
+                    510,
+                    210,
+                    50
+                ],
+                "expected": [
+                    "战斗",
+                    "戰鬥"
+                ]
+            },
+            {
+                "sub_name": "ColorMatch",
+                "recognition": "ColorMatch",
+                "roi": [
+                    605,
+                    522,
+                    24,
+                    24
+                ],
+                "lower": [
+                    [
+                        190,
+                        190,
+                        185
+                    ]
+                ],
+                "upper": [
+                    [
+                        255,
+                        255,
+                        255
+                    ]
+                ],
+                "count": 200
+            },
+            {
+                "sub_name": "Clr",
+                "recognition": "ColorMatch",
+                "roi": [
+                    814,
+                    281,
+                    36,
+                    20
+                ],
+                "lower": [
+                    [
+                        0,
+                        0,
+                        0
+                    ]
+                ],
+                "upper": [
+                    [
+                        255,
+                        255,
+                        255
+                    ]
+                ]
+            },
+            "Rec_SliderSwitch_YewOn_Clr"
+        ],
+        "post_delay": 3500,
+        "next": [
+            "Redemption_Evil_Redemption_QuickBattNoAP",
+            "Redemption_Evil_Redemption_Result",
+            "Redemption_Evil_Redemption_On"
+        ]
+    },
+    "Redemption_Evil_Redemption_Result": {
+        "max_hit": 4,
+        "roi": [
+            360,
+            415,
+            870,
+            290
+        ],
+        "expected": [
+            "点击画面",
+            "點擊畫面"
+        ],
+        "post_delay": 2500,
+        "timeout": 15000
+    },
+    "Redemption_Evil_Redemption_OnDisabled_PC": {
+        "desc": "[PC新增] 开了「仅使用免费钥匙」后战斗钮仍置灰(免费钥匙用完),点取消退出,不记完成",
+        "recognition": "ColorMatch",
+        "roi": [
+            605,
+            522,
+            24,
+            24
+        ],
+        "lower": [
+            [
+                75,
+                75,
+                73
+            ]
+        ],
+        "upper": [
+            [
+                95,
+                95,
+                93
+            ]
+        ],
+        "count": 200,
+        "next": [
+            "Redemption_Evil_Redemption_JustFree_Err"
+        ],
+        "focus": "REM.免费钥匙已耗尽(战斗按钮置灰),安全退出"
     }
 }

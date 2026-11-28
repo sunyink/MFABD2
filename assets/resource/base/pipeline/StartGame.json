@@ -518,7 +518,7 @@
         "focus": "SM.进入游戏-PVP结算"
     },
     "StartGame_7dAD_Check": {
-        "desc": "查找并点击 7天内不再显示此广告",
+        "desc": "勾上广告右上的「7天内不再显示」再关掉 | 认文字，点它右边的勾选框：方框在文字右侧约 6 像素，target_offset 由文字框推到方框（ADB 现场图 2026-11-20 12:41：文字 922,107,123,25、方框约 1051–1070×113–131；PC 现场图 2026-11-21 09:28：文字 861,152,116,18、方框约 983–999×155–169，偏移在 pc 包）。点文字本身算不算勾选没实测过，所以直接点方框。广告不只登录时弹，回大厅加载完几秒后也会弹，所以挂在启动、回主页与活动流程的通用返回之前（2026-11-21 排查）。",
         "recognition": "OCR",
         "roi": [
             910,
@@ -528,6 +528,12 @@
         ],
         "expected": "7天内不再显示",
         "action": "Click",
+        "target_offset": [
+            130,
+            3,
+            -105,
+            -7
+        ],
         "post_delay": 1000,
         "next": [
             "StartGame_7dAD_Clear"
@@ -581,7 +587,7 @@
         "focus": "SM.弹窗消除-无对象"
     },
     "StartGame_MainMsgBox_Remove": {
-        "desc": "开始暴力解决广告，左侧点击10次",
+        "desc": "到主页后逐层关弹窗：左侧空白点一下，之后每轮重新判定 | 认的是左下「抽抽乐」文字，弹窗盖着时也读得到。每轮依次：弹窗已清干净就从 MainMsgBox_Clean 出口；7天广告在就 [JumpBack]StartGame_7dAD_Check 勾上再关；都不是才交 BackMapPage2 点一下等一会儿。弹窗会一层层叠着出（签到、公告、7天广告），7天广告常在后面。",
         "recognition": "And",
         "all_of": [
             "Rec_HomePage_GA_Ocr"
@@ -594,6 +600,8 @@
         "anchor": "StartGame_Setup_Change",
         "post_delay": 1000,
         "next": [
+            "StartGame_MainMsgBox_Clean",
+            "[JumpBack]StartGame_7dAD_Check",
             "[JumpBack]StartGame_BackMapPage2",
             "Setup_Entry2",
             "[JumpBack]Global_ToHomePage",
@@ -601,17 +609,30 @@
         ],
         "focus": "SM.主页面ck-弹窗消消乐~"
     },
+    "StartGame_MainMsgBox_Clean": {
+        "desc": "弹窗已清干净的优先出口：认正常亮着的「抽抽乐」 | 识别借 Global_ToHomePage_Enter（文字 + 底下白字像素）。弹窗的暗色遮罩把白字压暗，颜色匹配过不了（2026-11-21 09:28 PC 实录：广告盖着时 0 像素、关掉后 228），所以弹窗还在时不会提前出口，没弹窗时也不再空点。命中后接原来关完弹窗的收尾。",
+        "recognition": "Or",
+        "any_of": [
+            "Global_ToHomePage_Enter"
+        ],
+        "pre_delay": 0,
+        "post_delay": 0,
+        "next": [
+            "Setup_Entry2",
+            "[JumpBack]Global_ToHomePage",
+            "StartGame_BackMapPageOG"
+        ],
+        "focus": "SM.主页弹窗已清完"
+    },
     "StartGame_BackMapPage2": {
-        "desc": "开始暴力解决广告，左侧点击10次",
-        "max_hit": 1,
+        "desc": "关一层弹窗：左侧空白点一下，再等一会儿让下一层弹出来 | 退栈回 MainMsgBox_Remove 的候选列表重新判定：先看 MainMsgBox_Clean（已清干净就出口），再看 7dAD_Check（下一层是不是7天广告），都不是才再点。原来一口气连点 10 下，叠在签到窗后面的7天广告被一并点掉、从没勾上，没弹窗时也照样点完（2026-11-21 排查）。max_hit 10 只是上限，用完后剩下的弹窗交 Global_ToHomePage，它的候选里也有 7dAD_Check。",
+        "max_hit": 10,
         "action": "Click",
         "target": [
             60,
             460
         ],
-        "repeat": 10,
-        "repeat_delay": 200,
-        "post_delay": 1000
+        "post_delay": 2000
     },
     "StartGame_BackMapPageOG": {
         "desc": "识别左下抽抽乐-返回地图页(原版)",

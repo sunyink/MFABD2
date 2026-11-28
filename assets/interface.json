@@ -234,6 +234,8 @@
             "entry": "Redemption_HomePage",
             "controller": [
                 "Adb",
+                "PC客户端",
+                "PC客户端(Cursor)",
                 "PlayCover"
             ],
             "option": [
