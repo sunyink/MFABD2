@@ -1,4 +1,97 @@
 {
+    "Fishing_KeyboardHook": {
+        "recognition": "TemplateMatch",
+        "roi": [
+            640,
+            280,
+            640,
+            440
+        ],
+        "template": [
+            "Fish/KeyboardHook64.png",
+            "Fish/KeyboardHook72.png",
+            "Fish/KeyboardHook80.png",
+            "Fish/KeyboardHook88.png",
+            "Fish/KeyboardHook96.png",
+            "Fish/KeyboardHook104.png",
+            "Fish/KeyboardHook112.png",
+            "Fish/KeyboardHook120.png",
+            "Fish/KeyboardHook130.png",
+            "Fish/KeyboardHook140.png",
+            "Fish/KeyboardHook150.png",
+            "Fish/KeyboardHook160.png",
+            "Fish/KeyboardHook174.png",
+            "Fish/KeyboardHook188.png"
+        ],
+        "threshold": 0.72
+    },
+    "Fishing_KeyboardSplash": {
+        "recognition": "TemplateMatch",
+        "roi": [
+            1064,
+            500,
+            192,
+            192
+        ],
+        "template": [
+            "Fish/KeyboardSplash64.png",
+            "Fish/KeyboardSplash72.png",
+            "Fish/KeyboardSplash80.png",
+            "Fish/KeyboardSplash88.png",
+            "Fish/KeyboardSplash96.png",
+            "Fish/KeyboardSplash104.png",
+            "Fish/KeyboardSplash112.png",
+            "Fish/KeyboardSplash120.png",
+            "Fish/KeyboardSplash130.png",
+            "Fish/KeyboardSplash140.png",
+            "Fish/KeyboardSplash150.png",
+            "Fish/KeyboardSplash160.png",
+            "Fish/KeyboardSplash174.png",
+            "Fish/KeyboardSplash188.png"
+        ],
+        "threshold": 0.72
+    },
+    "Fishing_Already_Setsail": {
+        "recognition": "Or",
+        "any_of": [
+            "Fishing_KeyboardHook"
+        ]
+    },
+    "Fishing_Start": {
+        "any_of": [
+            "Fishing_KeyboardHook",
+            "Rec_Fishing_UI_Tpl",
+            "Rec_Fishing_UI_Ocr"
+        ]
+    },
+    "Casting_Rod": {
+        "recognition": "Or",
+        "any_of": [
+            "Fishing_KeyboardHook"
+        ],
+        "action": "LongPressKey",
+        "key": 32,
+        "duration": 700,
+        "timeout": 8000,
+        "on_error": []
+    },
+    "Detect_Took_Bait": {
+        "recognition": "Custom",
+        "custom_recognition": "FishingKeyboardBite",
+        "action": "LongPressKey",
+        "duration": 110,
+        "post_delay": 0,
+        "key": 32,
+        "timeout": 60000,
+        "pre_delay": 0,
+        "rate_limit": 60
+    },
+    "Fishing_KeyboardTap": {
+        "pre_delay": 0,
+        "post_delay": 0,
+        "action": "ClickKey",
+        "key": 32
+    },
     "Fishing_InFishingNet": {
         "desc": "进入钓鱼界面|[PC覆盖] 繁中客户端按钮是'立即前往'(expected整段替换,含简体原值)。720实测鱼笼行按钮框[753,285,55,17],base roi左界758切掉'立'字左缘→左扩到740;右界与上下界不变,上方y181的餐馆'立即前往'仍在框外。",
         "roi": [

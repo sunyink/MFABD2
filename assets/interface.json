@@ -376,7 +376,9 @@
             "entry": "Fishing_Entry",
             "controller": [
                 "Adb",
-                "PlayCover"
+                "PlayCover",
+                "PC客户端",
+                "PC客户端(Cursor)"
             ],
             "option": [
                 "钓鱼地点",
