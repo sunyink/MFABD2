@@ -380,8 +380,9 @@ class ReportTests(unittest.TestCase):
         story = preset_run(Story())
         story.restart(1800).task("Pass_HomePage").at("begin", "daily", FULL).work(精炼石=7)
         model = next_morning(story).report()
+        # 重启前后那段期间外什么也没变：不出这一列（11-27 用户定）
         self.assertEqual([(col["key"], col["runs"]) for col in model["cols"]],
-                         [("daily", 1), ("collect", 1), ("shop", 1), ("outside", 1)])
+                         [("daily", 1), ("collect", 1), ("shop", 1)])
         self.assertEqual((item(model, "精炼石")["deltas"]["daily"], item(model, "精炼石")["closing"]), (3, 33))
         self.assertTrue(any("最后一次盘点之后还跑过日常" in notice["text"] for notice in model["notices"]))
         self.assertTrue(all(check["ok"] for check in model["checks"]), model["checks"])
@@ -498,8 +499,8 @@ class ReportTests(unittest.TestCase):
                 self.assertIn("包饭 的出售没核到金币", check["detail"])
                 self.assertIn("余额项 +70,000 为正，不是常规采购", check["detail"])
                 labels = [row["label"] for row in model["statement"]["rows"]]
-                self.assertIn("商店套利：未分清的金币（余额项）", labels)
-                self.assertNotIn("商店套利：常规采购支出", labels)
+                self.assertIn("未分清的金币（余额项）", labels)
+                self.assertNotIn("常规采购支出", labels)
 
     def test_shop_mismatch_is_reported_not_smoothed(self):
         story = Story()
@@ -524,6 +525,12 @@ class ReportTests(unittest.TestCase):
         totals = model["statement"]["totals"]
         self.assertEqual(totals["profit"], totals["cash"] + totals["stock"])
         self.assertEqual(model["statement"]["closing"]["total"], model["statement"]["opening"]["total"] + totals["profit"])
+        # 估值小计排成一行、金额落在各列下面，不再整句横跨塞进锁定列（11-28 用户定）；单价调整不为 0 时注在名称下
+        page = render_day_html(model)
+        dish_row = next(row for row in page.split("<tr ") if row.startswith('class="val"') and "单价调整 +680" in row)
+        self.assertNotIn("colspan", dish_row)
+        self.assertIn("<b>3.9万</b>", dish_row)                                    # 期末 5 × 7868，落在期末一列（表一满万以万计）
+        self.assertIn('<span class="rowkey"><span class="q">数量（个）</span><span class="amt">金额（金币）</span></span>', page)
         del prices["scan1"]["米"]
         model = build_report(ledger, game_day="2026-11-14", as_of=iso(story.now), prices=prices, cookbook=COOKBOOK)
         self.assertEqual(model["valuation"]["ingredient"]["unpriced"], ["米"])
@@ -1094,6 +1101,192 @@ class OutputTests(unittest.TestCase):
             with patch.object(output, "_write", read_only_install):
                 again = output.generate_reports(store, "0", agent_dir=ROOT / "agent", force=True, entry_dir=install)
             self.assertEqual((again["entry"], bool(again["days"])), (None, True))
+
+
+BOUNDARY = datetime(2026, 11, 15, tzinfo=timezone.utc).timestamp()   # 游戏日 11-15 从这里起（09:00 KST）
+
+
+class CrossDayTests(unittest.TestCase):
+    """跨日列报（U82）：一种业务从头做到尾、两头盘点接得上的一段跨过 09:00 KST，整段归开始那天；
+    要动用新一天额度之前运行时盘一次（换日切点）；切点没拦住的补买花费移到次日。"""
+
+    @staticmethod
+    def checks_ok(model):
+        return [check["name"] for check in model["checks"] if not check["ok"]]
+
+    def test_shop_crossing_with_only_sales_after_9am_stays_with_its_day(self):
+        story = Story(start=BOUNDARY - 900)                                    # 08:45 KST 进店
+        story.task("Arbitrage_Start").at("begin", "shop", FULL).work(30, gold=-1000, 米=60).cook("包饭", 20)
+        story.now = BOUNDARY + 60                                              # ⑤ 出售时已过 09:00 KST
+        story.sell("包饭", 25, 190_000).at("end", "shop", FULL)
+        ledger = story.end().ledger()
+        (interval,) = ledger["intervals"]
+        self.assertEqual((interval["day"], interval["flags"]), ("2026-11-14", ["cross_day"]))
+        self.assertEqual(interval["attach"]["book"]["sales"]["包饭"]["quantity"], 25)
+        first = story.report("2026-11-14")
+        self.assertEqual((first["status"], len(first["scans"]), [col["key"] for col in first["cols"]]), ("final", 2, ["shop"]))
+        self.assertEqual((moved(first, "包饭"), moved(first, "金币")), ({"shop": -5}, {"shop": 189_000}))
+        self.assertEqual(first["subsequent"]["sales"], [{"name": "包饭", "quantity": 25, "gold": 190_000, "unknown": 0}])
+        self.assertEqual(first["balance"]["as_of"], ledger["scans"][1]["at"])   # 期末取换日后那一盘
+        self.assertEqual(self.checks_ok(first), [])
+        self.assertIn("期后事项", render_day_html(first))
+        for prior in (first["balance"]["items"], None):                       # 逐日结转、从账里推，结果相同
+            second = story.report("2026-11-15", prior=prior)
+            self.assertEqual((second["adjustments"], second["overnight"]["shared"], second["cols"]), ([], True, []))
+            self.assertTrue(any("同一盘" in notice["text"] for notice in second["notices"]))
+
+    def test_old_prior_table_keeps_the_overnight_adjustment(self):
+        """上一张表是改规则前定稿的（期末是换日前那一盘）：次日照旧按隔夜处理，不认一盘两用。"""
+        story = Story(start=BOUNDARY - 900)
+        story.task("Arbitrage_Start").at("begin", "shop", FULL)
+        story.now = BOUNDARY + 60
+        story.sell("包饭", 5, 38_000).at("end", "shop", FULL)
+        ledger = story.end().ledger()
+        old = {name: {"quantity": quantity, "at": ledger["scans"][0]["at"]}
+               for name, quantity in {"金币": 1_000_000, "包饭": 10}.items()}
+        second = story.report("2026-11-15", prior=old)
+        self.assertFalse(second["overnight"]["shared"])
+        self.assertEqual(sorted(row["name"] for row in second["adjustments"]), ["包饭", "金币"])
+
+    def test_cutoff_before_new_day_replenish_splits_the_shop(self):
+        story = Story(start=BOUNDARY - 900)
+        story.task("Arbitrage_Start").at("begin", "shop", FULL).work(30, gold=-1000, 米=60)
+        story.now = BOUNDARY + 60
+        story.at("cutoff", "shop", FULL).buy("米", 100, 1700).sell("包饭", 5, 38_000).at("end", "shop", ("A",))
+        ledger = story.end().ledger()
+        self.assertEqual([(row["kind"], row["day"], row["attach"] is not None, row["flags"]) for row in ledger["intervals"]],
+                         [("shop", "2026-11-14", True, ["cross_day"]), ("shop", "2026-11-15", False, [])])
+        first = story.report("2026-11-14")
+        self.assertEqual((first["subsequent"]["replenish"], moved(first, "金币")), ([], {"shop": -1000}))
+        second = story.report("2026-11-15", prior=first["balance"]["items"])
+        self.assertEqual((moved(second, "金币"), second["shop"]["gold"]["replenish"]), ({"shop": 36_300}, -1700))
+        self.assertEqual((second["adjustments"], self.checks_ok(second)), ([], []))
+
+    def test_late_replenish_spend_moves_to_the_next_day(self):
+        story = Story(start=BOUNDARY - 900)
+        story.task("Arbitrage_Start").at("begin", "shop", FULL)
+        story.now = BOUNDARY + 60                                              # 切点没拦住：换日后才补买
+        story.buy("米", 100, 1700).cook("包饭", 20).sell("包饭", 25, 190_000).at("end", "shop", FULL)
+        read = story.end().money["gold"]
+        first = story.report("2026-11-14")
+        gold = item(first, "金币")
+        self.assertEqual((gold["closing"], gold["moved"]), (read + 1700, 1700))   # 期末金币是读数加回花费
+        self.assertEqual((moved(first, "金币"), moved(first, "米")), ({"shop": 190_000}, {"shop": 40}))   # 买到的留在本日
+        self.assertEqual((first["subsequent"]["moved"], first["shop"]["gold"]["replenish"]), (1700, 0))
+        self.assertEqual(first["balance"]["items"]["金币"]["carry"]["delta"], -1700)
+        self.assertEqual(self.checks_ok(first), [])
+        for prior in (first["balance"]["items"], None):
+            second = story.report("2026-11-15", prior=prior)
+            gold = item(second, "金币")
+            self.assertEqual((gold["opening"], gold["closing"], gold["adjust"]), (read + 1700, read, None))
+            self.assertEqual((moved(second, "金币"), second["shop"]["gold"]["replenish"]), ({"shop": -1700}, -1700))
+            self.assertEqual((second["adjustments"], self.checks_ok(second)), ([], []))
+            self.assertTrue(any("商店一列的开头" in notice["text"] for notice in second["notices"]))
+            self.assertNotIn("carry", (second["balance"] or {}).get("items", {}).get("金币", {}))
+
+    def test_late_one_click_purchase_is_noted_but_stays(self):
+        story = Story(start=BOUNDARY - 900)
+        story.task("Arbitrage_Start").at("begin", "shop", FULL)
+        story.now = BOUNDARY + 60
+        story.events.append({"kind": "inventory_invalidate", "reason": "purchase_bought", "observed_at": iso(story.now),
+                             "items": ["米"]})
+        story.work(30, gold=-1000, 米=60).at("end", "shop", FULL)
+        first = story.end().report("2026-11-14")
+        self.assertEqual((len(first["subsequent"]["purchases"]), moved(first, "金币")), (1, {"shop": -1000}))
+        self.assertIn("warn", [notice["level"] for notice in first["notices"] if "一键购买" in notice["text"]])
+        second = story.report("2026-11-15", prior=first["balance"]["items"])
+        self.assertEqual(second["overnight"]["purchases"], first["subsequent"]["purchases"])
+
+    def test_daily_task_crossing_9am_stays_with_its_day(self):
+        story = Story(start=BOUNDARY - 600)
+        story.task("Daily_HomePage").at("begin", "daily", FULL).work(30, 精炼石=3)
+        story.task("Mail_HomePage").at("begin", "daily")
+        story.now = BOUNDARY + 30
+        story.work(30, 抽抽乐券=1)                                               # 换日后才领到的
+        story.task("Collect_StartGame_HomePage").at("begin", "collect", FULL)   # 下一个任务开头：跨过游戏日全盘
+        ledger = story.ledger()
+        self.assertIsNotNone(ledger["intervals"][0]["attach"])
+        first = story.report("2026-11-14")
+        self.assertEqual((moved(first, "抽抽乐券"), moved(first, "精炼石")), ({"daily": 1}, {"daily": 3}))
+        self.assertEqual(first["subsequent"]["tasks"], ["Mail_HomePage"])
+
+    def test_collect_cutoff_puts_later_cards_into_the_new_day(self):
+        story = Story(start=BOUNDARY - 600)
+        story.task("Collect_StartGame_HomePage").at("begin", "collect", FULL)
+        story.loot("Story_01_血骑士", 兽肉=50).work(30, 兽肉=50)
+        story.cycles["Story_01_血骑士@g_weekly"] = "2026-11-15 08:55:00"
+        story.now = BOUNDARY + 30
+        story.at("cutoff", "collect", FULL)                                    # 换卡时：跨过游戏日全盘
+        story.loot("Story_02_苍蓝魔女", 米=20).work(30, 米=20)
+        story.cycles["Story_02_苍蓝魔女@g_weekly"] = "2026-11-15 09:05:00"
+        story.at("end", "collect", ("A",))
+        ledger = story.end().ledger()
+        self.assertEqual([(row["kind"], row["cards"], row["flags"]) for row in ledger["intervals"]],
+                         [("collect", ["Story_01_血骑士"], ["cross_day"]), ("collect", ["Story_02_苍蓝魔女"], [])])
+        self.assertEqual(moved(story.report("2026-11-14"), "兽肉"), {"collect": 50})
+        self.assertEqual(moved(story.report("2026-11-15"), "米"), {"collect": 20})
+
+    def test_quiet_outside_is_left_out_and_shown_ones_have_fixed_width(self):
+        """期间外（11-27 用户定）：什么也没变、又在头尾的不画，各段都没变时表里也不出这一列；
+        夹在两段业务中间的照画、有变化的照列——时间轴上一律固定宽度、写时长，不按时长比例。"""
+        story = preset_run(Story())
+        story.restart(1800).task("Daily_HomePage").at("begin", "daily", FULL).work(精炼石=2)   # 重启前后什么也没变
+        story.task("Close_HomePage").at("queue_end", scopes=("B", "C"))
+        quiet = story.report()
+        self.assertNotIn("outside", [col["key"] for col in quiet["cols"]])
+        page = render_day_html(quiet)
+        self.assertIn('class="seg outside fixed"', page)                     # 夹在商店与日常中间：照画
+        self.assertNotIn('outside fixed" style', page)
+        busy = preset_run(Story())
+        busy.restart(1800).work(0, 米=-50)                                   # 两次运行之间手动卖了米
+        busy.task("Daily_HomePage").at("begin", "daily", FULL)
+        model = busy.report()
+        self.assertEqual(moved(model, "米").get("outside"), -50)
+        self.assertIn("outside", [col["key"] for col in model["cols"]])
+        head = Story(start=BOUNDARY - 900)                                    # 次日开头那段：一盘两用之后隔了三小时
+        head.task("Arbitrage_Start").at("begin", "shop", FULL)
+        head.now = BOUNDARY + 60
+        head.sell("包饭", 5, 38_000).at("end", "shop", FULL)
+        head.restart(3 * 3600).task("Daily_HomePage").at("begin", "daily", FULL).work(精炼石=2)
+        head.task("Close_HomePage").at("queue_end", scopes=("B", "C"))
+        second = head.report("2026-11-15")
+        self.assertEqual([segment["kind"] for segment in second["segments"]], ["outside", "daily"])
+        self.assertNotIn('class="seg outside', render_day_html(second))        # 头上那段没变化：不画
+
+    def test_shop_table_shows_amounts_and_statement_puts_the_total_first(self):
+        model = preset_run(Story()).report()
+        shop = [row["label"] for row in model["statement"]["rows"] if row["col"] == "shop"]
+        self.assertEqual(shop, ["商店套利", "出售收入", "补买支出", "常规采购支出"])   # 总额在前，「其中」在后（11-27 用户定）
+        meal = next(row for row in model["shop"]["rows"] if row["name"] == "包饭")
+        self.assertEqual((meal["sales"], meal["sales_gold"]), (-25, -190_000))      # 出售一格：成交金额，物品一侧
+        rice = next(row for row in model["shop"]["rows"] if row["name"] == "米")
+        self.assertEqual((rice["replenish"], rice["replenish_gold"]), (100, 1700))
+        page = render_day_html(model)
+        self.assertIn("其中：", page)
+        # 锁定列表头「物品」后面的两行说明（11-28 用户定）：这里没给单价，表一只有数量、不带它，只有表二一处
+        self.assertEqual(page.count('<span class="rowkey"><span class="q">数量（个）</span><span class="amt">金额（金币）</span></span>'), 1)
+        self.assertNotIn("已含在下一行", page)
+
+    def test_overnight_gap_is_never_attached(self):
+        ledger = next_morning(preset_run(Story())).ledger()
+        self.assertTrue(all(row["attach"] is None for row in ledger["intervals"]))
+
+    def test_entry_page_skips_a_day_that_only_has_the_shared_scan(self):
+        story = Story(start=BOUNDARY - 900)
+        story.task("Arbitrage_Start").at("begin", "shop", FULL)
+        story.now = BOUNDARY + 60
+        story.sell("包饭", 5, 38_000).at("end", "shop", FULL)
+        with tempfile.TemporaryDirectory() as folder:
+            store, install = Path(folder) / "存档", Path(folder) / "安装目录"
+            store.mkdir()
+            install.mkdir()
+            (store / "agent_save_data.json").write_text(json.dumps(
+                {"arbitrage": {"inventory": {"events": story.end().events}}}, ensure_ascii=False), encoding="utf-8")
+            output.generate_reports(store, "0", agent_dir=ROOT / "agent", as_of=iso(story.now), entry_dir=install)
+            page = (install / output.ENTRY_NAME).read_text(encoding="utf-8")
+            day = output.report_dir(store, "0").joinpath("2026-11-14.html").resolve().as_uri()
+            self.assertIn(f"location.replace({json.dumps(day)})", page)
+            self.assertIn("只有与上日期末共用的那一盘", page)
 
 
 if __name__ == "__main__":

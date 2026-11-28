@@ -528,9 +528,19 @@
         },
         "post_delay": 0,
         "next": [
+            "[JumpBack]Arbitrage_Buy_Cutoff",
             "Arbitrage_Buy_ListPrepare"
         ],
         "focus": "② 低价购入套利材料"
+    },
+    "Arbitrage_Buy_Cutoff": {
+        "desc": "② 购入用的是 09:00 KST 刷新的限购，进购入之前过一次库存记账的换日切点（Ledger_Cutoff_Shop）：上一次记账盘点之后跨过了游戏日才全盘，没跨日什么都不做（U82）。max_hit 限一次，退栈回 Arbitrage_BuyItem 后让位给 Arbitrage_Buy_ListPrepare。盘点从店里出发会经 Arbitrage_ShopOut 退到箱庭、盘完回箱庭，人仍在商人旁边，由 Arbitrage_Buy_Open 重新进店。",
+        "max_hit": 1,
+        "pre_delay": 0,
+        "post_delay": 0,
+        "next": [
+            "Ledger_Cutoff_Shop"
+        ]
     },
     "Arbitrage_Buy_Button": {
         "desc": "验证类型-购买",

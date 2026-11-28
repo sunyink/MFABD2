@@ -83,6 +83,9 @@ header.sheet .meta b{color:var(--fg);font-weight:500}
 .tl .seg.exchange{background:var(--c-exchange)}
 .tl .seg.mixed{background:repeating-linear-gradient(135deg,var(--c-mixed) 0 4px,var(--warn-bg) 4px 8px);color:var(--fg)}
 .tl .seg.compressed{flex:0 0 72px}
+.tl .seg.fixed{flex:0 0 96px}
+.rowkey{display:inline-block;vertical-align:middle;margin-left:8px;padding-left:8px;border-left:1px solid var(--line);font-weight:400;text-align:right;line-height:1.25}
+.rowkey .q{color:var(--fg)}
 .ticks{display:flex;justify-content:space-between;font-size:11px;color:var(--mut);margin-top:3px}
 .legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--mut);margin-top:6px}
 .legend i{display:inline-block;width:10px;height:10px;border-radius:2px;vertical-align:-1px;margin-right:4px}
@@ -192,7 +195,10 @@ RULES = (
                        "期初是当天第一次盘点，期末是当天最后一次盘点，各列只收这两次盘点之间的各段。"
                        "下一个游戏日的盘点到来之前只能记账，按期中列报；到来之后结账定稿，按期末列报——"
                        "结账用的就是最后一次记账的数，定稿之后不再改。上日最后一次盘点到本日第一次盘点之间的变化"
-                       "（没当场结清的任务、夜里的手动操作）不归任何一天的各列，记成本日的<b>期初调整</b>。"),
+                       "（没当场结清的任务、夜里的手动操作）不归任何一天的各列，记成本日的<b>期初调整</b>。"
+                       "例外是一种业务从头做到尾、两头的盘点接得上的一段：它跨过 09:00 KST 也整段记在开始那天，"
+                       "期末取换日后那一盘，次日的期初就是同一盘；09:00 之后做了什么列在<b>期后事项</b>。"
+                       "换日后才用掉的次日补买限购，花费记在次日。"),
     ("（三）单位与写法", "数量以「个」计，金额以金币计；满一万以「万」计，保留一位小数。负数以括号表示并着红色。"
                     "「–」为零，「·」为这一段两头的盘点没读到它，「不扫」为这一列的盘点不盘这一科目。"),
     ("（四）科目", "分货币票券、存货、养成材料三类。金币按面值；钻石、天赋神药、票券与养成材料不估值，只报数量。"
@@ -284,6 +290,18 @@ def cell(quantity, price=None, *, sign=False) -> str:
     return f'<span class="q">{fmt(quantity, sign=sign)}</span><span class="amt">{amount(quantity * price, sign=sign)}</span>'
 
 
+def pair(quantity, money, *, sign=True) -> str:
+    """数量金额式，金额写全数、不缩成万（表二，11-27 用户定）；没有金额就只写数量。"""
+    if quantity is None or money is None:
+        return fmt(quantity, sign=sign)
+    return f'<span class="q">{fmt(quantity, sign=sign)}</span><span class="amt">{fmt(money, sign=sign)}</span>'
+
+
+def row_key(money="金币") -> str:
+    """锁定列表头「物品」后面的两行说明：上行数量、下行金额，括号里写单位，字体与颜色同单元格（11-28 用户定）。"""
+    return f'<span class="rowkey"><span class="q">数量（个）</span><span class="amt">金额（{esc(money)}）</span></span>'
+
+
 def _unit(row):
     return row["unit"] if row else None
 
@@ -329,18 +347,31 @@ def _kpis(model):
     return "".join(out)
 
 
+def _span(minutes) -> str:
+    hours, rest = divmod(int(minutes or 0), 60)
+    return f"{hours} 时 {rest} 分" if hours else f"{rest} 分"
+
+
 def _timeline(model, show):
-    segments = model["segments"]
+    """期间外（11-27 用户定）：这一段里什么也没变、又在头尾的不画；画的一律固定宽度、写上时长——灰条长短说明不了变化落在哪。"""
+    every = model["segments"]
+    segments = [segment for position, segment in enumerate(every)
+                if not (segment["kind"] == "outside" and segment.get("quiet") and position in (0, len(every) - 1))]
     if not segments:
         return ""
-    out = ["<section><h2>时间轴 <small>宽度按时长；斜纹 = 不属于任何一类任务</small></h2>",
+    out = ["<section><h2>时间轴 <small>宽度按时长；斜纹 = 不属于任何一类任务，宽度固定、不按时长</small></h2>",
            cap(("期间", f'{esc(show(segments[0]["start"]))} → {esc(show(segments[-1]["end"]))} 盘点'), ("时刻", "KST")),
            '<div class="tl">']
     for segment in segments:
-        squeezed = " compressed" if segment["minutes"] > 180 else ""   # 隔夜那样的长段压成固定宽度，免得把别的挤没
         label = KIND_LABEL[segment["kind"]]
-        out.append(f'<div class="seg {segment["kind"]}{squeezed}" style="flex:{max(segment["minutes"], 1)} 1 0" '
-                   f'title="{esc(label)} {esc(show(segment["start"]))}→{esc(show(segment["end"]))}（{segment["minutes"]} 分）">{esc(label)}</div>')
+        if segment["kind"] == "outside":
+            width, text = ' class="seg outside fixed"', f'{label} {_span(segment["minutes"])}'
+        elif segment["minutes"] > 180:   # 别的长段也压成固定宽度，免得把别的挤没；不写行内宽度，否则会盖过压缩
+            width, text = f' class="seg {segment["kind"]} compressed"', label
+        else:
+            width, text = f' class="seg {segment["kind"]}" style="flex:{max(segment["minutes"], 1)} 1 0"', label
+        out.append(f'<div{width} title="{esc(label)} {esc(show(segment["start"]))}→{esc(show(segment["end"]))}'
+                   f'（{segment["minutes"]} 分）">{esc(text)}</div>')
     out.append('</div><div class="ticks">' + "".join(f"<span>{esc(show(moment))}</span>" for moment in dict.fromkeys(
         [segments[0]["start"]] + [segment["end"] for segment in segments])) + "</div>")
     out.append('<div class="legend">' + "".join(
@@ -359,7 +390,7 @@ def _stock_table(model, show):
            cap(("期间", f'{esc(model["game_day"])} 游戏日，{esc(show(first["at"]))} → {esc(show(last["at"]))} 盘点'),
                ("单位", "数量：个" + ("；金额：金币，满万以万计" if valued else ""))),
            ]
-    head = ['<div class="tw"><table><thead><tr><th class="sticky">物品</th>']
+    head = [f'<div class="tw"><table><thead><tr><th class="sticky">物品{row_key() if valued else ""}</th>']
     if valued:
         head.append('<th class="num">单价<span class="sub">月度最高价</span></th>')
     head.append(f'<th class="num">期初<span class="sub">{esc(show(first["at"]))}</span></th>')
@@ -427,10 +458,19 @@ def _stock_table(model, show):
         out.append(f'<tr class="grp"><td class="sticky" colspan="{width}">{esc(title)}</td></tr>')
         out.extend(rows_of(item for item in moving if item["group"] == key))
         if valued and key in VALUED:
+            # 估值小计排成一行，金额落在各列下面（11-28 用户嫌整句塞在锁定列里把「物品」列撑得太宽、名称与数字隔得远）；
+            # 单价调整不为 0 才在名称下注明。期初 + 各列 + 跨区间 + 单价调整 = 期末（C6）。
             value = model["valuation"][key]
-            flows = sum(value["flows"].values()) + value["spans"]
-            out.append(f'<tr class="val"><td class="sticky" colspan="{width}">估值小计（含未变动的）· 期初 {wan(value["opening"])}'
-                       f' · 各列 {wan(flows, sign=True)} · 单价调整 {wan(value["reval"], sign=True)} · 期末 {wan(value["closing"])}</td></tr>')
+            note = "含未变动的" + (f'；单价调整 {wan(value["reval"], sign=True)}' if value["reval"] else "")
+            row = [f'<tr class="val"><td class="sticky">估值小计<span class="amt">{note}</span></td><td></td>',
+                   f'<td class="num">{amount(value["opening"])}</td>']
+            for col in cols:
+                minor = " minor" if col["key"] == "exchange" else ""
+                row.append(f'<td class="num{minor}">{amount(value["flows"].get(col["key"], 0), sign=True)}</td>')
+            if with_spans:
+                row.append(f'<td class="num">{amount(value["spans"], sign=True)}</td>')
+            row.append(f'<td class="num"><b>{amount(value["closing"])}</b></td></tr>')
+            out.append("".join(row))
     unchanged = model["unchanged"]
     if not model["items"]:
         out.append(f'<tr class="sub"><td class="sticky" colspan="{width}">当天还没有可比较的两次盘点，或没有任何变动</td></tr>')
@@ -534,9 +574,9 @@ def _shop_table(model):
         notes.append(f'另有 {money["unconfirmed_sales"]} 笔出售未确认，未计入')
     regular = money.get("regular", True)
     bad = "" if regular else " bad"
-    out = ["<section><h2>二、商店账实核对 <small>逐笔记下的 对 两头盘点</small></h2>",
-           cap(("期间", "当天的商店各段"), ("单位", "个（数量表）；金币一行为金币")),
-           '<div class="tw"><table><thead><tr><th class="sticky">物品</th><th class="num">盘点净额</th>'
+    out = ["<section><h2>二、商店账实核对 <small>逐笔记下的 对 两头盘点；物品行上行数量、下行金额</small></h2>",
+           cap(("期间", "当天的商店各段"), ("单位", "数量：个；金额：金币，写全数；金币一行为金币")),
+           f'<div class="tw"><table><thead><tr><th class="sticky">物品{row_key()}</th><th class="num">盘点净额</th>'
            '<th class="num">已记账<span class="sub">补买买入</span></th><th class="num">已记账<span class="sub">出售</span></th>'
            '<th class="num">制作 ±<span class="sub">成品记账，材料按配方</span></th>'
            '<th class="num">余额项<span class="sub">= 常规采购（推算）</span></th><th>依据</th></tr></thead><tbody>',
@@ -549,12 +589,22 @@ def _shop_table(model):
         out.append('<tr class="grp"><td class="sticky" colspan="7">料理 / 食材</td></tr>')
     for row in shop["rows"]:
         bad = ' bad' if row["mismatch"] else ""
-        out.append(f'<tr><td class="sticky">{esc(row["name"])}</td><td class="num">{fmt(row["net"], sign=True)}</td>'
-                   f'<td class="num">{fmt(row["replenish"] or 0, sign=True)}</td><td class="num">{fmt(row["sales"] or 0, sign=True)}</td>'
-                   f'<td class="num">{fmt(row["cooking"] or 0, sign=True)}</td><td class="num{bad}">{fmt(row["residual"], sign=True)}</td>'
+        unit = row.get("unit")
+
+        def worth(quantity, unit=unit):
+            return None if quantity is None or unit is None else quantity * unit
+
+        out.append(f'<tr><td class="sticky">{esc(row["name"])}</td><td class="num">{pair(row["net"], worth(row["net"]))}</td>'
+                   f'<td class="num">{pair(row["replenish"] or 0, row.get("replenish_gold"))}</td>'
+                   f'<td class="num">{pair(row["sales"] or 0, row.get("sales_gold"))}</td>'
+                   f'<td class="num">{pair(row["cooking"] or 0, worth(row["cooking"]))}</td>'
+                   f'<td class="num{bad}">{pair(row["residual"], worth(row["residual"]))}</td>'
                    f'<td class="note{bad}">{esc(("推算失配：" if row["mismatch"] else "") + row["basis"])}</td></tr>')
     out.append('</tbody></table></div><p class="small mut">补买、出售、料理制作是逐笔记下的事实；材料消耗按配方展开。'
-               "常规采购不逐笔记，是余额项——不可购买的材料余额项应为 0，这是推算的自检。</p></section>")
+               "常规采购不逐笔记，是余额项——不可购买的材料余额项应为 0，这是推算的自检。"
+               "物品行的金额：「已记账补买」「已记账出售」两列是逐笔记下的成交金额，站在物品一边记，与金币一行正负相反"
+               "（各物品出售金额之和就是金币行的「已记账出售」）；盘点净额、制作、余额项三列按本日单价折算，与表一同价。"
+               "两种金额口径不同，一行之间不相加。</p></section>")
     return "".join(out)
 
 
@@ -613,10 +663,11 @@ def _statement_table(model):
         profit = None if row["cash"] is None or row["part"] else row["cash"] + (row["stock"] or 0)
         stock = '<td class="num"><span class="dim">·</span></td>' if row["part"] or not valued \
             else f'<td class="num">{amount(row["stock"], sign=True)}</td>'
-        out.append(f'<tr{" class=sub" if row["part"] else ""}><td class="sticky">{tag}{esc(row["label"])}</td>'
+        name = f'<span class="mut">其中：</span>{esc(row["label"])}' if row["part"] else esc(row["label"])
+        out.append(f'<tr{" class=sub" if row["part"] else ""}><td class="sticky">{tag}{name}</td>'
                    f'<td class="num">{fmt(row["cash"], sign=True)}</td>{stock}'
                    f'<td class="num">{amount(profit, sign=True)}</td><td class="note">{BASIS_LABEL[row["basis"]]}'
-                   + ("，已含在下一行" if row["part"] else "") + "</td></tr>")
+                   + "</td></tr>")
     totals = statement["totals"]
     out.append(f'<tr class="sum"><td class="sticky">本日合计</td><td class="num">{fmt(totals["cash"], sign=True)}</td>'
                f'<td class="num">{amount(totals["stock"], sign=True)}</td><td class="num">{amount(totals["profit"], sign=True)}</td>'
@@ -787,6 +838,34 @@ def _details(model, show):
     return "".join(out)
 
 
+def _subsequent_block(model, show):
+    """期后事项（U82）：本日期末是换日后那一盘时，09:00 KST 之后到那一盘之间做了什么。这些都已计入本日各表。"""
+    after = model.get("subsequent")
+    if not after:
+        return ""
+    lines = []
+    if after["tasks"]:
+        lines.append(f'还在跑：{esc("、".join(after["tasks"]))}')
+    for row in after["sales"]:
+        gold = "金币未核到" if row["unknown"] else f'金币 {fmt(row["gold"], sign=True)}'
+        lines.append(f'出售 {esc(row["name"])} {fmt(row["quantity"])} 个（{gold}）')
+    if after["cooked"]:
+        lines.append("做菜：" + "、".join(f'{esc(row["recipe"])} {fmt(row["made"])} 份' for row in after["cooked"]))
+    for row in after["replenish"]:
+        lines.append(f'补买 {esc(row["name"])} {fmt(row["quantity"])} 个，花费 {fmt(row["spent"])} 金币用的是次日的限购：'
+                     '花费移到次日的表，买到的东西留在本日')
+    for at in after["purchases"]:
+        lines.append(f'② 一键购买（{esc(show(at))}）用的是次日的限购，金额没有逐笔记录，记在本日')
+    if after["cards"]:
+        lines.append("吸取：" + "、".join(esc(card_name(card)) for card in after["cards"]))
+    if not lines:
+        lines.append("没有逐笔记录的活动")
+    return (f'<section><h2>期后事项 <small>换日（{esc(show(after["boundary"]))}）之后到期末那一盘（{esc(show(after["closing"]))}）'
+            '之间，已计入本日各表</small></h2><div class="small mut">一种业务从头做到尾、两头的盘点接得上的，跨过 09:00 KST '
+            '也整段记在开始那天；要动用新一天额度（购入、补买、吸取下一张卡）之前，运行时会先盘一次把两天切开。</div>'
+            '<ul class="small">' + "".join(f"<li>{line}</li>" for line in lines) + "</ul></section>")
+
+
 def _balance_block(model, show):
     """期末余额（结转）：结账定稿的表才有，折叠着。当天读到过的就是上面各表的期末，这里只把当天一次也没读到、沿用更早读数的列出来。"""
     balance = model.get("balance") or {}
@@ -838,13 +917,14 @@ def render_day_html(model) -> str:
                  + "".join(f'<div class="rule"><b>{esc(title)}</b><p>{text}</p></div>' for title, text in RULES)
                  + "</div></details>")
     parts += [_kpis(model), _timeline(model, show), _adjust_table(model, show), _stock_table(model, show), _shop_table(model),
-              _assets_table(model, show), _statement_table(model), _collect_section(model), _exchange_block(model, show)]
+              _assets_table(model, show), _statement_table(model), _subsequent_block(model, show), _collect_section(model),
+              _exchange_block(model, show)]
     parts.append(_details(model, show))
     parts.append(_balance_block(model, show))
     parts.append('<section><h2>自检</h2><div class="checks">' + "".join(
         f'<div class="{"" if check["ok"] else "bad"}">{esc(check["name"])} <span class="mut">· {esc(check["detail"])}</span></div>'
         for check in model["checks"]) + "</div></section>")
-    parts.append(f'<footer><span>做账规则第 {model["rule_version"]} 版 · 一日的账只算到当天最后一次盘点，隔夜的变化记成次日的期初调整 · '
+    parts.append(f'<footer><span>做账规则第 {model["rule_version"]} 版 · 一日的账只算到当天最后一次盘点（接得上的跨日段算开始那天），隔夜的变化记成次日的期初调整 · '
                  '数据来源：账号存档与库存历史 · 本页由凭证现场生成，重算不改数据</span>'
                  f'<span>摘要：{esc(model["summary"])}</span><span><a href="index.html">多日总览</a></span></footer>')
     return _page(f'库存日报 {model["game_day"]}', "\n".join(part for part in parts if part))

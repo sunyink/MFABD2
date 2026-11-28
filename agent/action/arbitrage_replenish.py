@@ -158,6 +158,9 @@ def run_replenishment(context, task_id, config):
         _log_profit_decisions(plan)
         mfaalog.info("[Replenish] 本轮无需补买")
         return {**report, "reason": "没有符合条件的补买需求"}
+    # 确定要买、进店之前过一次换日切点（U82-2）：上一次记账盘点之后跨过了 09:00 KST，补买用的是新一天的限购，
+    # 先盘一次把两天切开；没跨日它什么都不做。盘完人可能在主页或箱庭，下面的 ensure_shop 照常回店。
+    context.run_task("Ledger_Cutoff_Shop")
     # 行情准备可能覆盖过入口；回到补买业务时明确恢复折扣商店选路。
     if not context.set_anchor("Replenish_ShopEntry", "Arbitrage_Merchant_Entry"):
         raise RuntimeError("补买预算进店入口设置失败")

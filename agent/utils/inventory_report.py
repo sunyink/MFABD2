@@ -8,7 +8,7 @@
 """
 
 from .inventory_ledger import CURRENCY_SCOPE, EXCHANGE, SUSPECT_MIN, items_until, ts
-from .ledger_rules import NEEDS, game_day as _game_day
+from .ledger_rules import ALL_SCOPES, NEEDS, game_day as _game_day
 
 SCHEMA = "ledger-report/2"
 KIND_LABEL = {"daily": "日常", "collect": "吸取", "shop": "商店", "exchange": "商店兑换", "outside": "期间外", "mixed": "混合",
@@ -272,9 +272,15 @@ def _shop(items, book, cookbook):
             notes.append(f"补买 {bought}（花费 {book['replenish'][name]['spent']:,}）")
         if not (net or bought or sold or cooking or notes):
             continue   # 柜台上确认过「没有可卖的」也会留一条数量为 0 的出售记录：没有任何数可列，不占一行
+        # 数量金额式（11-27 用户定）：出售、补买的金额是逐笔记下的成交金额，物品一侧，与金币行正负相反；其余按本日单价折算。
+        price = (item or {}).get("price")
+        sale = book["sales"].get(name) or {}
         rows.append({"name": name, "net": net, "replenish": bought or None, "sales": -sold if sold else None,
                      "cooking": cooking or None, "residual": residual, "mismatch": mismatch,
-                     "dish": name in recipes or name in book["cooked"], "basis": "；".join(notes)})
+                     "dish": name in recipes or name in book["cooked"], "basis": "；".join(notes),
+                     "unit": price["unit"] if price else None,
+                     "sales_gold": -sale["gold"] if sold and not sale.get("unknown") else None,
+                     "replenish_gold": book["replenish"][name]["spent"] if bought else None})
     rows.sort(key=lambda row: (not row["dish"], -abs(row["net"] or 0), row["name"]))
     gold = by_name.get(GOLD)
     net = gold["deltas"].get("shop") if gold else None
@@ -452,17 +458,18 @@ def _statement(items, cols, valuation, shop):
         group = "operating" if key in ("daily", "collect", "shop", EXCHANGE) else "outside"
         cash = gold["deltas"].get(key) if gold else None
         amount = None if stock is None else stock[key]
-        if key == "shop" and shop and cash is not None:
-            money = shop["gold"]
-            rest = "常规采购支出" if money.get("regular", True) else "未分清的金币（余额项）"
-            for label, value, basis in (("出售收入", money["sales"], "booked"), ("补买支出", money["replenish"], "booked"),
-                                        (rest, money["residual"], "derived")):
-                rows.append({"group": group, "col": key, "label": f"商店套利：{label}", "cash": value, "stock": None,
-                             "basis": basis, "part": True})
         rows.append({"group": group, "col": key, "label": {"daily": "日常任务", "collect": "地图吸取", "shop": "商店套利",
                                                             EXCHANGE: "代币商店兑换", "outside": "期间外（手动操作等）",
                                                             "mixed": "混合（未能分开）"}[key],
                      "cash": cash, "stock": amount, "basis": "counted", "part": False})
+        if key == "shop" and shop and cash is not None:
+            # 总额在前，「其中」的拆分行跟在后面（11-27 用户定，中文报表习惯）。
+            money = shop["gold"]
+            rest = "常规采购支出" if money.get("regular", True) else "未分清的金币（余额项）"
+            for label, value, basis in (("出售收入", money["sales"], "booked"), ("补买支出", money["replenish"], "booked"),
+                                        (rest, money["residual"], "derived")):
+                rows.append({"group": group, "col": key, "label": label, "cash": value, "stock": None,
+                             "basis": basis, "part": True})
     if valuation is not None:
         rows.append({"group": "valuation", "col": None, "label": "公允价值变动（单价调整）", "cash": 0,
                      "stock": sum(valuation[group]["reval"] for group in VALUED), "basis": "derived", "part": False})
@@ -609,6 +616,118 @@ def _notices(status, first_ever, day_intervals, day_scans, tail, checks, shop, v
     return notices
 
 
+def _quiet(chains, index) -> bool:
+    """以第 index 次盘点开头的那一段里有没有东西变过：读数链上覆盖这一段的变化都是 0 才算没变；
+    跨几段合起来的一笔（中间有盘点没读到它）算变过。"""
+    return not any(piece["delta"] and piece["from"] <= index < piece["to"]
+                   for entry in chains.values() for piece in entry["pieces"])
+
+
+def _late_spend(interval) -> dict:
+    """连续跨日段里换日之后的补买花费 {物品: 金币}。换日切点没拦住才会有（U82-3）：这笔花费移到次日。"""
+    attach = (interval or {}).get("attach") or {}
+    rows = (attach.get("book") or {}).get("replenish") or {}
+    return {name: row["spent"] for name, row in rows.items() if row.get("spent")}
+
+
+def _carry_of(moved) -> dict:
+    return {"col": "shop", "delta": -sum(moved.values()), "items": {name: -spent for name, spent in moved.items()}}
+
+
+def _with_carry(rows, moved) -> dict:
+    """从账里推上日期末时，照上一张表定稿时那样带上换日后补买的花费（期末金币加回这笔，见 build_report 的 balance）。"""
+    if not moved or GOLD not in rows:
+        return rows
+    gold = rows[GOLD]
+    return {**rows, GOLD: {**gold, "quantity": gold["quantity"] + sum(moved.values()), "carry": _carry_of(moved)}}
+
+
+def _move_late_spend(items, moved, col) -> None:
+    """本日这边（U82-3）：换日后补买的花费不算本日的，商店一列加回这笔；期末金币因此是读数加回花费的推算数。
+    买到的东西照读数留在本日。"""
+    gold = next((item for item in items if item["name"] == GOLD), None)
+    if not moved or gold is None:
+        return
+    spend = sum(moved.values())
+    gold["closing"] += spend
+    gold["total"] += spend
+    gold["deltas"][col] = gold["deltas"].get(col, 0) + spend
+    gold["moved"] = spend
+
+
+def _take_carry(items, cols, carry) -> None:
+    """次日这边（U82-3）：上一日换日后补买的花费记在本日商店一列的开头，期初金币取上一日期末（读数加回花费）。
+    本日没跑商店也开出这一列，只装这一笔。"""
+    gold = next((item for item in items if item["name"] == GOLD), None)
+    if not carry or gold is None:
+        return
+    col, delta = carry["col"], carry["delta"]
+    gold["deltas"][col] = gold["deltas"].get(col, 0) + delta
+    gold["opening"] -= delta
+    gold["total"] = gold["closing"] - gold["opening"]
+    if gold["adjust"] is not None:   # 期初调整只剩带入之外对不上的那部分
+        gold["adjust"]["delta"] -= delta
+        if not gold["adjust"]["delta"]:
+            gold["adjust"] = None
+    gold["carry_in"] = -delta
+    column = next((entry for entry in cols if entry["key"] == col), None)
+    if column is None:
+        column = {"key": col, "label": KIND_LABEL[col], "runs": 0, "minutes": 0, "flags": [], "scopes": list(ALL_SCOPES),
+                  "intervals": []}
+        cols.append(column)
+    column["flags"] = sorted(set(column["flags"]) | {"carry_in"})
+
+
+def _subsequent(interval, moved, labels) -> dict:
+    """期后事项（U82）：并入本日的跨日段里，09:00 KST 之后到期末那一盘之间做了什么。"""
+    attach = interval["attach"]
+    book = attach["book"]
+    return {"boundary": attach["boundary"], "closing": attach["closing"], "kind": interval["kind"],
+            "tasks": [(labels or {}).get(task["entry"], task["entry"]) for task in attach["tasks"]],
+            "sales": [{"name": name, "quantity": row["quantity"], "gold": row["gold"], "unknown": row["unknown"]}
+                      for name, row in sorted(book["sales"].items()) if row["quantity"]],
+            "cooked": [{"recipe": recipe, "made": row["made"]} for recipe, row in sorted(book["cooked"].items()) if row["made"]],
+            "replenish": [{"name": name, "quantity": row["quantity"], "spent": row["spent"]}
+                          for name, row in sorted(book["replenish"].items())],
+            "moved": sum(moved.values()), "purchases": list(attach["purchases"]),
+            "cards": sorted({visit["card"] for visit in attach["loot"] if visit.get("card")})}
+
+
+def _cross_day_notices(subsequent, overnight, kst) -> list:
+    """跨日并入的两头各一句：本日期末取的是换日后那一盘、换日后做了什么；次日期初与上日期末是同一盘。"""
+    notices = []
+    if subsequent:
+        done = []
+        if subsequent["sales"]:
+            count = sum(row["quantity"] for row in subsequent["sales"])
+            gold = sum(row["gold"] for row in subsequent["sales"])
+            done.append(f"出售 {len(subsequent['sales'])} 样共 {count:,} 个（金币 {gold:+,}）")
+        if subsequent["cooked"]:
+            done.append(f"做菜 {len(subsequent['cooked'])} 道")
+        if subsequent["replenish"]:
+            done.append(f"补买 {len(subsequent['replenish'])} 样")
+        if subsequent["cards"]:
+            done.append(f"吸取 {len(subsequent['cards'])} 张卡")
+        running = "、".join(subsequent["tasks"])
+        notices.append({"level": "info", "text": f"本日期末是换日后 {kst(subsequent['closing'])} 那一盘：09:00 之后到这一盘之间"
+                        + (f"还在跑{running}" if running else "还有活动") + ("，" + "、".join(done) if done else "")
+                        + "，一并记在本日（见「期后事项」）。"})
+        if subsequent["moved"]:
+            notices.append({"level": "info", "text": f"换日后补买花了 {subsequent['moved']:,} 金币，用的是次日的限购："
+                                                     "花费移到次日的表，买到的东西留在本日；本日期末金币是读数加回这笔（推算）。"})
+        if subsequent["purchases"]:
+            notices.append({"level": "warn", "text": f"换日后执行过 ② 一键购买（{kst(subsequent['purchases'][0])}），用的是次日的限购；"
+                                                     "金额没有逐笔记录，只能记在本日。"})
+    if overnight and overnight["shared"]:
+        text = f"本日期初与上日期末是同一盘（{kst(overnight['to'])}）：上日换日之后那一截记在上日的表里（期后事项）。"
+        if overnight["carry"]:
+            text += f"上日换日后补买的花费 {overnight['carry']:,} 金币记在本日商店一列的开头（东西在上日的表里）。"
+        if overnight["purchases"]:
+            text += "本日 ② 的限购有一部分在上日表里用掉了（换日后执行过一键购买）。"
+        notices.append({"level": "info", "text": text})
+    return notices
+
+
 def build_report(ledger, *, game_day: str, as_of: str, prices=None, cookbook=None, account=None, labels=None,
                  kst=None, history_before=False, prior=None) -> dict | None:
     """账 → 某一个游戏日的报表模型；当天没有任何记账盘点返回 None。
@@ -622,7 +741,7 @@ def build_report(ledger, *, game_day: str, as_of: str, prices=None, cookbook=Non
     labels：任务入口 → 界面上的显示名。kst：把 ISO 时刻写成页面上的时刻的函数。
     history_before：账里看不到、但更早的日子其实出过报表（只装载了近期凭证时），用来判断这是不是有盘点的第一天。
     """
-    scans = ledger["scans"]
+    scans, intervals = ledger["scans"], ledger["intervals"]
     kst = kst or (lambda text: str(text)[11:16])
     indexes = [index for index, scan in enumerate(scans) if scan["day"] == game_day]
     if not indexes:
@@ -631,15 +750,33 @@ def build_report(ledger, *, game_day: str, as_of: str, prices=None, cookbook=Non
     # 之后有更晚游戏日的盘点＝已结账。结账用的就是当天最后一盘为止的数，不拿那一盘来改它（U76）：
     # 那一盘是次日自己的期初，它与本日期末的差额记在次日的期初调整。
     final = last + 1 < len(scans)
-    day_scans = scans[first:last + 1]
-    day_intervals = [dict(interval) for interval in ledger["intervals"][first:last]]
+    # 连续的跨日段（U82）：当天最后一盘到次日第一盘那一段整段归本日，次日第一盘一盘两用——既是本日期末、也是次日期初。
+    attached = last < len(intervals) and intervals[last].get("attach") is not None
+    end = last + 1 if attached else last   # 本日的账算到哪一盘
+    # 反过来：本日第一盘是上一日的期末。上一张表若是改规则前定稿的（期末不是这一盘），照旧按隔夜处理。
+    inherited = first > 0 and intervals[first - 1].get("attach") is not None and (
+        prior is None or any(row.get("at") == scans[first]["at"] for row in prior.values()))
+    day_scans = scans[first:end + 1]
+    day_intervals = [dict(interval) for interval in intervals[first:end]]
     for interval in day_intervals:
         interval["tasks"] = [{**task, "label": (labels or {}).get(task["entry"], task["entry"])} for task in interval["tasks"]]
     scans_by_id = {scan["id"]: scan for scan in scans}
     cols = _columns(day_intervals, scans_by_id)
-    carried_in = _ledger_prior(ledger, first, prices) if prior is None else prior
-    chains = items_until(ledger, last)   # 只看到当天最后一盘为止
+    carried_in = _ledger_prior(ledger, first + 1 if inherited else first, prices) if prior is None else prior
+    if prior is None and inherited:
+        carried_in = _with_carry(carried_in, _late_spend(intervals[first - 1]))
+    chains = items_until(ledger, end)   # 只看到当天最后一盘为止
     items, unread = _items(ledger, chains, first, prices, carried_in)
+    moved = _late_spend(day_intervals[-1]) if attached else {}
+    _move_late_spend(items, moved, day_intervals[-1]["kind"] if attached else None)
+    carry = (carried_in.get(GOLD) or {}).get("carry") if inherited else None
+    _take_carry(items, cols, carry)
+    # 期间外（11-27 用户定）：这一段里什么也没变就不列示——时间轴上头尾的不画（inventory_report_render._timeline），
+    # 各段都没变时表里这一列也不出。有变化的照列，时间轴上画成固定宽度：灰条长短说明不了变化落在哪里。
+    for position, interval in enumerate(day_intervals):
+        interval["quiet"] = _quiet(chains, first + position)
+    if all(interval["quiet"] for interval in day_intervals if interval["kind"] == "outside"):
+        cols = [col for col in cols if col["key"] != "outside"]
     for item in items:   # 该列的区间两头都不扫它的科目 → 「不扫」；兑换那一列只收 B 类，别的物品空着不算不扫
         item["gaps"] = [col["key"] for col in cols if col["key"] != EXCHANGE and item["deltas"].get(col["key"]) is None
                         and item["scope"] not in (None, "$") and item["scope"] not in col["scopes"]]
@@ -660,8 +797,19 @@ def build_report(ledger, *, game_day: str, as_of: str, prices=None, cookbook=Non
     unchanged = [item for item in items if item["name"] not in names]
     valuation = None if prices is None else _valuation(items)
     book, stray = _merge_books(day_intervals)
+    # 换日后的补买（U82-3）：本日分项账留下买到的数量、扣掉花费；次日只带入花费、数量记 0——两边的金币与物品都对得上。
+    for name, spent in moved.items():
+        if name in book["replenish"]:
+            book["replenish"][name]["spent"] -= spent
+    for name, spent in ((carry or {}).get("items") or {}).items():
+        row = book["replenish"].setdefault(name, {"quantity": 0, "spent": 0})
+        row["spent"] -= spent   # carry 里记的是负数（次日的支出）
     has_shop = any(col["key"] == "shop" for col in cols)
     shop = _shop(items, book, cookbook) if has_shop else None
+    for row in (shop or {}).get("rows", ()):
+        if row["name"] in moved:   # 表二照实显示这笔补买的成交额，注明花费记在次日（U82-3）
+            row["replenish_gold"] = (row["replenish_gold"] or 0) + moved[row["name"]]
+            row["basis"] = "；".join(part for part in (row["basis"], "换日后补买，花费记在次日") if part)
     statement = _statement(items, cols, valuation, shop)
     checks = _checks(items, statement, shop, day_intervals, stray, valuation)
     by_card = _by_card(ledger, chains, first, day_intervals, prices)
@@ -670,15 +818,22 @@ def build_report(ledger, *, game_day: str, as_of: str, prices=None, cookbook=Non
     status = "final" if final else "interim"
     first_ever = first == 0 and not history_before
     # 当天最后一盘之后：期中是账尾（还没盘掉的活动）；已结账的是它到次日第一盘之间那一段，不在本日的表里。
-    after = ledger["intervals"][last] if final else None
-    tail = {"types": list(after["types"]) + (["mixed"] if after["strangers"] else [])} if after else ledger["tail"]
+    # 并入了跨日段的，期末那一盘之后是次日自己的事，不算本日没盘掉的。
+    after = intervals[last] if final and not attached else None
+    tail = {"types": []} if attached else \
+        {"types": list(after["types"]) + (["mixed"] if after["strangers"] else [])} if after else ledger["tail"]
     notices = _notices(status, first_ever, day_intervals, day_scans, tail, checks, shop, valuation, kst, items)
     exchange = _exchange_section(ledger, items, day_intervals, game_day, tail)
     # 上日最后一盘到本日第一盘之间那一段（期初调整吞掉的主要就是它）：跑过什么，给期初调整表做说明。
-    before = ledger["intervals"][first - 1] if first > 0 else None
+    # 那一段并进了上一日的（U82），本日第一盘就是上日期末：shared 为真，期初调整里不再有它。
+    before = intervals[first - 1] if first > 0 else None
     overnight = None if before is None else {
         "from": scans[first - 1]["at"], "to": scans[first]["at"], "minutes": before["minutes"], "kind": before["kind"],
-        "tasks": [(labels or {}).get(task["entry"], task["entry"]) for task in before["tasks"]]}
+        "tasks": [(labels or {}).get(task["entry"], task["entry"]) for task in before["tasks"]], "shared": inherited,
+        "carry": -carry["delta"] if carry else 0,
+        "purchases": list((before.get("attach") or {}).get("purchases") or ()) if inherited else []}
+    subsequent = _subsequent(day_intervals[-1], moved, labels) if attached else None
+    notices.extend(_cross_day_notices(subsequent, overnight, kst))
     gold = next((item for item in items if item["name"] == GOLD), None)
     collected = [item for item in items if item["group"] in VALUED and (item["deltas"].get("collect") or 0) > 0]
     kpis = {"gold_delta": gold["total"] if gold else None,
@@ -713,8 +868,11 @@ def build_report(ledger, *, game_day: str, as_of: str, prices=None, cookbook=Non
         rows = {item["name"]: _balance_row(item["closing"], scans_by_id[item["closing_at"]]["at"], item["price"])
                 for item in items}
         for name, row in carried_in.items():
-            rows.setdefault(name, dict(row))
-        balance = {"as_of": scans[last]["at"], "items": dict(sorted(rows.items()))}
+            rows.setdefault(name, {key: value for key, value in row.items() if key != "carry"})   # 带入只用一次
+        if moved and GOLD in rows:
+            # 换日后补买的花费移到次日（U82-3）：期末金币是读数加回花费（推算），次日拿 carry 记成它商店一列的支出。
+            rows[GOLD]["carry"] = _carry_of(moved)
+        balance = {"as_of": scans[end]["at"], "items": dict(sorted(rows.items()))}
     cards = [card for interval in day_intervals for card in interval["cards"] or ()]
     collects = [interval for interval in day_intervals if interval["kind"] == "collect"]
     model = {
@@ -728,7 +886,7 @@ def build_report(ledger, *, game_day: str, as_of: str, prices=None, cookbook=Non
         "unchanged": [{"name": item["name"], "group": item["group"], "quantity": item["closing"],
                        "value": item["value"]["closing"] if item["value"] else None} for item in unchanged],
         "unread": unread, "shop": shop, "valuation": valuation, "assets": assets, "statement": statement,
-        "balance": balance, "overnight": overnight, "exchange": exchange,
+        "balance": balance, "overnight": overnight, "subsequent": subsequent, "exchange": exchange,
         "collect": {"runs": len(collects), "cards": cards if any(interval["cards"] is not None for interval in collects)
                     else None, "abnormal": sum("abnormal_end" in interval["flags"] for interval in collects),
                     "by_card": by_card},

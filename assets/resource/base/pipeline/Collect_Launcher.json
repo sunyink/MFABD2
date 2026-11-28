@@ -766,8 +766,14 @@
         ]
     },
     "Collect_PackScan_Prepare": {
-        "desc": "返回选卡列表：列表已开时保留页位；确实需要重新打开时才清本次已滑计数。",
+        "desc": "返回选卡列表：列表已开时保留页位；确实需要重新打开时才清本次已滑计数。 | 动作是库存记账的吸取换日切点：吸取次数随 09:00 KST 刷新，每次回选卡列表（换卡）时，上一次记账盘点之后跨过了游戏日就全盘一次，之后的卡算新的一天（U82-4）；没跨日什么都不做。盘了列表会被关掉，由 next 末位的 OpenList 重开。",
         "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "LedgerPoint",
+        "custom_action_param": {
+            "mark": "cutoff",
+            "type": "collect"
+        },
         "post_delay": 0,
         "timeout": 5000,
         "next": [
