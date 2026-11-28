@@ -7,10 +7,12 @@
 读到的数，与上日期末的差额（隔夜那一段的变化、没读准后来补上的）全部记成期初调整，定稿的表不回头改（U75）。
 """
 
-from .inventory_ledger import CURRENCY_SCOPE, SUSPECT_MIN, items_until, ts
+from .inventory_ledger import CURRENCY_SCOPE, EXCHANGE, SUSPECT_MIN, items_until, ts
+from .ledger_rules import NEEDS, game_day as _game_day
 
 SCHEMA = "ledger-report/2"
-KIND_LABEL = {"daily": "日常", "collect": "吸取", "shop": "商店", "outside": "期间外", "mixed": "混合", "later": "次日以后"}
+KIND_LABEL = {"daily": "日常", "collect": "吸取", "shop": "商店", "exchange": "商店兑换", "outside": "期间外", "mixed": "混合",
+              "later": "次日以后"}
 GROUPS = (("money", "货币票券"), ("ingredient", "存货 · 食材"), ("dish", "存货 · 料理"), ("growth", "养成材料"),
           ("other", "其他"))
 GROUP_OF = {"currency": "money", "ticket": "money", "ingredient": "ingredient", "dish": "dish", "growth": "growth",
@@ -98,19 +100,25 @@ def _items(ledger, chains, first, prices, prior):
         price = _unit(prices, scans[closing_at], name) if valued else None
         deltas, spans, flows, reval, priced = {}, [], {}, 0, valued and price_open is not None and price is not None
         for piece in pieces:
-            kinds = list(dict.fromkeys(intervals[index]["kind"] for index in range(piece["from"], piece["to"])))
+            span = range(piece["from"], piece["to"])
+            kinds = _owners(intervals, span, entry.get("scope"))
             before, after = (_unit(prices, scans[piece["from"]], name), _unit(prices, scans[piece["to"]], name)) \
                 if valued else (None, None)
             priced = priced and before is not None and after is not None
-            flow = piece["delta"] * after["unit"] if priced else None
+            delta = piece["delta"]
+            split = _bar_share(intervals, span, name) if entry.get("scope") == CURRENCY_SCOPE else None
+            if split is not None:   # 兑换与套利同一段：顶栏这两样按兑换前后的读数先拆给兑换，余下的照常归
+                deltas[EXCHANGE] = deltas.get(EXCHANGE, 0) + split
+                delta -= split
+            flow = delta * after["unit"] if priced else None
             if priced:
                 reval += piece["open"] * (after["unit"] - before["unit"])
             if len(kinds) == 1:
-                deltas[kinds[0]] = deltas.get(kinds[0], 0) + piece["delta"]
+                deltas[kinds[0]] = deltas.get(kinds[0], 0) + delta
                 if priced:
                     flows[kinds[0]] = flows.get(kinds[0], 0) + flow
-            elif piece["delta"]:   # 合起来没变的不列：各段无从分开，也没有可列的数
-                spans.append({"cols": kinds, "delta": piece["delta"], "from": scans[piece["from"]]["id"],
+            elif delta:   # 合起来没变的不列：各段无从分开，也没有可列的数
+                spans.append({"cols": kinds, "delta": delta, "from": scans[piece["from"]]["id"],
                               "to": scans[piece["to"]]["id"], "reason": piece.get("reason") or "cross_day",
                               "flow": flow})
         value = None
@@ -161,16 +169,52 @@ def _items(ledger, chains, first, prices, prior):
 
 def _columns(day_intervals, scans_by_id):
     cols = {}
+
+    def column(key):
+        return cols.setdefault(key, {"key": key, "label": KIND_LABEL[key], "runs": 0, "minutes": 0, "flags": [], "scopes": [],
+                                     "intervals": []})
+
     for interval in day_intervals:
-        col = cols.setdefault(interval["kind"], {"key": interval["kind"], "label": KIND_LABEL[interval["kind"]], "runs": 0,
-                                                 "minutes": 0, "flags": [], "scopes": [], "intervals": []})
+        exchange = interval.get("exchange") or {}
+        if exchange.get("combined"):
+            # 兑换与套利同一段：另开「商店兑换」一列（排在商店前面，兑换先做），它只收 B 类与拆出来的金币、天赋神药。
+            col = column(EXCHANGE)
+            col["runs"] += 1
+            col["intervals"].append(interval["id"])
+            col["flags"] = sorted(set(col["flags"]) | (set(interval["flags"]) & {"unanchored", "unsettled", "cross_day"}))
+            col["scopes"] = list(NEEDS[EXCHANGE])
+            col["split"] = True   # 这一列有从套利段里拆出来的部分；只有兑换的段整段归它
+        col = column(interval["kind"])
         col["runs"] += 1
         col["minutes"] += interval["minutes"]
         col["intervals"].append(interval["id"])
-        col["flags"] = sorted(set(col["flags"]) | set(interval["flags"]))
+        col["flags"] = sorted(set(col["flags"]) | (set(interval["flags"]) - ({"unanchored"} if exchange.get("combined") else set())))
         both = set(scans_by_id[interval["from"]]["scope"]) & set(scans_by_id[interval["to"]]["scope"])
-        col["scopes"] = sorted(set(col["scopes"]) | both)
+        col["scopes"] = list(NEEDS[EXCHANGE]) if interval["kind"] == EXCHANGE else sorted(set(col["scopes"]) | both)
     return list(cols.values())
+
+
+def _owners(intervals, span, scope) -> list:
+    """一笔变化（物品链上的一段，跨 span 这几个区间）归哪几列。兑换与套利同一段时按类别拆：B 类归兑换，其余归商店。
+    B 类有一段归了兑换时，同一笔里吸取、套利那几段不算数——它们按设计不动 B（NEEDS 里没有这一类），这一笔整笔归兑换：
+    B 只在开头与收尾盘，从上一次读到它到套利收尾之间动它的只有兑换（代币商店接入计划 §2.2、§3）。"""
+    owners = []
+    for index in span:
+        interval = intervals[index]
+        kind = interval["kind"]
+        if kind == "shop" and (interval.get("exchange") or {}).get("combined") and scope in NEEDS[EXCHANGE]:
+            kind = EXCHANGE
+        owners.append(kind)
+    if EXCHANGE in owners and scope in NEEDS[EXCHANGE]:
+        owners = [kind for kind in owners if kind == EXCHANGE or kind not in NEEDS or scope in NEEDS[kind]]
+    return list(dict.fromkeys(owners))
+
+
+def _bar_share(intervals, span, name):
+    """顶栏货币在兑换与套利同一段里拆给兑换的那部分（兑换前后两次顶栏读数之差）；这一笔不经过这样的段、或两次读数缺了这一样，返回 None。"""
+    shares = [interval["exchange"]["split"][name] for interval in (intervals[index] for index in span)
+              if (interval.get("exchange") or {}).get("combined") and name in interval["exchange"]["split"]]
+    return sum(shares) if shares else None
 
 
 def _merge_books(day_intervals, kind="shop"):
@@ -355,6 +399,31 @@ def _by_card_check(items, by_card):
             "detail": f"{len(by_card['rows'])} 张卡" if not broken else "不平：" + "、".join(broken[:8])}
 
 
+def _exchange_section(ledger, items, day_intervals, day, tail):
+    """六、商店兑换：当天去过代币商店才有——有兑换的段、读过主页面商店的代币余额、或兑换买到的还没盘掉。
+    资产表、收益表只给一行合计，明细都在这一节（用户 11-25 定）。"""
+    runs = [interval for interval in day_intervals if interval.get("exchange")]
+    visits = []
+    for visit in ledger.get("token_visits") or ():
+        at = ts(visit.get("entered_at"))
+        if at is not None and _game_day(at) == day:
+            visits.append({key: visit[key] for key in ("shop", "entered", "entered_at", "left", "left_at", "spent")})
+    pending = EXCHANGE in (tail.get("types") or ())
+    if not runs and not visits and not pending:
+        return None
+    order = {key: position for position, (key, _) in enumerate(GROUPS)}
+    got = sorted(({"name": item["name"], "group": item["group"], "quantity": item["deltas"][EXCHANGE]}
+                  for item in items if item["deltas"].get(EXCHANGE)),
+                 key=lambda row: (order.get(row["group"], len(order)), row["name"] != GOLD, -abs(row["quantity"]), row["name"]))
+    spans = [{"name": item["name"], "delta": span["delta"], "cols": span["cols"], "from": span["from"], "to": span["to"],
+              "reason": span["reason"]} for item in items for span in item["spans"] if EXCHANGE in span["cols"]]
+    return {"runs": len(runs), "combined": sum(bool(interval["exchange"]["combined"]) for interval in runs),
+            "flags": sorted({flag for interval in runs for flag in interval["flags"]} & {"unanchored", "unsettled", "cross_day"}),
+            "items": got, "spans": spans, "visits": visits, "pending": pending,
+            "unsplit": sorted({name for interval in runs if interval["exchange"]["combined"]
+                               for name in interval["exchange"]["unsplit"]})}
+
+
 def _valuation(items):
     result = {}
     for group in VALUED:
@@ -380,7 +449,7 @@ def _statement(items, cols, valuation, shop):
     rows = []
     for col in cols:
         key = col["key"]
-        group = "operating" if key in ("daily", "collect", "shop") else "outside"
+        group = "operating" if key in ("daily", "collect", "shop", EXCHANGE) else "outside"
         cash = gold["deltas"].get(key) if gold else None
         amount = None if stock is None else stock[key]
         if key == "shop" and shop and cash is not None:
@@ -391,7 +460,8 @@ def _statement(items, cols, valuation, shop):
                 rows.append({"group": group, "col": key, "label": f"商店套利：{label}", "cash": value, "stock": None,
                              "basis": basis, "part": True})
         rows.append({"group": group, "col": key, "label": {"daily": "日常任务", "collect": "地图吸取", "shop": "商店套利",
-                                                            "outside": "期间外（手动操作等）", "mixed": "混合（未能分开）"}[key],
+                                                            EXCHANGE: "代币商店兑换", "outside": "期间外（手动操作等）",
+                                                            "mixed": "混合（未能分开）"}[key],
                      "cash": cash, "stock": amount, "basis": "counted", "part": False})
     if valuation is not None:
         rows.append({"group": "valuation", "col": None, "label": "公允价值变动（单价调整）", "cash": 0,
@@ -483,6 +553,13 @@ def _notices(status, first_ever, day_intervals, day_scans, tail, checks, shop, v
                                                      "其间的手动操作与它分不开。"})
         if "partial_scan" in interval["flags"]:
             notices.append({"level": "warn", "text": f"{span} 之间有一次盘点盘到一半就断了，没有当作边界。"})
+        if "unanchored" in interval["flags"]:
+            notices.append({"level": "warn", "text": f"{span} 的商店兑换之前没有紧挨着的盘点：兑换买到的与之前的手动操作分不开，"
+                                                     "「商店兑换」一列里可能混着它们。"})
+        exchange = interval.get("exchange") or {}
+        if exchange.get("combined") and exchange["unsplit"]:
+            notices.append({"level": "warn", "text": f"{span} 代币商店前后的顶栏没读全（{'、'.join(exchange['unsplit'])}）："
+                                                     "这几样没能拆给商店兑换，整笔记在商店一列。"})
     for position, scan in enumerate(day_scans):
         if scan["unknown"]:
             if position == 0 and not first_ever:
@@ -563,8 +640,8 @@ def build_report(ledger, *, game_day: str, as_of: str, prices=None, cookbook=Non
     carried_in = _ledger_prior(ledger, first, prices) if prior is None else prior
     chains = items_until(ledger, last)   # 只看到当天最后一盘为止
     items, unread = _items(ledger, chains, first, prices, carried_in)
-    for item in items:   # 该列的区间两头都不扫它的科目 → 「不扫」
-        item["gaps"] = [col["key"] for col in cols if item["deltas"].get(col["key"]) is None
+    for item in items:   # 该列的区间两头都不扫它的科目 → 「不扫」；兑换那一列只收 B 类，别的物品空着不算不扫
+        item["gaps"] = [col["key"] for col in cols if col["key"] != EXCHANGE and item["deltas"].get(col["key"]) is None
                         and item["scope"] not in (None, "$") and item["scope"] not in col["scopes"]]
     changed = [item for item in items if item["total"] or item["spans"]
                or any(value for value in item["deltas"].values())]
@@ -596,6 +673,7 @@ def build_report(ledger, *, game_day: str, as_of: str, prices=None, cookbook=Non
     after = ledger["intervals"][last] if final else None
     tail = {"types": list(after["types"]) + (["mixed"] if after["strangers"] else [])} if after else ledger["tail"]
     notices = _notices(status, first_ever, day_intervals, day_scans, tail, checks, shop, valuation, kst, items)
+    exchange = _exchange_section(ledger, items, day_intervals, game_day, tail)
     # 上日最后一盘到本日第一盘之间那一段（期初调整吞掉的主要就是它）：跑过什么，给期初调整表做说明。
     before = ledger["intervals"][first - 1] if first > 0 else None
     overnight = None if before is None else {
@@ -605,6 +683,7 @@ def build_report(ledger, *, game_day: str, as_of: str, prices=None, cookbook=Non
     collected = [item for item in items if item["group"] in VALUED and (item["deltas"].get("collect") or 0) > 0]
     kpis = {"gold_delta": gold["total"] if gold else None,
             "shop_cash": gold["deltas"].get("shop") if gold else None,
+            "exchange_cash": gold["deltas"].get(EXCHANGE) if gold else None,
             "outside_cash": gold["deltas"].get("outside") if gold else None,
             "profit": statement["totals"]["profit"] if valuation is not None else None,
             "stock_delta": statement["totals"]["stock"],
@@ -649,7 +728,7 @@ def build_report(ledger, *, game_day: str, as_of: str, prices=None, cookbook=Non
         "unchanged": [{"name": item["name"], "group": item["group"], "quantity": item["closing"],
                        "value": item["value"]["closing"] if item["value"] else None} for item in unchanged],
         "unread": unread, "shop": shop, "valuation": valuation, "assets": assets, "statement": statement,
-        "balance": balance, "overnight": overnight,
+        "balance": balance, "overnight": overnight, "exchange": exchange,
         "collect": {"runs": len(collects), "cards": cards if any(interval["cards"] is not None for interval in collects)
                     else None, "abnormal": sum("abnormal_end" in interval["flags"] for interval in collects),
                     "by_card": by_card},
@@ -672,8 +751,8 @@ def summarize(model) -> str:
     if not model["segments"]:
         return " · ".join(parts + ["只有一次盘点，还没有可比较的变动"])
     if kpis["gold_delta"] is not None:
-        inner = [f"{label} {_signed(kpis[key])}" for label, key in (("商店", "shop_cash"), ("期间外", "outside_cash"))
-                 if kpis[key]]
+        inner = [f"{label} {_signed(kpis.get(key))}" for label, key in
+                 (("商店", "shop_cash"), ("兑换", "exchange_cash"), ("期间外", "outside_cash")) if kpis.get(key)]
         parts.append(f"金币 {_signed(kpis['gold_delta'])}" + (f"（{'，'.join(inner)}）" if inner else ""))
     if kpis["profit"] is not None:
         parts.append(f"损益 {_signed(kpis['profit'])}")

@@ -5,24 +5,31 @@
 
 账的组成：
     scans      记账盘点（带 origin 的 inventory_scan），按时刻排；每次盘点是一个时点
-    intervals  相邻两次记账盘点之间的一段：归属（daily / collect / shop / outside / mixed）、标志、跑过的任务、逐笔记录、
-               落在这一段的各次进卡读到的掉落（loot，凭证 collect_loot，按第一个采集点的时刻归段）
+    intervals  相邻两次记账盘点之间的一段：归属（daily / collect / shop / exchange / outside / mixed）、标志、跑过的任务、逐笔记录、
+               落在这一段的各次进卡读到的掉落（loot，凭证 collect_loot，按第一个采集点的时刻归段）；
+               有商店兑换的段另带 exchange（兑换前后两次顶栏读数之差，同一段里兑换与套利按类别拆时用）
     items      每样东西自己的读数链：相邻两次「读到它」的盘点之间是一段变化
     tail       最后一次盘点之后还没盘掉的活动
+    token_visits  主页面商店每进一次店一行：店名、进店与离店的代币余额（凭证 token_balance）
 """
 
 from datetime import datetime, timezone
 
 from .ledger_rules import GAP_SECONDS, _connected, game_day
 
-RULE_VERSION = 7   # 3：吸取分卡产出；4：存货没盘全时退出重扫，重扫的读数并进原来那次盘点；5：回读库存确认的出售按报价记金币，取不到记未知
+RULE_VERSION = 8   # 3：吸取分卡产出；4：存货没盘全时退出重扫，重扫的读数并进原来那次盘点；5：回读库存确认的出售按报价记金币，取不到记未知
                    # 6：跨过开始那天结账盘点的一笔变化，记成补上读数那天的期初调整（inventory_report，U67-1）
                    # 7：一日的账只算到当天最后一盘，定稿等于最后一次记账；定稿的表带期末余额，下一日第一盘与它的差额
                    #    全部记成期初调整，隔夜那一段不再归上一日（inventory_report，U75、U76）
+                   # 8：商店兑换（代币商店）与商店套利同一阶段：同一段里两者都有时按类别拆，B 类归兑换、其余归套利，
+                   #    金币与天赋神药按兑换前后两次顶栏读数拆；B 类跨过吸取、套利段的一笔整笔归兑换（代币商店接入计划 §2）
 # 顶栏货币在账里的名字 → 货币读数里的字段。
 CURRENCY = (("金币", "gold"), ("钻石", "diamond"), ("钻石（免费）", "diamond_free"),
             ("钻石（付费）", "diamond_paid"), ("天赋神药", "tonic"))
 CURRENCY_SCOPE = "$"
+# 商店兑换前后各读一次的顶栏：这两样按读数之差从同一段里拆给兑换（代币商店接入计划 §2.2）。
+EXCHANGE_BAR = (("金币", "gold"), ("天赋神药", "tonic"))
+EXCHANGE = "exchange"
 # 周期完成记录里属于采集卡带的键名前缀（剧情、活动、角色卡带）；别的是日常任务之类的完成记录。
 CARD_PREFIXES = ("Story_", "Event_", "Character_")
 # 判成 0 的读数夹在两次相同的读数之间、数量不小于它，就当作那次盘点漏读（做账参数，改了重算）。
@@ -65,6 +72,9 @@ def dedupe(vouchers) -> list:
         elif kind == "collect_loot":
             key = (kind, event.get("session"), (event.get("task") or {}).get("task_id"), event.get("first_at"),
                    event.get("card"))
+        elif kind == "token_balance":
+            key = (kind, event.get("session"), (event.get("task") or {}).get("task_id"), event.get("shop"),
+                   event.get("phase"), event.get("at"))
         else:
             key = (kind, event.get("observed_at"), event.get("reason"), reference.get("scan_id"), reference.get("page"),
                    tuple(sorted(event.get("quantities") or event.get("items") or ())))
@@ -216,6 +226,76 @@ def _loot_rows(events) -> list:
     return rows
 
 
+def _exchange_bars(events) -> dict:
+    """商店兑换前后的两次顶栏读数（不跟盘点、带 origin 的 currency_reading）：(会话, 任务号) → {"open", "close"}，
+    各是 {账里的货币名: 数}，没读到的那一样不在里面。进店前那次是 probe 位置读的，离店后那次是事后的始标记读的。"""
+    bars = {}
+    for event in events:
+        origin = event.get("origin")
+        if event.get("kind") != "currency_reading" or event.get("scan_id") or not isinstance(origin, dict) \
+                or origin.get("type") != EXCHANGE or origin.get("mark") not in ("probe", "begin"):
+            continue
+        side = "open" if origin["mark"] == "probe" else "close"
+        values = {name: event[field] for name, field in EXCHANGE_BAR if type(event.get(field)) is int}
+        bars.setdefault((origin.get("session"), (origin.get("task") or {}).get("task_id")), {})[side] = values
+    return bars
+
+
+def _token_visits(events) -> list:
+    """主页面商店的代币余额：进店一条、离店一条（凭证 token_balance），按会话、任务、店配成一次进店。
+    只有进店没有离店的（任务中途停了）照列，离店为空。"""
+    rows = sorted((event for event in events if event.get("kind") == "token_balance" and ts(event.get("at")) is not None),
+                  key=lambda event: ts(event["at"]) or 0.0)
+    visits, open_ = [], {}
+    for event in rows:
+        key = (event.get("session"), (event.get("task") or {}).get("task_id"), event.get("shop"))
+        balance = event.get("balance") if type(event.get("balance")) is int else None
+        if event.get("phase") == "enter":
+            visit = {"shop": event.get("shop"), "entered": balance, "entered_at": event["at"], "left": None, "left_at": None,
+                     "session": key[0], "task_id": key[1]}
+            visits.append(visit)
+            open_[key] = visit
+        elif event.get("phase") == "leave" and key in open_:
+            visit = open_.pop(key)
+            visit["left"], visit["left_at"] = balance, event["at"]
+    for visit in visits:
+        both = visit["entered"] is not None and visit["left"] is not None
+        visit["spent"] = visit["entered"] - visit["left"] if both else None
+    return visits
+
+
+def _anchored(opening, marks, tasks, gap) -> bool:
+    """商店兑换的始标记是事后留的，标记处不盘：这一段开头那次盘点得紧挨着代币商店——同一个会话，从盘点所在的任务到
+    代币商店一个接一个、没有超过阈值的空档（进店前补盘的话，那次盘点就在代币商店自己的任务里）。否则兑换前的手动操作
+    混进了这一段，数量上与兑换分不开。"""
+    session, opener = opening["origin"].get("session"), (opening["origin"].get("task") or {}).get("task_id")
+    for mark in marks:
+        if mark["session"] != session:
+            return False
+        rows = sorted((task for task in tasks.values() if task["session"] == session and task["start"] is not None),
+                      key=lambda task: task["start"])
+        if not _connected(rows, opener, mark["task_id"], gap):
+            return False
+    return True
+
+
+def _exchange(begins, kind, opening, tasks, bars, gap):
+    """有商店兑换的段：哪几个任务、开头接没接上、同一段里与套利一起时金币与天赋神药各拆多少给兑换。"""
+    marks = [mark for mark in begins if mark["type"] == EXCHANGE]
+    if not marks:
+        return None
+    split, unsplit = {}, []
+    for name, _ in EXCHANGE_BAR:
+        pairs = [bars.get((mark["session"], mark["task_id"])) or {} for mark in marks]
+        values = [(pair.get("open") or {}).get(name) for pair in pairs] + [(pair.get("close") or {}).get(name) for pair in pairs]
+        if any(value is None for value in values):
+            unsplit.append(name)
+        else:
+            split[name] = sum((pair["close"][name] - pair["open"][name]) for pair in pairs)
+    return {"tasks": [mark["task_id"] for mark in marks], "combined": kind != EXCHANGE,
+            "anchored": _anchored(opening, marks, tasks, gap), "split": split, "unsplit": unsplit}
+
+
 def _visits_between(visits, lower, upper) -> list:
     return [{key: iso(value) if key in ("first", "last") else value for key, value in visit.items()}
             for visit in visits if lower < visit["first"] <= upper]
@@ -292,7 +372,7 @@ def _settled(interval_tasks, closing, tasks, gap) -> bool:
     return _connected(rows, last["task_id"], closer, gap)
 
 
-def _intervals(scans, marks, tasks, events, quiet, gap, visits=()):
+def _intervals(scans, marks, tasks, events, quiet, gap, visits=(), bars=None):
     quiet = frozenset(quiet)
     orphans = _orphan_pages(events, scans)
     intervals = []
@@ -339,6 +419,8 @@ def _intervals(scans, marks, tasks, events, quiet, gap, visits=()):
             break
         if len(types) == 1 and not strangers:
             kind = types[0]
+        elif set(types) == {"shop", EXCHANGE} and not strangers:
+            kind = "shop"   # 同一个「商店」阶段：整段归商店，做账时按类别把 B 类拆给兑换（inventory_report._owner）
         elif not types and not strangers:
             kind = "outside"
         else:
@@ -346,10 +428,14 @@ def _intervals(scans, marks, tasks, events, quiet, gap, visits=()):
         flags = []
         if kind in ("collect", "shop"):
             ended = {(mark["session"], mark["task_id"]) for mark in marks if mark["mark"] == "end" and mark["type"] == kind}
-            if any((mark["session"], mark["task_id"]) not in ended for mark in begins):
+            # 只看本类型的始标记：商店兑换的始标记是事后留的，本来就没有结束标记。
+            if any((mark["session"], mark["task_id"]) not in ended for mark in begins if mark["type"] == kind):
                 flags.append("abnormal_end")
-        if kind in ("daily", "collect", "shop") and not _settled(shown, closing, tasks, gap):
+        if kind in ("daily", "collect", "shop", EXCHANGE) and not _settled(shown, closing, tasks, gap):
             flags.append("unsettled")
+        exchange = _exchange(begins, kind, opening, tasks, bars or {}, gap) if kind in ("shop", EXCHANGE) else None
+        if exchange and not exchange["anchored"]:
+            flags.append("unanchored")
         if opening["day"] != closing["day"]:
             flags.append("cross_day")
         if any(opening["at"] < at <= closing["at"] for at in orphans):
@@ -362,7 +448,7 @@ def _intervals(scans, marks, tasks, events, quiet, gap, visits=()):
             "kind": kind, "types": types, "flags": flags, "tasks": brief,
             "strangers": [task["entry"] for task in strangers], "cards": cards, "sessions": len(sessions),
             "closed_by": closing["origin"].get("mark"), "book": _book(events, opening["at"], closing["at"]),
-            "loot": _visits_between(visits, opening["at"], closing["at"])})
+            "loot": _visits_between(visits, opening["at"], closing["at"]), "exchange": exchange})
     return intervals, tail
 
 
@@ -463,8 +549,8 @@ def build_ledger(vouchers, *, catalog=None, quiet=(), gap: float = GAP_SECONDS) 
     scans = _scan_rows(events, currencies)
     marks = _mark_rows(events, scans)
     tasks = _task_rows(marks, scans)
-    intervals, tail = _intervals(scans, marks, tasks, events, quiet, gap, _loot_rows(events))
+    intervals, tail = _intervals(scans, marks, tasks, events, quiet, gap, _loot_rows(events), _exchange_bars(events))
     public = [{key: value for key, value in scan.items() if key != "started"} | {
         "at": iso(scan["at"]), "started_at": iso(scan["started"]), "ts": scan["at"]} for scan in scans]
     return {"rule_version": RULE_VERSION, "gap_seconds": gap, "scans": public, "intervals": intervals,
-            "items": _chains(scans, catalog or {}, intervals), "tail": tail}
+            "items": _chains(scans, catalog or {}, intervals), "tail": tail, "token_visits": _token_visits(events)}

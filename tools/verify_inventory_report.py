@@ -81,7 +81,7 @@ class Story:
         row = self.rows[-1]
         node = node or f"Ledger_{mark}_{kind}"
         task = {"entry": row["entry"], "task_id": row["task_id"]}
-        if mark != "end" or end_mark:
+        if mark != "probe" and (mark != "end" or end_mark):   # 进店前的 probe 不留标记
             self.events.append({"kind": "ledger_mark", "mark": mark, "type": kind, "at": iso(self.now),
                                 **({"cards": dict(self.cycles)} if kind == "collect" else {}),
                                 "observed_at": iso(self.now), "session": self.session, "task": task, "node": node,
@@ -169,6 +169,32 @@ class Story:
                             "items": dict(items), "unknown": {}, "unread": 0, "stuck": 0})
         return self
 
+    def bar(self, mark, fields=("gold", "tonic")):
+        """商店兑换前后各一次的顶栏读数：不挂盘点，带 origin 指回读它的位置（probe 进店前、begin 离店后）。"""
+        row = self.rows[-1]
+        self.now += 2
+        self.events.append({"kind": "currency_reading", "scan_id": None, "observed_at": iso(self.now),
+                            "label": f"记账·商店兑换{mark}", **{key: self.money.get(key) for key in fields},
+                            "origin": {"mark": mark, "type": "exchange", "node": f"Ledger_{mark}_exchange", "session": self.session,
+                                       "task": {"entry": row["entry"], "task_id": row["task_id"]}}})
+        return self
+
+    def token(self, shop, phase, balance):
+        row = self.rows[-1]
+        self.now += 3
+        self.events.append({"kind": "token_balance", "shop": shop, "phase": phase, "balance": balance, "at": iso(self.now),
+                            "observed_at": iso(self.now), "session": self.session,
+                            "task": {"entry": row["entry"], "task_id": row["task_id"]}})
+        return self
+
+    def token_shop(self, probe=None, bought=True, close_fields=("gold", "tonic"), **changes):
+        """代币商店一趟：进店前（probe 给了范围才补盘）读顶栏，金线进店、买、离店，买成过才留事后的始标记并再读顶栏。"""
+        self.task("TokenShop_Start").at("probe", "exchange", probe).bar("probe")
+        self.token("金线", "enter", 85_141).work(30, **changes).token("金线", "leave", 85_141 - (3_000 if bought else 0))
+        if bought:
+            self.at("begin", "exchange").bar("begin", close_fields)
+        return self
+
     def ledger(self):
         return build_ledger(self.events, catalog=CATALOG, quiet=QUIET)
 
@@ -197,6 +223,11 @@ def next_morning(story):
 
 def item(model, name):
     return next(row for row in model["items"] if row["name"] == name)
+
+
+def moved(model, name):
+    """一样东西在各列的变动，只留不为 0 的。"""
+    return {key: value for key, value in item(model, name)["deltas"].items() if value}
 
 
 class LedgerTests(unittest.TestCase):
@@ -737,6 +768,109 @@ class RenderTests(unittest.TestCase):
         story = next_morning(preset_run(Story()))
         model = story.report(account={"hash": "3f9a0c21", "alias": "A 号"}, **options)
         return model, render_day_html(model)
+
+    def exchange_run(self, story, **options):
+        """预设顺序插进代币商店：日常 → 吸取 → 代币商店（买成）→ 商店套利，收尾那一盘 A+B。"""
+        story.task("Daily_HomePage").at("begin", "daily", FULL).work(精炼石=3)
+        story.task("Collect_StartGame_HomePage").at("begin", "collect", FULL).work(600, 兽肉=400, gold=20_000)
+        story.at("end", "collect", ("A",))
+        story.token_shop(精炼石=20, 抽抽乐券=1, gold=100_000, tonic=50, **options)
+        story.task("Arbitrage_Start").at("begin", "shop").buy("米", 100, 1700).work(30, 兽肉=-100, gold=-50_000)
+        return story.at("end", "shop", ("A", "B"))
+
+    def test_x1_exchange_splits_by_category_inside_the_shop_interval(self):
+        """代币商店接入计划 §2：同一段里 B 类归兑换，存货归套利；金币、天赋神药按兑换前后两次顶栏读数拆。"""
+        story = self.exchange_run(Story())
+        ledger = story.ledger()
+        shop = ledger["intervals"][-1]
+        self.assertEqual((shop["kind"], shop["types"], shop["flags"]), ("shop", ["exchange", "shop"], []))
+        self.assertEqual(shop["exchange"]["split"], {"金币": 100_000, "天赋神药": 50})
+        model = story.report()
+        self.assertEqual([col["key"] for col in model["cols"]], ["daily", "collect", "exchange", "shop"])
+        self.assertEqual(moved(model, "精炼石"), {"daily": 3, "exchange": 20})   # 跨过吸取段，整笔归兑换
+        self.assertEqual(moved(model, "抽抽乐券"), {"exchange": 1})
+        self.assertEqual(moved(model, "金币"), {"collect": 20_000, "exchange": 100_000, "shop": -51_700})
+        self.assertEqual(moved(model, "天赋神药"), {"exchange": 50})
+        self.assertEqual(moved(model, "兽肉"), {"collect": 400, "shop": -100})
+        self.assertNotIn("exchange", item(model, "兽肉")["gaps"])
+        self.assertTrue(all(check["ok"] for check in model["checks"]), model["checks"])
+        self.assertEqual(model["shop"]["gold"]["net"], -51_700)   # 套利的账实核对不含兑换的金币
+        rows = {row["label"]: row for row in model["statement"]["rows"]}
+        self.assertEqual(rows["代币商店兑换"]["cash"], 100_000)
+        section = model["exchange"]
+        self.assertEqual([(row["name"], row["quantity"]) for row in section["items"]],
+                         [("金币", 100_000), ("天赋神药", 50), ("抽抽乐券", 1), ("精炼石", 20)])
+        self.assertEqual([(visit["shop"], visit["entered"], visit["left"], visit["spent"]) for visit in section["visits"]],
+                         [("金线", 85_141, 82_141, 3_000)])
+        page = render_day_html(model)
+        self.assertIn("六、商店兑换", page)
+        self.assertIn("金线", page)
+        self.assertIn("兑换 +100,000", model["summary"])
+
+    def test_x2_no_token_shop_no_section(self):
+        model = preset_run(Story()).report()
+        self.assertIsNone(model["exchange"])
+        self.assertNotIn("六、商店兑换", render_day_html(model))
+        self.assertNotIn("exchange", [col["key"] for col in model["cols"]])
+
+    def test_x3_visit_without_purchase_shows_only_the_balances(self):
+        story = Story()
+        story.task("Daily_HomePage").at("begin", "daily", FULL)
+        story.task("Collect_StartGame_HomePage").at("begin", "collect", FULL).work(兽肉=10)
+        story.at("end", "collect", ("A",))
+        story.token_shop(bought=False)
+        story.task("Arbitrage_Start").at("begin", "shop").work(30, 兽肉=-5)
+        model = story.at("end", "shop", ("A",)).report()
+        self.assertNotIn("exchange", [col["key"] for col in model["cols"]])
+        self.assertEqual(model["exchange"]["runs"], 0)
+        self.assertEqual(model["exchange"]["visits"][0]["spent"], 0)
+        self.assertIn("一件没买成", render_day_html(model))
+
+    def test_x4_top_bar_not_read_after_leaving_keeps_that_currency_with_the_shop(self):
+        model = self.exchange_run(Story(), close_fields=("gold",)).report()
+        self.assertEqual(moved(model, "天赋神药"), {"shop": 50})
+        self.assertEqual(model["exchange"]["unsplit"], ["天赋神药"])
+        self.assertTrue(any("天赋神药" in notice["text"] and "没读全" in notice["text"] for notice in model["notices"]))
+        self.assertTrue(all(check["ok"] for check in model["checks"]))
+
+    def test_x5_exchange_without_a_scan_right_before_it_is_flagged(self):
+        """进店前补盘没执行时：这一段开头那次盘点是上一次运行的，兑换与其间的手动操作分不开。"""
+        story = Story()
+        story.task("Daily_HomePage").at("begin", "daily", FULL)
+        story.task("Ledger_Settle_Manual").at("manual", None, ("B", "C"))
+        story.restart(1800).work(精炼石=-7)   # 隔了半小时，中间手动玩过
+        story.token_shop(精炼石=20)
+        model = story.task("Ledger_Settle_Manual").at("manual", None, ("B",)).report()
+        last = model["segments"][-1]
+        self.assertEqual((last["kind"], last["flags"]), ("exchange", ["unanchored"]))
+        self.assertEqual(moved(model, "精炼石"), {"exchange": 13})
+        self.assertTrue(any("没有紧挨着的盘点" in notice["text"] for notice in model["notices"]))
+
+    def test_x6_daily_straight_into_token_shop(self):
+        """没排吸取：进店前补盘收掉日常，兑换与套利同一段照常拆。"""
+        story = Story()
+        story.task("Daily_HomePage").at("begin", "daily", FULL).work(精炼石=3)
+        story.token_shop(probe=FULL, 精炼石=20, gold=100_000)
+        story.task("Arbitrage_Start").at("begin", "shop").work(30, 兽肉=-100, gold=-50_000)
+        model = story.at("end", "shop", ("A", "B")).report()
+        self.assertEqual([segment["kind"] for segment in model["segments"]], ["daily", "shop"])
+        self.assertEqual(moved(model, "精炼石"), {"daily": 3, "exchange": 20})
+        self.assertEqual(moved(model, "金币"), {"exchange": 100_000, "shop": -50_000})
+        self.assertTrue(all(check["ok"] for check in model["checks"]))
+
+    def test_x7_exchange_pending_until_a_later_close(self):
+        """买成了、后面没排套利：期中表上提醒还没盘；结束游戏盘了 B 才进「商店兑换」一列。"""
+        story = Story()
+        story.task("Daily_HomePage").at("begin", "daily", FULL)
+        story.task("Collect_StartGame_HomePage").at("begin", "collect", FULL).work(兽肉=10)
+        story.at("end", "collect", ("A",))
+        story.token_shop(精炼石=20)
+        waiting = story.report()
+        self.assertTrue(waiting["exchange"]["pending"])
+        self.assertIn("买到的还没盘", render_day_html(waiting))
+        model = story.task("Close_HomePage").at("queue_end", None, ("B",)).report()
+        self.assertEqual(model["segments"][-1]["kind"], "exchange")
+        self.assertEqual(moved(model, "精炼石"), {"exchange": 20})
 
     def test_page_is_one_self_contained_file(self):
         model, page = self.page()
