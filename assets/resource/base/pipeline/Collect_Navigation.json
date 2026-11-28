@@ -1803,7 +1803,7 @@
         "focus": "C14.步行前往剑之神殿左侧回廊"
     },
     "Collect_PackFinish": {
-        "desc": "整卡已确认完成的公共收尾 | 先确认快速卡带列表，否则调出列表或复位箱庭；只有列表确认后才写完成并禁用当前卡，等待失败交失败收尾。",
+        "desc": "整卡已确认完成的公共收尾 | 先确认快速卡带列表，否则调出列表或复位箱庭；只有列表确认后才写完成并禁用当前卡，等待失败交失败收尾。 | next 首位按锚点 Steal_Merchant 回跳偷商人（Collect_Steal.json，S1/S3/S5/S6 选卡时设）：移动魔法阵面板开着时它认不到寻路按钮，先由 Global_ToSandBox 回箱庭，下一轮才进；进去即清锚点，只进一次。",
         "pre_delay": 0,
         "action": "Custom",
         "custom_action": "ResetTag",
@@ -1815,6 +1815,7 @@
         "post_delay": 0,
         "timeout": 20000,
         "next": [
+            "[JumpBack][Anchor]Steal_Merchant",
             "Collect_QuickCart_SuccessUI",
             "[JumpBack]Global_QuickCart_MenuReset",
             "[JumpBack]Global_ToSandBox"

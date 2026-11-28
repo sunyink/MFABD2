@@ -1,0 +1,383 @@
+{
+    "Collect_Steal_Entry": {
+        "desc": "吸取收尾顺手偷商人的入口：箱庭里认到寻路按钮才进来，清本链计数与锚点，每张卡偷没偷成都只进一次 | S1/S3/S5/S6 选卡时（Collect_Pack_Story_1/3/5/6）把锚点 Steal_Merchant 指向本节点，Collect_PackFinish 的 next 首位按锚点回跳进来。移动魔法阵面板还开着时认不到寻路按钮，PackFinish 先由 Global_ToSandBox 回到箱庭，下一轮才轮到这里。界面「采集顺手偷商人」选 No、或 PC 覆盖包，把本节点 enabled 关掉。",
+        "enabled": true,
+        "recognition": "Or",
+        "any_of": [
+            "Collect_WayPoint_Open_Tpl"
+        ],
+        "pre_delay": 0,
+        "action": "Custom",
+        "custom_action": "ClearNodeHitCount",
+        "custom_action_param": {
+            "node_name": [
+                "Collect_Steal_Guide",
+                "Collect_Steal_Shop",
+                "Collect_Steal_MoveConfirm",
+                "Collect_Steal_Open",
+                "Collect_Steal_Up",
+                "Collect_Steal_UpBack",
+                "Collect_Steal_Go",
+                "Collect_Steal_Confirm",
+                "Collect_Steal_Close",
+                "Collect_Steal_UpConfirm",
+                "Collect_Steal_UpSkip",
+                "Collect_Steal_UpDone",
+                "Collect_Steal_SkipAnim"
+            ]
+        },
+        "anchor": {
+            "Steal_Merchant": ""
+        },
+        "post_delay": 0,
+        "next": [
+            "Collect_Steal_Guide"
+        ],
+        "focus": "偷商人：开始"
+    },
+    "Collect_Steal_Guide": {
+        "desc": "点开寻路列表 | 识别借 Collect_WayPoint_Open_Tpl（含 PC 素材）。按钮是开关，列表打开后模板认不到，自引用不会把列表点关；限 3 次。",
+        "max_hit": 3,
+        "recognition": "Or",
+        "any_of": [
+            "Collect_WayPoint_Open_Tpl"
+        ],
+        "action": "Click",
+        "post_delay": 800,
+        "next": [
+            "Collect_Steal_Shop",
+            "Collect_Steal_Guide"
+        ],
+        "focus": "偷商人：打开寻路列表"
+    },
+    "Collect_Steal_Shop": {
+        "desc": "寻路列表里点「商店」，瞬移到商人面前 | 识别借 Arbitrage_NviGuide_Merchant_Ocr（含 PC roi）。列表里没有商店时认不到，超时后默认退栈，回 PackFinish 照常收尾。",
+        "max_hit": 3,
+        "recognition": "Or",
+        "any_of": [
+            "Arbitrage_NviGuide_Merchant_Ocr"
+        ],
+        "action": "Click",
+        "post_delay": 800,
+        "next": [
+            "Collect_Steal_MoveConfirm",
+            "Collect_Steal_Open",
+            "[JumpBack]Global_WaitingForLoading",
+            "Collect_Steal_Shop"
+        ],
+        "focus": "偷商人：寻路去商店"
+    },
+    "Collect_Steal_MoveConfirm": {
+        "desc": "寻路弹出确认框就点确认 | 识别借 Arbitrage_NviGuide_CKMsgBox_Ocr（含 PC roi）；不弹就由上一步直接认到商人。",
+        "max_hit": 3,
+        "recognition": "Or",
+        "any_of": [
+            "Arbitrage_NviGuide_CKMsgBox_Ocr"
+        ],
+        "action": "Click",
+        "post_delay": 1000,
+        "next": [
+            "Collect_Steal_Open",
+            "[JumpBack]Global_WaitingForLoading",
+            "Collect_Steal_MoveConfirm"
+        ]
+    },
+    "Collect_Steal_Open": {
+        "desc": "认到商人就点开对话 | 识别借 Arbitrage_Merchant_Ico：右下钱袋，或 S5 商人头顶名牌（点的是命中的那一个）。商人脚下有阵时右下会变手型，套利只给 S5 配了名牌兜底；改认名牌前的钱袋小图标待截图（计划 U13）。限 3 次。",
+        "max_hit": 3,
+        "recognition": "Or",
+        "any_of": [
+            "Arbitrage_Merchant_Ico"
+        ],
+        "action": "Click",
+        "post_delay": 2000,
+        "next": [
+            "Collect_Steal_Panel",
+            "Collect_Steal_Open"
+        ],
+        "focus": "偷商人：打开商人对话"
+    },
+    "Collect_Steal_Panel": {
+        "desc": "天赋技能面板：从游标首格开始扫一排卡，有能偷的就偷，扫到空位就关对话 | 识别借 Rec_<Arbitrage_Merchant_Dialog>_Ocr（认「天赋技能」字，PC 覆盖有 roi）。偷完回到这里，从首格重扫。",
+        "recognition": "Or",
+        "any_of": [
+            "Rec_<Arbitrage_Merchant_Dialog>_Ocr"
+        ],
+        "pre_delay": 0,
+        "post_delay": 0,
+        "next": [
+            "Collect_Steal_SlotFirst"
+        ]
+    },
+    "Collect_Steal_SlotFirst": {
+        "desc": "游标首格：第 1 张卡从倒计时到「选择」的一段，锚点 StealSlot 指向本节点 | DirectHit 不识别，直接把 roi 当结果框交出；倒计时、偷、有卡借这个框各取一段。每次回面板都从这里重扫。卡位取自 11-26 101-2 原图：首卡左缘 104、卡宽 94、步长约 99。",
+        "recognition": "DirectHit",
+        "roi": [
+            104,
+            566,
+            94,
+            70
+        ],
+        "pre_delay": 0,
+        "anchor": {
+            "StealSlot": "Collect_Steal_SlotFirst"
+        },
+        "post_delay": 0,
+        "next": [
+            "Collect_Steal_Up",
+            "Collect_Steal_Cd",
+            "Collect_Steal_Go",
+            "Collect_Steal_Card",
+            "Collect_Steal_Close"
+        ]
+    },
+    "Collect_Steal_SlotNext": {
+        "desc": "游标下一格：借上一格的框右移 99，锚点改指向本节点 | 扫到空位时倒计时、偷、有卡都不中，落到关对话；越过右边界时 roi 被裁空，DirectHit 也不中，所以不设 max_hit。",
+        "recognition": "DirectHit",
+        "roi": "[Anchor]StealSlot",
+        "roi_offset": [
+            99,
+            0,
+            0,
+            0
+        ],
+        "pre_delay": 0,
+        "anchor": {
+            "StealSlot": "Collect_Steal_SlotNext"
+        },
+        "post_delay": 0,
+        "next": [
+            "Collect_Steal_Up",
+            "Collect_Steal_Cd",
+            "Collect_Steal_Go",
+            "Collect_Steal_Card",
+            "Collect_Steal_Close"
+        ]
+    },
+    "Collect_Steal_Cd": {
+        "desc": "这一格有倒计时＝偷过了，去下一格 | 借游标框上段（倒计时行）。偷过的卡盖着扇形深灰，倒计时是白字压在上面。简体写「N天」、繁体写「N日」（11-28 实机），最后一天估计是「小时／小時」（未见过）。不收单独数字：标签顶和空位背景都被读成过「1」（11-28 S5 漏偷）。",
+        "recognition": "OCR",
+        "roi": "[Anchor]StealSlot",
+        "roi_offset": [
+            2,
+            0,
+            -6,
+            -44
+        ],
+        "expected": [
+            "天",
+            "日",
+            "小?[时時]"
+        ],
+        "pre_delay": 0,
+        "post_delay": 0,
+        "next": [
+            "Collect_Steal_SlotNext",
+            "Collect_Steal_Close"
+        ]
+    },
+    "Collect_Steal_Go": {
+        "desc": "这一格写着偷窃且没有倒计时，点它偷 | 借游标框中段（标签行）。排在倒计时之后，偷过的卡先被倒计时接走。全排共用一个计数：3 次真偷加 3 次余量，入口清零；倒计时漏读的偷过卡会在这里白点，计数用完后由「有卡」接走。",
+        "max_hit": 6,
+        "recognition": "OCR",
+        "roi": "[Anchor]StealSlot",
+        "roi_offset": [
+            2,
+            22,
+            -6,
+            -44
+        ],
+        "expected": [
+            "[偷葡][窃竊]"
+        ],
+        "pre_delay": 0,
+        "action": "Click",
+        "post_wait_freezes": 500,
+        "post_delay": 500,
+        "next": [
+            "Collect_Steal_Confirm",
+            "Collect_Steal_Panel",
+            "[JumpBack]Collect_Steal_SkipAnim"
+        ],
+        "focus": "偷商人：偷一张"
+    },
+    "Collect_Steal_Card": {
+        "desc": "这一格有卡但不能偷（如砍价），去下一格 | 借游标框下段认「选择」。不用颜色：刚偷完的卡整张盖灰时，右侧留白的米黄会没掉，「选择」照样认得出（11-28 合成图）。",
+        "recognition": "OCR",
+        "roi": "[Anchor]StealSlot",
+        "roi_offset": [
+            2,
+            40,
+            -6,
+            -36
+        ],
+        "expected": [
+            "[选選][择擇]"
+        ],
+        "pre_delay": 0,
+        "post_delay": 0,
+        "next": [
+            "Collect_Steal_SlotNext",
+            "Collect_Steal_Close"
+        ]
+    },
+    "Collect_Steal_Up": {
+        "desc": "这一格能升星就先升星 | 卡片等级那一行出现「升星」时点它（借游标框往下取等级行）。没进升星页、卡上「升星」还在就自环再点；升星消耗金币与天赋特效药，材料不够时确认按钮是暗的，由 Collect_Steal_UpBack 退出、接着偷。流程照 Practise_Skill_Bargaining_Upgrade*（生活技能刷级），但不在失败时停任务。限 4 次（最多 4 张卡），入口清零。",
+        "max_hit": 4,
+        "recognition": "OCR",
+        "roi": "[Anchor]StealSlot",
+        "roi_offset": [
+            2,
+            66,
+            -6,
+            -28
+        ],
+        "expected": [
+            "升星"
+        ],
+        "pre_delay": 0,
+        "action": "Click",
+        "post_wait_freezes": 500,
+        "post_delay": 0,
+        "next": [
+            "Collect_Steal_UpConfirm",
+            "Collect_Steal_Up",
+            "Collect_Steal_UpBack"
+        ],
+        "focus": "偷商人：天赋升星"
+    },
+    "Collect_Steal_UpConfirm": {
+        "desc": "升星页确认：按钮亮着才点 | 识别借 Practise_Skill_Bargaining_Upgrade_Ck（OCR「升星」＋亮色核，PC 有覆盖）。不等画面静止，否则会等到升星动画演完（11-28 PC 日志：确认后 6–7 秒才认到结果页）。点后按钮还在说明没点上，自环再点；按钮消失后交 Collect_Steal_UpSkip 点一下跳动画。限 6 次，入口清零。",
+        "max_hit": 6,
+        "recognition": "Or",
+        "any_of": [
+            "Practise_Skill_Bargaining_Upgrade_Ck"
+        ],
+        "pre_delay": 0,
+        "action": "Click",
+        "post_delay": 800,
+        "next": [
+            "Collect_Steal_UpDone",
+            "Collect_Steal_UpConfirm",
+            "Collect_Steal_UpSkip"
+        ],
+        "focus": "偷商人：确认升星"
+    },
+    "Collect_Steal_UpSkip": {
+        "desc": "升星确认后、按钮已消失而结果页还没出来：在画面中上 (640,200) 点一下试着跳过动画，然后只等结果页 | 这一点在升星页是右侧场景图、在结果页是标题字，都不是按钮，避开左上返回、右下确认与下方结果按钮（11-28 PC 截图）。跳不过也无妨，等动画演完。每次升星点一下，限 4 次，入口清零。",
+        "max_hit": 4,
+        "recognition": "DirectHit",
+        "pre_delay": 0,
+        "action": "Click",
+        "target": [
+            640,
+            200,
+            1,
+            1
+        ],
+        "post_delay": 500,
+        "next": [
+            "Collect_Steal_UpDone"
+        ],
+        "focus": "偷商人：跳过升星动画"
+    },
+    "Collect_Steal_UpDone": {
+        "desc": "升星结果页，点「升星」收下 | 识别借 Practise_Skill_Bargaining_Upgrade_Return（PC 实跑认得到）。实测每次要点两下；之后回面板，回不去就退出升星页。限 8 次（每次两下×4），入口清零。",
+        "max_hit": 8,
+        "recognition": "Or",
+        "any_of": [
+            "Practise_Skill_Bargaining_Upgrade_Return"
+        ],
+        "pre_delay": 0,
+        "action": "Click",
+        "post_wait_freezes": 500,
+        "post_delay": 0,
+        "next": [
+            "Collect_Steal_Panel",
+            "Collect_Steal_UpDone",
+            "Collect_Steal_UpBack"
+        ]
+    },
+    "Collect_Steal_UpBack": {
+        "desc": "退出升星页回到商人对话 | 识别借 Global_BackPageHub_Once（左上返回键，含 PC 素材），借识别不占它的计数。排在面板之后：商人对话的左上也有返回键，面板认得到时绝不点。材料不够时也从这里退。限 6 次（11-28 PC 一次进店升星 3 张，每张退一次），入口清零。",
+        "max_hit": 6,
+        "recognition": "Or",
+        "any_of": [
+            "Global_BackPageHub_Once"
+        ],
+        "pre_delay": 0,
+        "action": "Click",
+        "post_delay": 1500,
+        "next": [
+            "Collect_Steal_Panel",
+            "Collect_Steal_UpBack"
+        ]
+    },
+    "Collect_Steal_Confirm": {
+        "desc": "确认框里点偷窃 | 框里再认一次「偷窃」并点（ADB、PC 都实跑过）。不等画面静止：技能动画一直在动，等静止会拖到动画演完，跳过就白做了（11-28 PC 日志）。限 6 次，Entry 每卡清零。",
+        "max_hit": 6,
+        "recognition": "OCR",
+        "roi": [
+            648,
+            407,
+            137,
+            82
+        ],
+        "expected": [
+            "[偷葡][窃竊]"
+        ],
+        "action": "Click",
+        "post_delay": 500,
+        "next": [
+            "Collect_Steal_Panel",
+            "[JumpBack]Collect_Steal_SkipAnim",
+            "Collect_Steal_Confirm"
+        ],
+        "focus": "偷商人：确认偷窃"
+    },
+    "Collect_Steal_SkipAnim": {
+        "desc": "技能动画中，「天赋技能」面板不在就左键点一下跳过 | NotRecognition 反转 Rec_<Arbitrage_Merchant_Dialog>_Ocr，ADB 与 PC 共用这一判据（PC 覆盖只改点击位置）。排在 Collect_Steal_Panel 之后，面板一回来就不再点。点这个位置不会关掉偷窃菜单（用户确认）。NotRecognition 命中时框是空的，所以 target 写死，且「非」这一侧不写 roi。 限 15 次（每次偷窃约点 2–4 下），入口清零：防弹窗盖住面板时一直点下去。",
+        "max_hit": 15,
+        "recognition": "Custom",
+        "custom_recognition": "NotRecognition",
+        "custom_recognition_param": {
+            "node": "Rec_<Arbitrage_Merchant_Dialog>_Ocr"
+        },
+        "action": "Click",
+        "target": [
+            130,
+            447
+        ],
+        "post_delay": 400,
+        "rate_limit": 500
+    },
+    "Collect_Steal_Close": {
+        "desc": "没有能偷的卡了，点左上返回关掉对话 | 三种情况都走这里：偷完了、这个商人只有砍价、号里没有偷窃角色。限 3 次。",
+        "max_hit": 3,
+        "recognition": "Or",
+        "any_of": [
+            "Rec_<Arbitrage_Merchant_Dialog>_Ocr"
+        ],
+        "action": "Click",
+        "target": [
+            135,
+            40
+        ],
+        "post_delay": 1000,
+        "next": [
+            "Collect_Steal_Done",
+            "Collect_Steal_Close"
+        ],
+        "focus": "偷商人：关闭对话"
+    },
+    "Collect_Steal_Done": {
+        "desc": "对话已关、回到商人旁：偷窃结束，退栈回 Collect_PackFinish | 识别借 Arbitrage_Merchant_Ico；不写 next。人留在商人旁，下周进卡由寻路归位回阵。",
+        "recognition": "Or",
+        "any_of": [
+            "Arbitrage_Merchant_Ico"
+        ],
+        "pre_delay": 0,
+        "post_delay": 0,
+        "focus": "偷商人：结束"
+    }
+}
