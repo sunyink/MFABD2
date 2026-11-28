@@ -351,7 +351,7 @@
         },
         {
             "name": "[执行]代币商店兑换",
-            "label": "[试验]代币商店兑换",
+            "label": "[执行]代币商店兑换",
             "entry": "TokenShop_Start",
             "controller": [
                 "Adb",
