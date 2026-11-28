@@ -262,49 +262,6 @@
             "description": "每周执行：访问<code>街机页面</code>、在<code>我的小屋</code>对随机访客点赞4次、打1轮<code>末日之书</code>、<code>钓鱼</code>1条。<br>周期触发器已实装，同周期内不会重复执行。"
         },
         {
-            "name": "[执行]偷窃周常(测试)",
-            "label": "[执行]偷窃周常",
-            "entry": "Steal_Start",
-            "default_check": false,
-            "controller": [
-                "PC客户端",
-                "PC客户端(Cursor)"
-            ],
-            "option": [
-                "偷窃-跳过本周完成记录"
-            ],
-            "description": "<b>偷窃周常：剧情卡1–8，共13名NPC，每名检查三个角色。</b><br>从剧情自由场景或大厅启动，自动切卡、前往固定起点并核对NPC姓名；三个角色均出现周冷却后才记为完成。<br>每张地图目标全部完成后自动使用第3技能页「生成魔法阵」回到该图传送阵（室内收尾时先快速移动至室外探索告示板再施法）。<br>默认跳过本周已完成的NPC，可在任务设置中关闭；单名失败会保留未完成状态并继续其他目标。「二次尝试」使用相同名单与周记录跳过开关。<br>每周一08:00（北京时间）刷新。已完成13条路线实机验证，支持Windows PC客户端，建议使用PC客户端(Cursor)。"
-        },
-        {
-            "name": "[执行]偷窃周常(二次尝试)",
-            "label": "[执行]偷窃周常(二次尝试)",
-            "entry": "Steal_Start2",
-            "default_check": false,
-            "controller": [
-                "PC客户端",
-                "PC客户端(Cursor)"
-            ],
-            "option": [
-                "偷窃-跳过本周完成记录"
-            ],
-            "description": "<b>偷窃周常：剧情卡1–8，共13名NPC，每名检查三个角色。</b><br>从剧情自由场景或大厅启动，自动切卡、前往固定起点并核对NPC姓名；三个角色均出现周冷却后才记为完成。<br>每张地图目标全部完成后自动使用第3技能页「生成魔法阵」回到该图传送阵（室内收尾时先快速移动至室外探索告示板再施法）。<br>默认跳过本周已完成的NPC，可在任务设置中关闭；单名失败会保留未完成状态并继续其他目标。「二次尝试」使用相同名单与周记录跳过开关。<br>每周一08:00（北京时间）刷新。已完成13条路线实机验证，支持Windows PC客户端，建议使用PC客户端(Cursor)。"
-        },
-        {
-            "name": "[辅助]复原占位（回到传送阵）",
-            "label": "[辅助]复原占位（回到传送阵）",
-            "entry": "ReturnTeleport_Start",
-            "default_check": false,
-            "controller": [
-                "PC客户端",
-                "PC客户端(Cursor)"
-            ],
-            "option": [
-                "复原-范围",
-                "复原-已在阵上跳过"
-            ],
-            "description": "使用已配置的生成魔法阵技能回到传送阵，供偷窃后或采集前恢复起点。<br>范围可选当前卡带、偷窃剧情1–8，或指定All范围：剧情1–19＋角色1–7＋全部已解锁活动卡；店长卡不处理，默认仅当前卡带。<br>默认已在传送阵时跳过施法；严格不徒步，技能不可用或无法确认位置时记录未完成。室内禁止施法时跳过并提示，不自动走出室内。<br>本任务独立执行，不读取偷窃周完成记录。生成技能按游戏规则消耗天赋药，并替换之前生成的魔法阵。"
-        },
-        {
             "name": "[领取]日常任务",
             "default_check": true,
             "entry": "Daily_HomePage",
@@ -391,7 +348,8 @@
                 "采集卡带屏蔽",
                 "采集卡带调试直采",
                 "第三图采集额外等待",
-                "采集掉落记录"
+                "采集掉落记录",
+                "采集顺手偷商人"
             ]
         },
         {
@@ -1551,6 +1509,25 @@
                             "enabled": true
                         }
                     }
+                }
+            ]
+        },
+        "采集顺手偷商人": {
+            "label": "吸取完顺手偷商人",
+            "type": "switch",
+            "default_case": "Yes",
+            "description": "S1、S3、S5、S6 这四张卡吸取完，顺路瞬移到商人那里，把号里偷窃角色还能偷的都偷掉，再接着收尾。剧情卡 1–8 里能偷的商人只有这四位，其他卡不去。<br>每个偷窃角色对每个商人每周能偷一次（周一刷新），偷过的会盖上倒计时、自动跳过；号里没有偷窃角色时只是去看一眼。偷完人留在商人旁，下周进卡时自动回传送阵。",
+            "cases": [
+                {
+                    "name": "No",
+                    "pipeline_override": {
+                        "Collect_Steal_Entry": {
+                            "enabled": false
+                        }
+                    }
+                },
+                {
+                    "name": "Yes"
                 }
             ]
         },
@@ -8200,125 +8177,6 @@
                         "Agt_MultiSave_Inject": {
                             "attach": {
                                 "account_id": "0"
-                            }
-                        }
-                    }
-                }
-            ]
-        },
-        "偷窃-跳过本周完成记录": {
-            "type": "switch",
-            "label": "跳过本周已完成 NPC",
-            "controller": [
-                "PC客户端",
-                "PC客户端(Cursor)"
-            ],
-            "default_case": "Yes",
-            "description": "开启：按当前账号的周完成记录，跳过本周已确认完成的 NPC。<br>关闭：忽略周记录跳过，重新前往并逐角色核验；游戏内已冷却的角色仍会跳过，三个角色均确认后记录完成。<br>每周一 08:00（北京时间）刷新。",
-            "cases": [
-                {
-                    "name": "Yes",
-                    "pipeline_override": {
-                        "Steal_Start": {
-                            "custom_action_param": {
-                                "skip_completed": true
-                            }
-                        },
-                        "Steal_Start2": {
-                            "custom_action_param": {
-                                "skip_completed": true
-                            }
-                        }
-                    }
-                },
-                {
-                    "name": "No",
-                    "pipeline_override": {
-                        "Steal_Start": {
-                            "custom_action_param": {
-                                "skip_completed": false
-                            }
-                        },
-                        "Steal_Start2": {
-                            "custom_action_param": {
-                                "skip_completed": false
-                            }
-                        }
-                    }
-                }
-            ]
-        },
-        "复原-范围": {
-            "type": "select",
-            "label": "复原范围",
-            "controller": [
-                "PC客户端",
-                "PC客户端(Cursor)"
-            ],
-            "default_case": "Current",
-            "description": "当前卡带：仅复原当前所在卡带，保持旧版行为。<br>偷窃剧情 1–8：逐一复原偷窃使用的剧情卡带。<br>All按指定范围处理已解锁的剧情1–19、角色1–7和全部活动卡；店长卡不处理，不纳入剧情20或角色8及以上。",
-            "cases": [
-                {
-                    "name": "Current",
-                    "label": "当前卡带",
-                    "pipeline_override": {
-                        "ReturnTeleport_Start": {
-                            "custom_action_param": {
-                                "scope": "current"
-                            }
-                        }
-                    }
-                },
-                {
-                    "name": "Steal",
-                    "label": "偷窃剧情 1–8",
-                    "pipeline_override": {
-                        "ReturnTeleport_Start": {
-                            "custom_action_param": {
-                                "scope": "steal"
-                            }
-                        }
-                    }
-                },
-                {
-                    "name": "All",
-                    "label": "剧情1–19＋角色1–7＋全部活动",
-                    "pipeline_override": {
-                        "ReturnTeleport_Start": {
-                            "custom_action_param": {
-                                "scope": "all"
-                            }
-                        }
-                    }
-                }
-            ]
-        },
-        "复原-已在阵上跳过": {
-            "type": "switch",
-            "label": "已在传送阵则跳过施法",
-            "controller": [
-                "PC客户端",
-                "PC客户端(Cursor)"
-            ],
-            "default_case": "Yes",
-            "description": "开启：明确确认角色已在传送阵附近时，跳过再次生成魔法阵，减少耗时和消耗。<br>关闭：按所选范围执行生成魔法阵技能；技能不可用或无法确认复原位置时仍会报告失败。",
-            "cases": [
-                {
-                    "name": "Yes",
-                    "pipeline_override": {
-                        "ReturnTP_OptimizeConfig": {
-                            "attach": {
-                                "skip_if_at_portal": true
-                            }
-                        }
-                    }
-                },
-                {
-                    "name": "No",
-                    "pipeline_override": {
-                        "ReturnTP_OptimizeConfig": {
-                            "attach": {
-                                "skip_if_at_portal": false
                             }
                         }
                     }

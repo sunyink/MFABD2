@@ -1,0 +1,74 @@
+{
+    "Collect_Steal_SlotFirst": {
+        "desc": "[PC覆盖] 游标首格。PC 卡比 base 小：卡宽约 78、间距约 83（约 0.83 倍）。11-28 PC S5 截图量：卡左缘 87/169/253/335，偷竊 y608–628、選擇 y628–644。倒计时行按比例推到 y590–614（PR #608 的 PC 读法是 y593–616，弱参考），PC 上还没见过倒计时。",
+        "roi": [
+            87,
+            590,
+            78,
+            58
+        ]
+    },
+    "Collect_Steal_SlotNext": {
+        "desc": "[PC覆盖] 步长 83。",
+        "roi_offset": [
+            83,
+            0,
+            0,
+            0
+        ]
+    },
+    "Collect_Steal_Cd": {
+        "desc": "[PC覆盖] 倒计时行 y590–614，未实测。",
+        "roi_offset": [
+            2,
+            0,
+            -4,
+            -34
+        ]
+    },
+    "Collect_Steal_Go": {
+        "desc": "[PC覆盖] 标签行 y606–632（偷竊实测 y608–628）。",
+        "roi_offset": [
+            2,
+            16,
+            -4,
+            -32
+        ]
+    },
+    "Collect_Steal_Card": {
+        "desc": "[PC覆盖] 「選擇」行 y626–648（实测 y628–644）。",
+        "roi_offset": [
+            2,
+            36,
+            -4,
+            -36
+        ]
+    },
+    "Collect_Steal_Up": {
+        "desc": "[PC覆盖] 等级行 y644–674（新手实测 y648–671；刷级 PC 覆盖的等级偏移同此）。",
+        "roi_offset": [
+            2,
+            54,
+            -4,
+            -28
+        ]
+    },
+    "Collect_Steal_SkipAnim": {
+        "desc": "[PC覆盖] 点击位置改左上角 (1,1)：用户确认点这里不会关掉偷窃菜单。判据在 base（「天赋技能」面板不在）。",
+        "target": [
+            1,
+            1,
+            1,
+            1
+        ]
+    },
+    "Collect_Steal_Close": {
+        "desc": "[PC覆盖] 左上返回键：截图实见约 (117,29)，取 (110,30)，同 Practise_Merchant_Menu_Return 的 PC 覆盖。",
+        "target": [
+            110,
+            30,
+            1,
+            1
+        ]
+    }
+}
