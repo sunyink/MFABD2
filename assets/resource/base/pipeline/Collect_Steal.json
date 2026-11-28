@@ -15,11 +15,7 @@
                 "Collect_Steal_Shop",
                 "Collect_Steal_MoveConfirm",
                 "Collect_Steal_Open",
-                "Collect_Steal_Slot1",
-                "Collect_Steal_Slot2",
-                "Collect_Steal_Slot3",
-                "Collect_Steal_Slot4",
-                "Collect_Steal_Slot5",
+                "Collect_Steal_Go",
                 "Collect_Steal_Confirm",
                 "Collect_Steal_Close"
             ]
@@ -60,7 +56,6 @@
         "next": [
             "Collect_Steal_MoveConfirm",
             "Collect_Steal_Open",
-            "[JumpBack]Collect_Steal_Moving",
             "[JumpBack]Global_WaitingForLoading",
             "Collect_Steal_Shop"
         ],
@@ -77,19 +72,9 @@
         "post_delay": 1000,
         "next": [
             "Collect_Steal_Open",
-            "[JumpBack]Collect_Steal_Moving",
             "[JumpBack]Global_WaitingForLoading",
             "Collect_Steal_MoveConfirm"
         ]
-    },
-    "Collect_Steal_Moving": {
-        "desc": "还在自动寻路就等 | 识别借 Arbitrage_NviGuide_Onfoot_Loop（含 PC roi）；不写 next，回跳回去再判。",
-        "recognition": "Or",
-        "any_of": [
-            "Arbitrage_NviGuide_Onfoot_Loop"
-        ],
-        "post_delay": 3000,
-        "focus": "偷商人：寻路中"
     },
     "Collect_Steal_Open": {
         "desc": "认到商人就点开对话 | 识别借 Arbitrage_Merchant_Ico：右下钱袋，或 S5 商人头顶名牌（点的是命中的那一个）。商人脚下有阵时右下会变手型，套利只给 S5 配了名牌兜底；改认名牌前的钱袋小图标待截图（计划 U13）。限 3 次。",
@@ -107,7 +92,7 @@
         "focus": "偷商人：打开商人对话"
     },
     "Collect_Steal_Panel": {
-        "desc": "天赋技能面板：逐个卡位找能偷的，一个都没有就关对话 | 识别借 Rec_<Arbitrage_Merchant_Dialog>_Ocr（认「天赋技能」字，PC 覆盖有 roi）。卡位排在前，Collect_Steal_Close 识别与本节点相同、排最后当兜底。",
+        "desc": "天赋技能面板：从游标首格开始扫一排卡，有能偷的就偷，扫到空位就关对话 | 识别借 Rec_<Arbitrage_Merchant_Dialog>_Ocr（认「天赋技能」字，PC 覆盖有 roi）。偷完回到这里，从首格重扫。",
         "recognition": "Or",
         "any_of": [
             "Rec_<Arbitrage_Merchant_Dialog>_Ocr"
@@ -115,155 +100,87 @@
         "pre_delay": 0,
         "post_delay": 0,
         "next": [
-            "Collect_Steal_Slot1",
-            "Collect_Steal_Slot2",
-            "Collect_Steal_Slot3",
-            "Collect_Steal_Slot4",
-            "Collect_Steal_Slot5",
+            "Collect_Steal_SlotFirst"
+        ]
+    },
+    "Collect_Steal_SlotFirst": {
+        "desc": "游标首格：第 1 张卡从倒计时到「选择」的一段，锚点 StealSlot 指向本节点 | DirectHit 不识别，直接把 roi 当结果框交出；倒计时、偷、有卡借这个框各取一段。每次回面板都从这里重扫。卡位取自 11-26 101-2 原图：首卡左缘 104、卡宽 94、步长约 99。",
+        "recognition": "DirectHit",
+        "roi": [
+            104,
+            566,
+            94,
+            70
+        ],
+        "pre_delay": 0,
+        "anchor": {
+            "StealSlot": "Collect_Steal_SlotFirst"
+        },
+        "post_delay": 0,
+        "next": [
+            "Collect_Steal_Cd",
+            "Collect_Steal_Go",
+            "Collect_Steal_Card",
             "Collect_Steal_Close"
         ]
     },
-    "Collect_Steal_Slot1": {
-        "desc": "第 1 个卡位能偷就点：写着偷窃、且卡片左缘那一条是亮的 | 偷过的卡左侧盖着深灰（宽度随剩余天数），能偷的整张是亮的；11-26 101-2 S1 原图实测左缘亮 (222,218,212)、偷过 (106,105,101)。卡位从 x=104 起、间距约 99。限 2 次，由 Collect_Steal_Entry 每卡清零。",
-        "max_hit": 2,
-        "recognition": "And",
-        "all_of": [
-            {
-                "sub_name": "Label",
-                "recognition": "OCR",
-                "roi": [
-                    110,
-                    588,
-                    82,
-                    26
-                ],
-                "expected": [
-                    "[偷葡][窃竊]"
-                ]
-            },
-            {
-                "sub_name": "Lit",
-                "recognition": "ColorMatch",
-                "roi": [
-                    106,
-                    598,
-                    5,
-                    14
-                ],
-                "lower": [
-                    190,
-                    185,
-                    178
-                ],
-                "upper": [
-                    245,
-                    240,
-                    235
-                ],
-                "count": 60
-            }
+    "Collect_Steal_SlotNext": {
+        "desc": "游标下一格：借上一格的框右移 99，锚点改指向本节点 | 扫到空位时倒计时、偷、有卡都不中，落到关对话；越过右边界时 roi 被裁空，DirectHit 也不中，所以不设 max_hit。",
+        "recognition": "DirectHit",
+        "roi": "[Anchor]StealSlot",
+        "roi_offset": [
+            99,
+            0,
+            0,
+            0
         ],
         "pre_delay": 0,
-        "action": "Click",
-        "post_wait_freezes": 500,
-        "post_delay": 500,
+        "anchor": {
+            "StealSlot": "Collect_Steal_SlotNext"
+        },
+        "post_delay": 0,
         "next": [
-            "Collect_Steal_Confirm",
-            "Collect_Steal_Panel",
-            "[JumpBack]Collect_Steal_SkipAnim"
-        ],
-        "focus": "偷商人：偷第 1 张"
+            "Collect_Steal_Cd",
+            "Collect_Steal_Go",
+            "Collect_Steal_Card",
+            "Collect_Steal_Close"
+        ]
     },
-    "Collect_Steal_Slot2": {
-        "desc": "第 2 个卡位能偷就点：写着偷窃、且卡片左缘那一条是亮的 | 偷过的卡左侧盖着深灰（宽度随剩余天数），能偷的整张是亮的；11-26 101-2 S1 原图实测左缘亮 (222,218,212)、偷过 (106,105,101)。卡位从 x=104 起、间距约 99。限 2 次，由 Collect_Steal_Entry 每卡清零。",
-        "max_hit": 2,
-        "recognition": "And",
-        "all_of": [
-            {
-                "sub_name": "Label",
-                "recognition": "OCR",
-                "roi": [
-                    209,
-                    588,
-                    82,
-                    26
-                ],
-                "expected": [
-                    "[偷葡][窃竊]"
-                ]
-            },
-            {
-                "sub_name": "Lit",
-                "recognition": "ColorMatch",
-                "roi": [
-                    205,
-                    598,
-                    5,
-                    14
-                ],
-                "lower": [
-                    190,
-                    185,
-                    178
-                ],
-                "upper": [
-                    245,
-                    240,
-                    235
-                ],
-                "count": 60
-            }
+    "Collect_Steal_Cd": {
+        "desc": "这一格有倒计时＝偷过了，去下一格 | 借游标框上段（倒计时行）。偷过的卡盖着扇形深灰，倒计时是白字压在上面。简体写「N天」、繁体写「N日」（11-28 实机），最后一天估计是「小时／小時」（未见过）。不收单独数字：标签顶和空位背景都被读成过「1」（11-28 S5 漏偷）。",
+        "recognition": "OCR",
+        "roi": "[Anchor]StealSlot",
+        "roi_offset": [
+            2,
+            0,
+            -6,
+            -44
+        ],
+        "expected": [
+            "天",
+            "日",
+            "小?[时時]"
         ],
         "pre_delay": 0,
-        "action": "Click",
-        "post_wait_freezes": 500,
-        "post_delay": 500,
+        "post_delay": 0,
         "next": [
-            "Collect_Steal_Confirm",
-            "Collect_Steal_Panel",
-            "[JumpBack]Collect_Steal_SkipAnim"
-        ],
-        "focus": "偷商人：偷第 2 张"
+            "Collect_Steal_SlotNext",
+            "Collect_Steal_Close"
+        ]
     },
-    "Collect_Steal_Slot3": {
-        "desc": "第 3 个卡位能偷就点：写着偷窃、且卡片左缘那一条是亮的 | 偷过的卡左侧盖着深灰（宽度随剩余天数），能偷的整张是亮的；11-26 101-2 S1 原图实测左缘亮 (222,218,212)、偷过 (106,105,101)。卡位从 x=104 起、间距约 99。限 2 次，由 Collect_Steal_Entry 每卡清零。",
-        "max_hit": 2,
-        "recognition": "And",
-        "all_of": [
-            {
-                "sub_name": "Label",
-                "recognition": "OCR",
-                "roi": [
-                    309,
-                    588,
-                    82,
-                    26
-                ],
-                "expected": [
-                    "[偷葡][窃竊]"
-                ]
-            },
-            {
-                "sub_name": "Lit",
-                "recognition": "ColorMatch",
-                "roi": [
-                    305,
-                    598,
-                    5,
-                    14
-                ],
-                "lower": [
-                    190,
-                    185,
-                    178
-                ],
-                "upper": [
-                    245,
-                    240,
-                    235
-                ],
-                "count": 60
-            }
+    "Collect_Steal_Go": {
+        "desc": "这一格写着偷窃且没有倒计时，点它偷 | 借游标框中段（标签行）。排在倒计时之后，偷过的卡先被倒计时接走。全排共用一个计数：3 次真偷加 3 次余量，入口清零；倒计时漏读的偷过卡会在这里白点，计数用完后由「有卡」接走。",
+        "max_hit": 6,
+        "recognition": "OCR",
+        "roi": "[Anchor]StealSlot",
+        "roi_offset": [
+            2,
+            22,
+            -6,
+            -44
+        ],
+        "expected": [
+            "[偷葡][窃竊]"
         ],
         "pre_delay": 0,
         "action": "Click",
@@ -274,112 +191,30 @@
             "Collect_Steal_Panel",
             "[JumpBack]Collect_Steal_SkipAnim"
         ],
-        "focus": "偷商人：偷第 3 张"
+        "focus": "偷商人：偷一张"
     },
-    "Collect_Steal_Slot4": {
-        "desc": "第 4 个卡位能偷就点：写着偷窃、且卡片左缘那一条是亮的 | 偷过的卡左侧盖着深灰（宽度随剩余天数），能偷的整张是亮的；11-26 101-2 S1 原图实测左缘亮 (222,218,212)、偷过 (106,105,101)。卡位从 x=104 起、间距约 99。限 2 次，由 Collect_Steal_Entry 每卡清零。",
-        "max_hit": 2,
-        "recognition": "And",
-        "all_of": [
-            {
-                "sub_name": "Label",
-                "recognition": "OCR",
-                "roi": [
-                    408,
-                    588,
-                    82,
-                    26
-                ],
-                "expected": [
-                    "[偷葡][窃竊]"
-                ]
-            },
-            {
-                "sub_name": "Lit",
-                "recognition": "ColorMatch",
-                "roi": [
-                    404,
-                    598,
-                    5,
-                    14
-                ],
-                "lower": [
-                    190,
-                    185,
-                    178
-                ],
-                "upper": [
-                    245,
-                    240,
-                    235
-                ],
-                "count": 60
-            }
+    "Collect_Steal_Card": {
+        "desc": "这一格有卡但不能偷（如砍价），去下一格 | 借游标框下段认「选择」。不用颜色：刚偷完的卡整张盖灰时，右侧留白的米黄会没掉，「选择」照样认得出（11-28 合成图）。",
+        "recognition": "OCR",
+        "roi": "[Anchor]StealSlot",
+        "roi_offset": [
+            2,
+            40,
+            -6,
+            -36
+        ],
+        "expected": [
+            "[选選][择擇]"
         ],
         "pre_delay": 0,
-        "action": "Click",
-        "post_wait_freezes": 500,
-        "post_delay": 500,
+        "post_delay": 0,
         "next": [
-            "Collect_Steal_Confirm",
-            "Collect_Steal_Panel",
-            "[JumpBack]Collect_Steal_SkipAnim"
-        ],
-        "focus": "偷商人：偷第 4 张"
-    },
-    "Collect_Steal_Slot5": {
-        "desc": "第 5 个卡位能偷就点：写着偷窃、且卡片左缘那一条是亮的 | 偷过的卡左侧盖着深灰（宽度随剩余天数），能偷的整张是亮的；11-26 101-2 S1 原图实测左缘亮 (222,218,212)、偷过 (106,105,101)。卡位从 x=104 起、间距约 99。限 2 次，由 Collect_Steal_Entry 每卡清零。",
-        "max_hit": 2,
-        "recognition": "And",
-        "all_of": [
-            {
-                "sub_name": "Label",
-                "recognition": "OCR",
-                "roi": [
-                    507,
-                    588,
-                    82,
-                    26
-                ],
-                "expected": [
-                    "[偷葡][窃竊]"
-                ]
-            },
-            {
-                "sub_name": "Lit",
-                "recognition": "ColorMatch",
-                "roi": [
-                    503,
-                    598,
-                    5,
-                    14
-                ],
-                "lower": [
-                    190,
-                    185,
-                    178
-                ],
-                "upper": [
-                    245,
-                    240,
-                    235
-                ],
-                "count": 60
-            }
-        ],
-        "pre_delay": 0,
-        "action": "Click",
-        "post_wait_freezes": 500,
-        "post_delay": 500,
-        "next": [
-            "Collect_Steal_Confirm",
-            "Collect_Steal_Panel",
-            "[JumpBack]Collect_Steal_SkipAnim"
-        ],
-        "focus": "偷商人：偷第 5 张"
+            "Collect_Steal_SlotNext",
+            "Collect_Steal_Close"
+        ]
     },
     "Collect_Steal_Confirm": {
-        "desc": "确认框里点偷窃 | 按砍价确认框类推（Arbitrage_Bargaining_Msgbox_Ck：框里再认一次技能名并点），roi 照抄，待实机核对（计划 V1）。限 6 次，Entry 每卡清零。",
+        "desc": "确认框里点偷窃 | 框里再认一次「偷窃」并点（ADB、PC 都实跑过）。不等画面静止：技能动画一直在动，等静止会拖到动画演完，跳过就白做了（11-28 PC 日志）。限 6 次，Entry 每卡清零。",
         "max_hit": 6,
         "recognition": "OCR",
         "roi": [
@@ -392,7 +227,6 @@
             "[偷葡][窃竊]"
         ],
         "action": "Click",
-        "post_wait_freezes": 500,
         "post_delay": 500,
         "next": [
             "Collect_Steal_Panel",
@@ -402,18 +236,12 @@
         "focus": "偷商人：确认偷窃"
     },
     "Collect_Steal_SkipAnim": {
-        "desc": "技能动画中，左键点空白处快速跳过 | 照 Arbitrage_Bargaining_SkipAm：右上天赋药图标不在就点 (130,447)。排在 Collect_Steal_Panel 之后，面板一回来就不再点。PC 无此图标，需另做（PC 覆盖包已关掉整条链）。待实机核对（计划 V2）。",
-        "recognition": "TemplateMatch",
-        "roi": [
-            963,
-            32,
-            224,
-            31
-        ],
-        "template": [
-            "Mer_Dialog_TalMed.png"
-        ],
-        "inverse": true,
+        "desc": "技能动画中，「天赋技能」面板不在就左键点一下跳过 | NotRecognition 反转 Rec_<Arbitrage_Merchant_Dialog>_Ocr，ADB 与 PC 共用这一判据（PC 覆盖只改点击位置）。排在 Collect_Steal_Panel 之后，面板一回来就不再点。点这个位置不会关掉偷窃菜单（用户确认）。NotRecognition 命中时框是空的，所以 target 写死，且「非」这一侧不写 roi。",
+        "recognition": "Custom",
+        "custom_recognition": "NotRecognition",
+        "custom_recognition_param": {
+            "node": "Rec_<Arbitrage_Merchant_Dialog>_Ocr"
+        },
         "action": "Click",
         "target": [
             130,
